@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app:*)",
+      "Bash(curl:*)",
+      "Bash(npm install:*)",
+      "Bash(npx supabase:*)",
+      "Bash(node:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_click",
+      "Bash(powershell:*)",
+      "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/card-ssr/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
