@@ -13,7 +13,7 @@ import type { ChatApplyAmendmentRequest, ChatApplyAmendmentResponse } from '@/ty
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
@@ -27,6 +27,7 @@ export async function POST(
       );
     }
 
+    const params = await context.params;
     const sessionId = params.id;
 
     // Get session and verify ownership

@@ -28,6 +28,7 @@ const INCLUDE_EXTENSIONS = ['.jsx', '.tsx', '.ts', '.js'];
 const EXCLUDE_FILES = ['package.json', 'render.js', 'node_modules'];
 
 interface TemplateInfo {
+  slug: string;
   name: string;
   sourcePath: string;
   targetPath: string;

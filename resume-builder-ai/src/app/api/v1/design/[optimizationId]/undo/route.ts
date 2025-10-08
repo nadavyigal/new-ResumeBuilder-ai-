@@ -37,7 +37,7 @@ import { getDesignCustomizationById } from '@/lib/supabase/design-customizations
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { optimizationId: string } }
+  context: { params: Promise<{ optimizationId: string }> }
 ) {
   try {
     // Authentication check
@@ -50,6 +50,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await context.params;
     const optimizationId = params.optimizationId;
 
     // Verify optimization belongs to user

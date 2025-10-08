@@ -26,7 +26,7 @@ import { renderTemplateSample } from '@/lib/design-manager/template-renderer';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authentication check
@@ -39,6 +39,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await context.params;
     const templateId = params.id;
 
     // Fetch template from database

@@ -6,8 +6,9 @@
  * Task: T018
  */
 
+import 'server-only';
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup } from 'react-dom/server.edge';
 import { loadTemplate } from './template-loader';
 
 export interface ResumeData {

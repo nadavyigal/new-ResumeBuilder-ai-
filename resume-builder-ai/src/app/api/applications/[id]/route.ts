@@ -108,7 +108,7 @@ export async function PATCH(
     } = body;
 
     // Build update object with only provided fields
-    const updates: Record<string, unknown> = {
+    const updates: Record<string, string | null> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -131,7 +131,7 @@ export async function PATCH(
     // FR-028: Update application
     const { data: application, error } = await supabase
       .from("applications")
-      .update(updates)
+      .update(updates as Record<string, string | null>)
       .eq("id", id)
       .eq("user_id", user.id)
       .select(`

@@ -16,7 +16,7 @@ import type { ChatSessionDetailResponse } from '@/types/chat';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
@@ -30,6 +30,7 @@ export async function GET(
       );
     }
 
+    const params = await context.params;
     const sessionId = params.id;
 
     // Get session
@@ -83,7 +84,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
@@ -97,6 +98,7 @@ export async function DELETE(
       );
     }
 
+    const params = await context.params;
     const sessionId = params.id;
 
     // Get session to verify ownership

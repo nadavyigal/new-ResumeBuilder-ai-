@@ -12,7 +12,7 @@ import type { ChatMessagesResponse } from '@/types/chat';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get authenticated user
@@ -26,6 +26,7 @@ export async function GET(
       );
     }
 
+    const params = await context.params;
     const sessionId = params.id;
 
     // Verify session exists and user owns it
