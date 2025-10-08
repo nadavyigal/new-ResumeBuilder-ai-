@@ -5,6 +5,7 @@
  * Runs the schema.sql file against the connected Supabase project
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');

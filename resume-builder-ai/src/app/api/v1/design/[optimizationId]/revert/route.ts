@@ -8,8 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
+
 import { revertToOriginal } from '@/lib/design-manager/undo-manager';
 import { getDesignAssignment } from '@/lib/supabase/resume-designs';
 import { getDesignTemplateById } from '@/lib/supabase/design-templates';
@@ -31,11 +31,11 @@ import { getDesignTemplateById } from '@/lib/supabase/design-templates';
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { optimizationId: string } }
+  context: { params: Promise<{ optimizationId: string }> }
 ) {
   try {
     // Authentication check
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createRouteHandlerClient();
     const {
       data: { session }
     } = await supabase.auth.getSession();
@@ -44,6 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const params = await context.params;
     const optimizationId = params.optimizationId;
 
     // Verify optimization belongs to user

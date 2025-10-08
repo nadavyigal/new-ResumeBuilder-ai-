@@ -4,6 +4,7 @@
  * Deploys and verifies the complete AI Resume Optimizer backend
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/no-unused-vars */
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
