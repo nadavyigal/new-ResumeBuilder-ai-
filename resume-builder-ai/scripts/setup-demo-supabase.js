@@ -5,6 +5,7 @@
  * Creates a working environment with demo credentials for testing
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
