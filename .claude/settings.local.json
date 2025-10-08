@@ -10,7 +10,11 @@
       "mcp__playwright__browser_fill_form",
       "mcp__playwright__browser_click",
       "Bash(powershell:*)",
-      "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/card-ssr/**)"
+      "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/card-ssr/**)",
+      "Bash(timeout 5 tail:*)",
+      "mcp__supabase__apply_migration",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

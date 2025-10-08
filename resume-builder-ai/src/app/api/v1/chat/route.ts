@@ -7,8 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
-import { createChatMessage } from '@/lib/supabase/chat-messages';
-import { getActiveSession, createChatSession } from '@/lib/supabase/chat-sessions';
+import { getActiveSession } from '@/lib/supabase/chat-sessions';
 import { processMessage } from '@/lib/chat-manager/processor';
 import { streamChatResponse } from '@/lib/chat-manager/ai-client';
 import type { ChatSendMessageRequest, ChatSendMessageResponse } from '@/types/chat';
@@ -85,21 +84,45 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Create new session
-        chatSession = await createChatSession({
-          user_id: user.id,
-          optimization_id,
-          status: 'active',
-        });
+        // Create new session using authenticated supabase client
+        const { data: newSession, error: sessionError } = await supabase
+          .from('chat_sessions')
+          .insert({
+            user_id: user.id,
+            optimization_id,
+            status: 'active',
+          })
+          .select()
+          .single();
+
+        if (sessionError) {
+          return NextResponse.json(
+            { error: `Failed to create chat session: ${sessionError.message}` },
+            { status: 500 }
+          );
+        }
+
+        chatSession = newSession;
       }
     }
 
-    // Save user message
-    const userMessage = await createChatMessage({
-      session_id: chatSession.id,
-      sender: 'user',
-      content: message,
-    });
+    // Save user message using authenticated supabase client
+    const { data: userMessage, error: userMessageError } = await supabase
+      .from('chat_messages')
+      .insert({
+        session_id: chatSession.id,
+        sender: 'user',
+        content: message,
+      })
+      .select()
+      .single();
+
+    if (userMessageError) {
+      return NextResponse.json(
+        { error: `Failed to save user message: ${userMessageError.message}` },
+        { status: 500 }
+      );
+    }
 
     // Get current resume content for processing
     const { data: optimization } = await supabase
@@ -123,18 +146,29 @@ export async function POST(request: NextRequest) {
     // TODO: Implement actual streaming with OpenAI in Phase 3.5
     const aiResponseText = processResult.aiResponse;
 
-    // Save AI message
-    const aiMessage = await createChatMessage({
-      session_id: chatSession.id,
-      sender: 'ai',
-      content: aiResponseText,
-      metadata: {
-        ai_model_version: 'gpt-4',
-        processing_time_ms: processingTime,
-        amendment_type: processResult.amendments[0]?.type,
-        section_affected: processResult.amendments[0]?.targetSection || undefined,
-      },
-    });
+    // Save AI message using authenticated supabase client
+    const { data: aiMessage, error: aiMessageError } = await supabase
+      .from('chat_messages')
+      .insert({
+        session_id: chatSession.id,
+        sender: 'ai',
+        content: aiResponseText,
+        metadata: {
+          ai_model_version: 'gpt-4',
+          processing_time_ms: processingTime,
+          amendment_type: processResult.amendments[0]?.type,
+          section_affected: processResult.amendments[0]?.targetSection || undefined,
+        },
+      })
+      .select()
+      .single();
+
+    if (aiMessageError) {
+      return NextResponse.json(
+        { error: `Failed to save AI message: ${aiMessageError.message}` },
+        { status: 500 }
+      );
+    }
 
     // Build response
     const response: ChatSendMessageResponse = {

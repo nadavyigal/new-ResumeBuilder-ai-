@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
 import {
   getDesignAssignment,
   upsertDesignAssignment
@@ -33,11 +32,11 @@ import { getDesignTemplateById } from '@/lib/supabase/design-templates';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { optimizationId: string } }
+  { params }: { params: Promise<{ optimizationId: string }> }
 ) {
   try {
     // Authentication check
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createRouteHandlerClient();
     const {
       data: { session }
     } = await supabase.auth.getSession();
@@ -46,7 +45,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const optimizationId = params.optimizationId;
+    const { optimizationId } = await params;
 
     // Verify optimization belongs to user
     const { data: optimization, error: optimizationError } = await supabase
@@ -132,11 +131,11 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { optimizationId: string } }
+  { params }: { params: Promise<{ optimizationId: string }> }
 ) {
   try {
     // Authentication check
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createRouteHandlerClient();
     const {
       data: { session }
     } = await supabase.auth.getSession();
@@ -145,7 +144,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const optimizationId = params.optimizationId;
+    const { optimizationId } = await params;
 
     // Parse request body
     const body = await request.json();

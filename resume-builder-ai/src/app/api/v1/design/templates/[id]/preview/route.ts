@@ -8,8 +8,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
+
 import { getDesignTemplateById } from '@/lib/supabase/design-templates';
 import { renderTemplateSample } from '@/lib/design-manager/template-renderer';
 
@@ -30,7 +30,7 @@ export async function GET(
 ) {
   try {
     // Authentication check
-    const supabase = createRouteHandlerClient({ cookies });
+    const supabase = await createRouteHandlerClient();
     const {
       data: { session }
     } = await supabase.auth.getSession();
