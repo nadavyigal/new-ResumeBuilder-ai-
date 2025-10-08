@@ -14,7 +14,12 @@
       "Bash(timeout 5 tail:*)",
       "mcp__supabase__apply_migration",
       "Bash(git rm:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__supabase__get_advisors",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "mcp__supabase__execute_sql"
     ],
     "deny": [],
     "ask": []
