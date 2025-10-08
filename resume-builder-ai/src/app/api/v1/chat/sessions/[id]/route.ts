@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getChatSession, deleteChatSession } from '@/lib/supabase/chat-sessions';
 import { getSessionMessages } from '@/lib/supabase/chat-messages';
 import type { ChatSessionDetailResponse } from '@/types/chat';
@@ -20,7 +20,7 @@ export async function GET(
 ) {
   try {
     // Get authenticated user
-    const supabase = createServerClient();
+    const supabase = await createRouteHandlerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -87,7 +87,7 @@ export async function DELETE(
 ) {
   try {
     // Get authenticated user
-    const supabase = createServerClient();
+    const supabase = await createRouteHandlerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {

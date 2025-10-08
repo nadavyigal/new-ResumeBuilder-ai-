@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { createChatMessage } from '@/lib/supabase/chat-messages';
 import { getActiveSession, createChatSession } from '@/lib/supabase/chat-sessions';
 import { processMessage } from '@/lib/chat-manager/processor';
@@ -16,7 +16,7 @@ import type { ChatSendMessageRequest, ChatSendMessageResponse } from '@/types/ch
 export async function POST(request: NextRequest) {
   try {
     // Get authenticated user
-    const supabase = createServerClient();
+    const supabase = await createRouteHandlerClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
