@@ -85,12 +85,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Create new session using authenticated supabase client
+        const now = new Date().toISOString();
         const { data: newSession, error: sessionError } = await supabase
           .from('chat_sessions')
           .insert({
             user_id: user.id,
             optimization_id,
             status: 'active',
+            last_activity_at: now,
           })
           .select()
           .single();
@@ -123,6 +125,12 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Update session last activity
+    await supabase
+      .from('chat_sessions')
+      .update({ last_activity_at: new Date().toISOString() })
+      .eq('id', chatSession.id);
 
     // Get current resume content for processing
     const { data: optimization } = await supabase
