@@ -43,7 +43,7 @@ export async function GET(
     const templateId = params.id;
 
     // Fetch template from database
-    const template = await getDesignTemplateById(templateId);
+    const template = await getDesignTemplateById(supabase, templateId);
 
     if (!template) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 });

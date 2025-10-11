@@ -53,16 +53,19 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
 
     // Validate category if provided
-    const validCategories = ['minimal', 'professional', 'creative', 'modern'];
+    const validCategories = ['traditional', 'modern', 'corporate', 'creative'];
     if (category && !validCategories.includes(category)) {
       return NextResponse.json(
-        { error: 'Invalid category. Must be one of: minimal, professional, creative, modern' },
+        { error: 'Invalid category. Must be one of: traditional, modern, corporate, creative' },
         { status: 400 }
       );
     }
 
     // Fetch templates from database
-    const templates = await getDesignTemplates(category || undefined);
+    const templates = await getDesignTemplates(supabase, category || undefined);
+
+    console.log('📋 Templates fetched:', templates.length, 'templates');
+    console.log('📋 First template:', templates[0] ? JSON.stringify(templates[0], null, 2) : 'none');
 
     return NextResponse.json(
       {

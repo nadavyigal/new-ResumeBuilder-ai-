@@ -104,7 +104,7 @@ export async function POST(
     }
 
     // Get template details
-    const template = await getDesignTemplateById(assignment.template_id);
+    const template = await getDesignTemplateById(supabase, assignment.template_id);
 
     if (!template) {
       return NextResponse.json(
@@ -124,9 +124,9 @@ export async function POST(
 
     // Use template defaults if no customization exists
     const currentConfig = currentCustomization || {
-      color_scheme: template.color_scheme,
-      font_family: template.font_family,
-      spacing: template.spacing,
+      color_scheme: template.default_config.color_scheme,
+      font_family: template.default_config.font_family,
+      spacing_settings: template.default_config.spacing_settings,
       custom_css: ''
     };
 

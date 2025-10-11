@@ -13,10 +13,14 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export interface ResumeDesignAssignment {
   id: string;
+  user_id: string;
   optimization_id: string;
   template_id: string;
   customization_id: string | null;
   previous_customization_id: string | null;
+  original_template_id: string;
+  is_active: boolean;
+  finalized_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,10 +71,13 @@ export async function upsertDesignAssignment(
     .from('resume_design_assignments')
     .upsert(
       {
+        user_id: userId,
         optimization_id: optimizationId,
         template_id: templateId,
+        original_template_id: templateId,
         customization_id: null, // Reset customization when changing template
-        previous_customization_id: null
+        previous_customization_id: null,
+        is_active: true
       },
       {
         onConflict: 'optimization_id'

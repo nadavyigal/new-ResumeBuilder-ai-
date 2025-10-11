@@ -6,52 +6,52 @@
  * Task: T024 (partial)
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface DesignTemplate {
   id: string;
   slug: string;
   name: string;
   description: string;
-  category: 'minimal' | 'professional' | 'creative' | 'modern';
+  category: 'traditional' | 'modern' | 'corporate' | 'creative';
   is_premium: boolean;
-  thumbnail_url: string | null;
-  preview_image_url: string | null;
-  color_scheme: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    text: string;
+  file_path: string;
+  preview_thumbnail_url: string | null;
+  ats_compatibility_score: number;
+  supported_customizations: {
+    fonts: boolean;
+    colors: boolean;
+    layout: boolean;
   };
-  font_family: {
-    heading: string;
-    body: string;
+  default_config: {
+    font_family: {
+      heading: string;
+      body: string;
+    };
+    color_scheme: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+    spacing_settings: {
+      compact: boolean;
+      lineHeight: number;
+    };
   };
-  spacing: {
-    section_gap: string;
-    line_height: string;
-  };
-  ats_score: number;
-  supports_custom_colors: boolean;
-  supports_custom_fonts: boolean;
   created_at: string;
   updated_at: string;
 }
 
 /**
  * Get all design templates, optionally filtered by category
+ * @param supabase - Authenticated Supabase client
  * @param category - Optional category filter
  * @returns Array of design templates
  */
 export async function getDesignTemplates(
+  supabase: SupabaseClient,
   category?: string
 ): Promise<DesignTemplate[]> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   let query = supabase.from('design_templates').select('*').order('name', { ascending: true });
 
   if (category) {
@@ -69,14 +69,14 @@ export async function getDesignTemplates(
 
 /**
  * Get a single design template by ID
+ * @param supabase - Authenticated Supabase client
  * @param templateId - Template UUID
  * @returns Design template or null if not found
  */
 export async function getDesignTemplateById(
+  supabase: SupabaseClient,
   templateId: string
 ): Promise<DesignTemplate | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { data, error } = await supabase
     .from('design_templates')
     .select('*')
@@ -95,14 +95,14 @@ export async function getDesignTemplateById(
 
 /**
  * Get a design template by slug
+ * @param supabase - Authenticated Supabase client
  * @param slug - Template slug (e.g., 'card-ssr')
  * @returns Design template or null if not found
  */
 export async function getDesignTemplateBySlug(
+  supabase: SupabaseClient,
   slug: string
 ): Promise<DesignTemplate | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { data, error } = await supabase
     .from('design_templates')
     .select('*')

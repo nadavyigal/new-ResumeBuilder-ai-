@@ -14,6 +14,7 @@ import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageR
 
 export function ChatSidebar({
   optimizationId,
+  onMessageSent,
 }: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'>) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -129,6 +130,11 @@ export function ChatSidebar({
       // Remove temp message and reload messages from server
       if (data.session_id) {
         await loadMessages(data.session_id);
+
+        // Trigger resume refresh in parent component
+        if (onMessageSent) {
+          onMessageSent();
+        }
       }
     } catch (err) {
       console.error('Error sending message:', err);

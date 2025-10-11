@@ -31,50 +31,68 @@ export default function OptimizationPage() {
   const params = useParams();
   const supabase = createClientComponentClient();
 
+  const fetchOptimizationData = async () => {
+    try {
+      const { id } = params;
+
+      // First get the optimization data
+      const { data: optimizationData, error: optError } = await supabase
+        .from("optimizations")
+        .select("rewrite_data, resume_id, jd_id")
+        .eq("id", id)
+        .single();
+
+      if (optError) throw optError;
+
+      // Then fetch the resume and job description separately
+      const { data: resumeData, error: resumeError } = await supabase
+        .from("resumes")
+        .select("raw_text")
+        .eq("id", optimizationData.resume_id)
+        .single();
+
+      if (resumeError) throw resumeError;
+
+      const { data: jdData, error: jdError } = await supabase
+        .from("job_descriptions")
+        .select("raw_text")
+        .eq("id", optimizationData.jd_id)
+        .single();
+
+      if (jdError) throw jdError;
+
+      setResumeText(resumeData.raw_text || "");
+      setJobDescriptionText(jdData.raw_text || "");
+      setOptimizedResume(optimizationData.rewrite_data);
+
+    } catch (error: any) {
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchOptimizationData = async () => {
-      try {
-        const { id } = params;
-
-        // First get the optimization data
-        const { data: optimizationData, error: optError } = await supabase
-          .from("optimizations")
-          .select("rewrite_data, resume_id, jd_id")
-          .eq("id", id)
-          .single();
-
-        if (optError) throw optError;
-
-        // Then fetch the resume and job description separately
-        const { data: resumeData, error: resumeError } = await supabase
-          .from("resumes")
-          .select("raw_text")
-          .eq("id", optimizationData.resume_id)
-          .single();
-
-        if (resumeError) throw resumeError;
-
-        const { data: jdData, error: jdError } = await supabase
-          .from("job_descriptions")
-          .select("raw_text")
-          .eq("id", optimizationData.jd_id)
-          .single();
-
-        if (jdError) throw jdError;
-
-        setResumeText(resumeData.raw_text || "");
-        setJobDescriptionText(jdData.raw_text || "");
-        setOptimizedResume(optimizationData.rewrite_data);
-
-      } catch (error: any) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchOptimizationData();
   }, [params, supabase]);
+
+  // Refresh resume data when chat sends a message
+  const handleChatMessageSent = async () => {
+    try {
+      const { id } = params;
+      const { data: optimizationData } = await supabase
+        .from("optimizations")
+        .select("rewrite_data")
+        .eq("id", id)
+        .single();
+
+      if (optimizationData) {
+        setOptimizedResume(optimizationData.rewrite_data);
+      }
+    } catch (error) {
+      console.error('Failed to refresh resume after chat:', error);
+    }
+  };
 
   // Fetch design assignment
   useEffect(() => {
@@ -320,7 +338,10 @@ export default function OptimizationPage() {
         <div className="print:hidden">
           {optimizedResume && (
             <div className="sticky top-4 h-[calc(100vh-120px)]">
-              <ChatSidebar optimizationId={params.id as string} />
+              <ChatSidebar
+                optimizationId={params.id as string}
+                onMessageSent={handleChatMessageSent}
+              />
             </div>
           )}
         </div>

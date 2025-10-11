@@ -4,7 +4,7 @@
  * Provides type-safe database operations for chat sessions with RLS enforcement.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { ChatSession, ChatSessionInsert, ChatSessionUpdate } from '../../types/chat';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -52,10 +52,11 @@ export async function createChatSession(
  * Get chat session by ID
  *
  * @param sessionId - Session ID to retrieve
+ * @param supabaseClient - Optional authenticated Supabase client (for server-side use with RLS)
  * @returns Session data or null if not found
  */
-export async function getChatSession(sessionId: string): Promise<ChatSession | null> {
-  const supabase = getSupabaseClient();
+export async function getChatSession(sessionId: string, supabaseClient?: SupabaseClient): Promise<ChatSession | null> {
+  const supabase = supabaseClient || getSupabaseClient();
 
   const { data, error } = await supabase
     .from('chat_sessions')

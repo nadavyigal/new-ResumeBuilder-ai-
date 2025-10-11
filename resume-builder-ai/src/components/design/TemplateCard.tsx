@@ -16,13 +16,33 @@ interface DesignTemplate {
   slug: string;
   name: string;
   description: string;
-  category: 'minimal' | 'professional' | 'creative' | 'modern';
+  category: 'traditional' | 'modern' | 'corporate' | 'creative';
   is_premium: boolean;
-  thumbnail_url: string | null;
-  preview_image_url: string | null;
-  ats_score: number;
-  supports_custom_colors: boolean;
-  supports_custom_fonts: boolean;
+  file_path: string;
+  preview_thumbnail_url: string | null;
+  ats_compatibility_score: number;
+  supported_customizations: {
+    fonts: boolean;
+    colors: boolean;
+    layout: boolean;
+  };
+  default_config: {
+    font_family: {
+      heading: string;
+      body: string;
+    };
+    color_scheme: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+    spacing_settings: {
+      compact: boolean;
+      lineHeight: number;
+    };
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 interface TemplateCardProps {
@@ -49,9 +69,9 @@ export function TemplateCard({
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'minimal':
+      case 'traditional':
         return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-      case 'professional':
+      case 'corporate':
         return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
       case 'creative':
         return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300';
@@ -76,9 +96,9 @@ export function TemplateCard({
       >
         {/* Thumbnail/Preview */}
         <div className="relative aspect-[3/4] bg-gray-100 dark:bg-gray-800 overflow-hidden">
-          {template.thumbnail_url || template.preview_image_url ? (
+          {template.preview_thumbnail_url ? (
             <img
-              src={template.thumbnail_url || template.preview_image_url || ''}
+              src={template.preview_thumbnail_url}
               alt={`${template.name} preview`}
               className="w-full h-full object-cover"
               loading="lazy"
@@ -126,14 +146,14 @@ export function TemplateCard({
             <span className="text-gray-600 dark:text-gray-400">ATS Score: </span>
             <span
               className={`font-bold ${
-                template.ats_score >= 95
+                template.ats_compatibility_score >= 95
                   ? 'text-green-600 dark:text-green-400'
-                  : template.ats_score >= 90
+                  : template.ats_compatibility_score >= 90
                     ? 'text-yellow-600 dark:text-yellow-400'
                     : 'text-red-600 dark:text-red-400'
               }`}
             >
-              {template.ats_score}
+              {template.ats_compatibility_score}
             </span>
           </div>
         </div>
@@ -159,14 +179,19 @@ export function TemplateCard({
 
           {/* Features */}
           <div className="flex flex-wrap gap-2">
-            {template.supports_custom_colors && (
+            {template.supported_customizations.colors && (
               <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded">
                 Custom Colors
               </span>
             )}
-            {template.supports_custom_fonts && (
+            {template.supported_customizations.fonts && (
               <span className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs rounded">
                 Custom Fonts
+              </span>
+            )}
+            {template.supported_customizations.layout && (
+              <span className="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs rounded">
+                Custom Layout
               </span>
             )}
           </div>
