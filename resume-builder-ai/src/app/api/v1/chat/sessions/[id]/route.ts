@@ -33,8 +33,8 @@ export async function GET(
     const params = await context.params;
     const sessionId = params.id;
 
-    // Get session
-    const session = await getChatSession(sessionId);
+    // Get session (pass authenticated client for RLS)
+    const session = await getChatSession(sessionId, supabase);
 
     if (!session) {
       return NextResponse.json(
@@ -52,7 +52,7 @@ export async function GET(
     }
 
     // Get messages for this session
-    const messages = await getSessionMessages(sessionId);
+    const messages = await getSessionMessages(sessionId, supabase);
 
     // Build response
     const response: ChatSessionDetailResponse = {

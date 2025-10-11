@@ -8,9 +8,51 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
-import { processMessage } from '@/lib/chat-manager/processor';
+import { processMessage, AmendmentRequest } from '@/lib/chat-manager/processor';
 import { streamChatResponse } from '@/lib/chat-manager/ai-client';
 import type { ChatSendMessageRequest, ChatSendMessageResponse } from '@/types/chat';
+
+/**
+ * Apply amendments to resume content
+ * TODO: This is a simplified implementation. Phase 3.5 will add proper AI-based amendment application
+ */
+function applyAmendmentsToResume(
+  currentContent: Record<string, unknown>,
+  amendments: AmendmentRequest[]
+): Record<string, unknown> {
+  const updatedContent = { ...currentContent };
+
+  for (const amendment of amendments) {
+    const section = amendment.targetSection || 'summary';
+
+    // Initialize section if it doesn't exist
+    if (!updatedContent[section]) {
+      updatedContent[section] = '';
+    }
+
+    // Apply amendment based on type
+    // This is a placeholder - real implementation would use AI to apply changes properly
+    switch (amendment.type) {
+      case 'add':
+        if (typeof updatedContent[section] === 'string') {
+          updatedContent[section] = `${updatedContent[section]} [AI Amendment: ${amendment.description}]`;
+        }
+        break;
+      case 'modify':
+        if (typeof updatedContent[section] === 'string') {
+          updatedContent[section] = `${updatedContent[section]} [Modified via AI]`;
+        }
+        break;
+      case 'remove':
+        // Placeholder for remove logic
+        break;
+      default:
+        break;
+    }
+  }
+
+  return updatedContent;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -85,14 +127,12 @@ export async function POST(request: NextRequest) {
         }
 
         // Create new session using authenticated supabase client
-        const now = new Date().toISOString();
         const { data: newSession, error: sessionError } = await supabase
           .from('chat_sessions')
           .insert({
             user_id: user.id,
             optimization_id,
             status: 'active',
-            last_activity_at: now,
           })
           .select()
           .single();
@@ -135,11 +175,11 @@ export async function POST(request: NextRequest) {
     // Get current resume content for processing
     const { data: optimization } = await supabase
       .from('optimizations')
-      .select('optimized_data')
+      .select('rewrite_data')
       .eq('id', optimization_id)
       .single();
 
-    const currentResumeContent = optimization?.optimized_data || {};
+    const currentResumeContent = optimization?.rewrite_data || {};
 
     // Process message and generate AI response
     const startTime = Date.now();
@@ -176,6 +216,32 @@ export async function POST(request: NextRequest) {
         { error: `Failed to save AI message: ${aiMessageError.message}` },
         { status: 500 }
       );
+    }
+
+    // Auto-apply amendments if AI determined they should be applied
+    if (processResult.shouldApply && processResult.amendments.length > 0) {
+      try {
+        // Apply amendments to current resume content
+        const updatedContent = applyAmendmentsToResume(
+          currentResumeContent,
+          processResult.amendments
+        );
+
+        // Update the optimization's rewrite_data in database
+        const { error: updateError } = await supabase
+          .from('optimizations')
+          .update({ rewrite_data: updatedContent })
+          .eq('id', optimization_id);
+
+        if (updateError) {
+          console.error('Failed to update optimization data:', updateError);
+        } else {
+          console.log('Successfully updated optimization data after chat amendment');
+        }
+      } catch (amendmentError) {
+        console.error('Error applying amendments:', amendmentError);
+        // Don't fail the request if amendment application fails
+      }
     }
 
     // Build response

@@ -17,13 +17,33 @@ interface DesignTemplate {
   slug: string;
   name: string;
   description: string;
-  category: 'minimal' | 'professional' | 'creative' | 'modern';
+  category: 'traditional' | 'modern' | 'corporate' | 'creative';
   is_premium: boolean;
-  thumbnail_url: string | null;
-  preview_image_url: string | null;
-  ats_score: number;
-  supports_custom_colors: boolean;
-  supports_custom_fonts: boolean;
+  file_path: string;
+  preview_thumbnail_url: string | null;
+  ats_compatibility_score: number;
+  supported_customizations: {
+    fonts: boolean;
+    colors: boolean;
+    layout: boolean;
+  };
+  default_config: {
+    font_family: {
+      heading: string;
+      body: string;
+    };
+    color_scheme: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+    spacing_settings: {
+      compact: boolean;
+      lineHeight: number;
+    };
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 interface DesignBrowserProps {
@@ -46,7 +66,7 @@ export function DesignBrowser({
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const categories = ['minimal', 'professional', 'creative', 'modern'];
+  const categories = ['traditional', 'modern', 'corporate', 'creative'];
 
   useEffect(() => {
     if (isOpen) {
@@ -71,6 +91,9 @@ export function DesignBrowser({
       }
 
       const data = await response.json();
+      console.log('🎨 Design Browser - Response data:', data);
+      console.log('🎨 Design Browser - Templates count:', data.templates?.length || 0);
+      console.log('🎨 Design Browser - First template:', data.templates?.[0]);
       setTemplates(data.templates || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load templates');

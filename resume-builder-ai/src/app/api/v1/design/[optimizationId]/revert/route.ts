@@ -86,7 +86,7 @@ export async function POST(
     }
 
     // Fetch template details
-    const template = await getDesignTemplateById(updatedAssignment.template_id);
+    const template = await getDesignTemplateById(supabase, updatedAssignment.template_id);
 
     if (!template) {
       return NextResponse.json(

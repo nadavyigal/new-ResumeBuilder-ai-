@@ -73,7 +73,7 @@ export async function GET(
     }
 
     // Fetch template details
-    const template = await getDesignTemplateById(assignment.template_id);
+    const template = await getDesignTemplateById(supabase, assignment.template_id);
 
     if (!template) {
       return NextResponse.json(
@@ -173,7 +173,7 @@ export async function PUT(
     }
 
     // Verify template exists
-    const template = await getDesignTemplateById(templateId);
+    const template = await getDesignTemplateById(supabase, templateId);
 
     if (!template) {
       return NextResponse.json(

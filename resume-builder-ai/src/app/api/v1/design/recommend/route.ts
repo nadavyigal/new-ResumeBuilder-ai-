@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const recommendation = await recommendTemplate(resumeData, jobDescriptionText);
 
     // Fetch full template details
-    const template = await getDesignTemplateBySlug(recommendation.templateId);
+    const template = await getDesignTemplateBySlug(supabase, recommendation.templateId);
 
     if (!template) {
       return NextResponse.json(
@@ -112,8 +112,8 @@ export async function POST(request: NextRequest) {
           description: template.description,
           category: template.category,
           is_premium: template.is_premium,
-          thumbnail_url: template.thumbnail_url,
-          ats_score: template.ats_score,
+          preview_thumbnail_url: template.preview_thumbnail_url,
+          ats_compatibility_score: template.ats_compatibility_score,
           reasoning: recommendation.reasoning,
           confidence: recommendation.confidence
         }

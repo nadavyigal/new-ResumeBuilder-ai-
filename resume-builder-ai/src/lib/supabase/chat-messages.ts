@@ -4,7 +4,7 @@
  * Provides type-safe database operations for chat messages with RLS enforcement.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { ChatMessage, ChatMessageInsert } from '../../types/chat';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -42,30 +42,46 @@ export async function createChatMessage(
  * Get messages for a session
  *
  * @param sessionId - Session ID
+ * @param supabaseClient - Optional authenticated Supabase client (for server-side use with RLS)
  * @param options - Pagination options
  * @returns Array of messages in chronological order
  */
 export async function getSessionMessages(
   sessionId: string,
+  supabaseClient?: SupabaseClient | {
+    limit?: number;
+    offset?: number;
+  },
   options?: {
     limit?: number;
     offset?: number;
   }
 ): Promise<ChatMessage[]> {
-  const supabase = getSupabaseClient();
+  // Handle overloaded parameters (backwards compatibility)
+  let client: SupabaseClient;
+  let paginationOptions = options;
 
-  let query = supabase
+  if (supabaseClient && 'from' in supabaseClient) {
+    // First param is SupabaseClient
+    client = supabaseClient as SupabaseClient;
+  } else {
+    // First param is options (old signature)
+    client = getSupabaseClient();
+    paginationOptions = supabaseClient as { limit?: number; offset?: number } | undefined;
+  }
+
+  let query = client
     .from('chat_messages')
     .select('*')
     .eq('session_id', sessionId)
     .order('created_at', { ascending: true });
 
-  if (options?.limit) {
-    query = query.limit(options.limit);
+  if (paginationOptions?.limit) {
+    query = query.limit(paginationOptions.limit);
   }
 
-  if (options?.offset) {
-    query = query.range(options.offset, options.offset + (options.limit || 20) - 1);
+  if (paginationOptions?.offset) {
+    query = query.range(paginationOptions.offset, paginationOptions.offset + (paginationOptions.limit || 20) - 1);
   }
 
   const { data, error } = await query;

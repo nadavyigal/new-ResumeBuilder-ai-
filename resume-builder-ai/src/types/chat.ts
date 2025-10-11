@@ -199,6 +199,7 @@ export interface ChatSidebarProps {
   optimizationId: string;
   initialOpen?: boolean;
   onClose?: () => void;
+  onMessageSent?: () => void;
 }
 
 /**
