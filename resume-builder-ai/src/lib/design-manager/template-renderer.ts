@@ -1,15 +1,14 @@
 /**
  * Template Renderer Module
- * Server-side rendering of React templates using renderToStaticMarkup
+ * Server-side rendering of React templates
  *
+ * NOTE: Using dynamic imports to work with Next.js 15 compatibility
  * Reference: research.md rendering decision
  * Task: T018
  */
 
 import 'server-only';
 import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server.edge';
-import { loadTemplate } from './template-loader';
 
 export interface ResumeData {
   personalInfo?: {
@@ -50,18 +49,19 @@ export interface ResumeData {
 
 /**
  * Renders a template to static HTML using React SSR
+ * Next.js 15 Compatible: Uses dynamic rendering instead of renderToStaticMarkup
  * @param templateId - Template slug (e.g., 'card-ssr')
  * @param resumeData - Resume data to render
  * @param customization - Optional design customization
  * @returns Complete HTML document string
  */
-export function renderTemplatePreview(
+export async function renderTemplatePreview(
   templateId: string,
   resumeData: ResumeData,
   customization?: any
-): string {
+): Promise<string> {
   try {
-    // Load template component
+    // Load template component dynamically
     const TemplateComponent = require(`../templates/external/${templateId}/Resume.jsx`).default;
 
     if (!TemplateComponent) {
@@ -72,13 +72,15 @@ export function renderTemplatePreview(
     const jsonResume = transformToJsonResume(resumeData);
 
     // Apply customizations if provided
+    // NOTE: Templates expect 'data' prop, not 'resume'
     const props = {
-      resume: jsonResume,
+      data: jsonResume,
       customization: customization || null
     };
 
-    // Render to static HTML
-    const markup = renderToStaticMarkup(React.createElement(TemplateComponent, props));
+    // Use ReactDOMServer from react-dom/server (compatible with Next.js 15)
+    const ReactDOMServer = require('react-dom/server');
+    const markup = ReactDOMServer.renderToString(React.createElement(TemplateComponent, props));
 
     // Wrap in full HTML document
     const html = `<!DOCTYPE html>
@@ -196,7 +198,7 @@ export function transformToJsonResume(resumeData: any): any {
  * @param templateId - Template slug
  * @returns HTML preview with sample data
  */
-export function renderTemplateSample(templateId: string): string {
+export async function renderTemplateSample(templateId: string): Promise<string> {
   const sampleData: ResumeData = {
     personalInfo: {
       fullName: 'John Doe',

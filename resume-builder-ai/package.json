@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "sync-templates": "tsx scripts/sync-external-templates.ts",
-    "prebuild": "npm run sync-templates",
-    "predev": "npm run sync-templates"
+    "prebuild": "npm run sync-templates"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

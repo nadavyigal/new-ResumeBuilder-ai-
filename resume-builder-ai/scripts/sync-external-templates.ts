@@ -92,6 +92,7 @@ async function syncTemplates(): Promise<void> {
 
 /**
  * Copy template files from source to target
+ * Also transforms full HTML documents to React components with customization support
  */
 async function copyTemplateFiles(
   sourcePath: string,
@@ -113,13 +114,112 @@ async function copyTemplateFiles(
     // Only copy files with allowed extensions
     const ext = path.extname(file);
     if (INCLUDE_EXTENSIONS.includes(ext)) {
-      await fs.copy(sourceFile, targetFile, { overwrite: true });
+      // Transform Resume.jsx files to add customization support
+      if (file === 'Resume.jsx') {
+        await transformAndCopyTemplate(sourceFile, targetFile, slug);
+      } else {
+        await fs.copy(sourceFile, targetFile, { overwrite: true });
+      }
       copiedFiles.push(file);
       console.log(`  📄 Copied: ${file}`);
     }
   }
 
   return copiedFiles;
+}
+
+/**
+ * Transform full HTML template to React component with customization support
+ * Removes <html>, <head>, <body> wrappers and adds customization prop
+ */
+async function transformAndCopyTemplate(
+  sourceFile: string,
+  targetFile: string,
+  slug: string
+): Promise<void> {
+  let content = await fs.readFile(sourceFile, 'utf-8');
+
+  // Check if already transformed (has customization prop)
+  if (content.includes('customization')) {
+    // Already transformed, copy as-is
+    await fs.writeFile(targetFile, content, 'utf-8');
+    return;
+  }
+
+  // Transform full HTML document to component
+  const className = `resume-${slug}`;
+
+  // Extract styles from <style> tag
+  const styleMatch = content.match(/<style>\{`([\s\S]*?)`\}<\/style>/);
+  const styles = styleMatch ? styleMatch[1] : '';
+
+  // Extract body content (everything between <body> and </body>)
+  const bodyMatch = content.match(/<body>([\s\S]*?)<\/body>/);
+  const bodyContent = bodyMatch ? bodyMatch[1].trim() : '';
+
+  // Build transformed component
+  const transformed = `
+import React from 'react';
+
+export default function Resume({ data, customization }) {
+  const b = data.basics || {};
+  const work = data.work || [];
+  const education = data.education || [];
+  const skills = data.skills || [];
+
+  // Apply customization if provided
+  const colors = customization?.color_scheme || {
+    primary: '#111827',
+    secondary: '#6b7280',
+    accent: '#3b82f6'
+  };
+
+  const fonts = customization?.font_family || {
+    headings: 'Georgia, "Times New Roman", serif',
+    body: 'Georgia, "Times New Roman", serif'
+  };
+
+  // Generate unique class name for this instance to avoid style conflicts
+  const instanceId = '${className}';
+
+  // Build CSS as a string for inline style tag (SSR-compatible)
+  const cssStyles = \`
+    .\${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
+${styles
+  .replace(/body \{/g, `.${className} {`)
+  .replace(/header \{/g, `.${className} header {`)
+  .replace(/h1 \{/g, `.${className} h1 {`)
+  .replace(/h2 \{/g, `.${className} h2 {`)
+  .replace(/\.([a-z-]+) \{/g, `.${className} .$1 {`)
+  .replace(/#000/g, '\${colors.primary}')
+  .replace(/#333/g, '\${colors.secondary}')
+  .replace(/#555/g, '\${colors.secondary}')
+  .replace(/Georgia, 'Times New Roman', serif/g, '\${fonts.body}')
+  .split('\n')
+  .map(line => '    ' + line)
+  .join('\n')}
+  \`;
+
+  return (
+    <div className={instanceId} style={{
+      fontFamily: fonts.body,
+      maxWidth: '850px',
+      margin: '0 auto',
+      padding: '60px 40px',
+      color: colors.primary,
+      background: '#fff',
+      lineHeight: '1.6'
+    }}>
+      {/* Use regular style tag instead of styled-jsx for SSR compatibility */}
+      <style dangerouslySetInnerHTML={{ __html: cssStyles }} />
+
+${bodyContent.split('\n').map(line => '      ' + line).join('\n')}
+    </div>
+  );
+}
+`;
+
+  await fs.writeFile(targetFile, transformed, 'utf-8');
 }
 
 /**

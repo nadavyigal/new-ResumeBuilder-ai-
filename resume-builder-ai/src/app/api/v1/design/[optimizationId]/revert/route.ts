@@ -37,10 +37,10 @@ export async function POST(
     // Authentication check
     const supabase = await createRouteHandlerClient();
     const {
-      data: { session }
-    } = await supabase.auth.getSession();
+      data: { user }
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -52,7 +52,7 @@ export async function POST(
       .from('optimizations')
       .select('id')
       .eq('id', optimizationId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (optimizationError || !optimization) {
@@ -63,7 +63,7 @@ export async function POST(
     }
 
     // Get design assignment
-    const assignment = await getDesignAssignment(optimizationId, session.user.id);
+    const assignment = await getDesignAssignment(supabase, optimizationId, user.id);
 
     if (!assignment) {
       return NextResponse.json(
@@ -76,7 +76,7 @@ export async function POST(
     await revertToOriginal(assignment.id);
 
     // Fetch updated assignment
-    const updatedAssignment = await getDesignAssignment(optimizationId, session.user.id);
+    const updatedAssignment = await getDesignAssignment(supabase, optimizationId, user.id);
 
     if (!updatedAssignment) {
       return NextResponse.json(

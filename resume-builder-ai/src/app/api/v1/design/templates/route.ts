@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
     // Authentication check
     const supabase = await createRouteHandlerClient();
     const {
-      data: { session }
-    } = await supabase.auth.getSession();
+      data: { user }
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

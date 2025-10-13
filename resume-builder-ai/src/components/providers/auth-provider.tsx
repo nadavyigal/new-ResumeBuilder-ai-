@@ -33,8 +33,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     const getUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user ?? null);
       setLoading(false);
     };
 

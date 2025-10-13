@@ -13,21 +13,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // FR-021 & FR-022: Check freemium quota (DISABLED FOR DEVELOPMENT)
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("plan_type, optimizations_used")
-    .eq("user_id", user.id)
-    .single();
+  // FR-021 & FR-022: Check freemium quota (DISABLED FOR NOW - Will be enabled later)
+  // const { data: profile, error: profileError } = await supabase
+  //   .from("profiles")
+  //   .select("plan_type, optimizations_used")
+  //   .eq("user_id", user.id)
+  //   .single();
 
-  if (profileError) {
-    console.error("Error fetching user profile:", profileError);
-    return NextResponse.json({ error: "Failed to fetch user profile" }, { status: 500 });
-  }
+  // if (profileError) {
+  //   console.error("Error fetching user profile:", profileError);
+  //   return NextResponse.json({ error: "Failed to fetch user profile" }, { status: 500 });
+  // }
 
-  // FR-021: Free tier users can only use 1 optimization (COMMENTED OUT FOR DEVELOPMENT)
   // if (profile.plan_type === 'free' && profile.optimizations_used >= 1) {
-  //   // FR-022: Return paywall response
   //   return NextResponse.json({
   //     error: "Free tier limit reached",
   //     code: "QUOTA_EXCEEDED",
@@ -35,7 +33,7 @@ export async function POST(req: NextRequest) {
   //     requiresUpgrade: true,
   //     currentPlan: "free",
   //     optimizationsUsed: profile.optimizations_used,
-  //   }, { status: 402 }); // 402 Payment Required
+  //   }, { status: 402 });
   // }
 
   try {
@@ -112,6 +110,20 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
+    // Validate and normalize match_score - must be a number between 0-100
+    let matchScore = 0;
+    const rawScore = optimizationResult.optimizedResume?.matchScore;
+
+    if (typeof rawScore === 'number' && !isNaN(rawScore)) {
+      matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
+    } else if (typeof rawScore === 'string') {
+      // Try to parse string to number
+      const parsed = parseFloat(rawScore);
+      if (!isNaN(parsed)) {
+        matchScore = Math.max(0, Math.min(100, Math.round(parsed)));
+      }
+    }
+
     // Save optimization results
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
@@ -120,7 +132,7 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           resume_id: resumeData.id,
           jd_id: jdData.id,
-          match_score: optimizationResult.optimizedResume?.matchScore || 0,
+          match_score: matchScore,
           gaps_data: {
             missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
             keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
@@ -142,25 +154,24 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // FR-021: Increment optimization counter for user
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ optimizations_used: profile.optimizations_used + 1 })
-      .eq("user_id", user.id);
+    // FR-021: Increment optimization counter for user (DISABLED FOR NOW)
+    // const { error: updateError } = await supabase
+    //   .from("profiles")
+    //   .update({ optimizations_used: profile.optimizations_used + 1 })
+    //   .eq("user_id", user.id);
 
-    if (updateError) {
-      console.error("Failed to update optimization counter:", updateError);
-      // Don't fail the request, just log the error
-    }
+    // if (updateError) {
+    //   console.error("Failed to update optimization counter:", updateError);
+    // }
 
-    console.log(`Optimization completed successfully. Match score: ${optimizationResult.optimizedResume?.matchScore}%`);
+    console.log(`Optimization completed successfully. Match score: ${matchScore}%`);
 
     return NextResponse.json({
       success: true,
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
       optimizationId: optimizationData.id,
-      matchScore: optimizationResult.optimizedResume?.matchScore,
+      matchScore: matchScore,
       keyImprovements: optimizationResult.optimizedResume?.keyImprovements,
       missingKeywords: optimizationResult.optimizedResume?.missingKeywords,
     });
