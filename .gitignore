@@ -46,6 +46,6 @@ AI/
 playground/
 ResumeBuilder AI/
 
-# Windows reserved device files
+# Windows reserved filenames
 nul
-NUL
+resume-builder-ai/nul

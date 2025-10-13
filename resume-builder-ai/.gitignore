@@ -40,6 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Windows reserved device files
+# Windows reserved filenames
 nul
-NUL

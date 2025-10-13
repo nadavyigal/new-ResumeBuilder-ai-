@@ -26,7 +26,8 @@ export default function Resume({ data, customization }) {
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
     
-              .resume-timeline-ssr {
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-timeline-ssr .resume-timeline-ssr {
                 font-family: 'Trebuchet MS', system-ui, sans-serif;
                 max-width: 950px;
                 margin: 0 auto;
@@ -47,7 +48,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 overflow: hidden;
               }
-              .resume-timeline-ssr header:before {
+              header:before {
                 content: '';
                 position: absolute;
                 top: -50%;
@@ -116,7 +117,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 padding-left: 50px;
               }
-              .resume-timeline-ssr .timeline:before {
+              .timeline:before {
                 content: '';
                 position: absolute;
                 left: 15px;
@@ -137,11 +138,11 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 4px 15px rgba(124, 58, 237, 0.08);
                 transition: transform 0.2s, box-shadow 0.2s;
               }
-              .resume-timeline-ssr .timeline-item:hover {
+              .timeline-item:hover {
                 transform: translateX(4px);
                 box-shadow: 0 6px 25px rgba(124, 58, 237, 0.15);
               }
-              .resume-timeline-ssr .timeline-item:before {
+              .timeline-item:before {
                 content: '';
                 position: absolute;
                 left: -36px;
@@ -154,7 +155,7 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
                 z-index: 1;
               }
-              .resume-timeline-ssr .timeline-header {
+              .timeline-.resume-timeline-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -192,7 +193,7 @@ export default function Resume({ data, customization }) {
                 list-style: none;
                 margin-top: 12px;
               }
-              .resume-timeline-ssr .highlights li {
+              .highlights li {
                 font-size: 14px;
                 color: #374151;
                 padding-left: 24px;
@@ -200,7 +201,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 line-height: 1.5;
               }
-              .resume-timeline-ssr .highlights li:before {
+              .highlights li:before {
                 content: '◆';
                 position: absolute;
                 left: 0;
@@ -217,7 +218,7 @@ export default function Resume({ data, customization }) {
                 border-radius: 10px;
                 border-left: 4px solid #7c3aed;
               }
-              .resume-timeline-ssr .edu-timeline-item:before {
+              .edu-timeline-item:before {
                 content: '';
                 position: absolute;
                 left: -36px;
@@ -229,7 +230,7 @@ export default function Resume({ data, customization }) {
                 border-radius: 50%;
                 box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
               }
-              .resume-timeline-ssr .edu-header {
+              .edu-.resume-timeline-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -271,7 +272,7 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
                 transition: transform 0.2s;
               }
-              .resume-timeline-ssr .skill-badge:hover {
+              .skill-badge:hover {
                 transform: translateY(-4px);
                 box-shadow: 0 6px 25px rgba(124, 58, 237, 0.3);
               }
@@ -289,14 +290,14 @@ export default function Resume({ data, customization }) {
               }
     
               @media print {
-                .resume-timeline-ssr {
+                .resume-timeline-ssr .resume-timeline-ssr {
                   background: #fff;
                   padding: 20px;
                 }
                 .resume-timeline-ssr header {
                   box-shadow: none;
                 }
-                .resume-timeline-ssr .timeline-item, .resume-timeline-ssr .edu-timeline-item {
+                .timeline-item, .resume-timeline-ssr .edu-timeline-item {
                   page-break-inside: avoid;
                   box-shadow: none;
                 }
@@ -305,12 +306,19 @@ export default function Resume({ data, customization }) {
   `;
 
   return (
-    <>
+    <div className={instanceId} style={{
+      fontFamily: fonts.body,
+      maxWidth: '850px',
+      margin: '0 auto',
+      padding: '60px 40px',
+      color: colors.primary,
+      background: '#fff',
+      lineHeight: '1.6'
+    }}>
       {/* Use regular style tag instead of styled-jsx for SSR compatibility */}
       <style dangerouslySetInnerHTML={{ __html: cssStyles }} />
 
-      <div className={instanceId}>
-        <header>
+      <header>
                 <h1>{b.name || 'Your Name'}</h1>
                 {b.label && <div className="title">{b.label}</div>}
                 <div className="contact">
@@ -387,17 +395,14 @@ export default function Resume({ data, customization }) {
                     {skills.map((skill, i) => (
                       <div className="skill-badge" key={i}>
                         <div className="skill-name">{skill.name || skill.category}</div>
-                        {skill.keywords && skill.keywords.length > 0 && (
-                          <div className="skill-keywords">
-                            {skill.keywords.join(' • ')}
-                          </div>
-                        )}
+                        <div className="skill-keywords">
+                          {(skill.keywords || []).join(' • ')}
+                        </div>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
-      </div>
-    </>
+    </div>
   );
 }

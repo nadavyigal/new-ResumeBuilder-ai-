@@ -32,9 +32,10 @@ This is an **AI Resume Optimizer** - a Next.js 14 application that helps users o
 3. **AI Optimization** - OpenAI analyzes resume against job description → generates optimized version
 4. **ATS Scoring** - Calculates match percentage using keywords and embeddings
 5. **Chat Resume Iteration** - Conversational AI for iterative resume improvements (Feature 002)
-6. **Design Selection** - AI-recommended templates with customization via chat (Feature 003 - NEW)
-7. **Template Rendering** - Applies optimized content to professional templates
-8. **Export** - Generate PDF/DOCX downloads with selected designs
+6. **Design Selection** - AI-recommended templates with customization via chat (Feature 003)
+7. **History View** - Browse, filter, search, and manage all previous optimizations (Feature 005 - NEW)
+8. **Template Rendering** - Applies optimized content to professional templates
+9. **Export** - Generate PDF/DOCX downloads with selected designs
 
 ### Directory Structure
 ```
@@ -51,7 +52,8 @@ src/
 ├── components/            # React components
 │   ├── auth/             # Auth-related components
 │   ├── chat/             # Chat UI components (Feature 002)
-│   ├── design/           # Design browser & customizer (Feature 003 - NEW)
+│   ├── design/           # Design browser & customizer (Feature 003)
+│   ├── history/          # History view components (Feature 005 - NEW)
 │   ├── layout/           # Layout components
 │   ├── providers/        # Context providers
 │   └── ui/               # shadcn/ui components
@@ -104,7 +106,7 @@ src/
 - `/api/v1/chat/sessions/[id]/apply` - Apply amendment to resume
 - `/api/v1/chat/sessions/[id]/preview` - Preview changes
 
-**Design endpoints (Feature 003 - NEW):**
+**Design endpoints (Feature 003):**
 - `/api/v1/design/templates` - List all design templates
 - `/api/v1/design/templates/[id]/preview` - Preview template with user data
 - `/api/v1/design/recommend` - Get AI-recommended template
@@ -112,6 +114,11 @@ src/
 - `/api/v1/design/[optimizationId]/customize` - AI design customization
 - `/api/v1/design/[optimizationId]/undo` - Undo last design change
 - `/api/v1/design/[optimizationId]/revert` - Revert to original template
+
+**History endpoints (Feature 005 - NEW):**
+- `/api/optimizations` - List optimizations with filtering, sorting, pagination
+- `/api/optimizations/bulk` - Bulk delete optimizations (max 50)
+- `/api/optimizations/export` - Bulk export optimizations to ZIP (max 20)
 
 ### Environment Setup
 Requires these environment variables:
@@ -134,7 +141,9 @@ Requires these environment variables:
 - **API Versioning** - All new endpoints under `/api/v1/` namespace
 - **Path aliases** configured (`@/*` maps to `src/*`)
 
-### Recent Changes (Feature 003 - Design Selection)
+### Recent Changes
+
+**Feature 003 - Design Selection:**
 - Added `src/lib/design-manager/` library for template selection and AI customization
 - Added `src/lib/templates/external/` for synced templates from resume-style-bank
 - Created 3 new database tables: `design_templates`, `design_customizations`, `resume_design_assignments`
@@ -142,3 +151,17 @@ Requires these environment variables:
 - Integrated AI chat for design modification requests (reuses Feature 002 chat infrastructure)
 - Template sync script: `scripts/sync-external-templates.ts` (run before build)
 - Performance targets: <5s preview rendering, <2s template switching
+
+**Feature 005 - History View (NEW):**
+- Full optimization history management at `/dashboard/history`
+- Advanced filtering: search by job title/company, date range (Last 7/30/90 days), ATS score (90%+, 80%+, 70%+)
+- Column sorting: date, company, ATS match score (ascending/descending)
+- Pagination: 20/50/100 items per page with smooth navigation
+- Bulk actions: select multiple optimizations, bulk delete (max 50), bulk export to ZIP (max 20)
+- "Apply Now" workflow: one-click PDF download + job URL opening + application tracking
+- URL state synchronization: bookmarkable filtered views
+- Performance optimizations: database indexes, React.memo, debounced search (300ms), debounced filters (500ms)
+- Error boundary with user-friendly error handling and retry
+- Components: `HistoryTable`, `OptimizationRow`, `HistorySearch`, `HistoryFilters`, `HistoryPagination`, `BulkActions`, `ErrorBoundary`
+- API routes: `GET /api/optimizations`, `DELETE /api/optimizations/bulk`, `POST /api/optimizations/export`
+- Performance targets: <2s page load for 100 optimizations, <200ms search updates, <500ms filter application

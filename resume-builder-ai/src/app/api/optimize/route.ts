@@ -59,7 +59,27 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     console.error("Error optimizing resume:", error);
-    const errorMessage = error instanceof Error ? error.message : "Something went wrong";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+
+    // Provide detailed error messages for better debugging
+    let errorMessage = "Something went wrong";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Set appropriate status codes for different error types
+      if (errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('Invalid OpenAI API key')) {
+        statusCode = 503; // Service Unavailable
+      } else if (errorMessage.includes('quota exceeded')) {
+        statusCode = 429; // Too Many Requests
+      } else if (errorMessage.includes('rate limit')) {
+        statusCode = 429; // Too Many Requests
+      }
+    }
+
+    return NextResponse.json({
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: statusCode });
   }
 }

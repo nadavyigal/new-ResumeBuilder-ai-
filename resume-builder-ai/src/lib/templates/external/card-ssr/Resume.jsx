@@ -25,26 +25,26 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    .${instanceId} {
-      font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 50px 30px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-    }
-
-
-    .${instanceId} .resume-container {
-      background: #fff;
-      border-radius: 16px;
-      padding: 40px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-
-    /* Header Card */
-    .${instanceId} header {
+    
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-card-ssr .resume-card-ssr {
+                font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 50px 30px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+              }
+    
+              .resume-card-ssr .resume-container {
+                background: #fff;
+                border-radius: 16px;
+                padding: 40px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+              }
+    
+              /* Header Card */
+              .resume-card-ssr header {
                 background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
                 color: #fff;
                 padding: 40px;
@@ -78,7 +78,7 @@ export default function Resume({ data, customization }) {
               }
     
               /* Section Cards */
-    .card-ssr section {
+              section {
                 margin-bottom: 24px;
               }
               .resume-card-ssr h2 {
@@ -116,7 +116,7 @@ export default function Resume({ data, customization }) {
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(37, 99, 235, 0.15);
               }
-              .card-ssr .job-header {
+              .job-.resume-card-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -153,7 +153,7 @@ export default function Resume({ data, customization }) {
                 list-style: none;
                 margin-top: 12px;
               }
-    .card-ssr .highlights li {
+              .highlights li {
                 font-size: 14px;
                 color: #334155;
                 padding-left: 24px;
@@ -161,7 +161,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 line-height: 1.5;
               }
-    .card-ssr .highlights li:before {
+              .highlights li:before {
                 content: '▸';
                 position: absolute;
                 left: 8px;
@@ -177,7 +177,7 @@ export default function Resume({ data, customization }) {
                 margin-bottom: 12px;
                 border-left: 4px solid #0ea5e9;
               }
-              .card-ssr .edu-header {
+              .edu-.resume-card-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -339,11 +339,9 @@ export default function Resume({ data, customization }) {
                       {skills.map((skill, i) => (
                         <div className="skill-card" key={i}>
                           <div className="skill-name">{skill.name || skill.category}</div>
-                          {skill.keywords && skill.keywords.length > 0 && (
-                            <div className="skill-keywords">
-                              {skill.keywords.join(', ')}
-                            </div>
-                          )}
+                          <div className="skill-keywords">
+                            {(skill.keywords || []).join(', ')}
+                          </div>
                         </div>
                       ))}
                     </div>
