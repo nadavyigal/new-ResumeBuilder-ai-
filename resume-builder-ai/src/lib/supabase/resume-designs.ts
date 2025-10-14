@@ -6,10 +6,7 @@
  * Task: T024 (partial)
  */
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { SupabaseClient } from '@supabase/supabase-js';
 
 export interface ResumeDesignAssignment {
   id: string;
@@ -27,16 +24,16 @@ export interface ResumeDesignAssignment {
 
 /**
  * Get design assignment for an optimization
+ * @param supabase - Authenticated Supabase client
  * @param optimizationId - Optimization UUID
  * @param userId - User ID for RLS enforcement
  * @returns Design assignment or null if not found
  */
 export async function getDesignAssignment(
+  supabase: SupabaseClient,
   optimizationId: string,
   userId: string
 ): Promise<ResumeDesignAssignment | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { data, error } = await supabase
     .from('resume_design_assignments')
     .select('*')
@@ -55,19 +52,19 @@ export async function getDesignAssignment(
 
 /**
  * Create or update design assignment for an optimization
+ * @param supabase - Authenticated Supabase client
  * @param optimizationId - Optimization UUID
  * @param templateId - Template UUID
  * @param userId - User ID for RLS enforcement
  * @returns Created/updated design assignment
  */
 export async function upsertDesignAssignment(
+  supabase: SupabaseClient,
   optimizationId: string,
   templateId: string,
   userId: string
 ): Promise<ResumeDesignAssignment> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('resume_design_assignments')
     .upsert(
       {
@@ -95,18 +92,18 @@ export async function upsertDesignAssignment(
 
 /**
  * Update customization for a design assignment
+ * @param supabase - Authenticated Supabase client
  * @param assignmentId - Assignment UUID
  * @param customizationId - New customization UUID
  * @param previousCustomizationId - Previous customization UUID (for undo)
  * @returns Updated assignment
  */
 export async function updateDesignCustomization(
+  supabase: SupabaseClient,
   assignmentId: string,
   customizationId: string,
   previousCustomizationId: string | null
 ): Promise<ResumeDesignAssignment> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { data, error } = await supabase
     .from('resume_design_assignments')
     .update({
@@ -126,15 +123,15 @@ export async function updateDesignCustomization(
 
 /**
  * Delete design assignment for an optimization
+ * @param supabase - Authenticated Supabase client
  * @param optimizationId - Optimization UUID
  * @param userId - User ID for RLS enforcement
  */
 export async function deleteDesignAssignment(
+  supabase: SupabaseClient,
   optimizationId: string,
   userId: string
 ): Promise<void> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { error } = await supabase
     .from('resume_design_assignments')
     .delete()

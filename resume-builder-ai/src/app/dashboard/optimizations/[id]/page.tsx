@@ -5,11 +5,10 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
-import { ATSResumeTemplate } from "@/components/templates/ats-resume-template";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
-import { DesignCustomizer } from "@/components/design/DesignCustomizer";
+import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
 
 // Disable static generation for this dynamic page
@@ -21,10 +20,10 @@ export default function OptimizationPage() {
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
 
   // Design feature state
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
-  const [showDesignCustomizer, setShowDesignCustomizer] = useState(false);
   const [currentDesignAssignment, setCurrentDesignAssignment] = useState<any>(null);
   const [designLoading, setDesignLoading] = useState(false);
 
@@ -76,21 +75,53 @@ export default function OptimizationPage() {
     fetchOptimizationData();
   }, [params, supabase]);
 
-  // Refresh resume data when chat sends a message
+  // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
     try {
       const { id } = params;
-      const { data: optimizationData } = await supabase
+
+      // Add a small delay to ensure database has been updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Refresh resume content with force update
+      const { data: optimizationData, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data")
         .eq("id", id)
         .single();
 
-      if (optimizationData) {
-        setOptimizedResume(optimizationData.rewrite_data);
+      if (optError) {
+        console.error('Error fetching optimization data:', optError);
+      } else if (optimizationData) {
+        console.log('✅ Refreshed resume data after chat message');
+        // Deep clone to ensure React detects the change
+        setOptimizedResume(JSON.parse(JSON.stringify(optimizationData.rewrite_data)));
+        // Force component re-render
+        setRefreshKey(prev => prev + 1);
+      }
+
+      // Refresh design assignment (in case of design customization)
+      const response = await fetch(`/api/v1/design/${id}`, {
+        cache: 'no-store', // Ensure fresh data
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Refreshed design assignment after chat message');
+        // Deep clone to ensure React detects the change
+        setCurrentDesignAssignment(data.assignment ? JSON.parse(JSON.stringify(data.assignment)) : null);
+        // Force component re-render
+        setRefreshKey(prev => prev + 1);
+      } else if (response.status !== 404) {
+        // 404 is okay (no design assigned yet)
+        console.error('Error fetching design assignment:', response.statusText);
       }
     } catch (error) {
-      console.error('Failed to refresh resume after chat:', error);
+      console.error('Failed to refresh after chat:', error);
     }
   };
 
@@ -281,11 +312,6 @@ export default function OptimizationPage() {
           <Button onClick={() => setShowDesignBrowser(true)} variant="outline">
             🎨 Change Design
           </Button>
-          {currentDesignAssignment && (
-            <Button onClick={() => setShowDesignCustomizer(true)}>
-              ✨ Customize with AI
-            </Button>
-          )}
         </div>
       </div>
 
@@ -328,9 +354,13 @@ export default function OptimizationPage() {
       {/* Main Layout: Resume on Left, Chat on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Left Column: Optimized Resume (2/3 width) */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2" key={refreshKey}>
           {optimizedResume && (
-            <ATSResumeTemplate data={optimizedResume} />
+            <DesignRenderer
+              resumeData={optimizedResume}
+              templateSlug={currentDesignAssignment?.template?.slug}
+              customization={currentDesignAssignment?.customization}
+            />
           )}
         </div>
 
@@ -378,14 +408,6 @@ export default function OptimizationPage() {
         currentTemplateId={currentDesignAssignment?.template?.id}
         optimizationId={params.id as string}
         onTemplateSelect={handleTemplateSelect}
-      />
-
-      {/* Design Customizer Modal */}
-      <DesignCustomizer
-        isOpen={showDesignCustomizer}
-        onClose={() => setShowDesignCustomizer(false)}
-        optimizationId={params.id as string}
-        onCustomizationApplied={handleDesignUpdate}
       />
     </div>
   );

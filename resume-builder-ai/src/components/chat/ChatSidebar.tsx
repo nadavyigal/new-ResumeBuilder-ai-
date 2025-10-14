@@ -174,10 +174,10 @@ export function ChatSidebar({
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <span className="text-2xl">🤖</span>
-            AI Resume Assistant
+            AI Assistant
           </h2>
           <p className="text-xs text-blue-100 mt-0.5">
-            Ask me to refine or improve your resume
+            Refine content or customize design
           </p>
         </div>
         {sessionId && (
@@ -285,7 +285,7 @@ export function ChatSidebar({
                 Start a conversation with AI
               </p>
               <p className="text-xs text-gray-500">
-                Ask me to refine your resume, add skills, or adjust formatting.
+                Ask me to refine content, add skills, or change colors and fonts.
               </p>
             </div>
           </div>
@@ -309,7 +309,7 @@ export function ChatSidebar({
           sessionId={sessionId || ''}
           onSend={handleSendMessage}
           disabled={isLoading}
-          placeholder="Ask me to refine your resume..."
+          placeholder="e.g., 'Add Python to skills' or 'Make headers blue'..."
         />
       </div>
     </div>

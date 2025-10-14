@@ -19,7 +19,11 @@
       "mcp__supabase__get_advisors",
       "Bash(npx tsc:*)",
       "Bash(npm run build:*)",
-      "mcp__supabase__execute_sql"
+      "mcp__supabase__execute_sql",
+      "Bash(test:*)",
+      "Read(//c/Users/nadav/OneDrive/תמונות/**)",
+      "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/minimal-ssr/**)",
+      "Bash(npm run sync-templates:*)"
     ],
     "deny": [],
     "ask": []

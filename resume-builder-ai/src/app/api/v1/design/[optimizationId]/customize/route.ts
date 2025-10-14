@@ -50,10 +50,10 @@ export async function POST(
     // Authentication check
     const supabase = await createRouteHandlerClient();
     const {
-      data: { session }
-    } = await supabase.auth.getSession();
+      data: { user }
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -81,7 +81,7 @@ export async function POST(
       `
       )
       .eq('id', optimizationId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (optimizationError || !optimization) {
@@ -94,7 +94,7 @@ export async function POST(
     const resumeData = (optimization as any).resumes?.parsed_data || {};
 
     // Get design assignment
-    const assignment = await getDesignAssignment(optimizationId, session.user.id);
+    const assignment = await getDesignAssignment(supabase, optimizationId, user.id);
 
     if (!assignment) {
       return NextResponse.json(
@@ -118,7 +118,7 @@ export async function POST(
     if (assignment.customization_id) {
       currentCustomization = await getDesignCustomizationById(
         assignment.customization_id,
-        session.user.id
+        user.id
       );
     }
 
@@ -157,7 +157,7 @@ export async function POST(
     }
 
     // Create new customization record
-    const newCustomization = await createDesignCustomization(session.user.id, {
+    const newCustomization = await createDesignCustomization(user.id, {
       color_scheme: result.customization.color_scheme,
       font_family: result.customization.font_family,
       spacing: result.customization.spacing,
@@ -167,6 +167,7 @@ export async function POST(
 
     // Update assignment with new customization (save previous for undo)
     await updateDesignCustomization(
+      supabase,
       assignment.id,
       newCustomization.id,
       assignment.customization_id // Save current as previous for undo

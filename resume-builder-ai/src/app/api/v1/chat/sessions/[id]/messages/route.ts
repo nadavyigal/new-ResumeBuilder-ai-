@@ -32,14 +32,14 @@ export async function GET(
     // Verify session exists and user owns it
     const session = await getChatSession(sessionId);
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json(
         { error: 'Session not found.' },
         { status: 404 }
       );
     }
 
-    if (session.user_id !== user.id) {
+    if (user_id !== user.id) {
       return NextResponse.json(
         { error: 'Access denied. You do not own this session.' },
         { status: 403 }

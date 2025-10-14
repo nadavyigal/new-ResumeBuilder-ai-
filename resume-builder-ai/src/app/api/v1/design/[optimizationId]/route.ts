@@ -38,10 +38,10 @@ export async function GET(
     // Authentication check
     const supabase = await createRouteHandlerClient();
     const {
-      data: { session }
-    } = await supabase.auth.getSession();
+      data: { user }
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -52,7 +52,7 @@ export async function GET(
       .from('optimizations')
       .select('id')
       .eq('id', optimizationId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (optimizationError || !optimization) {
@@ -63,7 +63,7 @@ export async function GET(
     }
 
     // Get design assignment
-    const assignment = await getDesignAssignment(optimizationId, session.user.id);
+    const assignment = await getDesignAssignment(supabase, optimizationId, user.id);
 
     if (!assignment) {
       return NextResponse.json(
@@ -137,10 +137,10 @@ export async function PUT(
     // Authentication check
     const supabase = await createRouteHandlerClient();
     const {
-      data: { session }
-    } = await supabase.auth.getSession();
+      data: { user }
+    } = await supabase.auth.getUser();
 
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -162,7 +162,7 @@ export async function PUT(
       .from('optimizations')
       .select('id')
       .eq('id', optimizationId)
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single();
 
     if (optimizationError || !optimization) {
@@ -190,13 +190,14 @@ export async function PUT(
 
     // Upsert design assignment (creates if doesn't exist, updates if exists)
     const assignment = await upsertDesignAssignment(
+      supabase,
       optimizationId,
       templateId,
-      session.user.id
+      user.id
     );
 
     // Fetch full assignment details for response
-    const updatedAssignment = await getDesignAssignment(optimizationId, session.user.id);
+    const updatedAssignment = await getDesignAssignment(supabase, optimizationId, user.id);
 
     if (!updatedAssignment) {
       return NextResponse.json(

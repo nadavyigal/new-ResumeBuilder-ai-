@@ -8,46 +8,107 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
-import { processMessage, AmendmentRequest } from '@/lib/chat-manager/processor';
-import { streamChatResponse } from '@/lib/chat-manager/ai-client';
+import { processUnifiedMessage } from '@/lib/chat-manager/unified-processor';
 import type { ChatSendMessageRequest, ChatSendMessageResponse } from '@/types/chat';
+import {
+  getDesignAssignment,
+  updateDesignCustomization
+} from '@/lib/supabase/resume-designs';
+import {
+  createDesignCustomization,
+  getDesignCustomizationById
+} from '@/lib/supabase/design-customizations';
+import { AmendmentRequest } from '@/lib/chat-manager/processor';
 
 /**
  * Apply amendments to resume content
- * TODO: This is a simplified implementation. Phase 3.5 will add proper AI-based amendment application
+ * Intelligently modifies resume structure based on amendment requests
  */
 function applyAmendmentsToResume(
   currentContent: Record<string, unknown>,
   amendments: AmendmentRequest[]
 ): Record<string, unknown> {
-  const updatedContent = { ...currentContent };
+  const updatedContent = JSON.parse(JSON.stringify(currentContent)); // Deep clone
 
   for (const amendment of amendments) {
     const section = amendment.targetSection || 'summary';
+    const description = amendment.description.toLowerCase();
 
-    // Initialize section if it doesn't exist
-    if (!updatedContent[section]) {
-      updatedContent[section] = '';
-    }
+    try {
+      switch (amendment.type) {
+        case 'add':
+          if (section === 'skills') {
+            // Extract skill names from the description
+            const skillMatches = amendment.description.match(/(?:add|include)\s+([^,.]+?)(?:\s+(?:to|in)\s+skills?)?/i);
+            if (skillMatches && skillMatches[1]) {
+              const newSkill = skillMatches[1].trim();
 
-    // Apply amendment based on type
-    // This is a placeholder - real implementation would use AI to apply changes properly
-    switch (amendment.type) {
-      case 'add':
-        if (typeof updatedContent[section] === 'string') {
-          updatedContent[section] = `${updatedContent[section]} [AI Amendment: ${amendment.description}]`;
-        }
-        break;
-      case 'modify':
-        if (typeof updatedContent[section] === 'string') {
-          updatedContent[section] = `${updatedContent[section]} [Modified via AI]`;
-        }
-        break;
-      case 'remove':
-        // Placeholder for remove logic
-        break;
-      default:
-        break;
+              // Initialize skills structure if it doesn't exist
+              if (!updatedContent.skills) {
+                updatedContent.skills = { technical: [], soft: [] };
+              }
+
+              const skills = updatedContent.skills as { technical: string[], soft: string[] };
+
+              // Determine if it's a technical or soft skill (simple heuristic)
+              const technicalKeywords = ['python', 'javascript', 'java', 'react', 'node', 'sql', 'aws', 'docker', 'git', 'api', 'css', 'html', 'typescript'];
+              const isTechnical = technicalKeywords.some(keyword => newSkill.toLowerCase().includes(keyword));
+
+              if (isTechnical) {
+                if (!skills.technical.includes(newSkill)) {
+                  skills.technical.push(newSkill);
+                }
+              } else {
+                if (!skills.soft.includes(newSkill)) {
+                  skills.soft.push(newSkill);
+                }
+              }
+            }
+          } else if (section === 'summary') {
+            // Append to summary
+            if (typeof updatedContent[section] === 'string') {
+              const addition = amendment.description.replace(/^add\s+/i, '').trim();
+              updatedContent[section] = `${updatedContent[section]} ${addition}`.trim();
+            }
+          } else if (section === 'experience' && Array.isArray(updatedContent[section])) {
+            // Add achievement to most recent experience
+            const experiences = updatedContent[section] as any[];
+            if (experiences.length > 0 && experiences[0].achievements) {
+              const achievement = amendment.description.replace(/^add\s+/i, '').trim();
+              experiences[0].achievements.push(achievement);
+            }
+          }
+          break;
+
+        case 'modify':
+          if (section === 'summary' && typeof updatedContent[section] === 'string') {
+            // For now, just note the modification request
+            // A full implementation would use AI to rewrite the section
+            const modification = amendment.description.replace(/^(?:modify|change|update)\s+/i, '').trim();
+            updatedContent[section] = modification || updatedContent[section];
+          }
+          break;
+
+        case 'remove':
+          if (section === 'skills') {
+            const skillToRemove = amendment.description.match(/remove\s+([^,.]+)/i)?.[1]?.trim();
+            if (skillToRemove && updatedContent.skills) {
+              const skills = updatedContent.skills as { technical: string[], soft: string[] };
+              skills.technical = skills.technical.filter(s => !s.toLowerCase().includes(skillToRemove.toLowerCase()));
+              skills.soft = skills.soft.filter(s => !s.toLowerCase().includes(skillToRemove.toLowerCase()));
+            }
+          } else if (section === 'experience' && Array.isArray(updatedContent[section])) {
+            // Remove specific achievement or experience entry
+            // This is simplified - would need better parsing
+          }
+          break;
+
+        default:
+          break;
+      }
+    } catch (error) {
+      console.error(`Error applying amendment to ${section}:`, error);
+      // Continue with other amendments even if one fails
     }
   }
 
@@ -172,26 +233,44 @@ export async function POST(request: NextRequest) {
       .update({ last_activity_at: new Date().toISOString() })
       .eq('id', chatSession.id);
 
-    // Get current resume content for processing
+    // Get current resume content and design configuration for processing
     const { data: optimization } = await supabase
       .from('optimizations')
-      .select('rewrite_data')
+      .select('rewrite_data, resume_id')
       .eq('id', optimization_id)
       .single();
 
     const currentResumeContent = optimization?.rewrite_data || {};
 
-    // Process message and generate AI response
+    // Get design assignment and customization if exists
+    const designAssignment = await getDesignAssignment(supabase, optimization_id, user.id);
+
+    let currentDesignConfig = null;
+    let currentTemplateId = null;
+
+    if (designAssignment) {
+      currentTemplateId = designAssignment.template_id;
+
+      if (designAssignment.customization_id) {
+        currentDesignConfig = await getDesignCustomizationById(
+          designAssignment.customization_id,
+          user.id
+        );
+      }
+    }
+
+    // Process message through unified processor
     const startTime = Date.now();
-    const processResult = await processMessage({
+    const processResult = await processUnifiedMessage({
       message,
       sessionId: chatSession.id,
+      optimizationId: optimization_id,
       currentResumeContent,
+      currentDesignConfig,
+      currentTemplateId
     });
     const processingTime = Date.now() - startTime;
 
-    // Generate streaming AI response (for now, use the processor response)
-    // TODO: Implement actual streaming with OpenAI in Phase 3.5
     const aiResponseText = processResult.aiResponse;
 
     // Save AI message using authenticated supabase client
@@ -204,8 +283,9 @@ export async function POST(request: NextRequest) {
         metadata: {
           ai_model_version: 'gpt-4',
           processing_time_ms: processingTime,
-          amendment_type: processResult.amendments[0]?.type,
-          section_affected: processResult.amendments[0]?.targetSection || undefined,
+          intent: processResult.intent,
+          amendment_type: processResult.contentAmendments?.[0]?.type,
+          section_affected: processResult.contentAmendments?.[0]?.targetSection || undefined,
         },
       })
       .select()
@@ -218,29 +298,56 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Auto-apply amendments if AI determined they should be applied
-    if (processResult.shouldApply && processResult.amendments.length > 0) {
+    // Apply changes based on intent
+    if (processResult.shouldApply) {
       try {
-        // Apply amendments to current resume content
-        const updatedContent = applyAmendmentsToResume(
-          currentResumeContent,
-          processResult.amendments
-        );
+        // Handle content amendments
+        if (processResult.intent === 'content' && processResult.contentAmendments && processResult.contentAmendments.length > 0) {
+          // Apply amendments to current resume content
+          const updatedContent = applyAmendmentsToResume(
+            currentResumeContent,
+            processResult.contentAmendments
+          );
 
-        // Update the optimization's rewrite_data in database
-        const { error: updateError } = await supabase
-          .from('optimizations')
-          .update({ rewrite_data: updatedContent })
-          .eq('id', optimization_id);
+          // Update the optimization's rewrite_data in database
+          const { error: updateError } = await supabase
+            .from('optimizations')
+            .update({ rewrite_data: updatedContent })
+            .eq('id', optimization_id);
 
-        if (updateError) {
-          console.error('Failed to update optimization data:', updateError);
-        } else {
-          console.log('Successfully updated optimization data after chat amendment');
+          if (updateError) {
+            console.error('Failed to update optimization data:', updateError);
+          } else {
+            console.log('Successfully updated optimization data after chat amendment');
+          }
         }
-      } catch (amendmentError) {
-        console.error('Error applying amendments:', amendmentError);
-        // Don't fail the request if amendment application fails
+
+        // Handle design customization
+        if (processResult.intent === 'design' && processResult.designCustomization) {
+          // Create new customization record
+          const newCustomization = await createDesignCustomization(user.id, {
+            color_scheme: processResult.designCustomization.color_scheme,
+            font_family: processResult.designCustomization.font_family,
+            spacing: processResult.designCustomization.spacing,
+            custom_css: processResult.designCustomization.custom_css,
+            is_ats_safe: processResult.designCustomization.is_ats_safe
+          });
+
+          // Update assignment with new customization (save previous for undo)
+          if (designAssignment) {
+            await updateDesignCustomization(
+              supabase,
+              designAssignment.id,
+              newCustomization.id,
+              designAssignment.customization_id // Save current as previous for undo
+            );
+          }
+
+          console.log('Successfully applied design customization via chat');
+        }
+      } catch (error) {
+        console.error('Error applying changes:', error);
+        // Don't fail the request if application fails
       }
     }
 
@@ -249,7 +356,7 @@ export async function POST(request: NextRequest) {
       session_id: chatSession.id,
       message_id: aiMessage.id,
       ai_response: aiResponseText,
-      requires_clarification: !processResult.shouldApply,
+      requires_clarification: processResult.requiresClarification,
     };
 
     // Return response

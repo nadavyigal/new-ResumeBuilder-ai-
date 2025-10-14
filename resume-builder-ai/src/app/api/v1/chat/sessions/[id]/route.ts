@@ -102,7 +102,7 @@ export async function DELETE(
     const sessionId = params.id;
 
     // Get session to verify ownership
-    const session = await getChatSession(sessionId);
+    const session = await getChatSession(sessionId, supabase);
 
     if (!session) {
       return NextResponse.json(
