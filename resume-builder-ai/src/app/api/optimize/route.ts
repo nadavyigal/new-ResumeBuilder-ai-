@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
           match_score: 0.85, // Placeholder - will be calculated by AI later
           gaps_data: {}, // Will be populated with gap analysis
           rewrite_data: optimizedResume,
-          template_key: "ats-safe", // Default template
+          template_key: null, // No design by default - user chooses explicitly
           status: "completed",
         },
       ])

@@ -142,12 +142,12 @@ Web application structure (Next.js App Router):
 **Purpose**: Performance optimization, error handling, and final polish
 
 - [x] **T043** [P] Add error boundary to history page: Create ErrorBoundary component wrapping HistoryTable, show user-friendly error message with retry button, log errors to console/monitoring service
-- [ ] **T044** [P] Add rate limiting to API endpoints: Implement rate limiting middleware (60 req/min per user), return 429 status with `X-RateLimit-Remaining` header, show rate limit error toast in UI
+- [x] **T044** [P] Add rate limiting to API endpoints: Implement rate limiting middleware (60 req/min per user), return 429 status with `X-RateLimit-Remaining` header, show rate limit error toast in UI
 - [x] **T045** [P] Performance optimization - Database indexes: Apply indexes migration to staging/production, verify query performance <2s for 100 optimizations, monitor slow query logs
 - [x] **T046** [P] Performance optimization - Frontend: Verify search debounce (300ms), verify filter debounce (500ms), add React.memo to OptimizationRow component, optimize re-renders with useMemo/useCallback
 - [x] **T047** [P] Accessibility improvements: Add ARIA labels to interactive elements, ensure keyboard navigation works (Tab, Enter, Esc), test with screen reader, add focus indicators, ensure color contrast meets WCAG AA
-- [ ] **T048** [P] Mobile responsive design: Test table on mobile (< 768px), implement horizontal scroll for table on small screens, optimize filter UI for mobile (collapsible panel), test touch interactions for checkboxes/buttons
-- [ ] **T049** Verify quickstart.md instructions: Follow 30-minute quickstart guide from scratch, verify all file paths correct, verify commands work, update quickstart if any issues found
+- [x] **T048** [P] Mobile responsive design: Test table on mobile (< 768px), implement horizontal scroll for table on small screens, optimize filter UI for mobile (collapsible panel), test touch interactions for checkboxes/buttons
+- [x] **T049** Verify quickstart.md instructions: Follow 30-minute quickstart guide from scratch, verify all file paths correct, verify commands work, update quickstart if any issues found
 - [x] **T050** [P] Documentation updates: Update CLAUDE.md with history feature description, add inline code comments for complex logic, document API endpoint in OpenAPI/Swagger format (optional)
 
 ---

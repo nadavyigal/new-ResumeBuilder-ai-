@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
@@ -26,6 +27,10 @@ export default function OptimizationPage() {
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
   const [currentDesignAssignment, setCurrentDesignAssignment] = useState<any>(null);
   const [designLoading, setDesignLoading] = useState(false);
+
+  // Job description data for Apply functionality
+  const [jobDescription, setJobDescription] = useState<any>(null);
+  const [applying, setApplying] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -62,6 +67,7 @@ export default function OptimizationPage() {
 
       setResumeText(resumeData.raw_text || "");
       setJobDescriptionText(jdData.raw_text || "");
+      setJobDescription(jdData); // Store full job description for Apply button
       setOptimizedResume(optimizationData.rewrite_data);
 
     } catch (error: any) {
@@ -80,8 +86,10 @@ export default function OptimizationPage() {
     try {
       const { id } = params;
 
-      // Add a small delay to ensure database has been updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔄 Chat message sent, refreshing resume data...');
+
+      // Add delay to ensure database has been updated (increased to 2s for reliability)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Refresh resume content with force update
       const { data: optimizationData, error: optError } = await supabase
@@ -91,13 +99,23 @@ export default function OptimizationPage() {
         .single();
 
       if (optError) {
-        console.error('Error fetching optimization data:', optError);
+        console.error('❌ Error fetching optimization data:', optError);
       } else if (optimizationData) {
         console.log('✅ Refreshed resume data after chat message');
-        // Deep clone to ensure React detects the change
-        setOptimizedResume(JSON.parse(JSON.stringify(optimizationData.rewrite_data)));
+        console.log('📊 Resume sections:', Object.keys(optimizationData.rewrite_data));
+
+        // Log sample of data to verify changes
+        if (optimizationData.rewrite_data.skills) {
+          console.log('🔧 Current skills:', optimizationData.rewrite_data.skills);
+        }
+
+        // Force a complete re-render by creating new object reference
+        const newData = JSON.parse(JSON.stringify(optimizationData.rewrite_data));
+        setOptimizedResume(newData);
         // Force component re-render
         setRefreshKey(prev => prev + 1);
+      } else {
+        console.error('❌ No optimization data returned after refresh');
       }
 
       // Refresh design assignment (in case of design customization)
@@ -287,10 +305,88 @@ export default function OptimizationPage() {
     return text;
   };
 
+  const handleApply = async () => {
+    if (!jobDescription) {
+      alert('No job description found');
+      return;
+    }
+
+    setApplying(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to apply');
+        setApplying(false);
+        return;
+      }
+
+      // Create application record in database
+      const { error: appError } = await supabase
+        .from('applications')
+        .insert({
+          user_id: user.id,
+          optimization_id: params.id,
+          status: 'applied',
+          applied_date: new Date().toISOString(),
+          job_title: jobDescription.title,
+          company: jobDescription.company,
+          job_url: jobDescription.source_url,
+        });
+
+      if (appError) {
+        console.error('Failed to create application record:', appError);
+        alert('Failed to save application. The applications table may not exist yet. Please check the migration.');
+        setApplying(false);
+        return;
+      }
+
+      // Download PDF
+      const downloadLink = document.createElement('a');
+      downloadLink.href = `/api/download/${params.id}?fmt=pdf`;
+      downloadLink.download = `resume-${jobDescription.company}-${jobDescription.title}.pdf`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      // Small delay to ensure download starts
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Open job URL if available
+      if (jobDescription.source_url) {
+        window.open(jobDescription.source_url, '_blank');
+      }
+
+      // Redirect to history page after a short delay
+      setTimeout(() => {
+        window.location.href = '/dashboard/history';
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error in handleApply:', error);
+      alert('Failed to process application. Please try again.');
+      setApplying(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+      {/* Page Header with Navigation */}
+      <div className="mb-4 flex justify-between items-center print:hidden">
+        <Link href="/dashboard/history" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+          ← Back to History
+        </Link>
+        <div className="text-sm text-muted-foreground">
+          {jobDescription?.title && `${jobDescription.title} at ${jobDescription.company}`}
+        </div>
+      </div>
+
       {/* Action Buttons */}
       <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
+        {/* Apply Button - Primary Action */}
+        <Button onClick={handleApply} disabled={applying} className="bg-green-600 hover:bg-green-700">
+          {applying ? '⏳ Applying...' : '✓ Apply Now'}
+        </Button>
+
         {/* Export Actions */}
         <div className="flex gap-3">
           <Button onClick={handleCopyText} variant="outline">
@@ -328,28 +424,31 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Current Design Info */}
-      {currentDesignAssignment && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg print:hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Current Design: {currentDesignAssignment.template?.name || 'Default'}
+      {/* Current Design Info - Always show */}
+      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg print:hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              Current Design: {currentDesignAssignment?.template?.name || 'Natural (No Design)'}
+            </p>
+            {currentDesignAssignment?.customization && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Customized • ATS Score: {currentDesignAssignment.template?.ats_score || 'N/A'}
               </p>
-              {currentDesignAssignment.customization && (
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  Customized • ATS Score: {currentDesignAssignment.template?.ats_score || 'N/A'}
-                </p>
-              )}
-            </div>
-            {currentDesignAssignment.template?.category && (
-              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium capitalize">
-                {currentDesignAssignment.template.category}
-              </span>
+            )}
+            {!currentDesignAssignment && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Plain resume format • Click "Change Design" to apply a template
+              </p>
             )}
           </div>
+          {currentDesignAssignment?.template?.category && (
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium capitalize">
+              {currentDesignAssignment.template.category}
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Main Layout: Resume on Left, Chat on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">

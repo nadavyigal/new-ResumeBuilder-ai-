@@ -69,27 +69,10 @@ export async function GET(req: NextRequest) {
     // Calculate pagination offset
     const offset = (page - 1) * limit;
 
-    // Build base query with joins
+    // Build base query - fetch base data first
     let query = supabase
       .from('optimizations')
-      .select(`
-        id,
-        created_at,
-        match_score,
-        status,
-        template_key,
-        job_descriptions!jd_id (
-          id,
-          title,
-          company,
-          source_url
-        ),
-        applications (
-          id,
-          status,
-          applied_date
-        )
-      `, { count: 'exact' })
+      .select('*', { count: 'exact' })
       .eq('user_id', user.id);
 
     // Apply date range filters (server-side)
@@ -128,11 +111,58 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    if (!data || data.length === 0) {
+      return NextResponse.json({
+        success: true,
+        optimizations: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          hasMore: false,
+          totalPages: 0,
+        },
+      }, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'private, max-age=300',
+        },
+      });
+    }
+
+    // Fetch related data separately to avoid 406 errors
+    const optimizationIds = data.map(opt => opt.id);
+    const jdIds = data.map(opt => opt.jd_id).filter(Boolean);
+
+    // Fetch job descriptions
+    const { data: jobDescriptions } = await supabase
+      .from('job_descriptions')
+      .select('id, title, company, source_url')
+      .in('id', jdIds);
+
+    const jdMap = new Map(
+      (jobDescriptions || []).map(jd => [jd.id, jd])
+    );
+
+    // Fetch applications (may not exist yet)
+    let applicationsMap = new Map();
+    try {
+      const { data: applications } = await supabase
+        .from('applications')
+        .select('id, optimization_id, status, applied_date')
+        .in('optimization_id', optimizationIds);
+
+      applicationsMap = new Map(
+        (applications || []).map(app => [app.optimization_id, app])
+      );
+    } catch (err) {
+      console.warn('Applications table may not exist yet:', err);
+    }
+
     // Transform data to match API contract
-    const optimizations: OptimizationHistoryEntry[] = (data || []).map(opt => {
-      const jd = opt.job_descriptions as any;
-      const apps = opt.applications as any[];
-      const app = apps && apps.length > 0 ? apps[0] : null;
+    const optimizations: OptimizationHistoryEntry[] = data.map(opt => {
+      const jd = jdMap.get(opt.jd_id);
+      const app = applicationsMap.get(opt.id);
 
       return {
         id: opt.id,
@@ -143,7 +173,7 @@ export async function GET(req: NextRequest) {
         status: opt.status,
         jobUrl: jd?.source_url || null,
         templateKey: opt.template_key,
-        hasApplication: app !== null,
+        hasApplication: app !== undefined,
         applicationStatus: app?.status || undefined,
         applicationDate: app?.applied_date || undefined,
         applicationId: app?.id || undefined,

@@ -303,11 +303,16 @@ export async function POST(request: NextRequest) {
       try {
         // Handle content amendments
         if (processResult.intent === 'content' && processResult.contentAmendments && processResult.contentAmendments.length > 0) {
+          console.log('💾 Applying content amendments to database...');
+          console.log('📝 Amendments:', processResult.contentAmendments.map(a => `${a.type} - ${a.targetSection}`));
+
           // Apply amendments to current resume content
           const updatedContent = applyAmendmentsToResume(
             currentResumeContent,
             processResult.contentAmendments
           );
+
+          console.log('📊 Updated content sections:', Object.keys(updatedContent));
 
           // Update the optimization's rewrite_data in database
           const { error: updateError } = await supabase
@@ -316,9 +321,12 @@ export async function POST(request: NextRequest) {
             .eq('id', optimization_id);
 
           if (updateError) {
-            console.error('Failed to update optimization data:', updateError);
+            console.error('❌ Failed to update optimization data:', updateError);
           } else {
-            console.log('Successfully updated optimization data after chat amendment');
+            console.log('✅ Successfully updated optimization data after chat amendment');
+            if (updatedContent.skills) {
+              console.log('🔧 Updated skills:', updatedContent.skills);
+            }
           }
         }
 

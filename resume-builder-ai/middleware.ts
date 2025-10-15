@@ -1,5 +1,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import {
+  checkRateLimit,
+  getRateLimitConfig,
+  getRateLimitHeaders,
+} from './src/lib/utils/rate-limit';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -86,6 +91,41 @@ export async function middleware(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (user && request.nextUrl.pathname.startsWith('/auth/')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Apply rate limiting to API routes
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    // Use user ID if authenticated, otherwise use IP address
+    const identifier = user?.id || request.ip || request.headers.get('x-forwarded-for') || 'anonymous';
+    const config = getRateLimitConfig(request.nextUrl.pathname);
+    const rateLimitResult = checkRateLimit(identifier, config);
+
+    // Add rate limit headers to response
+    const headers = getRateLimitHeaders(rateLimitResult);
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
+    // If rate limit exceeded, return 429 Too Many Requests
+    if (!rateLimitResult.allowed) {
+      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
+
+      return new NextResponse(
+        JSON.stringify({
+          error: 'Too many requests',
+          message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
+          retryAfter,
+        }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': retryAfter.toString(),
+            ...headers,
+          },
+        }
+      );
+    }
   }
 
   return response;

@@ -98,9 +98,27 @@ export function DesignRenderer({
         setLoading(true);
         setError(null);
 
-        // Use default ATS template if no template is selected
+        // If no template slug provided, show "natural" (no design) state
+        // This renders a plain, unstyled resume
         if (!templateSlug) {
+          setTemplateComponent(null);
+          setLoading(false);
+          return;
+        }
+
+        // Use default ATS template for explicit safe/default selections
+        if (templateSlug === 'ats-safe' || templateSlug === 'default') {
           setTemplateComponent(() => ATSResumeTemplate);
+          setLoading(false);
+          return;
+        }
+
+        // Only load external templates if explicitly selected (minimal-ssr, card-ssr, sidebar-ssr, timeline-ssr)
+        const validExternalTemplates = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'];
+
+        if (!validExternalTemplates.includes(templateSlug)) {
+          console.warn(`Unknown template slug: ${templateSlug}, falling back to natural (no design)`);
+          setTemplateComponent(null);
           setLoading(false);
           return;
         }
@@ -117,8 +135,8 @@ export function DesignRenderer({
         setError('Failed to load template');
         setLoading(false);
 
-        // Fallback to ATS template
-        setTemplateComponent(() => ATSResumeTemplate);
+        // Fallback to natural (no design)
+        setTemplateComponent(null);
       }
     }
 
@@ -217,10 +235,121 @@ export function DesignRenderer({
     );
   }
 
+  // If no template component, render natural (plain) resume
   if (!TemplateComponent) {
     return (
-      <div className="p-8 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800">No template loaded</p>
+      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
+        <div className="resume-container p-8" key={renderKey}>
+          {/* Natural Resume - Plain HTML with minimal styling */}
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="text-center border-b pb-4">
+              <h1 className="text-2xl font-bold">{resumeData.contact?.name}</h1>
+              <p className="text-sm text-gray-600 mt-1">{resumeData.contact?.location}</p>
+              <p className="text-sm text-gray-600">
+                {resumeData.contact?.email} | {resumeData.contact?.phone}
+              </p>
+              {resumeData.contact?.linkedin && (
+                <p className="text-sm text-gray-600">{resumeData.contact.linkedin}</p>
+              )}
+              {resumeData.contact?.portfolio && (
+                <p className="text-sm text-gray-600">{resumeData.contact.portfolio}</p>
+              )}
+            </div>
+
+            {/* Summary */}
+            {resumeData.summary && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Professional Summary</h2>
+                <p className="text-sm text-gray-700">{resumeData.summary}</p>
+              </div>
+            )}
+
+            {/* Skills */}
+            {resumeData.skills && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Skills</h2>
+                {resumeData.skills.technical && resumeData.skills.technical.length > 0 && (
+                  <p className="text-sm text-gray-700 mb-1">
+                    <strong>Technical:</strong> {resumeData.skills.technical.join(', ')}
+                  </p>
+                )}
+                {resumeData.skills.soft && resumeData.skills.soft.length > 0 && (
+                  <p className="text-sm text-gray-700">
+                    <strong>Professional:</strong> {resumeData.skills.soft.join(', ')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Experience */}
+            {resumeData.experience && resumeData.experience.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Experience</h2>
+                {resumeData.experience.map((exp, index) => (
+                  <div key={index} className="mb-3">
+                    <h3 className="text-base font-semibold">{exp.title}</h3>
+                    <p className="text-sm text-gray-600">
+                      {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
+                    </p>
+                    {exp.achievements && exp.achievements.length > 0 && (
+                      <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
+                        {exp.achievements.map((achievement, i) => (
+                          <li key={i}>{achievement}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Education */}
+            {resumeData.education && resumeData.education.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Education</h2>
+                {resumeData.education.map((edu, index) => (
+                  <div key={index} className="mb-2">
+                    <h3 className="text-base font-semibold">{edu.degree}</h3>
+                    <p className="text-sm text-gray-600">
+                      {edu.institution} | {edu.location} | {edu.graduationDate}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Certifications */}
+            {resumeData.certifications && resumeData.certifications.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Certifications</h2>
+                <ul className="list-disc list-inside text-sm text-gray-700">
+                  {resumeData.certifications.map((cert, index) => (
+                    <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Projects */}
+            {resumeData.projects && resumeData.projects.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-2">Projects</h2>
+                {resumeData.projects.map((project, index) => (
+                  <div key={index} className="mb-3">
+                    <h3 className="text-base font-semibold">{project.name}</h3>
+                    <p className="text-sm text-gray-700">{project.description}</p>
+                    {project.technologies && project.technologies.length > 0 && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        <strong>Technologies:</strong> {project.technologies.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

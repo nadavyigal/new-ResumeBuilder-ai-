@@ -54,10 +54,17 @@ export default function ResumeUploadPage() {
     }
 
     try {
+      // Create AbortController with 60 second timeout (AI optimization can take 30-40 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
+
       const response = await fetch("/api/upload-resume", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -67,7 +74,11 @@ export default function ResumeUploadPage() {
       const { resumeId, jobDescriptionId, optimizationId } = await response.json();
       router.push(`${ROUTES.optimizations}/${optimizationId}`);
     } catch (error: any) {
-      setError(error.message);
+      if (error.name === 'AbortError') {
+        setError('Request timed out. The optimization is taking longer than expected. Please try again.');
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -128,8 +139,13 @@ export default function ResumeUploadPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Optimizing..." : "Optimize My Resume"}
+              {loading ? "Optimizing... (this may take 30-60 seconds)" : "Optimize My Resume"}
             </Button>
+            {loading && (
+              <p className="text-xs text-muted-foreground text-center">
+                AI is analyzing your resume and job description. Please wait...
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>

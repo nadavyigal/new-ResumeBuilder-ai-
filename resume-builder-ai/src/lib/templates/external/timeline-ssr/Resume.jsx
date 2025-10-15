@@ -25,8 +25,7 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-              * { margin: 0; padding: 0; box-sizing: border-box; }
+
               .resume-timeline-ssr .resume-timeline-ssr {
                 font-family: 'Trebuchet MS', system-ui, sans-serif;
                 max-width: 950px;
