@@ -143,6 +143,14 @@ Requires these environment variables:
 
 ### Recent Changes
 
+**Feature 006 - AI Resume Assistant (NEW):**
+- **Integration Project**: This feature integrates existing Chat (002) and Design (003) features into a unified AI assistant sidebar.
+- **New Components**: `AIAssistantSidebar`, `ChatPanel`, `DesignPanel` located in `src/components/ai-assistant/`.
+- **New Hooks**: `useChatSession` and `useDesignCustomization` in `src/hooks/` to connect UI to existing APIs.
+- **Conversational AI**: Upgraded AI prompts to be more friendly and supportive (`v2_conversational`).
+- **Duplicate Detection**: Added logic to prevent accidental duplicate job applications.
+- **Development Pattern**: This feature is an example of an **integration project**, where the primary focus is on creating new UI components and connecting existing APIs, rather than building new backend functionality from scratch. 80% of the functionality is reused from Features 002 and 003.
+
 **Feature 003 - Design Selection:**
 - Added `src/lib/design-manager/` library for template selection and AI customization
 - Added `src/lib/templates/external/` for synced templates from resume-style-bank

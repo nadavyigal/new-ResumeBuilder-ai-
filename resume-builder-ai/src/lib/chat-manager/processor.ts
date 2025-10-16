@@ -3,6 +3,7 @@
  *
  * Extracts amendment requests from user chat messages.
  * Identifies intent (add, modify, remove, clarify) and target sections.
+ * Detects vague requests and returns clarifying questions (Feature 006).
  */
 
 export interface ProcessMessageInput {
@@ -21,6 +22,7 @@ export interface ProcessMessageOutput {
   amendments: AmendmentRequest[];
   aiResponse: string;
   shouldApply: boolean;
+  requiresClarification?: boolean;
 }
 
 /**
@@ -48,6 +50,22 @@ export async function processMessage(
       aiResponse:
         'I cannot add fabricated information to your resume. Please only request changes based on your actual experience and skills. If you believe this is an error, please rephrase your request to clarify what existing information you want to modify.',
       shouldApply: false,
+      requiresClarification: false,
+    };
+  }
+
+  // Check for vague requests that need clarification (Feature 006)
+  const vagueRequest = detectVagueRequest(message);
+  if (vagueRequest.isVague) {
+    return {
+      amendments: [{
+        type: 'clarify',
+        targetSection: null,
+        description: message,
+      }],
+      aiResponse: vagueRequest.clarifyingQuestion,
+      shouldApply: false,
+      requiresClarification: true,
     };
   }
 
@@ -85,6 +103,140 @@ export async function processMessage(
     amendments,
     aiResponse: `I'll help you ${amendments[0].type} content ${amendments[0].targetSection ? `in your ${amendments[0].targetSection} section` : ''}. Let me process that change.`,
     shouldApply: true,
+    requiresClarification: false,
+  };
+}
+
+/**
+ * Detect vague user requests that need clarification (Feature 006)
+ *
+ * Identifies generic improvement requests without specific intent or target.
+ * Returns appropriate clarifying questions to guide the conversation.
+ *
+ * @param message - User's request message
+ * @returns Detection result with clarifying question if vague
+ */
+export interface VagueRequestResult {
+  isVague: boolean;
+  clarifyingQuestion: string;
+}
+
+export function detectVagueRequest(message: string): VagueRequestResult {
+  const lowerMessage = message.toLowerCase().trim();
+
+  // Pattern 1: Generic "make it better" requests
+  const genericImprovementPatterns = [
+    /^make (it|this|my resume) better$/i,
+    /^improve (it|this|my resume)$/i,
+    /^enhance (it|this|my resume)$/i,
+    /^fix (it|this|my resume)$/i,
+    /^update (it|this|my resume)$/i,
+    /^tweak (it|this|my resume)$/i, // Added in T014
+    /^refine (it|this|my resume)$/i, // Added in T014
+    /^help( me)?$/i,
+    /^can you help$/i,
+  ];
+
+  for (const pattern of genericImprovementPatterns) {
+    if (pattern.test(lowerMessage)) {
+      return {
+        isVague: true,
+        clarifyingQuestion:
+          "I'd love to help! Which section would you like to improve?\n\n" +
+          "• **Summary** - Your professional headline and overview\n" +
+          "• **Experience** - Specific job roles or bullet points\n" +
+          "• **Skills** - Technical or soft skills to highlight\n" +
+          "• **Education** - Academic credentials or certifications\n\n" +
+          "Or let me know if you want to focus on something specific!",
+      };
+    }
+  }
+
+  // Pattern 2: Vague section references without specific action
+  const vagueSectionPatterns = [
+    /^(my |the )?(summary|experience|skills|education)$/i,
+    /^look at (my |the )?(summary|experience|skills|education)$/i,
+    /^check (my |the )?(summary|experience|skills|education)$/i,
+    /^review (my |the )?(summary|experience|skills|education)$/i,
+    /^work on (my |the )?(summary|experience|skills|education)$/i, // Added in T014
+    /^go over (my |the )?(summary|experience|skills|education)$/i, // Added in T014
+  ];
+
+  for (const pattern of vagueSectionPatterns) {
+    const match = lowerMessage.match(pattern);
+    if (match) {
+      const section = match[2] || match[1]; // Get the section name
+      return {
+        isVague: true,
+        clarifyingQuestion:
+          `Great! Let's work on your ${section} section. What would you like me to focus on?\n\n` +
+          "• **Keywords** - Add industry-specific terms for ATS\n" +
+          "• **Impact** - Strengthen metrics and outcomes\n" +
+          "• **Tone** - Adjust language and style\n" +
+          "• **Structure** - Reorganize or reformat content\n\n" +
+          "Or describe the specific change you have in mind!",
+      };
+    }
+  }
+
+  // Pattern 3: Ambiguous improvement requests with unclear scope
+  const ambiguousPatterns = [
+    /make (it|this|my resume) (more |better |stronger )?for/i,
+    /^optimize$/i,
+    /^improve$/i,
+    /^enhance$/i,
+    /^strengthen$/i,
+    /^polish$/i,
+    /^refine$/i, // Added in T014
+  ];
+
+  for (const pattern of ambiguousPatterns) {
+    if (pattern.test(lowerMessage)) {
+      return {
+        isVague: true,
+        clarifyingQuestion:
+          "I can definitely help optimize your resume! To make sure I focus on what matters most, could you tell me:\n\n" +
+          "1. **Which section** needs work? (summary, experience, skills, etc.)\n" +
+          "2. **What aspect** should I improve? (keywords, impact, clarity, formatting)\n\n" +
+          "Or feel free to be specific - e.g., 'Add more technical keywords to my latest role' or 'Make my summary stronger for product manager positions'",
+      };
+    }
+  }
+
+  // Pattern 4: Single-word or two-word vague commands
+  const vagueCommands = [
+    /^better$/i,
+    /^more$/i,
+    /^change$/i,
+    /^fix$/i,
+    /^help$/i,
+    /^improve$/i,
+    /^update$/i,
+    /^tweak$/i, // Added in T014
+    /^refine$/i, // Added in T014
+    /^(make|do) (it|this)$/i,
+  ];
+
+  for (const pattern of vagueCommands) {
+    if (pattern.test(lowerMessage)) {
+      return {
+        isVague: true,
+        clarifyingQuestion:
+          "I'm here to help! Can you give me a bit more detail?\n\n" +
+          "For example:\n" +
+          "• 'Add project management keywords to my second role'\n" +
+          "• 'Make my summary more focused on data analysis'\n" +
+          "• 'Improve the metrics in my latest job'\n" +
+          "• 'Rewrite my first bullet to be more impactful'\n\n" +
+          "What would you like to work on?",
+      };
+    }
+  }
+
+  // Not vague - has sufficient specificity
+  return {
+    isVague: false,
+    clarifyingQuestion: '',
   };
 }
 

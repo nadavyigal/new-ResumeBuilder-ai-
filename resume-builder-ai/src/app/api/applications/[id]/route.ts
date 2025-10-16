@@ -15,7 +15,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -24,7 +24,8 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id } = params;
+  console.log('GET /api/applications/:id', { userId: user.id, id });
 
   try {
     // FR-027: Get application with full optimization and resume data
@@ -85,7 +86,7 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -94,7 +95,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id } = params;
+  console.log('PATCH /api/applications/:id', { userId: user.id, id });
 
   try {
     const body = await req.json();
@@ -185,7 +187,7 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -194,7 +196,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  const { id } = params;
+  console.log('DELETE /api/applications/:id', { userId: user.id, id });
 
   try {
     const { error } = await supabase

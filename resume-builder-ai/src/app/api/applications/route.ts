@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  console.log('GET /api/applications', { userId: user.id });
+
   try {
     // FR-026 & FR-027: Get applications with linked optimization/resume data
     const { data: applications, error } = await supabase
@@ -72,10 +74,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/**
- * POST /api/applications
- * FR-025: Create new job application
- */
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,6 +83,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const { searchParams } = new URL(req.url);
+    const confirm = searchParams.get('confirm') === 'true';
+
     const body = await req.json();
     const {
       optimizationId,
@@ -96,12 +97,47 @@ export async function POST(req: NextRequest) {
       notes,
     } = body;
 
+    console.log('POST /api/applications', { userId: user.id, confirm, body });
+
     // Validate required fields
     if (!optimizationId || !jobTitle || !companyName) {
       return NextResponse.json({
         error: "Missing required fields",
         required: ["optimizationId", "jobTitle", "companyName"],
       }, { status: 400 });
+    }
+
+    // T015: Duplicate detection logic
+    if (!confirm) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const { data: existingApplication, error: duplicateError } = await supabase
+        .from("applications")
+        .select("id, created_at")
+        .eq("user_id", user.id)
+        .eq("job_title", jobTitle)
+        .eq("company_name", companyName)
+        .gte("created_at", today.toISOString())
+        .lt("created_at", tomorrow.toISOString())
+        .maybeSingle();
+
+      if (duplicateError) {
+        console.error("Error checking for duplicate applications:", duplicateError);
+        // Proceed without duplicate check if the check itself fails
+      }
+
+      if (existingApplication) {
+        console.log('Duplicate application detected for today', { applicationId: existingApplication.id });
+        return NextResponse.json({
+          error: "Duplicate detected",
+          message: "You have already created an application for this job title and company today. Are you sure you want to create another one?",
+          confirm_required: true,
+          existing_application_id: existingApplication.id,
+        }, { status: 409 });
+      }
     }
 
     // FR-027: Verify optimization belongs to user

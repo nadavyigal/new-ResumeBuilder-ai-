@@ -1,16 +1,15 @@
-"use client";
-
+'use client'
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
-import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { AIAssistantSidebar } from "@/components/ai-assistant"; // T016: Import AIAssistantSidebar
 
 // Disable static generation for this dynamic page
 export const dynamic = 'force-dynamic';
@@ -31,6 +30,9 @@ export default function OptimizationPage() {
   // Job description data for Apply functionality
   const [jobDescription, setJobDescription] = useState<any>(null);
   const [applying, setApplying] = useState(false);
+
+  // T016: AI Assistant state
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -320,29 +322,32 @@ export default function OptimizationPage() {
         return;
       }
 
-      // Create application record in database
-      const { error: appError } = await supabase
-        .from('applications')
-        .insert({
-          user_id: user.id,
-          optimization_id: params.id,
+      // Create application record via API to keep schema/types centralized
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          optimizationId: params.id,
+          jobTitle: jobDescription.title,
+          companyName: jobDescription.company,
+          jobUrl: jobDescription.source_url,
           status: 'applied',
-          applied_date: new Date().toISOString(),
-          job_title: jobDescription.title,
-          company: jobDescription.company,
-          job_url: jobDescription.source_url,
-        });
+          appliedDate: new Date().toISOString(),
+        }),
+      });
 
-      if (appError) {
-        console.error('Failed to create application record:', appError);
-        alert('Failed to save application. The applications table may not exist yet. Please check the migration.');
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        console.error('Failed to create application via API:', err);
+        alert('Failed to save application. Please check the applications migration.');
         setApplying(false);
         return;
       }
 
       // Download PDF
+      const id = params.id;
       const downloadLink = document.createElement('a');
-      downloadLink.href = `/api/download/${params.id}?fmt=pdf`;
+      downloadLink.href = `/api/download/${id}?fmt=pdf`;
       downloadLink.download = `resume-${jobDescription.company}-${jobDescription.title}.pdf`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
@@ -367,6 +372,32 @@ export default function OptimizationPage() {
       setApplying(false);
     }
   };
+
+  const [showAiAssistant, setShowAiAssistant] = useState(false);
+
+  useEffect(() => {
+    const checkFeatureFlag = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('features')
+          .eq('id', user.id)
+          .single();
+        
+        const hasOverride = (profile as any)?.features?.includes('ai_assistant');
+        const isEnabled = process.env.NEXT_PUBLIC_ENABLE_AI_ASSISTANT === 'true' || hasOverride;
+        setShowAiAssistant(isEnabled);
+
+        // T036: Monitoring for feature flag checks (example)
+        if (isEnabled) {
+            console.log(`AI Assistant enabled for user ${user.id}`);
+        }
+      }
+    };
+
+    checkFeatureFlag();
+  }, [supabase]);
 
   return (
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
@@ -463,8 +494,8 @@ export default function OptimizationPage() {
           )}
         </div>
 
-        {/* Right Column: AI Chat (1/3 width) */}
-        <div className="print:hidden">
+        {/* Right Column: AI Chat (1/3 width) - Replaced by AIAssistantSidebar */}
+        {/* <div className="print:hidden">
           {optimizedResume && (
             <div className="sticky top-4 h-[calc(100vh-120px)]">
               <ChatSidebar
@@ -473,7 +504,7 @@ export default function OptimizationPage() {
               />
             </div>
           )}
-        </div>
+        </div> */}
       </div>
 
       {/* Original Data (Collapsible) - Below Everything */}
@@ -508,6 +539,26 @@ export default function OptimizationPage() {
         optimizationId={params.id as string}
         onTemplateSelect={handleTemplateSelect}
       />
+
+      {/* T016 & T036: Floating Action Button for AI Assistant */}
+      {showAiAssistant && (
+        <div className="fixed bottom-4 right-4 print:hidden">
+          <Button
+            onClick={() => setIsAiAssistantOpen(true)}
+            className="rounded-full w-14 h-14 shadow-lg bg-purple-600 hover:bg-purple-700 text-white text-lg"
+            aria-label="Open AI Assistant"
+          >
+            🤖
+          </Button>
+        </div>
+      )}
+
+      {/* T016: AI Assistant Sidebar */}
+      {isAiAssistantOpen && (
+        <AIAssistantSidebar
+          optimizationId={params.id as string}
+          onClose={() => setIsAiAssistantOpen(false)}
+        />
+      )}
     </div>
   );
-}

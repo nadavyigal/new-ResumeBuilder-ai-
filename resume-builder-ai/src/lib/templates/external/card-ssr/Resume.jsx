@@ -25,7 +25,8 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    
+              * { margin: 0; padding: 0; box-sizing: border-box; }
               .resume-card-ssr .resume-card-ssr {
                 font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
                 max-width: 900px;
