@@ -38,10 +38,16 @@ function applyAmendmentsToResume(
       switch (amendment.type) {
         case 'add':
           if (section === 'skills') {
-            // Extract skill names from the description
-            const skillMatches = amendment.description.match(/(?:add|include)\s+([^,.]+?)(?:\s+(?:to|in)\s+skills?)?/i);
-            if (skillMatches && skillMatches[1]) {
-              const newSkill = skillMatches[1].trim();
+            // Extract one or multiple comma-separated skills after "add" or "include"
+            const match = amendment.description.match(/(?:add|include)\s+([^\n]+?)(?:\s+(?:to|in)\s+skills?)?$/i);
+            if (match && match[1]) {
+              const blob = match[1]
+                .replace(/^(?:to|in)\s+skills?$/i, '')
+                .trim();
+              const candidates = blob
+                .split(/[,;]|\band\b|\bor\b/i)
+                .map(s => s.trim())
+                .filter(Boolean);
 
               // Initialize skills structure if it doesn't exist
               if (!updatedContent.skills) {
@@ -50,17 +56,19 @@ function applyAmendmentsToResume(
 
               const skills = updatedContent.skills as { technical: string[], soft: string[] };
 
-              // Determine if it's a technical or soft skill (simple heuristic)
-              const technicalKeywords = ['python', 'javascript', 'java', 'react', 'node', 'sql', 'aws', 'docker', 'git', 'api', 'css', 'html', 'typescript'];
-              const isTechnical = technicalKeywords.some(keyword => newSkill.toLowerCase().includes(keyword));
+              const technicalKeywords = ['python', 'javascript', 'java', 'react', 'node', 'sql', 'aws', 'docker', 'git', 'api', 'css', 'html', 'typescript', 'ai', 'automation'];
 
-              if (isTechnical) {
-                if (!skills.technical.includes(newSkill)) {
-                  skills.technical.push(newSkill);
-                }
-              } else {
-                if (!skills.soft.includes(newSkill)) {
-                  skills.soft.push(newSkill);
+              for (const candidate of candidates) {
+                const lower = candidate.toLowerCase();
+                const isTechnical = technicalKeywords.some(keyword => lower.includes(keyword));
+                if (isTechnical) {
+                  if (!skills.technical.includes(candidate)) {
+                    skills.technical.push(candidate);
+                  }
+                } else {
+                  if (!skills.soft.includes(candidate)) {
+                    skills.soft.push(candidate);
+                  }
                 }
               }
             }
@@ -166,8 +174,8 @@ export async function POST(request: NextRequest) {
 
       chatSession = existingSession;
     } else {
-      // Create or get active session for this optimization
-      const activeSession = await getActiveSession(user.id, optimization_id);
+      // Create or get active session for this optimization (use authenticated client for RLS)
+      const activeSession = await getActiveSession(user.id, optimization_id, supabase);
 
       if (activeSession) {
         chatSession = activeSession;
@@ -199,13 +207,28 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (sessionError) {
-          return NextResponse.json(
-            { error: `Failed to create chat session: ${sessionError.message}` },
-            { status: 500 }
-          );
+          // Handle unique constraint violation on idx_active_session by returning existing session
+          if ((sessionError as any).code === '23505') {
+            const existingActive = await getActiveSession(user.id, optimization_id, supabase);
+            if (existingActive) {
+              chatSession = existingActive;
+            } else {
+              return NextResponse.json(
+                { error: 'Failed to create chat session: active session exists but could not be retrieved.' },
+                { status: 500 }
+              );
+            }
+          } else {
+            return NextResponse.json(
+              { error: `Failed to create chat session: ${sessionError.message}` },
+              { status: 500 }
+            );
+          }
         }
 
-        chatSession = newSession;
+        if (!chatSession) {
+          chatSession = newSession;
+        }
       }
     }
 
@@ -366,6 +389,16 @@ export async function POST(request: NextRequest) {
       ai_response: aiResponseText,
       requires_clarification: processResult.requiresClarification,
     };
+
+    // Attach design preview/customization if available
+    if (processResult.intent === 'design') {
+      if (processResult.designPreview) {
+        (response as any).design_preview = processResult.designPreview;
+      }
+      if (processResult.designCustomization) {
+        (response as any).design_customization = processResult.designCustomization;
+      }
+    }
 
     // Return response
     return NextResponse.json(response, { status: 200 });

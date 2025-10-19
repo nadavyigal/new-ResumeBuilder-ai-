@@ -115,6 +115,9 @@ export interface ChatSendMessageResponse {
   ai_response: string;
   amendments?: AmendmentRequest[];
   requires_clarification?: boolean;
+  // Optional: returned when a design intent was processed
+  design_preview?: string;
+  design_customization?: any;
 }
 
 /**
@@ -200,6 +203,7 @@ export interface ChatSidebarProps {
   initialOpen?: boolean;
   onClose?: () => void;
   onMessageSent?: () => void;
+  onDesignPreview?: (customization: any) => void;
 }
 
 /**

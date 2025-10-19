@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
 import { ATSResumeTemplate } from '@/components/templates/ats-resume-template';
+import { useSectionSelection } from '@/hooks/useSectionSelection.tsx';
 
 interface DesignRendererProps {
   resumeData: OptimizedResume;
@@ -91,6 +92,39 @@ export function DesignRenderer({
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+	const { beginSelection } = useSectionSelection();
+
+	function handleMouseUp() {
+		try {
+			const sel = window.getSelection();
+			if (!sel || sel.isCollapsed) return;
+			const text = sel.toString().trim();
+			if (!text || text.length < 2) return;
+
+			let field: 'bullet' | 'summary' | 'title' | 'skills' | 'custom' = 'custom';
+			let sectionId = 'custom';
+
+			const anchorNode = sel.anchorNode as Node | null;
+			const el = (anchorNode && (anchorNode.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode.parentElement)) as Element | null;
+			let current: Element | null = el;
+			while (current) {
+				const ds = (current as HTMLElement).dataset;
+				if (ds && (ds.sectionId || ds.field)) {
+					sectionId = ds.sectionId || sectionId;
+					field = (ds.field as any) || field;
+					break;
+				}
+				current = current.parentElement;
+			}
+
+			// Heuristic: list items are bullets
+			if (field === 'custom' && el && el.closest('li')) {
+				field = 'bullet';
+			}
+
+			beginSelection(sectionId, field, text.slice(0, 600));
+		} catch {}
+	}
 
   useEffect(() => {
     async function loadTemplate() {
@@ -235,122 +269,104 @@ export function DesignRenderer({
     );
   }
 
-  // If no template component, render natural (plain) resume
-  if (!TemplateComponent) {
+  // If no template component, render natural (plain) resume with no classes/styles
+	if (!TemplateComponent) {
     return (
-      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
-        <div className="resume-container p-8" key={renderKey}>
-          {/* Natural Resume - Plain HTML with minimal styling */}
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="text-center border-b pb-4">
-              <h1 className="text-2xl font-bold">{resumeData.contact?.name}</h1>
-              <p className="text-sm text-gray-600 mt-1">{resumeData.contact?.location}</p>
-              <p className="text-sm text-gray-600">
-                {resumeData.contact?.email} | {resumeData.contact?.phone}
-              </p>
-              {resumeData.contact?.linkedin && (
-                <p className="text-sm text-gray-600">{resumeData.contact.linkedin}</p>
-              )}
-              {resumeData.contact?.portfolio && (
-                <p className="text-sm text-gray-600">{resumeData.contact.portfolio}</p>
-              )}
-            </div>
-
-            {/* Summary */}
-            {resumeData.summary && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Professional Summary</h2>
-                <p className="text-sm text-gray-700">{resumeData.summary}</p>
-              </div>
-            )}
-
-            {/* Skills */}
-            {resumeData.skills && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Skills</h2>
-                {resumeData.skills.technical && resumeData.skills.technical.length > 0 && (
-                  <p className="text-sm text-gray-700 mb-1">
-                    <strong>Technical:</strong> {resumeData.skills.technical.join(', ')}
-                  </p>
-                )}
-                {resumeData.skills.soft && resumeData.skills.soft.length > 0 && (
-                  <p className="text-sm text-gray-700">
-                    <strong>Professional:</strong> {resumeData.skills.soft.join(', ')}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Experience */}
-            {resumeData.experience && resumeData.experience.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Experience</h2>
-                {resumeData.experience.map((exp, index) => (
-                  <div key={index} className="mb-3">
-                    <h3 className="text-base font-semibold">{exp.title}</h3>
-                    <p className="text-sm text-gray-600">
-                      {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
-                    </p>
-                    {exp.achievements && exp.achievements.length > 0 && (
-                      <ul className="list-disc list-inside text-sm text-gray-700 mt-1">
-                        {exp.achievements.map((achievement, i) => (
-                          <li key={i}>{achievement}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Education */}
-            {resumeData.education && resumeData.education.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Education</h2>
-                {resumeData.education.map((edu, index) => (
-                  <div key={index} className="mb-2">
-                    <h3 className="text-base font-semibold">{edu.degree}</h3>
-                    <p className="text-sm text-gray-600">
-                      {edu.institution} | {edu.location} | {edu.graduationDate}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Certifications */}
-            {resumeData.certifications && resumeData.certifications.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Certifications</h2>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {resumeData.certifications.map((cert, index) => (
-                    <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Projects */}
-            {resumeData.projects && resumeData.projects.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Projects</h2>
-                {resumeData.projects.map((project, index) => (
-                  <div key={index} className="mb-3">
-                    <h3 className="text-base font-semibold">{project.name}</h3>
-                    <p className="text-sm text-gray-700">{project.description}</p>
-                    {project.technologies && project.technologies.length > 0 && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        <strong>Technologies:</strong> {project.technologies.join(', ')}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+			<section key={renderKey} onMouseUp={handleMouseUp}>
+        <header>
+          <h1>{resumeData.contact?.name}</h1>
+          <div>{resumeData.contact?.location}</div>
+          <div>
+            {resumeData.contact?.email} | {resumeData.contact?.phone}
           </div>
-        </div>
-      </div>
+          {resumeData.contact?.linkedin && <div>{resumeData.contact.linkedin}</div>}
+          {resumeData.contact?.portfolio && <div>{resumeData.contact.portfolio}</div>}
+        </header>
+
+        {resumeData.summary && (
+					<section data-section-id="summary">
+            <h2>Professional Summary</h2>
+						<p data-field="summary">{resumeData.summary}</p>
+          </section>
+        )}
+
+        {resumeData.skills && (
+					<section data-section-id="skills">
+            <h2>Skills</h2>
+            {resumeData.skills.technical && resumeData.skills.technical.length > 0 && (
+							<p data-field="skills">
+                Technical: {resumeData.skills.technical.join(', ')}
+              </p>
+            )}
+            {resumeData.skills.soft && resumeData.skills.soft.length > 0 && (
+							<p data-field="skills">
+                Professional: {resumeData.skills.soft.join(', ')}
+              </p>
+            )}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.experience) && resumeData.experience.length > 0 && (
+					<section data-section-id="experience">
+            <h2>Experience</h2>
+						{resumeData.experience.map((exp, index) => (
+							<article key={index} data-section-id={`experience-${index}`}>
+                <h3>{exp.title}</h3>
+                <div>
+                  {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
+                </div>
+                {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+									<ul>
+										{exp.achievements.map((achievement, i) => (
+											<li key={i} data-field="bullet">{achievement}</li>
+										))}
+									</ul>
+                )}
+              </article>
+            ))}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.education) && resumeData.education.length > 0 && (
+          <section>
+            <h2>Education</h2>
+            {resumeData.education.map((edu, index) => (
+              <article key={index}>
+                <h3>{edu.degree}</h3>
+                <div>
+                  {edu.institution} | {edu.location} | {edu.graduationDate}
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.certifications) && resumeData.certifications.length > 0 && (
+          <section>
+            <h2>Certifications</h2>
+            <ul>
+              {resumeData.certifications.map((cert, index) => (
+                <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {Array.isArray(resumeData.projects) && resumeData.projects.length > 0 && (
+          <section>
+            <h2>Projects</h2>
+            {resumeData.projects.map((project, index) => (
+              <article key={index}>
+                <h3>{project.name}</h3>
+                <p>{project.description}</p>
+                {Array.isArray(project.technologies) && project.technologies.length > 0 && (
+                  <div>Technologies: {project.technologies.join(', ')}</div>
+                )}
+              </article>
+            ))}
+          </section>
+        )}
+      </section>
     );
   }
 
@@ -360,7 +376,7 @@ export function DesignRenderer({
 
   return (
     <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
-      <div className="resume-container" key={renderKey}>
+      <div className="resume-container" key={renderKey} onMouseUp={handleMouseUp}>
         <TemplateComponent data={componentData} customization={customization} />
       </div>
     </div>

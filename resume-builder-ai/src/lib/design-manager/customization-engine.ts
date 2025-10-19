@@ -1,309 +1,348 @@
 /**
- * Customization Engine Module
- * Interprets natural language design requests and applies customizations
+ * Design Customization Engine
  *
- * Reference: specs/003-i-want-to/research.md
- * Task: T021
+ * Parses natural-language design requests (colors, fonts, layout, headers, text boxes)
+ * into a structured customization object compatible with resume templates and the
+ * `design_customizations` table. Generates an HTML preview via `renderTemplatePreview`.
  */
 
-import OpenAI from 'openai';
-import { validateCustomization } from './ats-validator';
+import { renderTemplatePreview } from './template-renderer';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
-export interface CustomizationResult {
-  customization: {
-    color_scheme: {
-      primary: string;
-      secondary: string;
-      accent: string;
-      background: string;
-      text: string;
-    };
-    font_family: {
-      heading: string;
-      body: string;
-    };
-    spacing: {
-      section_gap: string;
-      line_height: string;
-    };
-    custom_css: string;
-    is_ats_safe: boolean;
-  };
-  reasoning: string;
-  preview: string;
-}
+type Nullable<T> = T | null | undefined;
 
 export interface InterpretationResult {
-  understood: boolean;
-  customization?: any;
-  reasoning?: string;
-  clarificationNeeded?: string;
-  error?: 'ats_violation' | 'unclear_request' | 'fabrication' | 'invalid_request';
-  validationErrors?: string[];
+  understood: false;
+  clarificationNeeded: string;
+}
+
+export interface CustomizationResult {
+  customization: any;
+  preview: string;
+  reasoning: string;
+}
+
+/** Allowed named colors mapped to hex */
+const NAMED_COLORS: Record<string, string> = {
+  black: '#000000',
+  white: '#ffffff',
+  gray: '#6b7280',
+  grey: '#6b7280',
+  red: '#ef4444',
+  blue: '#3b82f6',
+  green: '#10b981',
+  yellow: '#f59e0b',
+  orange: '#f97316',
+  purple: '#8b5cf6',
+  pink: '#ec4899',
+  teal: '#14b8a6',
+  navy: '#001f3f',
+  'navy blue': '#001f3f',
+  indigo: '#6366f1',
+  slate: '#334155',
+  zinc: '#3f3f46',
+};
+
+const HEX_COLOR_RE = /#(?:[\da-fA-F]{3}){1,2}\b/;
+const RGB_COLOR_RE = /rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)/i;
+const HSL_COLOR_RE = /hsl\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)/i;
+
+function normalizeColor(input: string): string | null {
+  const lower = input.toLowerCase().trim();
+  if (NAMED_COLORS[lower]) return NAMED_COLORS[lower];
+  if (HEX_COLOR_RE.test(lower)) return lower;
+  if (RGB_COLOR_RE.test(lower)) return lower;
+  if (HSL_COLOR_RE.test(lower)) return lower;
+  return null;
+}
+
+/** Safe font whitelist */
+const ALLOWED_FONTS = [
+  'Inter',
+  'Arial',
+  'Georgia',
+  'Times New Roman',
+  'Roboto',
+  'Open Sans',
+  'Trebuchet MS',
+  'System UI',
+];
+
+function normalizeFont(input: string): string | null {
+  const trimmed = input.trim().replace(/^to\s+/i, '');
+  // Find best match ignoring case
+  const match = ALLOWED_FONTS.find((f) => f.toLowerCase() === trimmed.toLowerCase());
+  if (match) return match;
+  // Heuristic: allow any generic family
+  if (/serif|sans-serif|monospace/i.test(trimmed)) return trimmed;
+  return null;
 }
 
 /**
- * Interprets natural language design request and generates customization config
- * @param changeRequest - User's natural language request
- * @param currentConfig - Current customization config (for incremental changes)
- * @returns Interpretation result with customization or error
+ * Build scoped, allowlisted CSS additions. All rules must target `.resume-container`.
  */
-export async function interpretDesignRequest(
-  changeRequest: string,
-  currentConfig: any
-): Promise<InterpretationResult> {
-  try {
-    // Check for fabrication attempts
-    if (isFabricationAttempt(changeRequest)) {
-      return {
-        understood: false,
-        error: 'fabrication',
-        clarificationNeeded: 'Design customization cannot modify resume content. Please request visual changes only (colors, fonts, spacing).'
-      };
-    }
-
-    // Check for unclear requests
-    if (isUnclearRequest(changeRequest)) {
-      return {
-        understood: false,
-        error: 'unclear_request',
-        clarificationNeeded: 'Please be more specific. For example: "make headers dark blue", "use Times New Roman for body text", or "increase spacing between sections".'
-      };
-    }
-
-    const prompt = buildCustomizationPrompt(changeRequest, currentConfig);
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: `You are a professional resume design consultant. Your job is to interpret user requests for visual design changes and generate JSON configuration.
-
-IMPORTANT RULES:
-1. Only modify visual design (colors, fonts, spacing, layout)
-2. Never add, remove, or modify content
-3. Maintain ATS compatibility (no images, no complex graphics)
-4. Preserve current settings unless explicitly requested to change
-
-Respond in JSON format:
-{
-  "understood": true,
-  "customization": {
-    "color_scheme": {
-      "primary": "#hex",
-      "secondary": "#hex",
-      "accent": "#hex",
-      "background": "#hex",
-      "text": "#hex"
-    },
-    "font_family": {
-      "heading": "font name",
-      "body": "font name"
-    },
-    "spacing": {
-      "section_gap": "CSS value",
-      "line_height": "CSS value"
-    },
-    "custom_css": "/* additional CSS if needed */"
-  },
-  "reasoning": "Brief explanation of changes"
+function buildScopedCss(parts: string[]): string {
+  return parts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((rule) => {
+      // Enforce scoping to resume-container only
+      if (!rule.startsWith('.resume-container')) {
+        return `.resume-container ${rule.startsWith('{') ? '' : ''}${rule}`;
+      }
+      return rule;
+    })
+    .join('\n');
 }
 
-If unclear, respond:
-{
-  "understood": false,
-  "clarificationNeeded": "What specific aspect would you like to change?"
-}`
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.2,
-      max_tokens: 500
-    });
+/**
+ * Very conservative sanitizer: strips characters outside a safe allowlist for CSS text.
+ * This is not a full CSS sanitizer but restricts to letters, numbers, spaces and basic
+ * punctuation commonly used in style declarations.
+ */
+function sanitizeCss(css: string): string {
+  // Remove < and > to avoid HTML/context switches
+  const noAngles = css.replace(/[<>]/g, '');
+  // Remove url() to avoid external fetches
+  const noUrl = noAngles.replace(/url\([^\)]*\)/gi, '');
+  return noUrl;
+}
 
-    const responseText = completion.choices[0]?.message?.content?.trim();
+interface ParsedIntent {
+  colors?: Partial<{
+    background: string;
+    primary: string;
+    secondary: string;
+    accent: string;
+    text: string;
+  }>;
+  fonts?: Partial<{ heading: string; body: string }>;
+  layout?: 'two-column' | 'one-column';
+  headers?: Partial<{ color: string; size: string; weight: string }>; // e.g., size 'large', weight 'bold'
+  textBoxes?: boolean;
+}
 
-    if (!responseText) {
-      throw new Error('Empty response from OpenAI');
+function parseDesignMessage(message: string): ParsedIntent {
+  const m = message.toLowerCase();
+  const result: ParsedIntent = {};
+
+  // Colors
+  const colorTargets: Array<keyof NonNullable<ParsedIntent['colors']>> = [
+    'background',
+    'primary',
+    'secondary',
+    'accent',
+    'text',
+  ];
+  for (const target of colorTargets) {
+    const re = new RegExp(`${target} (?:color|to)?\s*(?:to|:)\s*([^.,\n]+)`, 'i');
+    const match = message.match(re);
+    if (match && match[1]) {
+      const col = normalizeColor(match[1]);
+      if (col) {
+        result.colors = result.colors || {};
+        result.colors[target] = col;
+      }
     }
+  }
 
-    // Parse JSON response
-    const result = JSON.parse(responseText);
-
-    if (!result.understood) {
-      return {
-        understood: false,
-        error: 'unclear_request',
-        clarificationNeeded: result.clarificationNeeded || 'Please provide more details about the design change you want.'
-      };
+  // Shorthand: "background color to X" or "make background X"
+  const bgMatch = message.match(/background (?:color\s*)?(?:to|is|=)?\s*([^.,\n]+)/i) ||
+                  message.match(/change the background(?: color)? to\s*([^.,\n]+)/i) ||
+                  message.match(/make the background\s*([^.,\n]+)/i);
+  if (bgMatch && bgMatch[1]) {
+    const c = normalizeColor(bgMatch[1]);
+    if (c) {
+      result.colors = result.colors || {};
+      result.colors.background = c;
     }
+  }
 
-    // Validate ATS compatibility
-    const validation = validateCustomization(result.customization);
-
-    if (!validation.isValid) {
-      return {
-        understood: false,
-        error: 'ats_violation',
-        validationErrors: validation.errors,
-        clarificationNeeded: validation.errors.join(' ')
-      };
+  // Fonts
+  const fontHeadMatch = message.match(/(heading|headers?)\s+font\s*(?:to|:)?\s*([^.,\n]+)/i);
+  if (fontHeadMatch && fontHeadMatch[2]) {
+    const f = normalizeFont(fontHeadMatch[2]);
+    if (f) {
+      result.fonts = result.fonts || {};
+      result.fonts.heading = f;
     }
+  }
+  const fontBodyMatch = message.match(/(body|text)\s+font\s*(?:to|:)?\s*([^.,\n]+)/i);
+  if (fontBodyMatch && fontBodyMatch[2]) {
+    const f = normalizeFont(fontBodyMatch[2]);
+    if (f) {
+      result.fonts = result.fonts || {};
+      result.fonts.body = f;
+    }
+  }
+  const anyFontMatch = message.match(/font\s*(?:to|:)?\s*([^.,\n]+)/i);
+  if (anyFontMatch && anyFontMatch[1]) {
+    const f = normalizeFont(anyFontMatch[1]);
+    if (f) {
+      result.fonts = result.fonts || {};
+      result.fonts.body = result.fonts.body || f;
+      result.fonts.heading = result.fonts.heading || f;
+    }
+  }
 
-    return {
-      understood: true,
-      customization: result.customization,
-      reasoning: result.reasoning
+  // Layout
+  if (/(two|2)[-\s]?column/i.test(m) || /split into two columns/i.test(m)) {
+    result.layout = 'two-column';
+  } else if (/(one|1)[-\s]?column/i.test(m)) {
+    result.layout = 'one-column';
+  }
+
+  // Headers
+  const headerColorMatch = message.match(/headers?\s+(?:color|to)\s*([^.,\n]+)/i);
+  if (headerColorMatch && headerColorMatch[1]) {
+    const c = normalizeColor(headerColorMatch[1]);
+    if (c) {
+      result.headers = { ...(result.headers || {}), color: c };
+    }
+  }
+  if (/headers?\s+(?:bold|bolder)/i.test(m)) {
+    result.headers = { ...(result.headers || {}), weight: 'bold' };
+  }
+  if (/larger headers?|increase header size/i.test(m)) {
+    result.headers = { ...(result.headers || {}), size: 'large' };
+  }
+
+  // Text boxes
+  if (/text boxes?/i.test(m) || /boxed sections?/i.test(m) || /add borders? to sections?/i.test(m)) {
+    result.textBoxes = true;
+  }
+
+  return result;
+}
+
+function mergeCustomization(current: any, parsed: ParsedIntent, templateId?: string) {
+  const customization = JSON.parse(JSON.stringify(current || {}));
+
+  customization.color_scheme = customization.color_scheme || {};
+  customization.font_family = customization.font_family || {};
+  customization.spacing = customization.spacing || {};
+
+  if (parsed.colors) {
+    customization.color_scheme = {
+      ...customization.color_scheme,
+      ...parsed.colors,
     };
-  } catch (error) {
-    console.error('Error interpreting design request:', error);
-    return {
+  }
+  if (parsed.fonts) {
+    customization.font_family = {
+      ...customization.font_family,
+      ...parsed.fonts,
+    };
+  }
+
+  const cssParts: string[] = [];
+
+  // Layout rules
+  if (parsed.layout === 'two-column') {
+    cssParts.push(`.resume-container { column-count: 2; column-gap: 2rem; }`);
+  } else if (parsed.layout === 'one-column') {
+    cssParts.push(`.resume-container { column-count: 1; }`);
+  }
+
+  // Header visuals
+  if (parsed.headers?.color) {
+    cssParts.push(`.resume-container h1, .resume-container h2 { color: ${parsed.headers.color}; }`);
+  }
+  if (parsed.headers?.weight === 'bold') {
+    cssParts.push(`.resume-container h1, .resume-container h2 { font-weight: 700; }`);
+  }
+  if (parsed.headers?.size === 'large') {
+    cssParts.push(`.resume-container h1 { font-size: 2.25rem; } .resume-container h2 { font-size: 1.5rem; }`);
+  }
+
+  // Text boxes around sections
+  if (parsed.textBoxes) {
+    cssParts.push(`.resume-container section { border: 1px solid rgba(0,0,0,0.08); padding: 12px; border-radius: 8px; background: rgba(0,0,0,0.02); }`);
+  }
+
+  // Background color overrides for common template roots
+  if (parsed.colors?.background) {
+    const bg = parsed.colors.background;
+    const templateRootClasses = [
+      '.resume-card-ssr',
+      '.resume-minimal-ssr',
+      '.resume-sidebar-ssr',
+      '.resume-timeline-ssr'
+    ];
+    cssParts.push(`.resume-wrapper { background: ${bg} !important; }`);
+    cssParts.push(`.resume-container { background: ${bg} !important; }`);
+    for (const root of templateRootClasses) {
+      cssParts.push(`${root} { background: ${bg} !important; }`);
+    }
+  }
+
+  // Text color override (applies broadly, but scoped and important to win over template rules)
+  if (parsed.colors?.text) {
+    const text = parsed.colors.text;
+    cssParts.push(`.resume-wrapper, .resume-container, .resume-container * { color: ${text} !important; }`);
+  }
+
+  const scopedCss = buildScopedCss(cssParts);
+  const safeCss = sanitizeCss(scopedCss);
+
+  customization.custom_css = [customization.custom_css || '', safeCss].filter(Boolean).join('\n');
+  // Default ATS safety stays truthy unless user explicitly asks for decorative elements
+  customization.is_ats_safe = customization.is_ats_safe !== false;
+
+  return customization;
+}
+
+export async function interpretDesignRequest(message: string): Promise<ParsedIntent | InterpretationResult> {
+  const parsed = parseDesignMessage(message);
+  const hasAny = !!(
+    parsed.colors || parsed.fonts || parsed.layout || parsed.headers || parsed.textBoxes
+  );
+  if (!hasAny) {
+  return {
       understood: false,
-      error: 'invalid_request',
-      clarificationNeeded: 'Unable to process request. Please try rephrasing your design change.'
+      clarificationNeeded:
+        "I can change colors, fonts, layout (e.g., two-column), headers, and add text boxes. Try: 'change the background color to navy blue' or 'use a two-column layout'.",
     };
   }
+  return parsed;
 }
 
-/**
- * Applies customization configuration to generate preview HTML
- * @param templateId - Template slug
- * @param resumeData - Resume content
- * @param customization - Customization config
- * @returns HTML preview string
- */
-export function applyCustomization(
-  templateId: string,
-  resumeData: any,
-  customization: any
-): string {
-  // Import template renderer
-  const { renderTemplatePreview } = require('./template-renderer');
-
-  // Render template with customization
-  return renderTemplatePreview(templateId, resumeData, customization);
-}
-
-/**
- * Validates and applies design request in one step
- * @param changeRequest - Natural language request
- * @param templateId - Current template ID
- * @param currentConfig - Current customization config
- * @param resumeData - Resume content for preview
- * @returns Customization result with preview
- */
 export async function validateAndApply(
-  changeRequest: string,
+  message: string,
   templateId: string,
-  currentConfig: any,
-  resumeData: any
-): Promise<CustomizationResult | InterpretationResult> {
-  // Interpret request
-  const interpretation = await interpretDesignRequest(changeRequest, currentConfig);
-
-  if (!interpretation.understood) {
-    return interpretation;
+  currentDesignConfig: Nullable<any>,
+  currentResumeContent: any
+): Promise<InterpretationResult | CustomizationResult> {
+  const interpreted = await interpretDesignRequest(message);
+  if ('understood' in interpreted && interpreted.understood === false) {
+    return interpreted;
   }
 
-  // Merge with current config (incremental changes)
-  const mergedConfig = mergeConfigs(currentConfig, interpretation.customization);
+  const customization = mergeCustomization(currentDesignConfig || {}, interpreted as ParsedIntent, templateId);
 
-  // Generate preview
-  const preview = applyCustomization(templateId, resumeData, mergedConfig);
+  const reasoningParts: string[] = [];
+  const p = interpreted as ParsedIntent;
+  if (p.colors?.background) reasoningParts.push(`Background set to ${p.colors.background}.`);
+  if (p.colors?.primary) reasoningParts.push(`Primary color set to ${p.colors.primary}.`);
+  if (p.fonts?.heading) reasoningParts.push(`Heading font set to ${p.fonts.heading}.`);
+  if (p.fonts?.body) reasoningParts.push(`Body font set to ${p.fonts.body}.`);
+  if (p.layout === 'two-column') reasoningParts.push('Applied a two-column layout.');
+  if (p.layout === 'one-column') reasoningParts.push('Switched to one-column layout.');
+  if (p.headers?.color) reasoningParts.push('Updated header color.');
+  if (p.headers?.weight) reasoningParts.push('Made headers bold.');
+  if (p.headers?.size) reasoningParts.push('Increased header sizes.');
+  if (p.textBoxes) reasoningParts.push('Added subtle text boxes around sections.');
 
-  return {
-    customization: {
-      ...mergedConfig,
-      is_ats_safe: true
-    },
-    reasoning: interpretation.reasoning || 'Design updated successfully.',
-    preview
-  };
-}
+  const reasoning = reasoningParts.length > 0 ? reasoningParts.join(' ') : 'Applied design customization.';
 
-/**
- * Builds customization prompt from request and current config
- */
-function buildCustomizationPrompt(changeRequest: string, currentConfig: any): string {
-  const currentColors = currentConfig?.color_scheme || {};
-  const currentFonts = currentConfig?.font_family || {};
-  const currentSpacing = currentConfig?.spacing || {};
-
-  return `User request: "${changeRequest}"
-
-Current design configuration:
-- Primary color: ${currentColors.primary || '#2c3e50'}
-- Heading font: ${currentFonts.heading || 'Arial'}
-- Body font: ${currentFonts.body || 'Arial'}
-- Section gap: ${currentSpacing.section_gap || '1.5rem'}
-- Line height: ${currentSpacing.line_height || '1.6'}
-
-Generate updated configuration based on the request. Only change what was explicitly requested.`;
-}
-
-/**
- * Merges new customization with current config
- */
-function mergeConfigs(current: any, updates: any): any {
-  return {
-    color_scheme: {
-      ...(current?.color_scheme || {}),
-      ...(updates?.color_scheme || {})
-    },
-    font_family: {
-      ...(current?.font_family || {}),
-      ...(updates?.font_family || {})
-    },
-    spacing: {
-      ...(current?.spacing || {}),
-      ...(updates?.spacing || {})
-    },
-    custom_css: updates?.custom_css || current?.custom_css || ''
-  };
-}
-
-/**
- * Detects fabrication attempts (content modification)
- */
-function isFabricationAttempt(request: string): boolean {
-  const fabricationPatterns = [
-    /add.*experience/i,
-    /add.*skill/i,
-    /add.*certification/i,
-    /add.*education/i,
-    /add.*years/i,
-    /change.*company/i,
-    /modify.*title/i,
-    /include.*project/i
-  ];
-
-  return fabricationPatterns.some(pattern => pattern.test(request));
-}
-
-/**
- * Detects unclear requests that need clarification
- */
-function isUnclearRequest(request: string): boolean {
-  const unclearPatterns = [
-    /make.*better/i,
-    /make.*cooler/i,
-    /look.*professional/i,
-    /improve/i,
-    /enhance/i
-  ];
-
-  // Short requests are often unclear
-  if (request.trim().length < 10) {
-    return true;
+  // Generate preview HTML (best-effort; non-fatal if it fails)
+  let preview = '';
+  try {
+    preview = await renderTemplatePreview(templateId, currentResumeContent, customization);
+  } catch (err) {
+    preview = '';
   }
 
-  return unclearPatterns.some(pattern => pattern.test(request));
+  return { customization, preview, reasoning };
 }
+
+// Removed legacy OpenAI-driven implementation to avoid duplicate exports and simplify runtime.

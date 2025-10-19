@@ -11,15 +11,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageResponse } from '@/types/chat';
+import { useSectionSelection } from '@/hooks/useSectionSelection.tsx';
+import { refineSection, applyRefinement } from '@/lib/api/refine-section';
+import type { RefineSectionRequest } from '@/types/refine';
 
 export function ChatSidebar({
   optimizationId,
   onMessageSent,
+  onDesignPreview,
 }: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'>) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refineResult, setRefineResult] = useState<string | null>(null);
+  const { selection, clearSelection } = useSectionSelection();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +97,40 @@ export function ChatSidebar({
     try {
       setError(null);
 
+      // If a section selection exists, send to refine-section endpoint instead of chat
+      if (selection) {
+        const lower = message.trim().toLowerCase();
+        // If user types an apply intent while a suggestion exists, apply it
+        if (refineResult && (lower === 'apply' || lower === 'apply suggestion' || lower.startsWith('apply ') || lower.startsWith('amend') || lower.startsWith('update'))) {
+          setIsLoading(true);
+          const res = await applyRefinement({
+            optimizationId,
+            selection,
+            suggestion: refineResult,
+          });
+          setIsLoading(false);
+          if (!res.ok) {
+            throw new Error(res.reason || 'Failed to apply refinement');
+          }
+          setRefineResult(null);
+          // Trigger refresh
+          if (onMessageSent) onMessageSent();
+          return;
+        }
+
+        setIsLoading(true);
+        setRefineResult(null);
+        const payload: RefineSectionRequest = {
+          resumeId: optimizationId,
+          selection,
+          instruction: message,
+        };
+        const result = await refineSection(payload);
+        setRefineResult(result.suggestion);
+        setIsLoading(false);
+        return;
+      }
+
       // Add user message optimistically
       const tempUserMessage: ChatMessageType = {
         id: `temp-${Date.now()}`,
@@ -121,6 +161,13 @@ export function ChatSidebar({
       }
 
       const data: ChatSendMessageResponse = await response.json();
+
+      // Emit ephemeral design preview if provided
+      if (onDesignPreview && (data as any).design_customization) {
+        try {
+          onDesignPreview((data as any).design_customization);
+        } catch {}
+      }
 
       // Update session ID if this was first message
       if (!sessionId) {
@@ -264,6 +311,25 @@ export function ChatSidebar({
               <p className="text-sm text-gray-600">Loading chat...</p>
             </div>
           </div>
+        ) : refineResult ? (
+          <div className="space-y-2">
+            {selection && (
+              <div className="text-xs text-gray-600">
+                Suggestion for <span className="font-medium">{selection.field}</span> in <span className="font-mono">{selection.sectionId}</span>
+              </div>
+            )}
+            <div className="p-3 bg-white border rounded text-sm whitespace-pre-wrap">{refineResult}</div>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1 rounded bg-black text-white text-xs"
+                onClick={() => navigator.clipboard.writeText(refineResult)}
+              >Copy</button>
+              <button
+                className="px-3 py-1 rounded border text-xs"
+                onClick={() => { setRefineResult(null); clearSelection(); }}
+              >Clear</button>
+            </div>
+          </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center max-w-xs">
@@ -309,8 +375,13 @@ export function ChatSidebar({
           sessionId={sessionId || ''}
           onSend={handleSendMessage}
           disabled={isLoading}
-          placeholder="e.g., 'Add Python to skills' or 'Make headers blue'..."
+          placeholder={selection ? 'Describe how to refine the selected text…' : "e.g., 'Add Python to skills' or 'Make headers blue'..."}
         />
+        {selection && (
+          <div className="px-4 py-2 text-xs text-gray-600 border-t bg-white">
+            Refining selection in <span className="font-mono">{selection.sectionId}</span> • <span className="font-medium">{selection.field}</span>
+          </div>
+        )}
       </div>
     </div>
   );

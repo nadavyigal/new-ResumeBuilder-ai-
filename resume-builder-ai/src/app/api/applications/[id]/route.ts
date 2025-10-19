@@ -129,9 +129,9 @@ export async function PATCH(
     }
 
     // FR-028: Update application
-    // @ts-expect-error - Supabase type inference issue with dynamic updates object
     const { data: application, error } = await supabase
       .from("applications")
+      // @ts-ignore - dynamic updates object is compatible at runtime
       .update(updates)
       .eq("id", id)
       .eq("user_id", user.id)

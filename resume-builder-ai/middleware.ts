@@ -95,8 +95,15 @@ export async function middleware(request: NextRequest) {
 
   // Apply rate limiting to API routes
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Use user ID if authenticated, otherwise use IP address
-    const identifier = user?.id || request.ip || request.headers.get('x-forwarded-for') || 'anonymous';
+    // Use user ID if authenticated; otherwise derive an IP-like identifier from headers
+    const forwardedForHeader = request.headers.get('x-forwarded-for');
+    const forwardedFor = forwardedForHeader ? forwardedForHeader.split(',')[0].trim() : undefined;
+    const realIp = request.headers.get('x-real-ip') ?? undefined;
+    const cfConnectingIp = request.headers.get('cf-connecting-ip') ?? undefined;
+
+    const identifier =
+      user?.id ?? forwardedFor ?? realIp ?? cfConnectingIp ?? 'anonymous';
+
     const config = getRateLimitConfig(request.nextUrl.pathname);
     const rateLimitResult = checkRateLimit(identifier, config);
 

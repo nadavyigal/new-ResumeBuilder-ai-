@@ -11,6 +11,8 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
+ 
 
 // Disable static generation for this dynamic page
 export const dynamic = 'force-dynamic';
@@ -27,6 +29,8 @@ export default function OptimizationPage() {
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
   const [currentDesignAssignment, setCurrentDesignAssignment] = useState<any>(null);
   const [designLoading, setDesignLoading] = useState(false);
+  // Ephemeral customization from chat for instant preview
+  const [ephemeralCustomization, setEphemeralCustomization] = useState<any>(null);
 
   // Job description data for Apply functionality
   const [jobDescription, setJobDescription] = useState<any>(null);
@@ -37,13 +41,13 @@ export default function OptimizationPage() {
 
   const fetchOptimizationData = async () => {
     try {
-      const { id } = params;
+      const idVal = String(params.id || "");
 
       // First get the optimization data
-      const { data: optimizationData, error: optError } = await supabase
+      const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data, resume_id, jd_id")
-        .eq("id", id)
+        .eq("id", idVal)
         .single();
 
       if (optError) throw optError;
@@ -52,23 +56,23 @@ export default function OptimizationPage() {
       const { data: resumeData, error: resumeError } = await supabase
         .from("resumes")
         .select("raw_text")
-        .eq("id", optimizationData.resume_id)
+        .eq("id", (optimizationRow as any).resume_id)
         .single();
 
       if (resumeError) throw resumeError;
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
-        .select("raw_text")
-        .eq("id", optimizationData.jd_id)
+        .select("raw_text, title, company, source_url")
+        .eq("id", (optimizationRow as any).jd_id)
         .single();
 
       if (jdError) throw jdError;
 
-      setResumeText(resumeData.raw_text || "");
-      setJobDescriptionText(jdData.raw_text || "");
-      setJobDescription(jdData); // Store full job description for Apply button
-      setOptimizedResume(optimizationData.rewrite_data);
+      setResumeText((resumeData as any)?.raw_text || "");
+      setJobDescriptionText((jdData as any)?.raw_text || "");
+      setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
+      setOptimizedResume((optimizationRow as any).rewrite_data);
 
     } catch (error: any) {
       setError(error.message);
@@ -84,7 +88,7 @@ export default function OptimizationPage() {
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
     try {
-      const { id } = params;
+      const idVal2 = String(params.id || "");
 
       console.log('🔄 Chat message sent, refreshing resume data...');
 
@@ -92,25 +96,25 @@ export default function OptimizationPage() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Refresh resume content with force update
-      const { data: optimizationData, error: optError } = await supabase
+      const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data")
-        .eq("id", id)
+        .eq("id", idVal2)
         .single();
 
       if (optError) {
         console.error('❌ Error fetching optimization data:', optError);
-      } else if (optimizationData) {
+      } else if (optimizationRow) {
         console.log('✅ Refreshed resume data after chat message');
-        console.log('📊 Resume sections:', Object.keys(optimizationData.rewrite_data));
+        console.log('📊 Resume sections:', Object.keys((optimizationRow as any).rewrite_data || {}));
 
         // Log sample of data to verify changes
-        if (optimizationData.rewrite_data.skills) {
-          console.log('🔧 Current skills:', optimizationData.rewrite_data.skills);
+        if ((optimizationRow as any).rewrite_data?.skills) {
+          console.log('🔧 Current skills:', (optimizationRow as any).rewrite_data.skills);
         }
 
         // Force a complete re-render by creating new object reference
-        const newData = JSON.parse(JSON.stringify(optimizationData.rewrite_data));
+        const newData = JSON.parse(JSON.stringify((optimizationRow as any).rewrite_data));
         setOptimizedResume(newData);
         // Force component re-render
         setRefreshKey(prev => prev + 1);
@@ -119,7 +123,7 @@ export default function OptimizationPage() {
       }
 
       // Refresh design assignment (in case of design customization)
-      const response = await fetch(`/api/v1/design/${id}`, {
+      const response = await fetch(`/api/v1/design/${idVal2}`, {
         cache: 'no-store', // Ensure fresh data
         headers: {
           'Cache-Control': 'no-cache',
@@ -320,46 +324,37 @@ export default function OptimizationPage() {
         return;
       }
 
-      // Create application record in database
-      const { error: appError } = await supabase
-        .from('applications')
-        .insert({
-          user_id: user.id,
-          optimization_id: params.id,
-          status: 'applied',
-          applied_date: new Date().toISOString(),
-          job_title: jobDescription.title,
+      // Build HTML snapshot from current DOM renderer
+      const resumeContainer = document.querySelector('.resume-container') || document.body;
+      const html = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>${jobDescription.title} - ${jobDescription.company}</title>\n</head>\n<body>${resumeContainer.outerHTML}</body>\n</html>`;
+
+      // Prepare metadata
+      const contact = optimizedResume?.contact || null;
+      const atsScore = currentDesignAssignment?.template?.ats_score ?? null;
+
+      // Call API to persist snapshot
+      const res = await fetch('/api/v1/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html,
+          optimizationId: String(params.id || ''),
+          jobTitle: jobDescription.title,
           company: jobDescription.company,
-          job_url: jobDescription.source_url,
-        });
+          atsScore,
+          contact,
+          jobUrl: jobDescription.source_url || null,
+          appliedDate: new Date().toISOString(),
+        })
+      });
 
-      if (appError) {
-        console.error('Failed to create application record:', appError);
-        alert('Failed to save application. The applications table may not exist yet. Please check the migration.');
-        setApplying(false);
-        return;
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to save application snapshot');
       }
 
-      // Download PDF
-      const downloadLink = document.createElement('a');
-      downloadLink.href = `/api/download/${params.id}?fmt=pdf`;
-      downloadLink.download = `resume-${jobDescription.company}-${jobDescription.title}.pdf`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
-
-      // Small delay to ensure download starts
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Open job URL if available
-      if (jobDescription.source_url) {
-        window.open(jobDescription.source_url, '_blank');
-      }
-
-      // Redirect to history page after a short delay
-      setTimeout(() => {
-        window.location.href = '/dashboard/history';
-      }, 1000);
+      // Navigate to History table after apply
+      window.location.href = `/dashboard/applications`;
 
     } catch (error) {
       console.error('Error in handleApply:', error);
@@ -372,7 +367,7 @@ export default function OptimizationPage() {
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
-        <Link href="/dashboard/history" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+        <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
           ← Back to History
         </Link>
         <div className="text-sm text-muted-foreground">
@@ -451,6 +446,7 @@ export default function OptimizationPage() {
       </div>
 
       {/* Main Layout: Resume on Left, Chat on Right */}
+      <SectionSelectionProvider>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Left Column: Optimized Resume (2/3 width) */}
         <div className="lg:col-span-2" key={refreshKey}>
@@ -458,7 +454,7 @@ export default function OptimizationPage() {
             <DesignRenderer
               resumeData={optimizedResume}
               templateSlug={currentDesignAssignment?.template?.slug}
-              customization={currentDesignAssignment?.customization}
+              customization={ephemeralCustomization || currentDesignAssignment?.customization}
             />
           )}
         </div>
@@ -470,11 +466,13 @@ export default function OptimizationPage() {
               <ChatSidebar
                 optimizationId={params.id as string}
                 onMessageSent={handleChatMessageSent}
+                onDesignPreview={(c) => setEphemeralCustomization(c)}
               />
             </div>
           )}
         </div>
       </div>
+      </SectionSelectionProvider>
 
       {/* Original Data (Collapsible) - Below Everything */}
       <div className="grid gap-4 md:grid-cols-2 print:hidden">
