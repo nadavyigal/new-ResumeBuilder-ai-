@@ -25,9 +25,8 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              .resume-timeline-ssr .resume-timeline-ssr {
+    .resume-timeline-ssr * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-timeline-ssr {
                 font-family: 'Trebuchet MS', system-ui, sans-serif;
                 max-width: 950px;
                 margin: 0 auto;
@@ -48,7 +47,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 overflow: hidden;
               }
-              header:before {
+              .resume-timeline-ssr header:before {
                 content: '';
                 position: absolute;
                 top: -50%;
@@ -117,7 +116,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 padding-left: 50px;
               }
-              .timeline:before {
+              .resume-timeline-ssr .timeline:before {
                 content: '';
                 position: absolute;
                 left: 15px;
@@ -138,11 +137,11 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 4px 15px rgba(124, 58, 237, 0.08);
                 transition: transform 0.2s, box-shadow 0.2s;
               }
-              .timeline-item:hover {
+              .resume-timeline-ssr .timeline-item:hover {
                 transform: translateX(4px);
                 box-shadow: 0 6px 25px rgba(124, 58, 237, 0.15);
               }
-              .timeline-item:before {
+              .resume-timeline-ssr .timeline-item:before {
                 content: '';
                 position: absolute;
                 left: -36px;
@@ -155,7 +154,7 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2);
                 z-index: 1;
               }
-              .timeline-.resume-timeline-ssr header {
+              .resume-timeline-ssr .timeline header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -193,7 +192,7 @@ export default function Resume({ data, customization }) {
                 list-style: none;
                 margin-top: 12px;
               }
-              .highlights li {
+              .resume-timeline-ssr .highlights li {
                 font-size: 14px;
                 color: #374151;
                 padding-left: 24px;
@@ -201,7 +200,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 line-height: 1.5;
               }
-              .highlights li:before {
+              .resume-timeline-ssr .highlights li:before {
                 content: '◆';
                 position: absolute;
                 left: 0;
@@ -218,7 +217,7 @@ export default function Resume({ data, customization }) {
                 border-radius: 10px;
                 border-left: 4px solid #7c3aed;
               }
-              .edu-timeline-item:before {
+              .resume-timeline-ssr .edu-timeline-item:before {
                 content: '';
                 position: absolute;
                 left: -36px;
@@ -230,7 +229,7 @@ export default function Resume({ data, customization }) {
                 border-radius: 50%;
                 box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
               }
-              .edu-.resume-timeline-ssr header {
+              .resume-timeline-ssr .edu header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -290,14 +289,14 @@ export default function Resume({ data, customization }) {
               }
     
               @media print {
-                .resume-timeline-ssr .resume-timeline-ssr {
+                .resume-timeline-ssr {
                   background: #fff;
                   padding: 20px;
                 }
                 .resume-timeline-ssr header {
                   box-shadow: none;
                 }
-                .timeline-item, .resume-timeline-ssr .edu-timeline-item {
+                .resume-timeline-ssr .timeline-item, .resume-timeline-ssr .edu-timeline-item {
                   page-break-inside: avoid;
                   box-shadow: none;
                 }

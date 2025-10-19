@@ -8,6 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
 import { ATSResumeTemplate } from '@/components/templates/ats-resume-template';
+import { useSectionSelection } from '@/hooks/useSectionSelection.tsx';
 
 interface DesignRendererProps {
   resumeData: OptimizedResume;
@@ -91,6 +92,39 @@ export function DesignRenderer({
   );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+	const { beginSelection } = useSectionSelection();
+
+	function handleMouseUp() {
+		try {
+			const sel = window.getSelection();
+			if (!sel || sel.isCollapsed) return;
+			const text = sel.toString().trim();
+			if (!text || text.length < 2) return;
+
+			let field: 'bullet' | 'summary' | 'title' | 'skills' | 'custom' = 'custom';
+			let sectionId = 'custom';
+
+			const anchorNode = sel.anchorNode as Node | null;
+			const el = (anchorNode && (anchorNode.nodeType === Node.ELEMENT_NODE ? anchorNode : anchorNode.parentElement)) as Element | null;
+			let current: Element | null = el;
+			while (current) {
+				const ds = (current as HTMLElement).dataset;
+				if (ds && (ds.sectionId || ds.field)) {
+					sectionId = ds.sectionId || sectionId;
+					field = (ds.field as any) || field;
+					break;
+				}
+				current = current.parentElement;
+			}
+
+			// Heuristic: list items are bullets
+			if (field === 'custom' && el && el.closest('li')) {
+				field = 'bullet';
+			}
+
+			beginSelection(sectionId, field, text.slice(0, 600));
+		} catch {}
+	}
 
   useEffect(() => {
     async function loadTemplate() {
@@ -98,9 +132,27 @@ export function DesignRenderer({
         setLoading(true);
         setError(null);
 
-        // Use default ATS template if no template is selected
+        // If no template slug provided, show "natural" (no design) state
+        // This renders a plain, unstyled resume
         if (!templateSlug) {
+          setTemplateComponent(null);
+          setLoading(false);
+          return;
+        }
+
+        // Use default ATS template for explicit safe/default selections
+        if (templateSlug === 'ats-safe' || templateSlug === 'default') {
           setTemplateComponent(() => ATSResumeTemplate);
+          setLoading(false);
+          return;
+        }
+
+        // Only load external templates if explicitly selected (minimal-ssr, card-ssr, sidebar-ssr, timeline-ssr)
+        const validExternalTemplates = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'];
+
+        if (!validExternalTemplates.includes(templateSlug)) {
+          console.warn(`Unknown template slug: ${templateSlug}, falling back to natural (no design)`);
+          setTemplateComponent(null);
           setLoading(false);
           return;
         }
@@ -117,8 +169,8 @@ export function DesignRenderer({
         setError('Failed to load template');
         setLoading(false);
 
-        // Fallback to ATS template
-        setTemplateComponent(() => ATSResumeTemplate);
+        // Fallback to natural (no design)
+        setTemplateComponent(null);
       }
     }
 
@@ -217,11 +269,104 @@ export function DesignRenderer({
     );
   }
 
-  if (!TemplateComponent) {
+  // If no template component, render natural (plain) resume with no classes/styles
+	if (!TemplateComponent) {
     return (
-      <div className="p-8 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800">No template loaded</p>
-      </div>
+			<section key={renderKey} onMouseUp={handleMouseUp}>
+        <header>
+          <h1>{resumeData.contact?.name}</h1>
+          <div>{resumeData.contact?.location}</div>
+          <div>
+            {resumeData.contact?.email} | {resumeData.contact?.phone}
+          </div>
+          {resumeData.contact?.linkedin && <div>{resumeData.contact.linkedin}</div>}
+          {resumeData.contact?.portfolio && <div>{resumeData.contact.portfolio}</div>}
+        </header>
+
+        {resumeData.summary && (
+					<section data-section-id="summary">
+            <h2>Professional Summary</h2>
+						<p data-field="summary">{resumeData.summary}</p>
+          </section>
+        )}
+
+        {resumeData.skills && (
+					<section data-section-id="skills">
+            <h2>Skills</h2>
+            {resumeData.skills.technical && resumeData.skills.technical.length > 0 && (
+							<p data-field="skills">
+                Technical: {resumeData.skills.technical.join(', ')}
+              </p>
+            )}
+            {resumeData.skills.soft && resumeData.skills.soft.length > 0 && (
+							<p data-field="skills">
+                Professional: {resumeData.skills.soft.join(', ')}
+              </p>
+            )}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.experience) && resumeData.experience.length > 0 && (
+					<section data-section-id="experience">
+            <h2>Experience</h2>
+						{resumeData.experience.map((exp, index) => (
+							<article key={index} data-section-id={`experience-${index}`}>
+                <h3>{exp.title}</h3>
+                <div>
+                  {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
+                </div>
+                {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
+									<ul>
+										{exp.achievements.map((achievement, i) => (
+											<li key={i} data-field="bullet">{achievement}</li>
+										))}
+									</ul>
+                )}
+              </article>
+            ))}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.education) && resumeData.education.length > 0 && (
+          <section>
+            <h2>Education</h2>
+            {resumeData.education.map((edu, index) => (
+              <article key={index}>
+                <h3>{edu.degree}</h3>
+                <div>
+                  {edu.institution} | {edu.location} | {edu.graduationDate}
+                </div>
+              </article>
+            ))}
+          </section>
+        )}
+
+        {Array.isArray(resumeData.certifications) && resumeData.certifications.length > 0 && (
+          <section>
+            <h2>Certifications</h2>
+            <ul>
+              {resumeData.certifications.map((cert, index) => (
+                <li key={index}>{typeof cert === 'string' ? cert : cert.name}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {Array.isArray(resumeData.projects) && resumeData.projects.length > 0 && (
+          <section>
+            <h2>Projects</h2>
+            {resumeData.projects.map((project, index) => (
+              <article key={index}>
+                <h3>{project.name}</h3>
+                <p>{project.description}</p>
+                {Array.isArray(project.technologies) && project.technologies.length > 0 && (
+                  <div>Technologies: {project.technologies.join(', ')}</div>
+                )}
+              </article>
+            ))}
+          </section>
+        )}
+      </section>
     );
   }
 
@@ -231,7 +376,7 @@ export function DesignRenderer({
 
   return (
     <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
-      <div className="resume-container" key={renderKey}>
+      <div className="resume-container" key={renderKey} onMouseUp={handleMouseUp}>
         <TemplateComponent data={componentData} customization={customization} />
       </div>
     </div>

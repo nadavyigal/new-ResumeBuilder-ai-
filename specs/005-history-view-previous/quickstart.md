@@ -140,11 +140,17 @@ export default function HistoryPage() {
 ### Step 4: Test Endpoint (3 min)
 
 ```bash
-# Test in browser or curl
-curl http://localhost:3000/api/optimizations \
-  -H "Authorization: Bearer YOUR_TOKEN"
+# Start dev server
+npm run dev
 
-# Expected: JSON with optimizations array
+# Test in browser (requires authentication):
+# Open http://localhost:3000/dashboard/history
+
+# Or test API endpoint directly:
+# 1. Sign in at http://localhost:3000/auth/signin
+# 2. Open browser DevTools
+# 3. Navigate to http://localhost:3000/api/optimizations
+# Expected: JSON with optimizations array and pagination metadata
 ```
 
 ## Development Phases

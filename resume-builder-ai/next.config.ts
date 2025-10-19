@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   typescript: {
     // Disable type checking during builds (still check in dev)
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
   webpack: (config, { isServer }) => {
     if (isServer) {

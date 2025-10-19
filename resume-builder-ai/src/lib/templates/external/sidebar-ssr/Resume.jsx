@@ -25,9 +25,8 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              .resume-sidebar-ssr .resume-sidebar-ssr {
+    .resume-sidebar-ssr * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-sidebar-ssr {
                 margin: 0;
                 display: grid;
                 grid-template-columns: 320px 1fr;
@@ -37,13 +36,13 @@ export default function Resume({ data, customization }) {
               }
     
               /* Sidebar */
-              aside {
+              .resume-sidebar-ssr aside {
                 background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
                 color: #fff;
                 padding: 40px 30px;
                 box-shadow: 4px 0 24px rgba(0,0,0,0.1);
               }
-              .sidebar-.resume-sidebar-ssr header {
+              .resume-sidebar-ssr .sidebar header {
                 margin-bottom: 32px;
                 padding-bottom: 24px;
                 border-bottom: 2px solid #334155;
@@ -66,7 +65,7 @@ export default function Resume({ data, customization }) {
               .resume-sidebar-ssr .sidebar-section {
                 margin-bottom: 28px;
               }
-              .sidebar-section h3 {
+              .resume-sidebar-ssr .sidebar-section h3 {
                 font-size: 14px;
                 text-transform: uppercase;
                 letter-spacing: 1.5px;
@@ -114,7 +113,7 @@ export default function Resume({ data, customization }) {
               }
     
               /* Main Content */
-              main {
+              .resume-sidebar-ssr main {
                 padding: 50px 60px;
                 background: #fff;
               }
@@ -150,10 +149,10 @@ export default function Resume({ data, customization }) {
                 padding-bottom: 28px;
                 border-bottom: 1px solid #e2e8f0;
               }
-              .job:last-child {
+              .resume-sidebar-ssr .job:last-child {
                 border-bottom: none;
               }
-              .job-.resume-sidebar-ssr header {
+              .resume-sidebar-ssr .job header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -190,7 +189,7 @@ export default function Resume({ data, customization }) {
                 list-style: none;
                 margin-top: 12px;
               }
-              .highlights li {
+              .resume-sidebar-ssr .highlights li {
                 font-size: 14px;
                 color: #334155;
                 padding-left: 20px;
@@ -198,7 +197,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 line-height: 1.5;
               }
-              .highlights li:before {
+              .resume-sidebar-ssr .highlights li:before {
                 content: '●';
                 position: absolute;
                 left: 0;
@@ -218,7 +217,7 @@ export default function Resume({ data, customization }) {
                 border-left: 3px solid #06b6d4;
                 border-radius: 4px;
               }
-              .edu-.resume-sidebar-ssr header {
+              .resume-sidebar-ssr .edu header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -243,10 +242,10 @@ export default function Resume({ data, customization }) {
               }
     
               @media print {
-                .resume-sidebar-ssr .resume-sidebar-ssr {
+                .resume-sidebar-ssr {
                   grid-template-columns: 280px 1fr;
                 }
-                aside {
+                .resume-sidebar-ssr aside {
                   box-shadow: none;
                 }
                 .resume-sidebar-ssr .job {
@@ -255,13 +254,13 @@ export default function Resume({ data, customization }) {
               }
     
               @media (max-width: 768px) {
-                .resume-sidebar-ssr .resume-sidebar-ssr {
+                .resume-sidebar-ssr {
                   grid-template-columns: 1fr;
                 }
-                aside {
+                .resume-sidebar-ssr aside {
                   padding: 30px 20px;
                 }
-                main {
+                .resume-sidebar-ssr main {
                   padding: 30px 20px;
                 }
               }

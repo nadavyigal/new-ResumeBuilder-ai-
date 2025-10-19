@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
@@ -10,6 +11,8 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
+ 
 
 // Disable static generation for this dynamic page
 export const dynamic = 'force-dynamic';
@@ -26,19 +29,25 @@ export default function OptimizationPage() {
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
   const [currentDesignAssignment, setCurrentDesignAssignment] = useState<any>(null);
   const [designLoading, setDesignLoading] = useState(false);
+  // Ephemeral customization from chat for instant preview
+  const [ephemeralCustomization, setEphemeralCustomization] = useState<any>(null);
+
+  // Job description data for Apply functionality
+  const [jobDescription, setJobDescription] = useState<any>(null);
+  const [applying, setApplying] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
 
   const fetchOptimizationData = async () => {
     try {
-      const { id } = params;
+      const idVal = String(params.id || "");
 
       // First get the optimization data
-      const { data: optimizationData, error: optError } = await supabase
+      const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data, resume_id, jd_id")
-        .eq("id", id)
+        .eq("id", idVal)
         .single();
 
       if (optError) throw optError;
@@ -47,22 +56,23 @@ export default function OptimizationPage() {
       const { data: resumeData, error: resumeError } = await supabase
         .from("resumes")
         .select("raw_text")
-        .eq("id", optimizationData.resume_id)
+        .eq("id", (optimizationRow as any).resume_id)
         .single();
 
       if (resumeError) throw resumeError;
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
-        .select("raw_text")
-        .eq("id", optimizationData.jd_id)
+        .select("raw_text, title, company, source_url")
+        .eq("id", (optimizationRow as any).jd_id)
         .single();
 
       if (jdError) throw jdError;
 
-      setResumeText(resumeData.raw_text || "");
-      setJobDescriptionText(jdData.raw_text || "");
-      setOptimizedResume(optimizationData.rewrite_data);
+      setResumeText((resumeData as any)?.raw_text || "");
+      setJobDescriptionText((jdData as any)?.raw_text || "");
+      setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
+      setOptimizedResume((optimizationRow as any).rewrite_data);
 
     } catch (error: any) {
       setError(error.message);
@@ -78,30 +88,42 @@ export default function OptimizationPage() {
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
     try {
-      const { id } = params;
+      const idVal2 = String(params.id || "");
 
-      // Add a small delay to ensure database has been updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('🔄 Chat message sent, refreshing resume data...');
+
+      // Add delay to ensure database has been updated (increased to 2s for reliability)
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Refresh resume content with force update
-      const { data: optimizationData, error: optError } = await supabase
+      const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data")
-        .eq("id", id)
+        .eq("id", idVal2)
         .single();
 
       if (optError) {
-        console.error('Error fetching optimization data:', optError);
-      } else if (optimizationData) {
+        console.error('❌ Error fetching optimization data:', optError);
+      } else if (optimizationRow) {
         console.log('✅ Refreshed resume data after chat message');
-        // Deep clone to ensure React detects the change
-        setOptimizedResume(JSON.parse(JSON.stringify(optimizationData.rewrite_data)));
+        console.log('📊 Resume sections:', Object.keys((optimizationRow as any).rewrite_data || {}));
+
+        // Log sample of data to verify changes
+        if ((optimizationRow as any).rewrite_data?.skills) {
+          console.log('🔧 Current skills:', (optimizationRow as any).rewrite_data.skills);
+        }
+
+        // Force a complete re-render by creating new object reference
+        const newData = JSON.parse(JSON.stringify((optimizationRow as any).rewrite_data));
+        setOptimizedResume(newData);
         // Force component re-render
         setRefreshKey(prev => prev + 1);
+      } else {
+        console.error('❌ No optimization data returned after refresh');
       }
 
       // Refresh design assignment (in case of design customization)
-      const response = await fetch(`/api/v1/design/${id}`, {
+      const response = await fetch(`/api/v1/design/${idVal2}`, {
         cache: 'no-store', // Ensure fresh data
         headers: {
           'Cache-Control': 'no-cache',
@@ -287,10 +309,79 @@ export default function OptimizationPage() {
     return text;
   };
 
+  const handleApply = async () => {
+    if (!jobDescription) {
+      alert('No job description found');
+      return;
+    }
+
+    setApplying(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('You must be logged in to apply');
+        setApplying(false);
+        return;
+      }
+
+      // Build HTML snapshot from current DOM renderer
+      const resumeContainer = document.querySelector('.resume-container') || document.body;
+      const html = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>${jobDescription.title} - ${jobDescription.company}</title>\n</head>\n<body>${resumeContainer.outerHTML}</body>\n</html>`;
+
+      // Prepare metadata
+      const contact = optimizedResume?.contact || null;
+      const atsScore = currentDesignAssignment?.template?.ats_score ?? null;
+
+      // Call API to persist snapshot
+      const res = await fetch('/api/v1/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          html,
+          optimizationId: String(params.id || ''),
+          jobTitle: jobDescription.title,
+          company: jobDescription.company,
+          atsScore,
+          contact,
+          jobUrl: jobDescription.source_url || null,
+          appliedDate: new Date().toISOString(),
+        })
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to save application snapshot');
+      }
+
+      // Navigate to History table after apply
+      window.location.href = `/dashboard/applications`;
+
+    } catch (error) {
+      console.error('Error in handleApply:', error);
+      alert('Failed to process application. Please try again.');
+      setApplying(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+      {/* Page Header with Navigation */}
+      <div className="mb-4 flex justify-between items-center print:hidden">
+        <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+          ← Back to History
+        </Link>
+        <div className="text-sm text-muted-foreground">
+          {jobDescription?.title && `${jobDescription.title} at ${jobDescription.company}`}
+        </div>
+      </div>
+
       {/* Action Buttons */}
       <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
+        {/* Apply Button - Primary Action */}
+        <Button onClick={handleApply} disabled={applying} className="bg-green-600 hover:bg-green-700">
+          {applying ? '⏳ Applying...' : '✓ Apply Now'}
+        </Button>
+
         {/* Export Actions */}
         <div className="flex gap-3">
           <Button onClick={handleCopyText} variant="outline">
@@ -328,30 +419,34 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Current Design Info */}
-      {currentDesignAssignment && (
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg print:hidden">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Current Design: {currentDesignAssignment.template?.name || 'Default'}
+      {/* Current Design Info - Always show */}
+      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg print:hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              Current Design: {currentDesignAssignment?.template?.name || 'Natural (No Design)'}
+            </p>
+            {currentDesignAssignment?.customization && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Customized • ATS Score: {currentDesignAssignment.template?.ats_score || 'N/A'}
               </p>
-              {currentDesignAssignment.customization && (
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                  Customized • ATS Score: {currentDesignAssignment.template?.ats_score || 'N/A'}
-                </p>
-              )}
-            </div>
-            {currentDesignAssignment.template?.category && (
-              <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium capitalize">
-                {currentDesignAssignment.template.category}
-              </span>
+            )}
+            {!currentDesignAssignment && (
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Plain resume format • Click "Change Design" to apply a template
+              </p>
             )}
           </div>
+          {currentDesignAssignment?.template?.category && (
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium capitalize">
+              {currentDesignAssignment.template.category}
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Main Layout: Resume on Left, Chat on Right */}
+      <SectionSelectionProvider>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         {/* Left Column: Optimized Resume (2/3 width) */}
         <div className="lg:col-span-2" key={refreshKey}>
@@ -359,7 +454,7 @@ export default function OptimizationPage() {
             <DesignRenderer
               resumeData={optimizedResume}
               templateSlug={currentDesignAssignment?.template?.slug}
-              customization={currentDesignAssignment?.customization}
+              customization={ephemeralCustomization || currentDesignAssignment?.customization}
             />
           )}
         </div>
@@ -371,11 +466,13 @@ export default function OptimizationPage() {
               <ChatSidebar
                 optimizationId={params.id as string}
                 onMessageSent={handleChatMessageSent}
+                onDesignPreview={(c) => setEphemeralCustomization(c)}
               />
             </div>
           )}
         </div>
       </div>
+      </SectionSelectionProvider>
 
       {/* Original Data (Collapsible) - Below Everything */}
       <div className="grid gap-4 md:grid-cols-2 print:hidden">

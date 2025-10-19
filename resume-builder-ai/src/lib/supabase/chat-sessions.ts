@@ -84,9 +84,10 @@ export async function getChatSession(sessionId: string, supabaseClient?: Supabas
  */
 export async function getActiveSession(
   userId: string,
-  optimizationId: string
+  optimizationId: string,
+  supabaseClient?: SupabaseClient
 ): Promise<ChatSession | null> {
-  const supabase = getSupabaseClient();
+  const supabase = supabaseClient || getSupabaseClient();
 
   const { data, error } = await supabase
     .from('chat_sessions')
