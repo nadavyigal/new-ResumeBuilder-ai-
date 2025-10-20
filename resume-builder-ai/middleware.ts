@@ -135,6 +135,12 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Add cache-busting headers to prevent stale query issues
+  response.headers.set('X-App-Version', '3.0.0'); // Incremented to force cache invalidation
+  response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  response.headers.set('Pragma', 'no-cache');
+  response.headers.set('Expires', '0');
+
   return response;
 }
 

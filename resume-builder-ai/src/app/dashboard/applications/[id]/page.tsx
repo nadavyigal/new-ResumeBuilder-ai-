@@ -45,6 +45,16 @@ export default function ApplicationDetailPage() {
         <div className="text-xl font-semibold">{item.job_title}</div>
         <div className="text-muted-foreground">{item.company_name}</div>
         <div className="text-xs text-muted-foreground">Applied: {new Date(item.applied_date).toLocaleString()}</div>
+        {item.ats_score !== null && (
+          <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-full">
+            <span className="text-sm font-medium text-green-900 dark:text-green-100">
+              ATS Match Score:
+            </span>
+            <span className="text-sm font-bold text-green-700 dark:text-green-300">
+              {item.ats_score}%
+            </span>
+          </div>
+        )}
       </div>
       <div className="flex gap-2">
         {htmlUrl && <a href={htmlUrl} target="_blank" rel="noreferrer" className="underline">Download HTML</a>}

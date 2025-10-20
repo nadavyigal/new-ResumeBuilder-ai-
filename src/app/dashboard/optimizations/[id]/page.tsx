@@ -8,6 +8,9 @@ import { createClientComponentClient } from "@/lib/supabase";
 
 import { TemplateSelector } from "@/components/templates/template-selector";
 
+// Ensure this dynamic route is not statically optimized and avoids stale caching
+export const dynamic = 'force-dynamic';
+
 export default function OptimizationPage() {
   const [resumeText, setResumeText] = useState("");
   const [jobDescriptionText, setJobDescriptionText] = useState("");
@@ -20,28 +23,50 @@ export default function OptimizationPage() {
   useEffect(() => {
     const fetchOptimizationData = async () => {
       try {
-        const { id } = params;
+        const idVal = String(params.id || "");
 
-        const { data, error } = await supabase
-          .from("optimizations")
-          .select(`
-            rewrite_data,
-            resumes (raw_text),
-            job_descriptions (raw_text)
-          `)
-          .eq("id", id)
+        // Fetch optimization row first (no joins to avoid 406/single coercion errors)
+        const { data: opt, error: optError } = await supabase
+          .from('optimizations')
+          .select('rewrite_data, resume_id, jd_id')
+          .eq('id', idVal)
           .single();
 
-        if (error) throw error;
+        if (optError) {
+          if (optError.message?.includes('Cannot coerce')) {
+            throw new Error('Cannot coerce the result to a single JSON object (406). Please hard refresh the page (Ctrl+F5).');
+          }
+          throw optError;
+        }
 
-        // Supabase returns joined tables as objects when using single()
-        // Access them directly from the data object
-        setResumeText((data as any).resumes?.raw_text || "");
-        setJobDescriptionText((data as any).job_descriptions?.raw_text || "");
-        setOptimizedResume(data.rewrite_data);
+        // Fetch resume text
+        const { data: resume, error: resumeError } = await supabase
+          .from('resumes')
+          .select('raw_text')
+          .eq('id', (opt as any).resume_id)
+          .single();
+        if (resumeError) throw resumeError;
+
+        // Fetch job description fields
+        const { data: jd, error: jdError } = await supabase
+          .from('job_descriptions')
+          .select('raw_text, title, company, source_url')
+          .eq('id', (opt as any).jd_id)
+          .single();
+        if (jdError) throw jdError;
+
+        setResumeText((resume as any)?.raw_text || '');
+        // Build JD panel text with optional header
+        let jdText = (jd as any)?.raw_text || '';
+        const header = `${(jd as any)?.title ? (jd as any).title : ''}${(jd as any)?.company ? ` @ ${(jd as any).company}` : ''}`.trim();
+        if (header) {
+          jdText = `${header}\n\n${jdText}`.trim();
+        }
+        setJobDescriptionText(jdText);
+        setOptimizedResume((opt as any).rewrite_data);
 
       } catch (error: any) {
-        setError(error.message);
+        setError(error.message || 'Failed to load optimization');
       } finally {
         setLoading(false);
       }

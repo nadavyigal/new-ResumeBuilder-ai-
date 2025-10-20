@@ -48,7 +48,11 @@ function extractJobContent(html: string): string {
 
   // Try to find main content area using common patterns
   const contentPatterns = [
-    // LinkedIn
+    // LinkedIn - specific patterns for "About this job" section
+    /<div[^>]*class="[^"]*show-more-less-html[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    /<section[^>]*class="[^"]*show-more-less-html[^"]*"[^>]*>([\s\S]*?)<\/section>/i,
+    /<div[^>]*class="[^"]*description__text[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+    // LinkedIn general
     /<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
     // Indeed
     /<div[^>]*id="jobDescriptionText"[^>]*>([\s\S]*?)<\/div>/i,
