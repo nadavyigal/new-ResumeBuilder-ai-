@@ -25,8 +25,9 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-    .resume-card-ssr * { margin: 0; padding: 0; box-sizing: border-box; }
-              .resume-card-ssr {
+    
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-card-ssr .resume-card-ssr {
                 font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
                 max-width: 900px;
                 margin: 0 auto;
@@ -77,7 +78,7 @@ export default function Resume({ data, customization }) {
               }
     
               /* Section Cards */
-              .resume-card-ssr section {
+              section {
                 margin-bottom: 24px;
               }
               .resume-card-ssr h2 {
@@ -111,11 +112,11 @@ export default function Resume({ data, customization }) {
                 box-shadow: 0 4px 12px rgba(0,0,0,0.06);
                 transition: transform 0.2s, box-shadow 0.2s;
               }
-              .resume-card-ssr .job-card:hover {
+              .job-card:hover {
                 transform: translateY(-2px);
                 box-shadow: 0 6px 20px rgba(37, 99, 235, 0.15);
               }
-              .resume-card-ssr .job header {
+              .job-.resume-card-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: flex-start;
@@ -152,7 +153,7 @@ export default function Resume({ data, customization }) {
                 list-style: none;
                 margin-top: 12px;
               }
-              .resume-card-ssr .highlights li {
+              .highlights li {
                 font-size: 14px;
                 color: #334155;
                 padding-left: 24px;
@@ -160,7 +161,7 @@ export default function Resume({ data, customization }) {
                 position: relative;
                 line-height: 1.5;
               }
-              .resume-card-ssr .highlights li:before {
+              .highlights li:before {
                 content: '▸';
                 position: absolute;
                 left: 8px;
@@ -216,7 +217,7 @@ export default function Resume({ data, customization }) {
                 padding: 16px;
                 transition: all 0.2s;
               }
-              .resume-card-ssr .skill-card:hover {
+              .skill-card:hover {
                 border-color: #2563eb;
                 box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
               }
@@ -235,7 +236,7 @@ export default function Resume({ data, customization }) {
               }
     
               @media print {
-                .resume-card-ssr {
+                .resume-card-ssr .resume-card-ssr {
                   background: #fff;
                   padding: 0;
                 }
@@ -243,7 +244,7 @@ export default function Resume({ data, customization }) {
                   box-shadow: none;
                   padding: 20px;
                 }
-                .resume-card-ssr .job-card, .resume-card-ssr .edu-card, .resume-card-ssr .skill-card {
+                .job-card, .edu-card, .resume-card-ssr .skill-card {
                   page-break-inside: avoid;
                   box-shadow: none;
                 }

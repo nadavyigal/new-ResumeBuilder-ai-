@@ -23,7 +23,9 @@
       "Bash(test:*)",
       "Read(//c/Users/nadav/OneDrive/תמונות/**)",
       "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/minimal-ssr/**)",
-      "Bash(npm run sync-templates:*)"
+      "Bash(npm run sync-templates:*)",
+      "Bash(rm -f \"e --abbrev-ref HEAD\" \"tatus --porcelain=v1\")",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

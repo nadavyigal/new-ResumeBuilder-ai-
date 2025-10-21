@@ -12,7 +12,8 @@ import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
- 
+import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
+
 
 // Disable static generation for this dynamic page
 export const dynamic = 'force-dynamic';
@@ -24,6 +25,7 @@ export default function OptimizationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
+  const [matchScore, setMatchScore] = useState<number | null>(null);
 
   // Design feature state
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
@@ -43,38 +45,63 @@ export default function OptimizationPage() {
     try {
       const idVal = String(params.id || "");
 
-      // First get the optimization data
+      // First get the optimization data including match_score
+      // Use maybeSingle() instead of single() to avoid 406 errors
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data, resume_id, jd_id")
+        .select("rewrite_data, resume_id, jd_id, match_score")
         .eq("id", idVal)
-        .single();
+        .maybeSingle();
 
-      if (optError) throw optError;
+      if (optError) {
+        console.error('Error fetching optimization:', optError);
+        throw new Error(`Failed to load optimization: ${optError.message}`);
+      }
+
+      if (!optimizationRow) {
+        throw new Error('Optimization not found');
+      }
 
       // Then fetch the resume and job description separately
       const { data: resumeData, error: resumeError } = await supabase
         .from("resumes")
         .select("raw_text")
         .eq("id", (optimizationRow as any).resume_id)
-        .single();
+        .maybeSingle();
 
-      if (resumeError) throw resumeError;
+      if (resumeError) {
+        console.error('Error fetching resume:', resumeError);
+        throw new Error(`Failed to load resume: ${resumeError.message}`);
+      }
+
+      if (!resumeData) {
+        throw new Error('Resume not found');
+      }
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
-        .select("raw_text, title, company, source_url")
+        .select("raw_text, clean_text, extracted_data, title, company, source_url")
         .eq("id", (optimizationRow as any).jd_id)
-        .single();
+        .maybeSingle();
 
-      if (jdError) throw jdError;
+      if (jdError) {
+        console.error('Error fetching job description:', jdError);
+        throw new Error(`Failed to load job description: ${jdError.message}`);
+      }
+
+      if (!jdData) {
+        throw new Error('Job description not found');
+      }
 
       setResumeText((resumeData as any)?.raw_text || "");
-      setJobDescriptionText((jdData as any)?.raw_text || "");
+      // Use clean_text if available, otherwise fall back to raw_text
+      setJobDescriptionText((jdData as any)?.clean_text || (jdData as any)?.raw_text || "");
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
+      setMatchScore((optimizationRow as any).match_score);
 
     } catch (error: any) {
+      console.error('Error in fetchOptimizationData:', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -96,11 +123,12 @@ export default function OptimizationPage() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Refresh resume content with force update
+      // Use maybeSingle() instead of single() to avoid 406 errors
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
         .select("rewrite_data")
         .eq("id", idVal2)
-        .single();
+        .maybeSingle();
 
       if (optError) {
         console.error('❌ Error fetching optimization data:', optError);
@@ -147,7 +175,8 @@ export default function OptimizationPage() {
     }
   };
 
-  // Fetch design assignment
+  // Fetch design assignment - BUT ONLY if user has explicitly selected a design
+  // By default, show natural design (no template)
   useEffect(() => {
     const fetchDesignAssignment = async () => {
       if (!params.id) return;
@@ -157,9 +186,13 @@ export default function OptimizationPage() {
 
         if (response.ok) {
           const data = await response.json();
-          setCurrentDesignAssignment(data.assignment);
+          // IMPORTANT: Only apply design if user explicitly selected one
+          // For now, we'll show natural design by default and let user choose
+          // Comment out to disable auto-loading of previously assigned designs:
+          // setCurrentDesignAssignment(data.assignment);
+          setCurrentDesignAssignment(null); // Always start with natural design
         } else if (response.status === 404) {
-          // No design assigned yet - that's okay
+          // No design assigned yet - show natural design
           setCurrentDesignAssignment(null);
         }
       } catch (error) {
@@ -212,11 +245,42 @@ export default function OptimizationPage() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading optimization...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="min-h-screen bg-muted/50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <div className="text-center">
+            <div className="text-red-500 text-5xl mb-4">⚠️</div>
+            <h2 className="text-xl font-semibold mb-2">Error Loading Optimization</h2>
+            <p className="text-muted-foreground mb-4">{error}</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+              >
+                Reload Page
+              </button>
+              <button
+                onClick={() => window.location.href = '/dashboard/applications'}
+                className="w-full px-4 py-2 bg-muted text-muted-foreground rounded hover:bg-muted/80"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const handlePrint = () => {
@@ -330,7 +394,7 @@ export default function OptimizationPage() {
 
       // Prepare metadata
       const contact = optimizedResume?.contact || null;
-      const atsScore = currentDesignAssignment?.template?.ats_score ?? null;
+      const atsScore = matchScore ?? null;
 
       // Call API to persist snapshot
       const res = await fetch('/api/v1/applications', {
@@ -364,6 +428,7 @@ export default function OptimizationPage() {
   };
 
   return (
+    <CacheBustingErrorBoundary>
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
@@ -419,29 +484,42 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Current Design Info - Always show */}
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg print:hidden">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-              Current Design: {currentDesignAssignment?.template?.name || 'Natural (No Design)'}
-            </p>
-            {currentDesignAssignment?.customization && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Customized • ATS Score: {currentDesignAssignment.template?.ats_score || 'N/A'}
-              </p>
-            )}
-            {!currentDesignAssignment && (
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Plain resume format • Click "Change Design" to apply a template
-              </p>
-            )}
+      {/* Match Score and Current Design Info - Always show */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
+        {/* Match Score Card */}
+        {matchScore !== null && (
+          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  ATS Match Score
+                </p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                  Resume alignment with job requirements
+                </p>
+              </div>
+              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-2xl rounded-full font-bold">
+                {matchScore}%
+              </span>
+            </div>
           </div>
-          {currentDesignAssignment?.template?.category && (
-            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium capitalize">
-              {currentDesignAssignment.template.category}
+        )}
+
+        {/* Current Design Info */}
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Current Design: Natural (Clean Format)
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                Professional plain format • Click "Change Design" to browse templates
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium">
+              ATS-Friendly
             </span>
-          )}
+          </div>
         </div>
       </div>
 
@@ -489,11 +567,54 @@ export default function OptimizationPage() {
         <Card className="rounded-lg">
           <CardHeader>
             <CardTitle>Job Description</CardTitle>
+            {jobDescription?.source_url && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Source: <a href={jobDescription.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                  {jobDescription.source_url}
+                </a>
+              </p>
+            )}
           </CardHeader>
           <CardContent>
-            <pre className="whitespace-pre-wrap text-sm max-h-96 overflow-y-auto">
-              {jobDescriptionText}
-            </pre>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {jobDescription?.title && (
+                <div>
+                  <h3 className="font-semibold text-base">{jobDescription.title}</h3>
+                  {jobDescription?.company && (
+                    <p className="text-sm text-muted-foreground">{jobDescription.company}</p>
+                  )}
+                </div>
+              )}
+
+              {jobDescription?.extracted_data && Object.keys(jobDescription.extracted_data).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(jobDescription.extracted_data).map(([key, value]) => {
+                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+
+                    return (
+                      <div key={key}>
+                        <h4 className="font-medium text-sm capitalize mb-1">{key.replace(/_/g, ' ')}</h4>
+                        {Array.isArray(value) ? (
+                          <ul className="list-disc list-inside text-sm space-y-1">
+                            {value.map((item: string, idx: number) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : typeof value === 'string' ? (
+                          <p className="text-sm whitespace-pre-wrap">{value}</p>
+                        ) : (
+                          <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <pre className="whitespace-pre-wrap text-sm">
+                  {jobDescriptionText}
+                </pre>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -507,5 +628,6 @@ export default function OptimizationPage() {
         onTemplateSelect={handleTemplateSelect}
       />
     </div>
+    </CacheBustingErrorBoundary>
   );
 }

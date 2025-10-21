@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
     // Disable type checking during builds (still check in dev)
     ignoreBuildErrors: true,
   },
+  // Generate unique build ID to force cache invalidation on deployments
+  generateBuildId: async () => {
+    // Use timestamp for cache busting - forces browser to fetch new chunks
+    return `build-${Date.now()}`;
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Exclude pdf-parse from webpack bundling to avoid test code execution

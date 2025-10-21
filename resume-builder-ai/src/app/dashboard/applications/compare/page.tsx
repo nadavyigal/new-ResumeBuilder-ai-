@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function CompareApplicationsPage() {
+function CompareContent() {
   const sp = useSearchParams();
   const ids = (sp.get("ids") || "").split(",").filter(Boolean);
   const [items, setItems] = useState<any[]>([]);
@@ -48,6 +48,14 @@ export default function CompareApplicationsPage() {
         </div>
       ))}
     </div>
+  );
+}
+
+export default function CompareApplicationsPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <CompareContent />
+    </Suspense>
   );
 }
 

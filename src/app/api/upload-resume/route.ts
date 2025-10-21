@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { parsePdf } from "@/lib/pdf-parser";
 import { cookies } from "next/headers";
+import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
+
+// Ensure Node.js runtime for Buffer and outbound fetch
+export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
 
 export async function POST(req: NextRequest) {
@@ -48,10 +52,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
     }
 
-    // Get job description text from either direct input or URL
+    // Get job description from either direct input or URL (with structured extraction)
     let jobDescriptionText = "";
+    let extractedTitle: string | null = null;
+    let extractedCompany: string | null = null;
+    let extractedData: any = {};
+    let sourceUrl: string | null = null;
+
     if (jobDescriptionUrl) {
-      jobDescriptionText = await scrapeJobDescription(jobDescriptionUrl);
+      try {
+        const extracted = await extractJob(jobDescriptionUrl);
+        extractedTitle = extracted.job_title;
+        extractedCompany = extracted.company_name;
+        extractedData = extracted;
+        sourceUrl = jobDescriptionUrl;
+
+        // Build a concise text for AI from structured fields
+        const parts: string[] = [];
+        if (extracted.job_title) parts.push(`Job Title: ${extracted.job_title}`);
+        if (extracted.company_name) parts.push(`Company: ${extracted.company_name}`);
+        if (extracted.location) parts.push(`Location: ${extracted.location}`);
+        if (extracted.about_this_job) parts.push(`About: ${extracted.about_this_job}`);
+        if (extracted.requirements?.length) parts.push(`Requirements: ${extracted.requirements.join("; ")}`);
+        if (extracted.responsibilities?.length) parts.push(`Responsibilities: ${extracted.responsibilities.join("; ")}`);
+        if (extracted.qualifications?.length) parts.push(`Qualifications: ${extracted.qualifications.join("; ")}`);
+        jobDescriptionText = parts.join("\n");
+      } catch (e) {
+        // Fallback to simple scraper if structured extraction fails
+        try {
+          const text = await scrapeJobDescription(jobDescriptionUrl);
+          jobDescriptionText = text;
+          extractedData = { fallback: true, source_url: jobDescriptionUrl };
+          sourceUrl = jobDescriptionUrl;
+        } catch {
+          // Final fallback: proceed with URL only so optimization can continue
+          jobDescriptionText = `Job Posting URL: ${jobDescriptionUrl}`;
+          extractedData = { fallback: true, source_url: jobDescriptionUrl };
+          sourceUrl = jobDescriptionUrl;
+        }
+      }
     } else if (jobDescription) {
       jobDescriptionText = jobDescription;
     } else {
@@ -84,12 +123,12 @@ export async function POST(req: NextRequest) {
       .insert([
         {
           user_id: user.id,
-          title: "Job Position", // Will be extracted later
-          company: "Company Name", // Will be extracted later
+          title: extractedTitle || "Job Position",
+          company: extractedCompany || "Company Name",
           raw_text: jobDescriptionText,
-          clean_text: jobDescriptionText, // Basic cleaning for now
-          extracted_data: {}, // Will be populated during optimization
-          source_url: jobDescriptionUrl || null,
+          clean_text: jobDescriptionText,
+          extracted_data: extractedData,
+          source_url: sourceUrl,
         },
       ])
       .select()

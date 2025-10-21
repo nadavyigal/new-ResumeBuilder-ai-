@@ -25,8 +25,9 @@ export default function Resume({ data, customization }) {
   // Build CSS as a string for inline style tag (SSR-compatible)
   const cssStyles = `
     .${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
-    .resume-minimal-ssr * { margin: 0; padding: 0; box-sizing: border-box; }
-              .resume-minimal-ssr {
+    
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              .resume-minimal-ssr .resume-minimal-ssr {
                 font-family: ${fonts.body};
                 max-width: 850px;
                 margin: 0 auto;
@@ -61,7 +62,7 @@ export default function Resume({ data, customization }) {
                 color: ${colors.secondary};
                 margin-top: 12px;
               }
-              .resume-minimal-ssr .contact span { margin: 0 8px; }
+              .contact span { margin: 0 8px; }
     
               /* Section Titles */
               .resume-minimal-ssr h2 {
@@ -86,7 +87,7 @@ export default function Resume({ data, customization }) {
                 margin-bottom: 24px;
                 page-break-inside: avoid;
               }
-              .resume-minimal-ssr .job header {
+              .job-.resume-minimal-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
@@ -115,7 +116,7 @@ export default function Resume({ data, customization }) {
                 margin-left: 20px;
                 margin-top: 6px;
               }
-              .resume-minimal-ssr .highlights li {
+              .highlights li {
                 font-size: 14px;
                 margin-bottom: 4px;
               }
@@ -124,7 +125,7 @@ export default function Resume({ data, customization }) {
               .resume-minimal-ssr .edu {
                 margin-bottom: 16px;
               }
-              .resume-minimal-ssr .edu header {
+              .edu-.resume-minimal-ssr header {
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
@@ -166,7 +167,7 @@ export default function Resume({ data, customization }) {
               }
     
               @media print {
-                .resume-minimal-ssr { padding: 0; margin: 0; }
+                .resume-minimal-ssr .resume-minimal-ssr { padding: 0; margin: 0; }
                 .resume-minimal-ssr .job { page-break-inside: avoid; }
               }
             
