@@ -1,0 +1,10 @@
+{
+  "summary": "DevOps engineer Kubernetes and Terraform.",
+  "contact": { "name": "F", "email": "f@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["Kubernetes", "Terraform"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}
