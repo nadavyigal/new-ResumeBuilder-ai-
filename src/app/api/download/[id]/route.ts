@@ -18,10 +18,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from("optimizations")
     .select("rewrite_data")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (error || !optimizationData) {
-    return NextResponse.json({ error: error?.message || "Optimization not found" }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!optimizationData) {
+    return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
   }
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;

@@ -120,7 +120,7 @@ export async function POST(
         .from('optimizations')
         .select('optimized_data')
         .eq('id', session.optimization_id)
-        .single();
+        .maybeSingle();
 
       currentContent = optimization?.optimized_data || {};
     }

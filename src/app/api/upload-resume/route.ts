@@ -22,11 +22,15 @@ export async function POST(req: NextRequest) {
     .from("profiles")
     .select("plan_type, optimizations_used")
     .eq("user_id", user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError) {
     console.error("Error fetching user profile:", profileError);
     return NextResponse.json({ error: "Failed to fetch user profile" }, { status: 500 });
+  }
+
+  if (!profile) {
+    return NextResponse.json({ error: "User profile not found" }, { status: 404 });
   }
 
   // FR-021: Free tier users can only use 1 optimization
@@ -112,10 +116,14 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (resumeError) {
       throw resumeError;
+    }
+
+    if (!resumeData) {
+      throw new Error("Failed to create resume record");
     }
 
     const { data: jdData, error: jdError } = await supabase
@@ -132,10 +140,14 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (jdError) {
       throw jdError;
+    }
+
+    if (!jdData) {
+      throw new Error("Failed to create job description record");
     }
 
     // Optimize resume using AI
@@ -170,10 +182,19 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (optimizationError) {
       console.error("Failed to save optimization:", optimizationError);
+      return NextResponse.json({
+        error: "Optimization completed but failed to save results",
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      }, { status: 500 });
+    }
+
+    if (!optimizationData) {
+      console.error("Failed to create optimization record");
       return NextResponse.json({
         error: "Optimization completed but failed to save results",
         resumeId: resumeData.id,

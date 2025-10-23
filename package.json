@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:contracts": "jest --config jest.config.ts tests/contracts",
+    "bench:agent": "node scripts/bench-agent.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",
@@ -23,7 +25,8 @@
     "puppeteer": "^24.20.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

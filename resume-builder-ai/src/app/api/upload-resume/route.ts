@@ -109,10 +109,14 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (resumeError) {
       throw resumeError;
+    }
+
+    if (!resumeData) {
+      throw new Error("Failed to create resume record - no data returned");
     }
 
     const { data: jdData, error: jdError } = await supabase
@@ -129,10 +133,14 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (jdError) {
       throw jdError;
+    }
+
+    if (!jdData) {
+      throw new Error("Failed to create job description record - no data returned");
     }
 
     // Optimize resume using AI
@@ -181,12 +189,21 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (optimizationError) {
       console.error("Failed to save optimization:", optimizationError);
       return NextResponse.json({
         error: "Optimization completed but failed to save results",
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      }, { status: 500 });
+    }
+
+    if (!optimizationData) {
+      console.error("Failed to save optimization: no data returned");
+      return NextResponse.json({
+        error: "Optimization completed but failed to save results - no data returned",
         resumeId: resumeData.id,
         jobDescriptionId: jdData.id,
       }, { status: 500 });

@@ -555,7 +555,7 @@ export async function getDesignAssignment(optimizationId: string): Promise<any |
         customization:design_customizations(*)
       `)
       .eq('optimization_id', optimizationId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') {

@@ -22,17 +22,29 @@ export async function POST(req: NextRequest) {
       .from("resumes")
       .select("raw_text")
       .eq("id", resumeId)
-      .single();
+      .maybeSingle();
 
-    if (resumeError) throw resumeError;
+    if (resumeError) {
+      throw resumeError;
+    }
+
+    if (!resumeData) {
+      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+    }
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
       .select("raw_text")
       .eq("id", jobDescriptionId)
-      .single();
+      .maybeSingle();
 
-    if (jdError) throw jdError;
+    if (jdError) {
+      throw jdError;
+    }
+
+    if (!jdData) {
+      return NextResponse.json({ error: "Job description not found" }, { status: 404 });
+    }
 
     const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text);
 
@@ -51,9 +63,15 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
-    if (optimizationError) throw optimizationError;
+    if (optimizationError) {
+      throw optimizationError;
+    }
+
+    if (!optimizationData) {
+      return NextResponse.json({ error: "Failed to create optimization record" }, { status: 500 });
+    }
 
     return NextResponse.json({ optimizationId: optimizationData.id });
 

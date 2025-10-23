@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
 import { ATSResumeTemplate } from '@/components/templates/ats-resume-template';
-import { useSectionSelection } from '@/hooks/useSectionSelection.tsx';
+import { useSectionSelection } from '@/hooks/useSectionSelection';
 
 interface DesignRendererProps {
   resumeData: OptimizedResume;
@@ -80,9 +80,97 @@ function transformResumeData(data: OptimizedResume): any {
 }
 
 /**
- * Dynamically loads and renders the appropriate template
+ * External Template Renderer (for templates that return full HTML documents)
+ * Renders in iframe using server-side API endpoint
  */
-export function DesignRenderer({
+function ExternalTemplateRenderer({
+  resumeData,
+  templateSlug,
+  customization
+}: DesignRendererProps) {
+  const [htmlContent, setHtmlContent] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!templateSlug || !resumeData) {
+      setHtmlContent('');
+      setLoading(false);
+      return;
+    }
+
+    const fetchHtml = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch('/api/v1/design/render-preview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            templateId: templateSlug,
+            resumeData: resumeData,
+            customization: customization || {}
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const html = await response.text();
+        setHtmlContent(html);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching template HTML:', err);
+        setError('Failed to render template');
+        setHtmlContent('');
+        setLoading(false);
+      }
+    };
+
+    fetchHtml();
+  }, [templateSlug, resumeData, customization]);
+
+  if (loading) {
+    return (
+      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '1100px' }}>
+        <div className="text-gray-500">Loading template...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '1100px' }}>
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
+      <iframe
+        srcDoc={htmlContent}
+        title="Resume Preview"
+        className="w-full border-0"
+        style={{
+          minHeight: '1100px',
+          height: '100%'
+        }}
+        sandbox="allow-same-origin"
+      />
+    </div>
+  );
+}
+
+/**
+ * Internal Template Renderer (for templates that are React components)
+ * Renders directly with section selection support
+ */
+function InternalTemplateRenderer({
   resumeData,
   templateSlug,
   customization
@@ -90,8 +178,10 @@ export function DesignRenderer({
   const [TemplateComponent, setTemplateComponent] = useState<React.ComponentType<any> | null>(
     null
   );
+  const [previousComponent, setPreviousComponent] = useState<React.ComponentType<any> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 	const { beginSelection } = useSectionSelection();
 
 	function handleMouseUp() {
@@ -129,72 +219,99 @@ export function DesignRenderer({
   useEffect(() => {
     async function loadTemplate() {
       try {
-        setLoading(true);
+        // When template changes, mark as transitioning but DON'T show loading
+        setIsTransitioning(true);
         setError(null);
 
         // If no template slug provided, show "natural" (no design) state
-        // This renders a plain, unstyled resume
         if (!templateSlug) {
+          setPreviousComponent(TemplateComponent);
           setTemplateComponent(null);
           setLoading(false);
+          setIsTransitioning(false);
           return;
         }
 
         // Use default ATS template for explicit safe/default selections
         if (templateSlug === 'ats-safe' || templateSlug === 'default') {
+          setPreviousComponent(TemplateComponent);
           setTemplateComponent(() => ATSResumeTemplate);
           setLoading(false);
+          setIsTransitioning(false);
           return;
         }
 
-        // Only load external templates if explicitly selected (minimal-ssr, card-ssr, sidebar-ssr, timeline-ssr)
+        // Only load external templates if explicitly selected
         const validExternalTemplates = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'];
 
         if (!validExternalTemplates.includes(templateSlug)) {
           console.warn(`Unknown template slug: ${templateSlug}, falling back to natural (no design)`);
+          setPreviousComponent(TemplateComponent);
           setTemplateComponent(null);
           setLoading(false);
+          setIsTransitioning(false);
           return;
         }
 
+        // Save current component as previous before loading new one
+        setPreviousComponent(TemplateComponent);
+
         // Dynamically import the selected external template
+        // This may trigger Next.js recompilation, but UI stays stable
         const templateModule = await import(
           `@/lib/templates/external/${templateSlug}/Resume.jsx`
         );
 
         setTemplateComponent(() => templateModule.default);
         setLoading(false);
+        setIsTransitioning(false);
       } catch (err) {
         console.error('Error loading template:', err);
         setError('Failed to load template');
         setLoading(false);
+        setIsTransitioning(false);
 
-        // Fallback to natural (no design)
+        // Clear both components to show clean error state
+        setPreviousComponent(null);
         setTemplateComponent(null);
       }
     }
 
     loadTemplate();
-  }, [templateSlug]);
+  }, [templateSlug, TemplateComponent]); // Add TemplateComponent to dependencies
 
   // Force re-render when resumeData changes
+  // Only update if not loading/transitioning to avoid race conditions
   const [renderKey, setRenderKey] = useState(0);
   useEffect(() => {
-    setRenderKey(prev => prev + 1);
-  }, [resumeData, customization]);
+    if (!loading && !isTransitioning) {
+      setRenderKey(prev => prev + 1);
+    }
+  }, [resumeData, customization, loading, isTransitioning]);
 
   // Apply customization styles (scoped to resume container only)
   useEffect(() => {
-    if (!customization) return;
-
     const styleId = 'design-customization-styles';
-    let styleTag = document.getElementById(styleId) as HTMLStyleElement;
 
-    if (!styleTag) {
-      styleTag = document.createElement('style');
-      styleTag.id = styleId;
-      document.head.appendChild(styleTag);
+    if (!customization) {
+      // Clean up any existing style tag when customization is removed
+      const existingTag = document.getElementById(styleId);
+      if (existingTag?.parentNode) {
+        existingTag.parentNode.removeChild(existingTag);
+      }
+      return;
     }
+
+    // Remove any existing tag first to avoid duplicates
+    const existingTag = document.getElementById(styleId);
+    if (existingTag?.parentNode) {
+      existingTag.parentNode.removeChild(existingTag);
+    }
+
+    // Create new style tag
+    const styleTag = document.createElement('style');
+    styleTag.id = styleId;
+    document.head.appendChild(styleTag);
 
     // Build CSS from customization - PROPERLY SCOPED to .resume-container only
     let css = '';
@@ -249,12 +366,36 @@ export function DesignRenderer({
     };
   }, [customization]);
 
-  if (loading) {
+  // Only show loading spinner on initial load, not during transitions
+  if (loading && !previousComponent) {
     return (
       <div className="flex items-center justify-center p-8 bg-white rounded-lg shadow">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
           <p className="text-gray-600">Loading template...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // During transition, show previous component with overlay
+  if (isTransitioning && previousComponent) {
+    const PrevComp = previousComponent;
+    const componentData = templateSlug ? transformResumeData(resumeData) : resumeData;
+
+    return (
+      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
+        {/* Loading overlay during transition */}
+        <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 z-50 flex items-center justify-center backdrop-blur-[2px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
+            <p className="text-sm font-medium text-muted-foreground">Switching design...</p>
+          </div>
+        </div>
+
+        {/* Keep showing previous design underneath */}
+        <div className="resume-container" key={renderKey} onMouseUp={handleMouseUp}>
+          <PrevComp data={componentData} customization={customization} />
         </div>
       </div>
     );
@@ -376,7 +517,10 @@ export function DesignRenderer({
 
   // Transform data for external templates (they expect JSON Resume format)
   // ATS template uses OptimizedResume format directly
-  const componentData = templateSlug ? transformResumeData(resumeData) : resumeData;
+  // Ensure we always have valid data, even if resumeData is null/undefined during transitions
+  const componentData = templateSlug && resumeData
+    ? transformResumeData(resumeData)
+    : (resumeData || {});
 
   return (
     <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
@@ -384,5 +528,37 @@ export function DesignRenderer({
         <TemplateComponent data={componentData} customization={customization} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Main DesignRenderer Component
+ * Routes to appropriate renderer based on template type
+ */
+export function DesignRenderer({
+  resumeData,
+  templateSlug,
+  customization
+}: DesignRendererProps) {
+  // Check if this is an external template
+  const isExternalTemplate = templateSlug && ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'].includes(templateSlug);
+
+  // Route to appropriate renderer
+  if (isExternalTemplate) {
+    return (
+      <ExternalTemplateRenderer
+        resumeData={resumeData}
+        templateSlug={templateSlug}
+        customization={customization}
+      />
+    );
+  }
+
+  return (
+    <InternalTemplateRenderer
+      resumeData={resumeData}
+      templateSlug={templateSlug}
+      customization={customization}
+    />
   );
 }

@@ -24,9 +24,13 @@ export async function GET(
       .select("id, job_title, company_name, applied_date, ats_score, contact, resume_html_path, resume_json_path")
       .eq("id", id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !application) {
+    if (error) {
+      return NextResponse.json({ error: "Error fetching application: " + error.message }, { status: 500 });
+    }
+
+    if (!application) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

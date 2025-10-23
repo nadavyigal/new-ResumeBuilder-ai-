@@ -2,6 +2,30 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL: 406 Error Fix Pattern
+
+**If user reports: "Error: Cannot coerce the result to a single JSON object (406)"**
+
+**DO NOT** tell them to clear browser cache - that's not the issue!
+
+**ROOT CAUSE:** Supabase `.single()` method throwing 406 errors.
+
+**FIX IMMEDIATELY:**
+1. Search for `.single()` calls in `resume-builder-ai/src/lib/**/*.ts`
+2. Replace ALL `.single()` with `.maybeSingle()`
+3. Add null checks after error checks in non-nullable return functions
+
+**Quick fix command:**
+```bash
+cd resume-builder-ai/src/lib
+sed -i 's/\.single();/.maybeSingle();/g' supabase/*.ts design-manager/*.ts template-engine/*.ts
+sed -i 's/\.single()$/.maybeSingle()/g' supabase/*.ts
+```
+
+**See:** `HOW_TO_FIX_406_ERROR.md` in project root for complete guide.
+
+**Last fixed:** 2025-10-21 (30 instances in lib files)
+
 ## Development Commands
 
 **Essential commands to run from the `resume-builder-ai` directory:**

@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       .from("resumes")
       .select("raw_text")
       .eq("id", resumeId)
-      .single();
+      .maybeSingle();
 
     if (resumeError) throw resumeError;
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       .from("job_descriptions")
       .select("raw_text")
       .eq("id", jobDescriptionId)
-      .single();
+      .maybeSingle();
 
     if (jdError) throw jdError;
 
@@ -51,9 +51,12 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select()
-      .single();
+      .maybeSingle();
 
     if (optimizationError) throw optimizationError;
+    if (!optimizationData) {
+      throw new Error("Failed to create optimization record");
+    }
 
     return NextResponse.json({ optimizationId: optimizationData.id });
 

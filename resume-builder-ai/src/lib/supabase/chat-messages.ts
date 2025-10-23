@@ -29,7 +29,7 @@ export async function createChatMessage(
     .from('chat_messages')
     .insert(message)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to create chat message: ${error.message}`);
@@ -106,7 +106,7 @@ export async function getChatMessage(messageId: string): Promise<ChatMessage | n
     .from('chat_messages')
     .select('*')
     .eq('id', messageId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {

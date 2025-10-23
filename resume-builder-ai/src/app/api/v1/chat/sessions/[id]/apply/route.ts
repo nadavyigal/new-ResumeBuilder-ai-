@@ -64,7 +64,7 @@ export async function POST(
       .select('*')
       .eq('id', amendment_id)
       .eq('session_id', sessionId)
-      .single();
+      .maybeSingle();
 
     if (amendmentError || !amendmentRequest) {
       return NextResponse.json(
@@ -99,7 +99,7 @@ export async function POST(
         .from('optimizations')
         .select('optimized_data')
         .eq('id', session.optimization_id)
-        .single();
+        .maybeSingle();
 
       currentContent = optimization?.optimized_data || {};
     }

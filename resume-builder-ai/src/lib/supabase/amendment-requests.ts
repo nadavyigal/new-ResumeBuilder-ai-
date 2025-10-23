@@ -29,7 +29,7 @@ export async function createAmendmentRequest(
     .from('amendment_requests')
     .insert(request)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to create amendment request: ${error.message}`);
@@ -51,7 +51,7 @@ export async function getAmendmentRequest(requestId: string): Promise<AmendmentR
     .from('amendment_requests')
     .select('*')
     .eq('id', requestId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -126,7 +126,7 @@ export async function updateAmendmentRequest(
     })
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to update amendment request: ${error.message}`);

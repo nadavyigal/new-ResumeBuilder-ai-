@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .from("optimizations")
     .select("rewrite_data")
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
   if (error || !optimizationData) {
     return NextResponse.json({ error: error?.message || "Optimization not found" }, { status: 500 });

@@ -1,5 +1,24 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment Setup
+
+Create a `.env.local` (or `local.env`) and set your Supabase keys and OpenAI key.
+
+Required variables:
+
+- `OPENAI_API_KEY` — OpenAI API key used for intent classification and planning.
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key for SSR clients.
+- `SUPABASE_SERVICE_ROLE_KEY` — Service role key for server-side inserts/storage.
+
+Agent SDK Feature Flags (safe rollout):
+
+- `AGENT_SDK_ENABLED` — when `true`, the `/api/agent/run` endpoint returns `AgentResult` directly.
+- `AGENT_SDK_SHADOW` — when `true` and `AGENT_SDK_ENABLED` is `false`, the route returns legacy response and runs the agent in the background (metrics logged).
+- `AGENT_SDK_MODEL` — model to use for classification/planning (default `gpt-4o-mini`).
+
+Defaults are provided in `.env.example`.
+
 ## Getting Started
 
 First, run the development server:
@@ -28,6 +47,15 @@ To learn more about Next.js, take a look at the following resources:
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Scripts
+
+- `npm run dev` — Start local dev server with hot reload.
+- `npm run build` — Production build (Next.js + TypeScript).
+- `npm start` — Run the compiled production server.
+- `npm run lint` — Lint code with ESLint.
+- `npm run test:contracts` — Run contract tests for legacy and agent schemas.
+- `npm run bench:agent` — Run enhancement benchmark (see `scripts/bench-agent.mjs`).
 
 ## Deploy on Vercel
 

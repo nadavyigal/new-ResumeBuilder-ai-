@@ -30,9 +30,13 @@ export async function POST(
       .select('id, user_id, ats_score, public_url')
       .eq('id', optimizedId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (optErr || !opt) {
+    if (optErr) {
+      return NextResponse.json({ error: 'Error fetching optimization: ' + optErr.message }, { status: 500 });
+    }
+
+    if (!opt) {
       return NextResponse.json({ error: 'Optimization not found or access denied' }, { status: 404 });
     }
 
@@ -56,6 +60,10 @@ export async function POST(
     return NextResponse.json({ error: e.message || 'Unknown error' }, { status: 500 });
   }
 }
+
+
+
+
 
 
 

@@ -7,6 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+// Helper function to clean job titles (remove company name and LinkedIn suffix)
+function cleanJobTitle(title: string): string {
+  if (!title) return title;
+  // Remove LinkedIn suffix pattern: "| LinkedIn"
+  let cleaned = title.replace(/\|\s*LinkedIn.*$/i, "").trim();
+  // Remove company hiring prefix pattern: "Company hiring JobTitle in Location"
+  const hiringMatch = cleaned.match(/^.+?\s+hiring\s+(.+?)(?:\s+in\s+.+)?$/i);
+  if (hiringMatch && hiringMatch[1]) {
+    cleaned = hiringMatch[1].trim();
+  }
+  return cleaned;
+}
+
+// Helper function to detect if URL has easy apply
+function hasEasyApply(url: string | null | undefined, applicationInstructions: string[] | null | undefined): boolean {
+  if (!url) return false;
+  const lowerUrl = url.toLowerCase();
+  // Check if URL contains easy apply indicators
+  if (lowerUrl.includes('easyapply') || lowerUrl.includes('easy-apply') || lowerUrl.includes('easy_apply')) {
+    return true;
+  }
+  // Check if application instructions indicate easy apply
+  if (applicationInstructions && applicationInstructions.length > 0) {
+    return true;
+  }
+  return false;
+}
+
 interface ApplicationItem {
   id: string;
   job_title: string;
@@ -19,6 +47,11 @@ interface ApplicationItem {
   optimized_resume_url?: string | null;
   source_url?: string | null;
   optimization_id?: string | null;
+  job_extraction?: {
+    company_name?: string | null;
+    job_title?: string | null;
+    application_instructions?: string[] | null;
+  } | null;
 }
 
 export default function ApplicationsPage() {
@@ -58,6 +91,11 @@ export default function ApplicationsPage() {
 
   return (
     <div className="p-6">
+      <div className="mb-4">
+        <Link href="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+          ← Back to Dashboard
+        </Link>
+      </div>
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Applications</CardTitle>
@@ -81,12 +119,12 @@ export default function ApplicationsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b">
-                    <th className="py-3">Optimized resume</th>
+                    <th className="py-3">Resume</th>
                     <th className="py-3">Company name</th>
                     <th className="py-3">Job title</th>
                     <th className="py-3">Application date</th>
                     <th className="py-3">ATS score</th>
-                    <th className="py-3">Contact person</th>
+                    <th className="py-3">Easy Apply</th>
                     <th className="py-3">Job URL</th>
                   </tr>
                 </thead>
@@ -95,17 +133,28 @@ export default function ApplicationsPage() {
                     <tr key={it.id} className="border-b">
                       <td className="py-3">
                         {it.optimization_id ? (
-                          <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">Go to optimization</Link>
+                          <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">resume</Link>
                         ) : (it.optimized_resume_url ? <a href={it.optimized_resume_url} target="_blank" className="underline">Open optimized</a> : '-')}
                       </td>
-                      <td className="py-3">{it.company_name || '-'}</td>
-                      <td className="py-3">{it.job_title}</td>
+                      <td className="py-3">{it.job_extraction?.company_name || it.company_name || '-'}</td>
+                      <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
                       <td className="py-3">
                         {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
                         <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
                       </td>
                       <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
-                      <td className="py-3">{it.contact?.name || '-'}</td>
+                      <td className="py-3">
+                        {it.source_url ? (
+                          <a
+                            href={it.source_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors"
+                          >
+                            Apply
+                          </a>
+                        ) : '-'}
+                      </td>
                       <td className="py-3">{it.source_url ? <a href={it.source_url} target="_blank" className="underline">Job URL</a> : '-'}</td>
                     </tr>
                   ))}

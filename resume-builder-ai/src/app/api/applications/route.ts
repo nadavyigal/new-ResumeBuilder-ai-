@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
       .select("id, user_id")
       .eq("id", optimizationId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (optError || !optimization) {
       return NextResponse.json({
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
           )
         )
       `)
-      .single();
+      .maybeSingle();
 
     if (insertError) {
       console.error("Error creating application:", insertError);

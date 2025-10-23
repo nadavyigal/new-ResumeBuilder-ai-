@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
         .select('*')
         .eq('id', session_id)
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (!existingSession) {
         return NextResponse.json(
@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
           .select('id')
           .eq('id', optimization_id)
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!optimization) {
           return NextResponse.json(
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
             status: 'active',
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (sessionError) {
           // Handle unique constraint violation on idx_active_session by returning existing session
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
         content: message,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (userMessageError) {
       return NextResponse.json(
@@ -261,7 +261,7 @@ export async function POST(request: NextRequest) {
       .from('optimizations')
       .select('rewrite_data, resume_id')
       .eq('id', optimization_id)
-      .single();
+      .maybeSingle();
 
     const currentResumeContent = optimization?.rewrite_data || {};
 
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
         },
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (aiMessageError) {
       return NextResponse.json(

@@ -33,7 +33,7 @@ export async function createChatSession(
     .from('chat_sessions')
     .insert(session)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === '23505') {
@@ -62,7 +62,7 @@ export async function getChatSession(sessionId: string, supabaseClient?: Supabas
     .from('chat_sessions')
     .select('*')
     .eq('id', sessionId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -95,7 +95,7 @@ export async function getActiveSession(
     .eq('user_id', userId)
     .eq('optimization_id', optimizationId)
     .eq('status', 'active')
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -160,7 +160,7 @@ export async function updateChatSession(
     })
     .eq('id', id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to update chat session: ${error.message}`);

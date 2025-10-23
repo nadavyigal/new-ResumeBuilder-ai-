@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
       .from('optimizations')
       .select('id, rewrite_data')
       .eq('id', body.optimizationId)
-      .single();
+      .maybeSingle();
 
     if (optError || !optimization) {
       return NextResponse.json({ error: 'Optimization not found' }, { status: 404 });

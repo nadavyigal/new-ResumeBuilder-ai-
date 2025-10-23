@@ -91,13 +91,21 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
 
   // Try multiple patterns to extract job title and company
   if (metaTitle) {
-    // Pattern 1: "Job Title at Company"
-    const atSplit = metaTitle.split(/\s+at\s+/i);
-    if (atSplit.length === 2) {
-      job_title = atSplit[0].trim();
-      company_name = atSplit[1].trim();
+    // Pattern 1: "Company hiring Job Title in Location" (LinkedIn pattern)
+    const hiringMatch = metaTitle.match(/^(.+?)\s+hiring\s+(.+?)(?:\s+in\s+.+)?$/i);
+    if (hiringMatch && hiringMatch[1] && hiringMatch[2]) {
+      company_name = hiringMatch[1].trim();
+      job_title = hiringMatch[2].trim();
     }
-    // Pattern 2: "Company: Job Title"
+    // Pattern 2: "Job Title at Company"
+    else if (metaTitle.includes(' at ')) {
+      const atSplit = metaTitle.split(/\s+at\s+/i);
+      if (atSplit.length === 2) {
+        job_title = atSplit[0].trim();
+        company_name = atSplit[1].trim();
+      }
+    }
+    // Pattern 3: "Company: Job Title"
     else if (metaTitle.includes(':')) {
       const colonSplit = metaTitle.split(':');
       if (colonSplit.length === 2) {
@@ -105,7 +113,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
         job_title = colonSplit[1].trim();
       }
     }
-    // Pattern 3: "Job Title - Company"
+    // Pattern 4: "Job Title - Company"
     else if (metaTitle.includes(' - ')) {
       const dashSplit = metaTitle.split(' - ');
       if (dashSplit.length === 2) {
@@ -138,24 +146,84 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
     sanitizeText((html.match(/"job-location"[^>]*>([\s\S]*?)<\//i)?.[1])) ||
     sanitizeText((html.match(/<li[^>]*class=["'][^"']*?job-criteria__item[^"']*["'][^>]*>[\s\S]*?<span[^>]*>Location<\/[\s\S]*?<span[^>]*>([\s\S]*?)<\//i)?.[1]));
 
-  // Try multiple patterns for "About this job" section
-  const aboutJobPatterns = [
-    /<h2[^>]*>About this job[^<]*<\/h2>/i,
-    /<h3[^>]*>About this job[^<]*<\/h3>/i,
-    /<h2[^>]*>About[^<]*<\/h2>/i,
-    /<div[^>]*class="[^"]*show-more-less-html[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-  ];
+  // Extract the main job description content
+  // LinkedIn typically has a show-more-less-html div with the full description
+  const showMoreContent = html.match(/<div[^>]*class="[^"]*show-more-less-html[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+  let fullDescription = showMoreContent ? showMoreContent[1] : '';
 
+  // If no show-more content, try to get the description div
+  if (!fullDescription) {
+    const descMatch = html.match(/<div[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
+    fullDescription = descMatch ? descMatch[1] : '';
+  }
+
+  // Extract sections from the full description
+  // LinkedIn job descriptions often have: "About the job", "Description", "Responsibilities", "Requirements"
+
+  // Try to extract "About the job" or "Description" section
   let about_this_job = metaDesc;
-  if (!about_this_job) {
-    for (const pattern of aboutJobPatterns) {
-      about_this_job = textBetween(html, pattern, /<h2|<h3|<footer|<section/i);
-      if (about_this_job && about_this_job.length > 50) break;
+
+  // Look for Description section first
+  const descriptionMatch = fullDescription.match(/Description[\s\S]*?<\/strong>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i) ||
+                          fullDescription.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+
+  if (descriptionMatch && !about_this_job) {
+    about_this_job = sanitizeText(descriptionMatch[1]);
+  }
+
+  // If still no description, try other patterns
+  if (!about_this_job || about_this_job.length < 50) {
+    const aboutPatterns = [
+      /About the job[\s\S]*?<\/strong>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i,
+      /About this job[\s\S]*?<\/strong>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i,
+      /<h2[^>]*>About this job[^<]*<\/h2>[\s\S]*?<div[^>]*>([\s\S]*?)<\/div>/i,
+    ];
+
+    for (const pattern of aboutPatterns) {
+      const match = fullDescription.match(pattern) || html.match(pattern);
+      if (match && match[1]) {
+        const text = sanitizeText(match[1]);
+        if (text && text.length > 50) {
+          about_this_job = text;
+          break;
+        }
+      }
     }
   }
-  const responsibilities = extractListAfterHeading(html, /<h2[^>]*>(What you[’']ll do|Responsibilities)<\/h2>/i);
-  const qualifications = extractListAfterHeading(html, /<h2[^>]*>(Qualifications|What you bring|Basic Qualifications)<\/h2>/i);
-  const requirements = extractListAfterHeading(html, /<h2[^>]*>(Requirements|Skills|You have)<\/h2>/i) || qualifications;
+
+  // Extract Responsibilities
+  let responsibilities: string[] | null = null;
+  const respMatch = fullDescription.match(/Responsibilities[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
+  if (respMatch) {
+    responsibilities = [...respMatch[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
+      .map(m => sanitizeText(m[1]))
+      .filter(Boolean) as string[];
+  }
+
+  // Fallback: look for responsibility-related headings
+  if (!responsibilities || responsibilities.length === 0) {
+    responsibilities = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(What you['']ll do|Responsibilities|Your responsibilities|Key responsibilities)<\/strong>/i) ||
+                      extractListAfterHeading(fullDescription || html, /<h2[^>]*>(What you['']ll do|Responsibilities)<\/h2>/i);
+  }
+
+  // Extract Requirements
+  let requirements: string[] | null = null;
+  const reqMatch = fullDescription.match(/Requirements[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
+  if (reqMatch) {
+    requirements = [...reqMatch[1].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
+      .map(m => sanitizeText(m[1]))
+      .filter(Boolean) as string[];
+  }
+
+  // Fallback: look for requirement-related headings
+  if (!requirements || requirements.length === 0) {
+    requirements = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(Requirements|What we need|What you need|You have|Must have)<\/strong>/i) ||
+                  extractListAfterHeading(fullDescription || html, /<h2[^>]*>(Requirements|Skills|You have)<\/h2>/i);
+  }
+
+  // Extract Qualifications (separate from requirements)
+  const qualifications = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(Qualifications|What you bring|Basic Qualifications|Your qualifications)<\/strong>/i) ||
+                        extractListAfterHeading(fullDescription || html, /<h2[^>]*>(Qualifications|What you bring|Basic Qualifications)<\/h2>/i);
   const benefits = extractListAfterHeading(html, /<h2[^>]*>(Benefits|Perks)<\/h2>/i);
 
   const contact_person = null; // Rarely explicit on LinkedIn
@@ -294,6 +362,10 @@ export async function extractJob(url: string): Promise<ExtractedJobData> {
   }
   return extractGeneric(html, finalUrl);
 }
+
+
+
+
 
 
 

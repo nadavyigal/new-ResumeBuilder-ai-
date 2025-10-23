@@ -44,60 +44,60 @@ export default function DashboardPage() {
           {/* Quick Actions */}
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">📄</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Upload Resume</CardTitle>
-                  <CardDescription className="text-base">
-                    Start by uploading your current resume
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Upload Resume</CardTitle>
+                <CardDescription className="text-base">
+                  Start by uploading your current resume
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild className="w-full">
                   <Link href={ROUTES.upload}>
                     Get Started
                   </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">🎨</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Browse Templates</CardTitle>
-                  <CardDescription className="text-base">
-                    Choose from professional templates
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Browse Templates</CardTitle>
+                <CardDescription className="text-base">
+                  Choose from professional templates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild variant="outline" className="w-full">
                   <Link href={ROUTES.templates}>
                     Explore
                   </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">📊</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Applications</CardTitle>
-                  <CardDescription className="text-base">
-                    View previous applications      resume
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Applications</CardTitle>
+                <CardDescription className="text-base">
+                  Track your job applications and optimized resumes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild variant="outline" className="w-full">
-                  <Link href="/dashboard/applications">
+                  <Link href={ROUTES.dashboard + "/applications"}>
                     View Applications
                   </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
           </div>
 

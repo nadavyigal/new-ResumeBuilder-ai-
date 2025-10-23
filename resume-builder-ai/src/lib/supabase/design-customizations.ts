@@ -53,7 +53,7 @@ export async function createDesignCustomization(
       ...customization
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to create design customization: ${error.message}`);
@@ -79,7 +79,7 @@ export async function getDesignCustomizationById(
     .select('*')
     .eq('id', customizationId)
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {

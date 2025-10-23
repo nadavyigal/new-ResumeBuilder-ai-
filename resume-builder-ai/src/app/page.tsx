@@ -13,18 +13,18 @@ export default function Home() {
         <section className="container px-4 py-16 mx-auto lg:py-24">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <h1 className="text-5xl font-bold tracking-tight sm:text-7xl text-foreground leading-tight">
-              Skip the Blah, Bring the Boom
-              <span className="inline-block ml-2 text-6xl">💥</span>
+              AI-Powered Resume Optimization
+              <span className="inline-block ml-2 text-6xl">✨</span>
             </h1>
 
             <p className="mt-6 text-xl leading-relaxed text-foreground/80 max-w-xl mx-auto font-medium">
-              Just killer resumes, tailored to perform.
+              Transform your resume for any job. Get ATS-optimized resumes that get you interviews.
             </p>
 
             <div className="mt-10">
               <Button asChild size="lg" variant="outline">
                 <Link href={ROUTES.auth.signUp}>
-                  Get in Touch
+                  Get Started Free
                 </Link>
               </Button>
             </div>
@@ -34,40 +34,40 @@ export default function Home() {
         {/* Features Section */}
         <section id="features" className="py-16 lg:py-20 bg-accent/30">
           <div className="container px-4 mx-auto">
-            <div className="max-w-xl mx-auto mb-12">
+            <div className="max-w-xl mx-auto mb-12 text-center">
               <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
-                We create content that
+                Why Choose Our AI Resume Optimizer
               </h2>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">💬</span>
+                  <span className="text-4xl">🤖</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Engages</h3>
+                <h3 className="text-xl font-bold text-foreground">AI-Powered</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Gets people talking
+                  Advanced AI analyzes job descriptions and optimizes your resume automatically
                 </p>
               </div>
 
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">🎯</span>
+                  <span className="text-4xl">📊</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Converts</h3>
+                <h3 className="text-xl font-bold text-foreground">ATS-Optimized</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Gets people clicking
+                  Get match scores and keyword optimization to pass ATS systems
                 </p>
               </div>
 
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">🧠</span>
+                  <span className="text-4xl">⚡</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Stays</h3>
+                <h3 className="text-xl font-bold text-foreground">Fast Results</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Gets people remembering
+                  Generate optimized resumes in minutes with professional templates
                 </p>
               </div>
             </div>

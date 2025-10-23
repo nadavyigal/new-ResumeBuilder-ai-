@@ -55,9 +55,17 @@ export async function GET(
       `)
       .eq("id", id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !application) {
+    if (error) {
+      console.error("Error fetching application:", error);
+      return NextResponse.json({
+        error: "Failed to fetch application",
+        details: error.message,
+      }, { status: 500 });
+    }
+
+    if (!application) {
       return NextResponse.json({
         error: "Application not found",
       }, { status: 404 });
@@ -145,7 +153,7 @@ export async function PATCH(
           )
         )
       `)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error updating application:", error);

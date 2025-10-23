@@ -81,7 +81,7 @@ export async function getDesignTemplateById(
     .from('design_templates')
     .select('*')
     .eq('id', templateId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -107,7 +107,7 @@ export async function getDesignTemplateBySlug(
     .from('design_templates')
     .select('*')
     .eq('slug', slug)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {

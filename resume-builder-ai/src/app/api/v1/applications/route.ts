@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
         .select("id, user_id")
         .eq("id", optimizationId)
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       if (optError || !optimization) {
         return NextResponse.json({ error: "Optimization not found or access denied" }, { status: 404 });
       }
@@ -55,7 +55,13 @@ export async function POST(req: NextRequest) {
     let mappedCompany: string | null = company || null;
     let sourceUrl: string | null = (body?.jobUrl as string | undefined) || null;
     if (url) {
+      console.log('🔍 Extracting job from URL:', url);
       extracted = await extractJob(url);
+      console.log('📊 Extracted data:', {
+        company: extracted.company_name,
+        title: extracted.job_title,
+        sourceUrl: extracted.source_url
+      });
       mappedJobTitle = extracted.job_title || mappedJobTitle;
       mappedCompany = extracted.company_name || mappedCompany;
       sourceUrl = extracted.source_url;
@@ -77,10 +83,14 @@ export async function POST(req: NextRequest) {
         },
       ])
       .select("id")
-      .single();
+      .maybeSingle();
 
-    if (insertError || !application) {
-      return NextResponse.json({ error: insertError?.message || "Failed to create application" }, { status: 500 });
+    if (insertError) {
+      return NextResponse.json({ error: insertError.message || "Failed to create application" }, { status: 500 });
+    }
+
+    if (!application) {
+      return NextResponse.json({ error: "Failed to create application - no data returned" }, { status: 500 });
     }
 
     const appId = application.id as string;
@@ -138,6 +148,7 @@ export async function POST(req: NextRequest) {
 
     // Best-effort: try to persist new fields if migration is applied; ignore if columns missing
     if (sourceUrl || extracted) {
+      console.log('💾 Saving job_extraction to database:', { sourceUrl, hasExtracted: !!extracted });
       const { error: optionalErr } = await supabase
         .from("applications")
         .update({
@@ -151,7 +162,11 @@ export async function POST(req: NextRequest) {
       // If optionalErr mentions missing column, ignore
       if (optionalErr && !/column .* does not exist/i.test(optionalErr.message)) {
         // Log-only path; do not fail request to avoid blocking UX
-        console.warn("Optional fields update failed:", optionalErr.message);
+        console.warn("❌ Optional fields update failed:", optionalErr.message);
+      } else if (optionalErr) {
+        console.warn("⚠️  Columns don't exist (migration not applied):", optionalErr.message);
+      } else {
+        console.log('✅ Successfully saved job_extraction to database');
       }
     }
 
@@ -183,7 +198,7 @@ export async function GET(req: NextRequest) {
   try {
     let query = supabase
       .from("applications")
-      .select("id, job_title, company_name, applied_date, apply_clicked_at, ats_score, contact, resume_html_path, resume_json_path, optimized_resume_url, source_url, optimization_id")
+      .select("id, job_title, company_name, applied_date, apply_clicked_at, ats_score, contact, resume_html_path, resume_json_path, optimized_resume_url, source_url, optimization_id, job_extraction")
       .eq("user_id", user.id)
       .order("applied_date", { ascending: false })
       .limit(limit);
@@ -201,7 +216,7 @@ export async function GET(req: NextRequest) {
       // Fallback to legacy selection before migrations are applied
       const fallback = await supabase
         .from("applications")
-        .select("id, job_title, company_name, applied_date, ats_score, contact, resume_html_path, resume_json_path, optimization_id")
+        .select("id, job_title, company_name, applied_date, ats_score, contact, resume_html_path, resume_json_path, optimization_id, job_extraction")
         .eq("user_id", user.id)
         .order("applied_date", { ascending: false })
         .limit(limit);
@@ -240,9 +255,10 @@ export async function GET(req: NextRequest) {
         if (opt) {
           const jd = jdById.get(opt.jd_id);
           if (jd) {
-            if (jd.title) a.job_title = jd.title;
-            if (jd.company) a.company_name = jd.company;
-            if (jd.source_url) a.source_url = jd.source_url;
+            // Only use JD data as fallback if job_extraction doesn't have better data
+            if (jd.title && !a.job_extraction?.job_title) a.job_title = jd.title;
+            if (jd.company && !a.job_extraction?.company_name) a.company_name = jd.company;
+            if (jd.source_url && !a.source_url) a.source_url = jd.source_url;
           }
         }
       }
@@ -274,9 +290,10 @@ export async function GET(req: NextRequest) {
     }
 
     // Fallback enrichment per-row (handles ID type mismatches or empty batch results)
+    // Only fill in missing data that job_extraction doesn't already provide
     for (const a of apps) {
-      const needsCompany = !a.company_name || a.company_name === 'Company Name';
-      const needsTitle = !a.job_title || a.job_title === 'Job Position';
+      const needsCompany = (!a.company_name || a.company_name === 'Company Name') && !a.job_extraction?.company_name;
+      const needsTitle = (!a.job_title || a.job_title === 'Job Position') && !a.job_extraction?.job_title;
       const needsUrl = !a.source_url;
       if (!(needsCompany || needsTitle || needsUrl)) continue;
       if (!a.optimization_id) continue;
@@ -285,13 +302,13 @@ export async function GET(req: NextRequest) {
         .from('optimizations')
         .select('jd_id')
         .eq('id', a.optimization_id)
-        .single();
+        .maybeSingle();
       if (optRow && (optRow as any).jd_id != null) {
         const { data: jd } = await supabase
           .from('job_descriptions')
           .select('title, company, source_url')
           .eq('id', (optRow as any).jd_id)
-          .single();
+          .maybeSingle();
         if (jd) {
           if (needsTitle && (jd as any).title) a.job_title = (jd as any).title;
           if (needsCompany && (jd as any).company) a.company_name = (jd as any).company;

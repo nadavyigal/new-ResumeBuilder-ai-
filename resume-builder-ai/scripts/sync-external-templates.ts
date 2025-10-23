@@ -183,14 +183,28 @@ export default function Resume({ data, customization }) {
   const instanceId = '${className}';
 
   // Build CSS as a string for inline style tag (SSR-compatible)
+  // CRITICAL: Transform CSS selectors carefully to avoid duplicated class names
+  // Problem: "body {" → ".resume-X {" then ".resume-X {" → ".resume-X .resume-X {"
+  // Solution: Do class selector replacement FIRST, then body replacement
   const cssStyles = \`
     .\${instanceId} * { margin: 0; padding: 0; box-sizing: border-box; }
+
 ${styles
+  // STEP 1: Transform class selectors first (before body transformation)
+  .replace(/\n\s+\.([a-z-]+) \{/g, `\n          .${className} .$1 {`)
+  // STEP 2: Transform element selectors (these won't be matched by class regex)
+  .replace(/\n\s+header \{/g, `\n          .${className} header {`)
+  .replace(/\n\s+h1 \{/g, `\n          .${className} h1 {`)
+  .replace(/\n\s+h2 \{/g, `\n          .${className} h2 {`)
+  .replace(/\n\s+h3 \{/g, `\n          .${className} h3 {`)
+  .replace(/\n\s+aside \{/g, `\n          aside {`)
+  .replace(/\n\s+main \{/g, `\n          main {`)
+  .replace(/\n\s+section \{/g, `\n          section {`)
+  .replace(/\n\s+ul \{/g, `\n          ul {`)
+  .replace(/\n\s+li \{/g, `\n          li {`)
+  // STEP 3: Transform body LAST (creates .className which won't match the class regex above)
   .replace(/body \{/g, `.${className} {`)
-  .replace(/header \{/g, `.${className} header {`)
-  .replace(/h1 \{/g, `.${className} h1 {`)
-  .replace(/h2 \{/g, `.${className} h2 {`)
-  .replace(/\.([a-z-]+) \{/g, `.${className} .$1 {`)
+  // STEP 4: Apply color/font customization
   .replace(/#000/g, '\${colors.primary}')
   .replace(/#333/g, '\${colors.secondary}')
   .replace(/#555/g, '\${colors.secondary}')

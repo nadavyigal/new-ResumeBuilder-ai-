@@ -110,9 +110,17 @@ export async function POST(req: NextRequest) {
       .select("id, user_id")
       .eq("id", optimizationId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (optError || !optimization) {
+    if (optError) {
+      console.error("Error verifying optimization:", optError);
+      return NextResponse.json({
+        error: "Failed to verify optimization",
+        details: optError.message,
+      }, { status: 500 });
+    }
+
+    if (!optimization) {
       return NextResponse.json({
         error: "Optimization not found or access denied",
       }, { status: 404 });
@@ -144,13 +152,20 @@ export async function POST(req: NextRequest) {
           )
         )
       `)
-      .single();
+      .maybeSingle();
 
     if (insertError) {
       console.error("Error creating application:", insertError);
       return NextResponse.json({
         error: "Failed to create application",
         details: insertError.message,
+      }, { status: 500 });
+    }
+
+    if (!application) {
+      console.error("Failed to create application record");
+      return NextResponse.json({
+        error: "Failed to create application",
       }, { status: 500 });
     }
 

@@ -44,7 +44,7 @@ export async function createResumeVersion(
       version_number: nextVersionNumber,
     })
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to create resume version: ${error.message}`);
@@ -66,7 +66,7 @@ export async function getResumeVersion(versionId: string): Promise<ResumeVersion
     .from('resume_versions')
     .select('*')
     .eq('id', versionId)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -89,22 +89,21 @@ export async function getLatestVersion(
 ): Promise<ResumeVersion | null> {
   const supabase = getSupabaseClient();
 
+  // Remove .maybeSingle() when using .limit(1) to avoid 406 errors
+  // .limit(1) returns an array, handle it properly
   const { data, error } = await supabase
     .from('resume_versions')
     .select('*')
     .eq('optimization_id', optimizationId)
     .order('version_number', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
 
   if (error) {
-    if (error.code === 'PGRST116') {
-      return null;
-    }
     throw new Error(`Failed to get latest version: ${error.message}`);
   }
 
-  return data as ResumeVersion;
+  // Handle array result - return first item or null
+  return (data && data.length > 0) ? data[0] as ResumeVersion : null;
 }
 
 /**
@@ -149,7 +148,7 @@ export async function getVersionByNumber(
     .select('*')
     .eq('optimization_id', optimizationId)
     .eq('version_number', versionNumber)
-    .single();
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {

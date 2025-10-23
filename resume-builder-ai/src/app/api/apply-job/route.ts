@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       `)
       .eq("id", optimizationId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (optError || !optimizationData) {
       return NextResponse.json({ error: "Optimization not found" }, { status: 404 });

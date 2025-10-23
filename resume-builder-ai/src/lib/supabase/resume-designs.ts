@@ -38,7 +38,8 @@ export async function getDesignAssignment(
     .from('resume_design_assignments')
     .select('*')
     .eq('optimization_id', optimizationId)
-    .single();
+    .eq('user_id', userId) // Add user_id filter for defense in depth against 406 errors
+    .maybeSingle();
 
   if (error) {
     if (error.code === 'PGRST116') {
@@ -81,10 +82,14 @@ export async function upsertDesignAssignment(
       }
     )
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to upsert design assignment: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to upsert design assignment: No data returned');
   }
 
   return data;
@@ -112,10 +117,14 @@ export async function updateDesignCustomization(
     })
     .eq('id', assignmentId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to update design customization: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error('Failed to update design customization: No data returned');
   }
 
   return data;

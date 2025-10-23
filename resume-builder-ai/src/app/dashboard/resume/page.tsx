@@ -19,8 +19,27 @@ export default function ResumeUploadPage() {
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setResumeFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      // Validate file type
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx)$/i)) {
+        setError('Please upload a PDF, DOC, or DOCX file.');
+        setResumeFile(null);
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File size must be less than 10MB.');
+        setResumeFile(null);
+        return;
+      }
+
+      setError(null);
+      setResumeFile(file);
+      console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
     }
   };
 
@@ -96,8 +115,18 @@ export default function ResumeUploadPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="resume">Resume File</Label>
-              <Input id="resume" type="file" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
+              <Label htmlFor="resume">Resume File (PDF, DOC, DOCX - Max 10MB)</Label>
+              <Input
+                id="resume"
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              />
+              {resumeFile && (
+                <p className="text-sm text-green-600">
+                  ✓ Selected: {resumeFile.name} ({(resumeFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Job Description</Label>

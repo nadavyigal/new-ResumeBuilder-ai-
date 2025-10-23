@@ -82,7 +82,7 @@ export async function POST(
       )
       .eq('id', optimizationId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (optimizationError || !optimization) {
       return NextResponse.json(

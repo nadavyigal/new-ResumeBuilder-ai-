@@ -53,9 +53,16 @@ export async function GET(
       .select('id')
       .eq('id', optimizationId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (optimizationError || !optimization) {
+    if (optimizationError) {
+      return NextResponse.json(
+        { error: 'Error fetching optimization: ' + optimizationError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!optimization) {
       return NextResponse.json(
         { error: 'Optimization not found' },
         { status: 404 }
@@ -89,7 +96,7 @@ export async function GET(
         .from('design_customizations')
         .select('*')
         .eq('id', assignment.customization_id)
-        .single();
+        .maybeSingle();
 
       customization = customizationData;
     }
@@ -163,9 +170,16 @@ export async function PUT(
       .select('id')
       .eq('id', optimizationId)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (optimizationError || !optimization) {
+    if (optimizationError) {
+      return NextResponse.json(
+        { error: 'Error fetching optimization: ' + optimizationError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!optimization) {
       return NextResponse.json(
         { error: 'Optimization not found' },
         { status: 404 }

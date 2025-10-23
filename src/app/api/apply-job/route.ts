@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { generatePdf } from "@/lib/export";
@@ -37,9 +38,14 @@ export async function POST(req: NextRequest) {
       `)
       .eq("id", optimizationId)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (optError || !optimizationData) {
+    if (optError) {
+      console.error("Error fetching optimization:", optError);
+      return NextResponse.json({ error: optError.message }, { status: 500 });
+    }
+
+    if (!optimizationData) {
       return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
     }
 

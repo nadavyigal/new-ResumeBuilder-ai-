@@ -23,7 +23,7 @@ export async function canUndo(assignmentId: string): Promise<boolean> {
     .from('resume_design_assignments')
     .select('previous_customization_id')
     .eq('id', assignmentId)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     return false;
@@ -47,7 +47,7 @@ export async function performUndo(assignmentId: string): Promise<any> {
     .from('resume_design_assignments')
     .select('*')
     .eq('id', assignmentId)
-    .single();
+    .maybeSingle();
 
   if (fetchError || !assignment) {
     throw new Error('Assignment not found');
@@ -67,7 +67,7 @@ export async function performUndo(assignmentId: string): Promise<any> {
     })
     .eq('id', assignmentId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (updateError) {
     throw new Error(`Failed to perform undo: ${updateError.message}`);
@@ -93,7 +93,7 @@ export async function revertToOriginal(assignmentId: string): Promise<any> {
     })
     .eq('id', assignmentId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to revert to original: ${error.message}`);

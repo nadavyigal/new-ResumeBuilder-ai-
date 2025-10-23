@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageResponse } from '@/types/chat';
-import { useSectionSelection } from '@/hooks/useSectionSelection.tsx';
+import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
 

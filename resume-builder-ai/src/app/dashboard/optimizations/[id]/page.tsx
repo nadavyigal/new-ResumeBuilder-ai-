@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,8 +24,11 @@ export default function OptimizationPage() {
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0); // Force re-render key
   const [matchScore, setMatchScore] = useState<number | null>(null);
+
+  // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
+  // Removing this state will cause runtime crashes when designs change
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Design feature state
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
@@ -36,10 +39,67 @@ export default function OptimizationPage() {
 
   // Job description data for Apply functionality
   const [jobDescription, setJobDescription] = useState<any>(null);
+  const [jobDescriptionSummary, setJobDescriptionSummary] = useState<string>("");
   const [applying, setApplying] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
+
+  const generateJobDescriptionSummary = (jdData: any) => {
+    try {
+      const parts: string[] = [];
+
+      // Extract key information
+      if (jdData.title && jdData.company) {
+        parts.push(`**${jdData.title}** at **${jdData.company}**`);
+      }
+
+      if (jdData.extracted_data?.location) {
+        parts.push(`📍 ${jdData.extracted_data.location}`);
+      }
+
+      // Add about section
+      if (jdData.extracted_data?.about_this_job) {
+        const about = jdData.extracted_data.about_this_job;
+        const summary = about.length > 200 ? about.substring(0, 200) + '...' : about;
+        parts.push(`\n**About:** ${summary}`);
+      }
+
+      // Add top 3 requirements
+      if (jdData.extracted_data?.requirements && jdData.extracted_data.requirements.length > 0) {
+        const topReqs = jdData.extracted_data.requirements.slice(0, 3);
+        parts.push(`\n**Key Requirements:**`);
+        topReqs.forEach((req: string) => {
+          parts.push(`• ${req}`);
+        });
+        if (jdData.extracted_data.requirements.length > 3) {
+          parts.push(`...and ${jdData.extracted_data.requirements.length - 3} more`);
+        }
+      }
+
+      // Add top 3 responsibilities
+      if (jdData.extracted_data?.responsibilities && jdData.extracted_data.responsibilities.length > 0) {
+        const topResp = jdData.extracted_data.responsibilities.slice(0, 3);
+        parts.push(`\n**Key Responsibilities:**`);
+        topResp.forEach((resp: string) => {
+          parts.push(`• ${resp}`);
+        });
+        if (jdData.extracted_data.responsibilities.length > 3) {
+          parts.push(`...and ${jdData.extracted_data.responsibilities.length - 3} more`);
+        }
+      }
+
+      const summary = parts.join('\n');
+      setJobDescriptionSummary(summary);
+    } catch (error) {
+      console.error('Failed to generate job description summary:', error);
+      // Fallback to simple summary
+      const fallback = jdData.title && jdData.company
+        ? `${jdData.title} at ${jdData.company}`
+        : 'Job description details available below';
+      setJobDescriptionSummary(fallback);
+    }
+  };
 
   const fetchOptimizationData = async () => {
     try {
@@ -99,6 +159,9 @@ export default function OptimizationPage() {
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
+
+      // Generate AI summary of job description
+      generateJobDescriptionSummary(jdData as any);
 
     } catch (error: any) {
       console.error('Error in fetchOptimizationData:', error);
@@ -205,13 +268,22 @@ export default function OptimizationPage() {
     }
   }, [params.id, loading]);
 
-  const handleTemplateSelect = async (templateId: string) => {
+  const handleTemplateSelect = useCallback(async (templateId: string) => {
+    // Don't allow multiple simultaneous design changes
+    if (designLoading) {
+      console.log('Design change already in progress, ignoring request');
+      return;
+    }
+
+    console.log('Starting design change to template:', templateId);
+    setShowDesignBrowser(false);
     setDesignLoading(true);
+
     try {
       const response = await fetch(`/api/v1/design/${params.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ templateId })
       });
@@ -221,23 +293,39 @@ export default function OptimizationPage() {
       }
 
       const data = await response.json();
-      setCurrentDesignAssignment(data.assignment);
-      setShowDesignBrowser(false);
+      console.log('Design updated successfully:', data.assignment?.template?.slug);
+
+      // Update design assignment - this will trigger DesignRenderer's useEffect
+      setCurrentDesignAssignment(data.assignment || null);
+
+      // Remove the 500ms delay - let React handle the state update naturally
+      // The DesignRenderer component will manage the transition smoothly
+
     } catch (error) {
       console.error('Failed to apply template:', error);
-      alert('Failed to apply template');
+      alert('Failed to apply template. Please try again.');
     } finally {
       setDesignLoading(false);
+      console.log('Design change complete');
     }
-  };
+  }, [params.id, designLoading]);
 
   const handleDesignUpdate = async () => {
     // Refresh design assignment after customization
     try {
-      const response = await fetch(`/api/v1/design/${params.id}`);
+      const response = await fetch(`/api/v1/design/${params.id}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
-        setCurrentDesignAssignment(data.assignment);
+        // Deep clone to ensure React detects the change
+        setCurrentDesignAssignment(data.assignment ? JSON.parse(JSON.stringify(data.assignment)) : null);
+        // Force re-render to show updated design
+        setRefreshKey(prev => prev + 1);
       }
     } catch (error) {
       console.error('Failed to refresh design assignment:', error);
@@ -402,6 +490,7 @@ export default function OptimizationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           html,
+          url: jobDescription.source_url || null, // Trigger job extraction to get real company name
           optimizationId: String(params.id || ''),
           jobTitle: jobDescription.title,
           company: jobDescription.company,
@@ -484,52 +573,58 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Match Score and Current Design Info - Always show */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 print:hidden">
-        {/* Match Score Card */}
-        {matchScore !== null && (
-          <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+      {/* Top Row: Current Design (Left) | ATS Score (Right) - Matches resume and chat widths exactly */}
+      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
+        {/* Current Design Info - Left side (2/3 width) - Exactly matches Resume width */}
+        <div className="lg:col-span-2">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                  ATS Match Score
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Current Design: {currentDesignAssignment?.template?.name || 'Natural (Clean Format)'}
                 </p>
-                <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                  Resume alignment with job requirements
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                  {currentDesignAssignment?.template?.description || 'Professional plain format • Click "Change Design" to browse templates'}
                 </p>
               </div>
-              <span className="px-4 py-2 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-2xl rounded-full font-bold">
-                {matchScore}%
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
+                ATS-Friendly
               </span>
             </div>
           </div>
-        )}
-
-        {/* Current Design Info */}
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Current Design: Natural (Clean Format)
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                Professional plain format • Click "Change Design" to browse templates
-              </p>
-            </div>
-            <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium">
-              ATS-Friendly
-            </span>
-          </div>
         </div>
+
+        {/* ATS Match Score - Right side (1/3 width) - Exactly matches AI Assistant width */}
+        {matchScore !== null && (
+          <div className="lg:col-span-1">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                    ATS Match Score
+                  </p>
+                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                    Job requirements match
+                  </p>
+                </div>
+                <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xl rounded-full font-bold">
+                  {matchScore}%
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Main Layout: Resume on Left, Chat on Right */}
+      {/* Main Layout: Resume Preview (Left) | AI Assistant (Right) */}
       <SectionSelectionProvider>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Left Column: Optimized Resume (2/3 width) */}
-        <div className="lg:col-span-2" key={refreshKey}>
+        {/* Left Column: Resume Preview (2/3 width) - Below Current Design */}
+        <div className="lg:col-span-2">
+          {/* Optimized Resume - DesignRenderer handles its own loading and transitions */}
           {optimizedResume && (
             <DesignRenderer
+              key={refreshKey}
               resumeData={optimizedResume}
               templateSlug={currentDesignAssignment?.template?.slug}
               customization={ephemeralCustomization || currentDesignAssignment?.customization}
@@ -537,10 +632,10 @@ export default function OptimizationPage() {
           )}
         </div>
 
-        {/* Right Column: AI Chat (1/3 width) */}
+        {/* Right Column: AI Chat (1/3 width) - Below ATS Score */}
         <div className="print:hidden">
           {optimizedResume && (
-            <div className="sticky top-4 h-[calc(100vh-120px)]">
+            <div className="sticky top-4 h-[calc(100vh-220px)]">
               <ChatSidebar
                 optimizationId={params.id as string}
                 onMessageSent={handleChatMessageSent}
@@ -566,55 +661,46 @@ export default function OptimizationPage() {
         </Card>
         <Card className="rounded-lg">
           <CardHeader>
-            <CardTitle>Job Description</CardTitle>
+            <CardTitle>Job Description Summary</CardTitle>
             {jobDescription?.source_url && (
               <p className="text-xs text-muted-foreground mt-1">
-                Source: <a href={jobDescription.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                Source: <a href={jobDescription.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
                   {jobDescription.source_url}
                 </a>
               </p>
             )}
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {jobDescription?.title && (
-                <div>
-                  <h3 className="font-semibold text-base">{jobDescription.title}</h3>
-                  {jobDescription?.company && (
-                    <p className="text-sm text-muted-foreground">{jobDescription.company}</p>
-                  )}
-                </div>
-              )}
+            {/* AI-Generated Summary - Prominent display */}
+            {jobDescriptionSummary && (
+              <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <span className="text-2xl">💼</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-2">
+                      Quick Summary
+                    </p>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                      {jobDescriptionSummary.split('\n').map((line, idx) => {
+                        const trimmedLine = line.trim();
+                        if (!trimmedLine) return <div key={idx} className="h-2" />;
 
-              {jobDescription?.extracted_data && Object.keys(jobDescription.extracted_data).length > 0 ? (
-                <div className="space-y-3">
-                  {Object.entries(jobDescription.extracted_data).map(([key, value]) => {
-                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-
-                    return (
-                      <div key={key}>
-                        <h4 className="font-medium text-sm capitalize mb-1">{key.replace(/_/g, ' ')}</h4>
-                        {Array.isArray(value) ? (
-                          <ul className="list-disc list-inside text-sm space-y-1">
-                            {value.map((item: string, idx: number) => (
-                              <li key={idx}>{item}</li>
-                            ))}
-                          </ul>
-                        ) : typeof value === 'string' ? (
-                          <p className="text-sm whitespace-pre-wrap">{value}</p>
-                        ) : (
-                          <pre className="text-sm whitespace-pre-wrap">{JSON.stringify(value, null, 2)}</pre>
-                        )}
-                      </div>
-                    );
-                  })}
+                        if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**')) {
+                          return <p key={idx} className="font-bold text-gray-900 dark:text-gray-100 mb-2 mt-2">{trimmedLine.replace(/\*\*/g, '')}</p>;
+                        } else if (trimmedLine.startsWith('•')) {
+                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 ml-4 mb-1.5 leading-relaxed">{trimmedLine}</p>;
+                        } else if (trimmedLine.startsWith('📍')) {
+                          return <p key={idx} className="text-sm text-gray-600 dark:text-gray-400 mb-2">{trimmedLine}</p>;
+                        } else {
+                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 mb-1.5 leading-relaxed">{trimmedLine}</p>;
+                        }
+                      })}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <pre className="whitespace-pre-wrap text-sm">
-                  {jobDescriptionText}
-                </pre>
-              )}
-            </div>
+              </div>
+            )}
+
           </CardContent>
         </Card>
       </div>

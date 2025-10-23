@@ -89,7 +89,7 @@ export class AuthClient {
       .from('profiles')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching user profile:', error)
@@ -111,7 +111,7 @@ export class AuthClient {
       .update(updates)
       .eq('user_id', user.id)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       throw new Error(`Profile update failed: ${error.message}`)
@@ -180,7 +180,7 @@ export class AuthServer {
       .from('profiles')
       .select('*')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error validating session:', error)
@@ -201,7 +201,7 @@ export class AuthServer {
         ...userData
       })
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       throw new Error(`Profile creation failed: ${error.message}`)

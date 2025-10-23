@@ -188,76 +188,278 @@ The Resume Builder AI application has **exceeded the original MVP PRD scope** wi
 
 ---
 
-### ❌ Epic 5: Freemium + Upsell - **40% COMPLETE** ⚠️ CRITICAL GAP
+### ❌ Epic 5: Credit-Based Pay-As-You-Go System - **0% COMPLETE** ⚠️ CRITICAL GAP
 
-#### Story 5.1: Free Plan
-**Status**: ❌ **DISABLED** (Code exists but commented out)
+**NEW BUSINESS MODEL**: Credit-based system where users pay $5 to receive $4 in credits (platform keeps $1 fee).
 
-**Evidence**:
-- File: `/api/upload-resume/route.ts` (lines 20-42, 195-203)
-- Quota checking code exists but is **commented out**
-- Migration: `20251013_disable_free_tier_limits.sql` explicitly disabled enforcement
-- Database schema supports freemium: `profiles.plan_type`, `profiles.optimizations_used`
+#### Story 5.1: New User Welcome Credit
+**Status**: ❌ **NOT IMPLEMENTED**
 
-**Commented Code**:
-```typescript
-// FR-021 & FR-022: Check freemium quota (DISABLED FOR NOW)
-// const { data: profile, error: profileError } = await supabase
-//   .from("profiles")
-//   .select("plan_type, optimizations_used")
-//   .eq("user_id", user.id)
-//   .single();
+**Requirements**:
+- Every new user receives $4.00 in credits upon account creation
+- Credits are automatically applied during user sign-up flow
+- Credits are stored in `profiles.credit_balance` (DECIMAL field)
+- Credits are displayed in user dashboard header
+- Welcome credit is tracked separately for analytics (`profiles.welcome_credit_applied`)
+
+**Acceptance Criteria**:
+- ✅ New users automatically receive $4.00 credit on sign-up
+- ✅ Credit balance visible in UI (dashboard header, settings page)
+- ✅ Welcome credit only applied once per user
+- ✅ Database field: `profiles.credit_balance` (default: 4.00)
+- ✅ Database field: `profiles.welcome_credit_applied` (default: true)
+
+**Database Changes Required**:
+```sql
+ALTER TABLE profiles
+  ADD COLUMN credit_balance DECIMAL(10,2) DEFAULT 4.00,
+  ADD COLUMN welcome_credit_applied BOOLEAN DEFAULT true,
+  ADD COLUMN total_credits_purchased DECIMAL(10,2) DEFAULT 0.00;
 ```
 
-**Acceptance Criteria Met**:
-- ❌ 1 free optimization limit **NOT ENFORCED**
-- ❌ Paywall for subsequent use **NOT ACTIVE**
-
-**Impact**: **CRITICAL** - All users currently have unlimited access, no revenue generation
-
-**Recommendation**: **IMMEDIATE ACTION REQUIRED**
-1. Uncomment quota enforcement code
-2. Add feature flag for gradual rollout
-3. Test quota exceeded flow (402 Payment Required)
-4. Add "Upgrade to Premium" UI when limit reached
-5. Priority: **CRITICAL** (blocks monetization)
+**Files to Create/Update**:
+- Migration: `supabase/migrations/YYYYMMDD_add_credit_system.sql`
+- Auth hook: Update user creation to set initial credit balance
+- UI: `/components/layout/CreditBalance.tsx` - Display credit balance
+- UI: Update `/dashboard/layout.tsx` to show credit balance
 
 ---
 
-#### Story 5.2: Premium Plan
-**Status**: ❌ **20% COMPLETE** ⚠️ CRITICAL GAP
+#### Story 5.2: Credit Deduction Per Optimization
+**Status**: ❌ **NOT IMPLEMENTED**
 
-**Evidence**:
-- Database schema supports premium: `profiles.plan_type` (free/premium)
-- Endpoint exists: `/api/upgrade/route.ts`
-- **Stripe integration incomplete** (placeholder code only)
+**Requirements**:
+- Each optimization costs $0.40 (configurable via environment variable)
+- Credits are deducted BEFORE optimization starts
+- If insufficient credits, show paywall with "Add Credits" button
+- Transaction history tracks all credit deductions
+- Optimizations are linked to transactions for audit trail
 
-**Acceptance Criteria Met**:
-- ❌ Unlimited optimizations **NOT GATED** (all users have unlimited)
-- ✅ Premium templates (design system supports this)
-- ❌ Stripe integration **INCOMPLETE**
+**Acceptance Criteria**:
+- ✅ Check credit balance before optimization
+- ✅ Deduct $0.40 per optimization
+- ✅ Return 402 Payment Required if insufficient credits
+- ✅ Create transaction record for each deduction
+- ✅ Link optimization to transaction for refund capability
 
-**Missing Components**:
-1. Stripe webhook handling for subscription events
-2. Payment success/failure flows
-3. Subscription management UI
-4. Price points configuration
-5. Billing portal integration
-6. Subscription renewal handling
-7. Failed payment retry logic
+**Cost Configuration**:
+- Environment variable: `OPTIMIZATION_COST_CREDITS=0.40`
+- Default cost: $0.40 per optimization (10 optimizations per $4)
 
-**Recommendation**: **CRITICAL BLOCKER FOR PRODUCTION**
-1. Complete Stripe checkout flow
-2. Implement webhook endpoint (`/api/webhooks/stripe`)
-3. Add subscription management page
-4. Test full payment lifecycle
-5. Priority: **CRITICAL** (blocks revenue)
+**Database Changes Required**:
+```sql
+CREATE TABLE credit_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  transaction_type VARCHAR(50) NOT NULL, -- 'welcome_credit', 'purchase', 'deduction', 'refund'
+  amount DECIMAL(10,2) NOT NULL, -- positive for credits, negative for deductions
+  balance_after DECIMAL(10,2) NOT NULL,
+  description TEXT,
+  related_optimization_id UUID REFERENCES optimizations(id) ON DELETE SET NULL,
+  related_payment_intent VARCHAR(255), -- Stripe payment intent ID
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  metadata JSONB
+);
+
+CREATE INDEX idx_credit_transactions_user_id ON credit_transactions(user_id);
+CREATE INDEX idx_credit_transactions_type ON credit_transactions(transaction_type);
+```
 
 **Files to Create/Update**:
-- `/api/upgrade/route.ts` - Complete Stripe checkout session creation
-- `/api/webhooks/stripe/route.ts` - Handle subscription events
-- `/dashboard/settings/billing/page.tsx` - Subscription management UI
-- `/lib/stripe.ts` - Stripe client wrapper
+- Migration: `supabase/migrations/YYYYMMDD_add_credit_transactions.sql`
+- Library: `/lib/credits/deduct-credits.ts` - Credit deduction logic
+- API: Update `/api/optimize/route.ts` to check and deduct credits
+- API: Update `/api/upload-resume/route.ts` to check credits
+- UI: `/components/credits/InsufficientCreditsModal.tsx` - Paywall modal
+
+---
+
+#### Story 5.3: Stripe Payment Integration - $5 Purchase ($4 Credit + $1 Fee)
+**Status**: ❌ **NOT IMPLEMENTED**
+
+**Requirements**:
+- User can purchase $5 package via Stripe Checkout
+- $5 payment results in $4 added to user's credit balance (platform keeps $1)
+- Stripe webhook handles successful payments
+- Credits applied immediately after successful payment
+- Payment history visible in billing dashboard
+- Failed payments are logged and retried
+
+**Acceptance Criteria**:
+- ✅ Stripe Checkout session for $5 purchase
+- ✅ Webhook processes `checkout.session.completed` event
+- ✅ $4 added to `profiles.credit_balance` on successful payment
+- ✅ Transaction record created with Stripe payment intent ID
+- ✅ Email confirmation sent to user (optional)
+- ✅ Handle payment failures gracefully
+
+**Stripe Configuration**:
+- Product Name: "Resume Optimization Credits"
+- Price: $5.00 USD (one-time payment)
+- Success URL: `/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`
+- Cancel URL: `/dashboard/billing/cancelled`
+
+**Database Changes Required**:
+```sql
+CREATE TABLE stripe_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  stripe_checkout_session_id VARCHAR(255) UNIQUE NOT NULL,
+  stripe_payment_intent_id VARCHAR(255) UNIQUE,
+  amount_paid_cents INTEGER NOT NULL, -- 500 cents = $5
+  credits_granted DECIMAL(10,2) NOT NULL, -- 4.00
+  platform_fee_cents INTEGER NOT NULL, -- 100 cents = $1
+  status VARCHAR(50) NOT NULL, -- 'pending', 'succeeded', 'failed', 'refunded'
+  payment_method VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  metadata JSONB
+);
+
+CREATE INDEX idx_stripe_payments_user_id ON stripe_payments(user_id);
+CREATE INDEX idx_stripe_payments_session_id ON stripe_payments(stripe_checkout_session_id);
+```
+
+**Files to Create/Update**:
+- Migration: `supabase/migrations/YYYYMMDD_add_stripe_payments.sql`
+- Library: `/lib/stripe/client.ts` - Stripe client initialization
+- Library: `/lib/stripe/create-checkout.ts` - Create Stripe checkout session
+- Library: `/lib/stripe/verify-webhook.ts` - Verify Stripe webhook signatures
+- API: `/api/credits/purchase/route.ts` - Create checkout session
+- API: `/api/webhooks/stripe/route.ts` - Handle Stripe webhooks
+- UI: `/dashboard/billing/page.tsx` - Billing dashboard with purchase button
+- UI: `/dashboard/billing/success/page.tsx` - Payment success page
+- UI: `/dashboard/billing/cancelled/page.tsx` - Payment cancelled page
+- UI: `/components/credits/PurchaseCreditsButton.tsx` - Purchase button component
+
+**Environment Variables Required**:
+```env
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_ID=price_... # $5 one-time payment
+CREDITS_PER_PURCHASE=4.00
+PLATFORM_FEE_CENTS=100
+```
+
+---
+
+#### Story 5.4: Credit Balance & Transaction History UI
+**Status**: ❌ **NOT IMPLEMENTED**
+
+**Requirements**:
+- Display current credit balance in dashboard header
+- Billing page shows transaction history (purchases, deductions, refunds)
+- Transaction history paginated (20 per page)
+- Filter by transaction type
+- Export transaction history to CSV
+- Visual credit balance indicator (color-coded: green >$2, yellow $0.40-$2, red <$0.40)
+
+**Acceptance Criteria**:
+- ✅ Credit balance displayed in dashboard header
+- ✅ Billing page shows paginated transaction history
+- ✅ Filter transactions by type
+- ✅ Export transactions to CSV
+- ✅ Visual indicators for low credit balance
+- ✅ "Add Credits" CTA when balance is low
+
+**Files to Create/Update**:
+- UI: `/components/layout/CreditBalance.tsx` - Header credit display
+- UI: `/dashboard/billing/page.tsx` - Billing dashboard
+- UI: `/components/billing/TransactionHistory.tsx` - Transaction table
+- UI: `/components/billing/CreditBalanceIndicator.tsx` - Visual indicator
+- API: `/api/credits/transactions/route.ts` - Fetch transaction history
+- Library: `/lib/credits/export-csv.ts` - CSV export utility
+
+---
+
+#### Story 5.5: Low Credit Notifications & Upsell
+**Status**: ❌ **NOT IMPLEMENTED**
+
+**Requirements**:
+- Show warning modal when credit balance drops below $0.80 (2 optimizations remaining)
+- Show critical modal when credit balance drops below $0.40 (1 optimization remaining)
+- Toaster notification after each optimization showing remaining credits
+- Upsell banner in dashboard when credits < $2
+- Email notification when credits depleted (optional)
+
+**Acceptance Criteria**:
+- ✅ Warning modal at <$0.80 balance
+- ✅ Critical modal at <$0.40 balance
+- ✅ Toast notification after optimization showing balance
+- ✅ Upsell banner in dashboard
+- ✅ Dismiss notifications (tracked per session)
+
+**Files to Create/Update**:
+- UI: `/components/credits/LowCreditWarning.tsx` - Warning modal
+- UI: `/components/credits/CreditDepletedModal.tsx` - Critical modal
+- UI: `/components/credits/UpsellBanner.tsx` - Dashboard banner
+- Hook: `/hooks/useCreditBalance.ts` - Track credit balance changes
+- Library: `/lib/notifications/credit-alerts.ts` - Notification triggers
+
+---
+
+#### Story 5.6: Admin Analytics & Revenue Tracking
+**Status**: ❌ **NOT IMPLEMENTED**
+
+**Requirements**:
+- Admin dashboard showing total revenue (Stripe payments)
+- Platform fee analytics ($1 per $5 purchase)
+- Credits usage analytics (deductions vs purchases)
+- User segmentation (never purchased, active, churned)
+- Revenue trends over time (daily, weekly, monthly)
+
+**Acceptance Criteria**:
+- ✅ Admin-only analytics page
+- ✅ Total revenue chart
+- ✅ Platform fees collected
+- ✅ Credits purchased vs consumed
+- ✅ User segmentation metrics
+
+**Files to Create/Update**:
+- UI: `/dashboard/admin/analytics/page.tsx` - Admin analytics dashboard
+- API: `/api/admin/analytics/revenue/route.ts` - Revenue data endpoint
+- API: `/api/admin/analytics/users/route.ts` - User segmentation endpoint
+- Library: `/lib/analytics/revenue.ts` - Revenue calculations
+- Database: Add RLS policies for admin access
+
+---
+
+### Epic 5 Summary
+
+**Total Stories**: 6
+**Completion**: 0%
+**Estimated Effort**: 2-3 weeks
+**Priority**: CRITICAL (blocks monetization)
+
+**Key Changes from Original PRD**:
+- ❌ **REMOVED**: Subscription-based freemium model
+- ✅ **NEW**: Credit-based pay-as-you-go system
+- ✅ **NEW**: $4 welcome credit for new users
+- ✅ **NEW**: $5 purchase = $4 credits + $1 platform fee
+- ✅ **NEW**: $0.40 per optimization (configurable)
+
+**Benefits of Credit System**:
+1. Lower barrier to entry (no subscription commitment)
+2. Pay-as-you-go flexibility
+3. Clear value proposition ($0.40 per optimization)
+4. Immediate revenue per transaction
+5. Easier to manage than recurring subscriptions
+6. Better for sporadic users (job seekers)
+
+**Implementation Order**:
+1. Story 5.1: Database migration + welcome credits (Day 1-2)
+2. Story 5.2: Credit deduction logic (Day 3-4)
+3. Story 5.3: Stripe integration (Day 5-8)
+4. Story 5.4: UI components (Day 9-11)
+5. Story 5.5: Notifications (Day 12-13)
+6. Story 5.6: Admin analytics (Day 14-15)
+
+**Testing Requirements**:
+- Unit tests for credit deduction logic
+- Integration tests for Stripe webhook handling
+- E2E tests for purchase flow
+- Test cases for edge cases (concurrent deductions, failed payments, refunds)
 
 ---
 
@@ -437,17 +639,25 @@ AI-powered refinement of individual resume sections.
 
 ### 🔴 CRITICAL (Blocks Production Launch)
 
-1. **Freemium Quota Enforcement Disabled**
-   - Impact: No revenue generation, unlimited free usage
-   - Effort: 2-4 hours (code exists, just commented)
+1. **Credit System Not Implemented**
+   - Impact: No revenue generation, no monetization model
+   - Effort: 2-3 weeks (database migration, credit logic, Stripe integration, UI)
    - Priority: IMMEDIATE
+   - Stories: 5.1, 5.2, 5.3 (blocking), 5.4, 5.5, 5.6 (post-launch)
 
-2. **Stripe Integration Incomplete**
-   - Impact: Cannot accept payments
-   - Effort: 2-3 days (checkout, webhooks, UI)
+2. **Welcome Credit System Missing**
+   - Impact: New users cannot use the platform without payment
+   - Effort: 2 days (database migration, auth hook, UI)
    - Priority: CRITICAL
+   - Story: 5.1
 
-3. **No Automated Testing**
+3. **Stripe Payment Integration Missing**
+   - Impact: Users cannot purchase credits, no revenue
+   - Effort: 4-5 days (checkout, webhooks, UI, testing)
+   - Priority: CRITICAL
+   - Story: 5.3
+
+4. **No Automated Testing**
    - Impact: Cannot verify functionality, high bug risk
    - Effort: 1-2 weeks for critical coverage
    - Priority: CRITICAL
@@ -503,13 +713,21 @@ AI-powered refinement of individual resume sections.
 | 3. AI Optimization | 3.2 Score | ✅ Complete | 100% | No |
 | 4. Design & Export | 4.1 Templates | ✅ Complete | 100% | No |
 | 4. Design & Export | 4.2 Download | ⚠️ Partial | 90% | No |
-| 5. Freemium | 5.1 Free Plan | ❌ Disabled | 0% | **YES** |
-| 5. Freemium | 5.2 Premium | ❌ Incomplete | 20% | **YES** |
+| 5. Credit System | 5.1 Welcome Credit | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.2 Credit Deduction | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.3 Stripe Payment | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.4 Transaction UI | ❌ Not Started | 0% | No |
+| 5. Credit System | 5.5 Notifications | ❌ Not Started | 0% | No |
+| 5. Credit System | 5.6 Admin Analytics | ❌ Not Started | 0% | No |
 | 6. App Tracker | 6.1 Tracking | ✅ Complete | 95% | No |
 
-**Overall PRD Completion**: 75% (8/10 stories complete)
-**Core Features (Epics 1-4)**: 95% complete
-**Monetization (Epic 5)**: 10% complete ⚠️ **CRITICAL GAP**
+**Overall PRD Completion**: 62% (8/15 stories complete)
+**Core Features (Epics 1-4, 6)**: 95% complete
+**Monetization (Epic 5)**: 0% complete ⚠️ **CRITICAL GAP**
+
+**Epic 5 Business Model Change**:
+- **Old Model**: Freemium subscription (1 free optimization, then $X/month unlimited)
+- **New Model**: Pay-as-you-go credits ($4 welcome credit, $5 purchase = $4 credits + $1 platform fee, $0.40/optimization)
 
 ---
 
@@ -564,22 +782,34 @@ AI-powered refinement of individual resume sections.
 
 ## Recommendations
 
-### Phase 1: Critical Path to Beta Launch (1-2 weeks)
+### Phase 1: Critical Path to Beta Launch (3 weeks)
 
-**Week 1: Monetization + Testing**
-1. ✅ Enable freemium quota enforcement (Day 1-2)
-2. ✅ Complete Stripe checkout flow (Day 3-5)
-3. ✅ Add integration tests for auth + optimization API (Day 6-7)
-4. ✅ Verify DOCX export functionality (Day 7)
+**Week 1: Credit System Foundation**
+1. ✅ Story 5.1: Database migration for credit system (Day 1)
+2. ✅ Story 5.1: Implement welcome credit on signup (Day 2)
+3. ✅ Story 5.1: Add credit balance display in UI (Day 2)
+4. ✅ Story 5.2: Implement credit deduction logic (Day 3-4)
+5. ✅ Story 5.2: Update optimization API to check credits (Day 4)
+6. ✅ Story 5.2: Add insufficient credits paywall modal (Day 5)
 
-**Week 2: Production Readiness**
-5. ✅ Set up error monitoring (Sentry) (Day 8)
-6. ✅ Add analytics tracking (PostHog) (Day 9)
-7. ✅ Update documentation (README, .env.example) (Day 10)
-8. ✅ Load testing + performance optimization (Day 11-12)
-9. ✅ Security audit (OWASP checklist) (Day 13-14)
+**Week 2: Stripe Integration + Testing**
+7. ✅ Story 5.3: Set up Stripe account and products (Day 6)
+8. ✅ Story 5.3: Implement checkout session creation (Day 7-8)
+9. ✅ Story 5.3: Build Stripe webhook handler (Day 9-10)
+10. ✅ Story 5.3: Create billing UI pages (Day 11)
+11. ✅ Add integration tests for credit + payment flow (Day 12)
+12. ✅ Verify DOCX export functionality (Day 12)
 
-**Outcome**: Beta-ready application with monitoring and monetization
+**Week 3: UI Polish + Production Readiness**
+13. ✅ Story 5.4: Build transaction history UI (Day 13-14)
+14. ✅ Story 5.5: Add low credit notifications (Day 14)
+15. ✅ Set up error monitoring (Sentry) (Day 15)
+16. ✅ Add analytics tracking (PostHog) (Day 16)
+17. ✅ Update documentation (README, .env.example) (Day 17)
+18. ✅ Security audit (OWASP checklist) (Day 18)
+19. ✅ End-to-end testing of credit flow (Day 19-21)
+
+**Outcome**: Beta-ready application with complete credit-based monetization
 
 ---
 
@@ -620,18 +850,28 @@ The Resume Builder AI application has **significantly exceeded the original MVP 
 
 ### Final Verdict
 
-**Current State**: ✅ **BETA LAUNCH READY** (with monitoring)
-**Production Ready**: ❌ **NOT YET** (2-3 weeks of work needed)
+**Current State**: ⚠️ **NOT BETA READY** (monetization system missing)
+**Production Ready**: ❌ **NOT YET** (3-4 weeks of work needed)
 
 **Blocking Issues**:
-1. Enable freemium quota enforcement
-2. Complete Stripe payment integration
-3. Add critical test coverage
-4. Set up production monitoring
+1. Implement credit-based system (Stories 5.1, 5.2)
+2. Integrate Stripe payment processing (Story 5.3)
+3. Build credit management UI (Stories 5.4, 5.5)
+4. Add critical test coverage
+5. Set up production monitoring
 
-**Timeline to Production**: **2-3 weeks** if team focuses on monetization and testing
+**Timeline to Beta Launch**: **3 weeks** if team focuses on Epic 5 implementation
 
-**Risk Level**: MEDIUM - Core features work well, but monetization gaps create business risk
+**Timeline to Production**: **4-5 weeks** (3 weeks Epic 5 + 1-2 weeks testing/monitoring)
+
+**Risk Level**: MEDIUM-HIGH - Core features are excellent, but complete lack of monetization system is a critical gap
+
+**Business Model Advantages**:
+- Pay-as-you-go reduces friction vs subscriptions
+- $4 welcome credit enables immediate usage
+- Clear pricing: $0.40/optimization (vs hidden subscription costs)
+- Better suited for sporadic job seekers
+- Simpler to implement than recurring billing
 
 ---
 
