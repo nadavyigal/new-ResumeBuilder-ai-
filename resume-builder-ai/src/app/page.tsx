@@ -74,28 +74,40 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Results Section */}
+        {/* How It Works Section */}
         <section className="py-16 lg:py-20">
           <div className="container px-4 mx-auto">
+            <h2 className="text-3xl font-bold text-foreground mb-12 text-center">
+              How It Works
+            </h2>
             <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">3x Sales in a day</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  1
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Upload Your Resume</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">The True Power of Words.</span> For Ilunios, our newsletters didn't just inform, they transformed. They skyrocketed engagement and translated into a staggering single-day sales surge.
+                  Begin by uploading your current resume in PDF or Word format. Our system will instantly parse and analyze your professional experience, skills, and achievements to create a structured profile.
                 </p>
               </div>
 
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">250% Increase in Engagement</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  2
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Add Job Description</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">We don't just plan, we play.</span> From clientacclaims like Lululemon's Instagram impressions like @JennyKeynotes and @LifeColoursLab a Instagram impressions blasting viral growth.
+                  Simply paste the job description you&apos;re applying for, and our AI will extract key requirements, desired skills, and important keywords to understand exactly what the employer is seeking.
                 </p>
               </div>
 
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">175% Growth in Organic Search</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  3
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Get Optimized Resume</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">Because great content deserves to be found.</span> Mermer, JetSynthesys and Aylia Cocofelt/Colours a voice Google couldn't resist: keywords = creativity = results.
+                  Receive your professionally optimized resume tailored to the specific job, complete with ATS match insights, keyword optimization, and strategic improvements to maximize your chances of landing an interview.
                 </p>
               </div>
             </div>

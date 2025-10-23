@@ -87,14 +87,14 @@ export default function DashboardPage() {
                   <span className="text-3xl">📊</span>
                 </div>
                 <div>
-                  <CardTitle className="text-2xl mb-2">History</CardTitle>
+                  <CardTitle className="text-2xl mb-2">Applications</CardTitle>
                   <CardDescription className="text-base">
-                    View previous optimizations
+                    View previous applications      resume
                   </CardDescription>
                 </div>
                 <Button asChild variant="outline" className="w-full">
-                  <Link href="/dashboard/history">
-                    View History
+                  <Link href="/dashboard/applications">
+                    View Applications
                   </Link>
                 </Button>
               </div>
