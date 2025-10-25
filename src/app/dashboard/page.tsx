@@ -7,19 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants";
+import { LoadingPage } from "@/components/ui/loading";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-lg text-foreground/60">Loading...</div>
-        </div>
-      </div>
-    );
+    return <LoadingPage message="Loading your dashboard..." />;
   }
 
   if (!user) {

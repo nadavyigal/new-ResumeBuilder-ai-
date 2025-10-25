@@ -1,4 +1,5 @@
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from "docx";
 import { OptimizedResume } from "./ai-optimizer";
 import { renderTemplate, TemplateType } from "./template-engine";
@@ -23,14 +24,26 @@ export async function generatePdfWithTemplate(
 /**
  * Generate PDF from HTML string
  * Includes proper error handling and resource cleanup to prevent memory leaks
+ * Uses puppeteer-core with @sparticuz/chromium for serverless compatibility (Vercel)
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
   let browser;
 
   try {
+    // Use local Chrome/Chromium in development, use @sparticuz/chromium in production
+    const isProduction = process.env.NODE_ENV === 'production';
+
     browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      args: isProduction ? chromium.args : ['--no-sandbox', '--disable-setuid-sandbox'],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isProduction
+        ? await chromium.executablePath()
+        : process.platform === 'win32'
+          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+          : process.platform === 'darwin'
+            ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+            : '/usr/bin/google-chrome',
+      headless: chromium.headless,
     });
 
     const page = await browser.newPage();
