@@ -26,10 +26,12 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
+// Create singleton client outside component to prevent recreation on re-renders
+const supabase = createClientComponentClient();
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClientComponentClient();
 
   useEffect(() => {
     const getUser = async () => {

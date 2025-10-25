@@ -2,22 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { generatePdf, generateDocx } from "@/lib/export";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { z } from 'zod';
+import { downloadRateLimiter, createRateLimitResponse } from "@/lib/rate-limit";
+
+// Validation schema for download request
+const DownloadParamsSchema = z.object({
+  id: z.string().uuid('Invalid optimization ID format'),
+  format: z.enum(['pdf', 'docx'], {
+    errorMap: () => ({ message: "Format must be either 'pdf' or 'docx'" }),
+  }),
+});
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const format = searchParams.get("fmt");
 
-  if (!format || (format !== "pdf" && format !== "docx")) {
-    return NextResponse.json({ error: "Invalid format specified. Use 'pdf' or 'docx'." }, { status: 400 });
+  // Validate input parameters
+  const validation = DownloadParamsSchema.safeParse({ id, format });
+  if (!validation.success) {
+    const errors = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+    return NextResponse.json({ error: errors }, { status: 400 });
   }
 
   const supabase = await createRouteHandlerClient();
 
+  // SECURITY: Verify user authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limiting: 20 downloads per hour per user
+  const rateLimitResult = await downloadRateLimiter.check(user.id);
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
+  }
+
+  // SECURITY: Verify user owns the optimization (prevents authorization bypass)
   const { data: optimizationData, error } = await supabase
     .from("optimizations")
-    .select("rewrite_data")
+    .select("rewrite_data, user_id")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error) {

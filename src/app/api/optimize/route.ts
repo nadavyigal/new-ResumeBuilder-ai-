@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { optimizeResume } from "@/lib/openai";
+import { z } from 'zod';
+import { optimizationRateLimiter, createRateLimitResponse } from "@/lib/rate-limit";
+
+// Validation schema for optimize request
+const OptimizeRequestSchema = z.object({
+  resumeId: z.string().uuid('Invalid resume ID format'),
+  jobDescriptionId: z.string().uuid('Invalid job description ID format'),
+});
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -11,12 +19,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  try {
-    const { resumeId, jobDescriptionId } = await req.json();
+  // Rate limiting: 5 optimizations per hour per user (expensive AI operations)
+  const rateLimitResult = await optimizationRateLimiter.check(user.id);
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
+  }
 
-    if (!resumeId || !jobDescriptionId) {
-      return NextResponse.json({ error: "resumeId and jobDescriptionId are required." }, { status: 400 });
+  try {
+    const body = await req.json();
+
+    // Validate input with Zod
+    const validation = OptimizeRequestSchema.safeParse(body);
+    if (!validation.success) {
+      const errors = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      return NextResponse.json({ error: errors }, { status: 400 });
     }
+
+    const { resumeId, jobDescriptionId } = validation.data;
 
     const { data: resumeData, error: resumeError } = await supabase
       .from("resumes")

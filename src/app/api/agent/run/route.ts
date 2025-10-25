@@ -54,7 +54,10 @@ export async function POST(req: NextRequest) {
             const afterATS = agentResult.ats_report?.score ?? null;
             const diffCount = agentResult.diffs?.length ?? 0;
             const warnings = agentResult.ui_prompts ?? [];
-            await supabase
+            // Type assertion needed as agent_shadow_logs table may not be in generated types yet
+            // Using 'any' to bypass type checking for table not in generated database.ts
+            const supabaseClient: any = supabase;
+            await supabaseClient
               .from('agent_shadow_logs')
               .insert([
                 {

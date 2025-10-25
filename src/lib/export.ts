@@ -22,29 +22,46 @@ export async function generatePdfWithTemplate(
 
 /**
  * Generate PDF from HTML string
+ * Includes proper error handling and resource cleanup to prevent memory leaks
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  let browser;
 
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
 
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: '20mm',
-      right: '15mm',
-      bottom: '20mm',
-      left: '15mm',
-    },
-  });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-  await browser.close();
-  return pdfBuffer;
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm',
+      },
+    });
+
+    return pdfBuffer;
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    throw new Error('Failed to generate PDF. Please try again.');
+  } finally {
+    // Ensure browser is always closed, even if an error occurs
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('Failed to close browser:', closeError);
+        // Don't throw here - we want to preserve the original error if there was one
+      }
+    }
+  }
 }
 
 /**

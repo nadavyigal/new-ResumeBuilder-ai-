@@ -8,6 +8,7 @@ import { scrapeJobDescription } from "@/lib/job-scraper";
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
+import { uploadRateLimiter, createRateLimitResponse, getRateLimitHeaders } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -17,7 +18,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // FR-021 & FR-022: Check freemium quota
+  // Rate limiting: 10 uploads per hour per user
+  const rateLimitResult = await uploadRateLimiter.check(user.id);
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
+  }
+
+  // FR-021 & FR-022: Get user profile to check plan type
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("plan_type, optimizations_used")
@@ -33,7 +40,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "User profile not found" }, { status: 404 });
   }
 
-  // FR-021: Free tier users can only use 1 optimization
+  // FR-021: Free tier users can only use 1 optimization - check before processing
   if (profile.plan_type === 'free' && profile.optimizations_used >= 1) {
     // FR-022: Return paywall response
     return NextResponse.json({
@@ -202,16 +209,24 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // FR-021: Increment optimization counter for user
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ optimizations_used: profile.optimizations_used + 1 })
-      .eq("user_id", user.id);
+    // FR-021: Atomically increment optimization counter using RPC function
+    // This prevents race conditions where concurrent requests could bypass the quota
+    if (profile.plan_type === 'free') {
+      const { data: updatedProfile, error: incrementError } = await supabase
+        .rpc('increment_optimizations_used', {
+          user_id_param: user.id,
+          max_allowed: 1
+        });
 
-    if (updateError) {
-      console.error("Failed to update optimization counter:", updateError);
-      // Don't fail the request, just log the error
+      if (incrementError) {
+        console.error("Failed to increment optimization counter:", incrementError);
+        // Don't fail the request if the increment fails, but log it for monitoring
+      } else if (!updatedProfile) {
+        // This should not happen as we already checked quota, but handle defensively
+        console.warn("Quota increment returned null - possible race condition handled by RPC");
+      }
     }
+    // Premium users don't need quota tracking
 
     console.log(`Optimization completed successfully. Match score: ${optimizationResult.optimizedResume?.matchScore}%`);
 

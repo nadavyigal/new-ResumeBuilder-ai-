@@ -4,6 +4,8 @@ import {
   RESUME_OPTIMIZATION_USER_PROMPT,
   OPTIMIZATION_CONFIG,
 } from '../prompts/resume-optimizer';
+import { OPENAI_API_KEY } from '@/lib/env';
+import { OptimizedResumeSchema, parseAndValidate } from '@/lib/validation/schemas';
 
 /**
  * Optimized resume structure returned by AI
@@ -60,16 +62,11 @@ export interface OptimizationResult {
 
 /**
  * Initialize OpenAI client
+ * Uses centralized environment validation from @/lib/env
  */
 function getOpenAIClient(): OpenAI {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('OPENAI_API_KEY environment variable is not set');
-  }
-
   return new OpenAI({
-    apiKey,
+    apiKey: OPENAI_API_KEY,
   });
 }
 
@@ -114,14 +111,26 @@ export async function optimizeResume(
       };
     }
 
-    // Parse the JSON response
-    const optimizedResume = JSON.parse(responseContent) as OptimizedResume;
+    // Parse and validate the JSON response using Zod
+    try {
+      const optimizedResume = parseAndValidate(
+        responseContent,
+        OptimizedResumeSchema,
+        'AI resume optimization response'
+      );
 
-    return {
-      success: true,
-      optimizedResume,
-      tokensUsed: completion.usage?.total_tokens,
-    };
+      return {
+        success: true,
+        optimizedResume,
+        tokensUsed: completion.usage?.total_tokens,
+      };
+    } catch (validationError) {
+      console.error('AI returned invalid resume structure:', validationError);
+      return {
+        success: false,
+        error: 'AI returned invalid resume format. Please try again.',
+      };
+    }
   } catch (error: unknown) {
     console.error('Error optimizing resume:', error);
     const err = error as { code?: string; message?: string; status?: number };
