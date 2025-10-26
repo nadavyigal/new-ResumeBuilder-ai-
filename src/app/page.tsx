@@ -13,7 +13,7 @@ export default function Home() {
         <section className="container px-4 py-16 mx-auto lg:py-24">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <h1 className="text-5xl font-bold tracking-tight sm:text-7xl text-foreground leading-tight">
-              Skip the Blah, Bring the Boom
+              Your Resume, Optimized
               <span className="inline-block ml-2 text-6xl">💥</span>
             </h1>
 
@@ -36,18 +36,28 @@ export default function Home() {
           <div className="container px-4 mx-auto">
             <div className="max-w-xl mx-auto mb-12">
               <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
-                We create content that
+                Resumes that get noticed
               </h2>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
               <div className="flex flex-col items-center text-center space-y-4">
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">💬</span>
+                  <span className="text-4xl">🤖</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Engages</h3>
+                <h3 className="text-xl font-bold text-foreground">ATS-Friendly</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Gets people talking
+                  Optimized to pass automated screening systems
+                </p>
+              </div>
+
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
+                  <span className="text-4xl">⚡</span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground">Lightning Fast</h3>
+                <p className="text-foreground/70 leading-relaxed">
+                  Get your optimized resume in seconds, not hours
                 </p>
               </div>
 
@@ -55,47 +65,43 @@ export default function Home() {
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
                   <span className="text-4xl">🎯</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Converts</h3>
+                <h3 className="text-xl font-bold text-foreground">Job-Matched</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Gets people clicking
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">🧠</span>
-                </div>
-                <h3 className="text-xl font-bold text-foreground">Stays</h3>
-                <p className="text-foreground/70 leading-relaxed">
-                  Gets people remembering
+                  Tailored to each specific job description
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Results Section */}
+        {/* How It Works Section */}
         <section className="py-16 lg:py-20">
           <div className="container px-4 mx-auto">
+            <div className="max-w-xl mx-auto mb-12 text-center">
+              <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
+                How it works
+              </h2>
+            </div>
+
             <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
               <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">3x Sales in a day</h3>
+                <h3 className="text-3xl font-bold text-foreground">1. Upload</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">The True Power of Words.</span> For Ilunios, our newsletters didn't just inform, they transformed. They skyrocketed engagement and translated into a staggering single-day sales surge.
+                  <span className="font-semibold">Drop in your resume.</span> Upload your existing resume and paste the job description you're targeting.
                 </p>
               </div>
 
               <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">250% Increase in Engagement</h3>
+                <h3 className="text-3xl font-bold text-foreground">2. Analyze</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">We don't just plan, we play.</span> From clientacclaims like Lululemon's Instagram impressions like @JennyKeynotes and @LifeColoursLab a Instagram impressions blasting viral growth.
+                  <span className="font-semibold">AI does the heavy lifting.</span> Our AI analyzes your resume against the job requirements and identifies gaps and opportunities.
                 </p>
               </div>
 
               <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">175% Growth in Organic Search</h3>
+                <h3 className="text-3xl font-bold text-foreground">3. Download</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">Because great content deserves to be found.</span> Mermer, JetSynthesys and Aylia Cocofelt/Colours a voice Google couldn't resist: keywords = creativity = results.
+                  <span className="font-semibold">Get your optimized resume.</span> Download a perfectly formatted, ATS-friendly resume tailored to your target job.
                 </p>
               </div>
             </div>
