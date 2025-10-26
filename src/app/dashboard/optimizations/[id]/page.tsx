@@ -30,13 +30,14 @@ export default function OptimizationPage() {
           .from('optimizations')
           .select('rewrite_data, resume_id, jd_id')
           .eq('id', idVal)
-          .single();
+          .maybeSingle();
 
         if (optError) {
-          if (optError.message?.includes('Cannot coerce')) {
-            throw new Error('Cannot coerce the result to a single JSON object (406). Please hard refresh the page (Ctrl+F5).');
-          }
           throw optError;
+        }
+
+        if (!opt) {
+          throw new Error('Optimization not found');
         }
 
         // Fetch resume text
@@ -44,16 +45,18 @@ export default function OptimizationPage() {
           .from('resumes')
           .select('raw_text')
           .eq('id', (opt as any).resume_id)
-          .single();
+          .maybeSingle();
         if (resumeError) throw resumeError;
+        if (!resume) throw new Error('Resume not found');
 
         // Fetch job description fields
         const { data: jd, error: jdError } = await supabase
           .from('job_descriptions')
           .select('raw_text, title, company, source_url')
           .eq('id', (opt as any).jd_id)
-          .single();
+          .maybeSingle();
         if (jdError) throw jdError;
+        if (!jd) throw new Error('Job description not found');
 
         setResumeText((resume as any)?.raw_text || '');
         // Build JD panel text with optional header
