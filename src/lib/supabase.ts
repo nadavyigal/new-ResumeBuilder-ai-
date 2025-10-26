@@ -22,8 +22,21 @@ export const createClientComponentClient = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+  // Debug logging to help diagnose environment variable issues
+  console.log('Supabase client initialization:', {
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseAnonKey,
+    urlPrefix: supabaseUrl?.substring(0, 20) || 'undefined',
+  });
+
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
+    const error = new Error(`Missing Supabase environment variables. URL: ${!!supabaseUrl}, Key: ${!!supabaseAnonKey}`);
+    console.error('Environment variables check failed:', {
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey ? 'SET' : 'MISSING',
+      allEnvVars: Object.keys(process.env).filter(k => k.startsWith('NEXT_PUBLIC_')),
+    });
+    throw error;
   }
 
   if (!clientInstance) {
