@@ -45,6 +45,12 @@ export const OptimizedResumeSchema = z.object({
     gpa: z.string().optional(),
   })).min(1, 'At least one education entry required'),
   matchScore: z.number().min(0).max(100),
+  certifications: z.array(z.string()).optional(),
+  projects: z.array(z.object({
+    name: z.string().min(1, 'Project name is required'),
+    description: z.string().min(1, 'Description is required'),
+    technologies: z.array(z.string()),
+  })).optional(),
   keyImprovements: z.array(z.string()).default([]),
   missingKeywords: z.array(z.string()).default([]),
 });

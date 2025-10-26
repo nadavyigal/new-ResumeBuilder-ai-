@@ -75,19 +75,19 @@ export default function DashboardPage() {
               </div>
             </Card>
 
-            <Card className="opacity-60">
+            <Card className="hover:shadow-lg transition-shadow">
               <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
                   <span className="text-3xl">📊</span>
                 </div>
                 <div>
-                  <CardTitle className="text-2xl mb-2">History</CardTitle>
+                  <CardTitle className="text-2xl mb-2">Applications</CardTitle>
                   <CardDescription className="text-base">
-                    View previous optimizations
+                    View your job applications and optimized resumes
                   </CardDescription>
                 </div>
-                <Button variant="outline" className="w-full" disabled>
-                  Coming Soon
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/dashboard/applications">View Applications</Link>
                 </Button>
               </div>
             </Card>
