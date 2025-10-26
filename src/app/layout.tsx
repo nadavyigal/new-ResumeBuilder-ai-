@@ -19,10 +19,6 @@ export const metadata: Metadata = {
   description: "Optimize your resume for any job with AI-powered insights",
 };
 
-// Force dynamic rendering - prevents build-time static generation
-// which fails when AuthProvider tries to create Supabase client
-export const dynamic = 'force-dynamic';
-
 export default function RootLayout({
   children,
 }: Readonly<{
