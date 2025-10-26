@@ -37,39 +37,73 @@ function getOptionalEnv(key: string, defaultValue: string): string {
 
 /**
  * Supabase project URL (public, client-side safe)
+ * Lazy getter to avoid build-time evaluation
  */
-export const SUPABASE_URL = getRequiredEnv(
-  'NEXT_PUBLIC_SUPABASE_URL',
-  'Required for Supabase client initialization'
-);
+let _supabaseUrl: string | undefined;
+export function getSupabaseUrl(): string {
+  if (!_supabaseUrl) {
+    _supabaseUrl = getRequiredEnv(
+      'NEXT_PUBLIC_SUPABASE_URL',
+      'Required for Supabase client initialization'
+    );
+  }
+  return _supabaseUrl;
+}
 
 /**
  * Supabase anonymous key (public, client-side safe)
  * This key respects Row Level Security policies
+ * Lazy getter to avoid build-time evaluation
  */
-export const SUPABASE_ANON_KEY = getRequiredEnv(
-  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-  'Required for Supabase client initialization'
-);
+let _supabaseAnonKey: string | undefined;
+export function getSupabaseAnonKey(): string {
+  if (!_supabaseAnonKey) {
+    _supabaseAnonKey = getRequiredEnv(
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+      'Required for Supabase client initialization'
+    );
+  }
+  return _supabaseAnonKey;
+}
 
 /**
  * Supabase service role key (server-side only, bypasses RLS)
  * WARNING: This key has full database access - never expose to client
+ * Lazy getter to avoid build-time evaluation
  */
-export const SUPABASE_SERVICE_ROLE_KEY = getRequiredEnv(
-  'SUPABASE_SERVICE_ROLE_KEY',
-  'Required for server-side operations that bypass RLS'
-);
+let _supabaseServiceRoleKey: string | undefined;
+export function getSupabaseServiceRoleKey(): string {
+  if (!_supabaseServiceRoleKey) {
+    _supabaseServiceRoleKey = getRequiredEnv(
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'Required for server-side operations that bypass RLS'
+    );
+  }
+  return _supabaseServiceRoleKey;
+}
 
 // ==================== AI/LLM CONFIGURATION ====================
 
 /**
  * OpenAI API key for resume optimization
+ * Lazy getter to avoid build-time evaluation
  */
-export const OPENAI_API_KEY = getRequiredEnv(
-  'OPENAI_API_KEY',
-  'Required for AI resume optimization'
-);
+let _openaiApiKey: string | undefined;
+export function getOpenAIApiKey(): string {
+  if (!_openaiApiKey) {
+    _openaiApiKey = getRequiredEnv(
+      'OPENAI_API_KEY',
+      'Required for AI resume optimization'
+    );
+  }
+  return _openaiApiKey;
+}
+
+// Backward compatibility exports - use getters instead
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+export const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+export const OPENAI_API_KEY = process.env.OPENAI_API_KEY || '';
 
 // ==================== PAYMENT CONFIGURATION ====================
 
