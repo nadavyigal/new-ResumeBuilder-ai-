@@ -188,70 +188,75 @@ The Resume Builder AI application has **exceeded the original MVP PRD scope** wi
 
 ---
 
-### ❌ Epic 5: Credit-Based Pay-As-You-Go System - **0% COMPLETE** ⚠️ CRITICAL GAP
+### ❌ Epic 5: Credit-Based Pricing System - **0% COMPLETE** ⚠️ CRITICAL GAP
 
-**NEW BUSINESS MODEL**: Credit-based system where users pay $5 to receive $4 in credits (platform keeps $1 fee).
+**NEW PRICING STRATEGY**: Credits-and-bundles with a compelling first-purchase offer, volume bundles, feature-based credit costs, and optional monthly plans. No automatic free credits; optional promo bonus credits can be enabled via config.
 
-#### Story 5.1: New User Welcome Credit
+#### Story 5.1: Pricing & Onboarding Setup
 **Status**: ❌ **NOT IMPLEMENTED**
 
 **Requirements**:
-- Every new user receives $4.00 in credits upon account creation
-- Credits are automatically applied during user sign-up flow
-- Credits are stored in `profiles.credit_balance` (DECIMAL field)
-- Credits are displayed in user dashboard header
-- Welcome credit is tracked separately for analytics (`profiles.welcome_credit_applied`)
+- Present purchasable credit packs in-app:
+  - Starter Pack — $6 → 10 credits (hero offer)
+  - Job Seeker Pack — $12 → 25 credits
+  - Career Upgrade Pack — $20 → 50 credits
+  - Pro Pack — $35 → 100 credits (Best value)
+- Display feature-based credit costs next to actions:
+  - Resume optimization: 2 credits
+  - Job-specific tailoring: 1 credit
+  - Cover letter generation: 3 credits
+  - LinkedIn profile rewrite: 4 credits
+- No welcome credit by default; optional bonus for new users is configurable (e.g., +20% credits for first purchase).
+- Store balance in `profiles.credit_balance` (DECIMAL). Default 0.00.
+- Show balance in dashboard header and billing page.
 
 **Acceptance Criteria**:
-- ✅ New users automatically receive $4.00 credit on sign-up
-- ✅ Credit balance visible in UI (dashboard header, settings page)
-- ✅ Welcome credit only applied once per user
-- ✅ Database field: `profiles.credit_balance` (default: 4.00)
-- ✅ Database field: `profiles.welcome_credit_applied` (default: true)
+- ✅ Packs visible and purchasable from billing modal/page.
+- ✅ Feature cost labels displayed where actions are initiated.
+- ✅ Default user balance is 0.00; optional promo bonus applies only once when enabled.
+- ✅ Balance visible in header and settings/billing.
 
 **Database Changes Required**:
 ```sql
 ALTER TABLE profiles
-  ADD COLUMN credit_balance DECIMAL(10,2) DEFAULT 4.00,
-  ADD COLUMN welcome_credit_applied BOOLEAN DEFAULT true,
-  ADD COLUMN total_credits_purchased DECIMAL(10,2) DEFAULT 0.00;
+  ADD COLUMN credit_balance DECIMAL(10,2) DEFAULT 0.00,
+  ADD COLUMN total_credits_purchased DECIMAL(10,2) DEFAULT 0.00,
+  ADD COLUMN promo_bonus_applied BOOLEAN DEFAULT false;
 ```
 
 **Files to Create/Update**:
 - Migration: `supabase/migrations/YYYYMMDD_add_credit_system.sql`
-- Auth hook: Update user creation to set initial credit balance
-- UI: `/components/layout/CreditBalance.tsx` - Display credit balance
-- UI: Update `/dashboard/layout.tsx` to show credit balance
+- UI: `/components/layout/CreditBalance.tsx` and `/dashboard/layout.tsx`
+- UI: `/dashboard/billing/page.tsx` and purchase modal component
+- Config: feature cost constants in `/lib/credits/costs.ts`
 
 ---
 
-#### Story 5.2: Credit Deduction Per Optimization
+#### Story 5.2: Credit Deduction Per Feature Action
 **Status**: ❌ **NOT IMPLEMENTED**
 
 **Requirements**:
-- Each optimization costs $0.40 (configurable via environment variable)
-- Credits are deducted BEFORE optimization starts
-- If insufficient credits, show paywall with "Add Credits" button
-- Transaction history tracks all credit deductions
-- Optimizations are linked to transactions for audit trail
+- Deduct credits BEFORE executing feature actions, with variable costs:
+  - `resume_optimization`: 2 credits
+  - `job_tailoring`: 1 credit
+  - `cover_letter`: 3 credits
+  - `linkedin_rewrite`: 4 credits
+- If insufficient credits, block the action with paywall modal and CTA to buy a pack.
+- Persist transaction history for all deductions; link to related entities when applicable.
 
 **Acceptance Criteria**:
-- ✅ Check credit balance before optimization
-- ✅ Deduct $0.40 per optimization
-- ✅ Return 402 Payment Required if insufficient credits
-- ✅ Create transaction record for each deduction
-- ✅ Link optimization to transaction for refund capability
-
-**Cost Configuration**:
-- Environment variable: `OPTIMIZATION_COST_CREDITS=0.40`
-- Default cost: $0.40 per optimization (10 optimizations per $4)
+- ✅ Balance check and atomic deduction per action.
+- ✅ 402 Payment Required on insufficient credits from APIs.
+- ✅ Transaction record created per deduction with `feature_type` and `related_*` refs.
+- ✅ Refund path supported by linking transactions to domain entities.
 
 **Database Changes Required**:
 ```sql
 CREATE TABLE credit_transactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  transaction_type VARCHAR(50) NOT NULL, -- 'welcome_credit', 'purchase', 'deduction', 'refund'
+  transaction_type VARCHAR(50) NOT NULL, -- 'purchase', 'deduction', 'refund', 'promo_bonus'
+  feature_type VARCHAR(50), -- 'resume_optimization', 'job_tailoring', 'cover_letter', 'linkedin_rewrite'
   amount DECIMAL(10,2) NOT NULL, -- positive for credits, negative for deductions
   balance_after DECIMAL(10,2) NOT NULL,
   description TEXT,
@@ -263,41 +268,45 @@ CREATE TABLE credit_transactions (
 
 CREATE INDEX idx_credit_transactions_user_id ON credit_transactions(user_id);
 CREATE INDEX idx_credit_transactions_type ON credit_transactions(transaction_type);
+CREATE INDEX idx_credit_transactions_feature ON credit_transactions(feature_type);
 ```
 
 **Files to Create/Update**:
 - Migration: `supabase/migrations/YYYYMMDD_add_credit_transactions.sql`
-- Library: `/lib/credits/deduct-credits.ts` - Credit deduction logic
-- API: Update `/api/optimize/route.ts` to check and deduct credits
-- API: Update `/api/upload-resume/route.ts` to check credits
-- UI: `/components/credits/InsufficientCreditsModal.tsx` - Paywall modal
+- Library: `/lib/credits/deduct-credits.ts` (atomic balance check + insert transaction)
+- API: Guard `/api/optimize/route.ts`, `/api/upload-resume/route.ts`, and feature endpoints
+- UI: `/components/credits/InsufficientCreditsModal.tsx`
 
 ---
 
-#### Story 5.3: Stripe Payment Integration - $5 Purchase ($4 Credit + $1 Fee)
+#### Story 5.3: Stripe Payment Integration — Multi-Pack + Optional Subscriptions
 **Status**: ❌ **NOT IMPLEMENTED**
 
 **Requirements**:
-- User can purchase $5 package via Stripe Checkout
-- $5 payment results in $4 added to user's credit balance (platform keeps $1)
-- Stripe webhook handles successful payments
-- Credits applied immediately after successful payment
-- Payment history visible in billing dashboard
-- Failed payments are logged and retried
+- Stripe Checkout for one-time credit packs:
+  - Starter (10 credits, $6)
+  - Job Seeker (25 credits, $12)
+  - Career Upgrade (50 credits, $20)
+  - Pro (100 credits, $35)
+- Webhook grants the corresponding credits on `checkout.session.completed`.
+- Optional monthly plans (hybrid model):
+  - Career Boost — $8/mo → 20 credits
+  - Career Pro — $14/mo → 40 credits
+- Store payment metadata and pack/subscription info; support international cards (fees accounted in margin model).
 
 **Acceptance Criteria**:
-- ✅ Stripe Checkout session for $5 purchase
-- ✅ Webhook processes `checkout.session.completed` event
-- ✅ $4 added to `profiles.credit_balance` on successful payment
-- ✅ Transaction record created with Stripe payment intent ID
-- ✅ Email confirmation sent to user (optional)
-- ✅ Handle payment failures gracefully
+- ✅ Checkout sessions created for each pack; success/cancel routes configured.
+- ✅ Webhook verifies signature and increments `profiles.credit_balance`.
+- ✅ Transaction record created with `transaction_type='purchase'` and pack/subscription details.
+- ✅ Optional promo bonus applied only when configured and eligible.
 
 **Stripe Configuration**:
-- Product Name: "Resume Optimization Credits"
-- Price: $5.00 USD (one-time payment)
-- Success URL: `/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`
-- Cancel URL: `/dashboard/billing/cancelled`
+- Products/Prices:
+  - Packs: 10, 25, 50, 100 credits
+  - Optional subscriptions: 20 and 40 credits per month
+- URLs:
+  - Success: `/dashboard/billing/success?session_id={CHECKOUT_SESSION_ID}`
+  - Cancel: `/dashboard/billing/cancelled`
 
 **Database Changes Required**:
 ```sql
@@ -306,10 +315,12 @@ CREATE TABLE stripe_payments (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   stripe_checkout_session_id VARCHAR(255) UNIQUE NOT NULL,
   stripe_payment_intent_id VARCHAR(255) UNIQUE,
-  amount_paid_cents INTEGER NOT NULL, -- 500 cents = $5
-  credits_granted DECIMAL(10,2) NOT NULL, -- 4.00
-  platform_fee_cents INTEGER NOT NULL, -- 100 cents = $1
-  status VARCHAR(50) NOT NULL, -- 'pending', 'succeeded', 'failed', 'refunded'
+  pack_type VARCHAR(50), -- 'starter_10','job_seeker_25','career_upgrade_50','pro_100'
+  is_subscription BOOLEAN DEFAULT false,
+  subscription_type VARCHAR(50), -- 'career_boost_20','career_pro_40'
+  amount_paid_cents INTEGER NOT NULL,
+  credits_granted DECIMAL(10,2) NOT NULL,
+  status VARCHAR(50) NOT NULL, -- 'pending','succeeded','failed','refunded'
   payment_method VARCHAR(100),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -322,24 +333,26 @@ CREATE INDEX idx_stripe_payments_session_id ON stripe_payments(stripe_checkout_s
 
 **Files to Create/Update**:
 - Migration: `supabase/migrations/YYYYMMDD_add_stripe_payments.sql`
-- Library: `/lib/stripe/client.ts` - Stripe client initialization
-- Library: `/lib/stripe/create-checkout.ts` - Create Stripe checkout session
-- Library: `/lib/stripe/verify-webhook.ts` - Verify Stripe webhook signatures
-- API: `/api/credits/purchase/route.ts` - Create checkout session
-- API: `/api/webhooks/stripe/route.ts` - Handle Stripe webhooks
-- UI: `/dashboard/billing/page.tsx` - Billing dashboard with purchase button
-- UI: `/dashboard/billing/success/page.tsx` - Payment success page
-- UI: `/dashboard/billing/cancelled/page.tsx` - Payment cancelled page
-- UI: `/components/credits/PurchaseCreditsButton.tsx` - Purchase button component
+- Library: `/lib/stripe/client.ts`
+- Library: `/lib/stripe/create-checkout.ts`
+- Library: `/lib/stripe/verify-webhook.ts`
+- API: `/api/credits/purchase/route.ts`
+- API: `/api/webhooks/stripe/route.ts`
+- UI: `/dashboard/billing/page.tsx`, success and cancelled pages
+- UI: `/components/credits/PurchaseCreditsButton.tsx`
 
 **Environment Variables Required**:
 ```env
 STRIPE_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_... # $5 one-time payment
-CREDITS_PER_PURCHASE=4.00
-PLATFORM_FEE_CENTS=100
+STRIPE_PRICE_ID_PACK_STARTER_10=price_...
+STRIPE_PRICE_ID_PACK_JOBSEEKER_25=price_...
+STRIPE_PRICE_ID_PACK_CAREER_50=price_...
+STRIPE_PRICE_ID_PACK_PRO_100=price_...
+STRIPE_PRICE_ID_SUB_BOOST_20=price_... # optional
+STRIPE_PRICE_ID_SUB_PRO_40=price_...   # optional
+PROMO_FIRST_PURCHASE_BONUS_PCT=20      # optional, e.g., 20 means +20%
 ```
 
 ---
@@ -349,27 +362,24 @@ PLATFORM_FEE_CENTS=100
 
 **Requirements**:
 - Display current credit balance in dashboard header
-- Billing page shows transaction history (purchases, deductions, refunds)
-- Transaction history paginated (20 per page)
-- Filter by transaction type
+- Billing page shows transaction history (purchases, deductions, refunds, promo bonuses)
+- Pagination (20 per page), filter by `transaction_type` and `feature_type`
 - Export transaction history to CSV
-- Visual credit balance indicator (color-coded: green >$2, yellow $0.40-$2, red <$0.40)
+- Visual indicator by remaining credits: green (≥10), yellow (2–9), red (<2)
 
 **Acceptance Criteria**:
-- ✅ Credit balance displayed in dashboard header
-- ✅ Billing page shows paginated transaction history
-- ✅ Filter transactions by type
-- ✅ Export transactions to CSV
-- ✅ Visual indicators for low credit balance
+- ✅ Header balance + low-credits indicator
+- ✅ Paginated, filterable transaction table
+- ✅ CSV export
 - ✅ "Add Credits" CTA when balance is low
 
 **Files to Create/Update**:
-- UI: `/components/layout/CreditBalance.tsx` - Header credit display
-- UI: `/dashboard/billing/page.tsx` - Billing dashboard
-- UI: `/components/billing/TransactionHistory.tsx` - Transaction table
-- UI: `/components/billing/CreditBalanceIndicator.tsx` - Visual indicator
-- API: `/api/credits/transactions/route.ts` - Fetch transaction history
-- Library: `/lib/credits/export-csv.ts` - CSV export utility
+- UI: `/components/layout/CreditBalance.tsx`
+- UI: `/dashboard/billing/page.tsx`
+- UI: `/components/billing/TransactionHistory.tsx`
+- UI: `/components/billing/CreditBalanceIndicator.tsx`
+- API: `/api/credits/transactions/route.ts`
+- Library: `/lib/credits/export-csv.ts`
 
 ---
 
@@ -377,25 +387,25 @@ PLATFORM_FEE_CENTS=100
 **Status**: ❌ **NOT IMPLEMENTED**
 
 **Requirements**:
-- Show warning modal when credit balance drops below $0.80 (2 optimizations remaining)
-- Show critical modal when credit balance drops below $0.40 (1 optimization remaining)
-- Toaster notification after each optimization showing remaining credits
-- Upsell banner in dashboard when credits < $2
-- Email notification when credits depleted (optional)
+- Triggered upsell rules:
+  - Balance < 2 credits → Modal + CTA to buy Starter Pack ($6 → 10 credits)
+  - After first success story captured → Banner upsell (cross-sell cover letter)
+  - After 3+ resumes optimized → Recommend Job Seeker Pack (25 credits)
+- Toast notification after each action showing remaining credits
+- Dismiss logic per session/user
 
 **Acceptance Criteria**:
-- ✅ Warning modal at <$0.80 balance
-- ✅ Critical modal at <$0.40 balance
-- ✅ Toast notification after optimization showing balance
-- ✅ Upsell banner in dashboard
-- ✅ Dismiss notifications (tracked per session)
+- ✅ Warning modal at <2 credits
+- ✅ Critical indicator at <1 credit
+- ✅ Toast after actions with remaining balance
+- ✅ Contextual upsell banners per rules above
 
 **Files to Create/Update**:
-- UI: `/components/credits/LowCreditWarning.tsx` - Warning modal
-- UI: `/components/credits/CreditDepletedModal.tsx` - Critical modal
-- UI: `/components/credits/UpsellBanner.tsx` - Dashboard banner
-- Hook: `/hooks/useCreditBalance.ts` - Track credit balance changes
-- Library: `/lib/notifications/credit-alerts.ts` - Notification triggers
+- UI: `/components/credits/LowCreditWarning.tsx`
+- UI: `/components/credits/CreditDepletedModal.tsx`
+- UI: `/components/credits/UpsellBanner.tsx`
+- Hook: `/hooks/useCreditBalance.ts`
+- Library: `/lib/notifications/credit-alerts.ts`
 
 ---
 
@@ -403,25 +413,22 @@ PLATFORM_FEE_CENTS=100
 **Status**: ❌ **NOT IMPLEMENTED**
 
 **Requirements**:
-- Admin dashboard showing total revenue (Stripe payments)
-- Platform fee analytics ($1 per $5 purchase)
-- Credits usage analytics (deductions vs purchases)
-- User segmentation (never purchased, active, churned)
-- Revenue trends over time (daily, weekly, monthly)
+- Admin dashboard KPIs: total revenue, ARPPU, pack mix, conversion rate from low-credit modal, credits purchased vs consumed
+- Segmentation: never purchased, first-time buyers, repeat, churned
+- Trends: daily/weekly/monthly
 
 **Acceptance Criteria**:
 - ✅ Admin-only analytics page
-- ✅ Total revenue chart
-- ✅ Platform fees collected
+- ✅ Revenue and pack mix charts
 - ✅ Credits purchased vs consumed
-- ✅ User segmentation metrics
+- ✅ Cohort/segment views
 
 **Files to Create/Update**:
-- UI: `/dashboard/admin/analytics/page.tsx` - Admin analytics dashboard
-- API: `/api/admin/analytics/revenue/route.ts` - Revenue data endpoint
-- API: `/api/admin/analytics/users/route.ts` - User segmentation endpoint
-- Library: `/lib/analytics/revenue.ts` - Revenue calculations
-- Database: Add RLS policies for admin access
+- UI: `/dashboard/admin/analytics/page.tsx`
+- API: `/api/admin/analytics/revenue/route.ts`
+- API: `/api/admin/analytics/users/route.ts`
+- Library: `/lib/analytics/revenue.ts`
+- Database: RLS policies for admin access
 
 ---
 
@@ -433,33 +440,30 @@ PLATFORM_FEE_CENTS=100
 **Priority**: CRITICAL (blocks monetization)
 
 **Key Changes from Original PRD**:
-- ❌ **REMOVED**: Subscription-based freemium model
-- ✅ **NEW**: Credit-based pay-as-you-go system
-- ✅ **NEW**: $4 welcome credit for new users
-- ✅ **NEW**: $5 purchase = $4 credits + $1 platform fee
-- ✅ **NEW**: $0.40 per optimization (configurable)
+- ❌ REMOVED: Fixed $5 → $4 credit grant and automatic welcome credit
+- ✅ NEW: Hero Starter Pack ($6 → 10 credits) and volume bundles (25/50/100)
+- ✅ NEW: Feature-based credit costs (2/1/3/4) for clearer value framing
+- ✅ NEW: Optional monthly subscriptions with included credits (20/40)
 
 **Benefits of Credit System**:
-1. Lower barrier to entry (no subscription commitment)
-2. Pay-as-you-go flexibility
-3. Clear value proposition ($0.40 per optimization)
-4. Immediate revenue per transaction
-5. Easier to manage than recurring subscriptions
-6. Better for sporadic users (job seekers)
+1. Higher first-purchase conversion with hero offer
+2. Better margins via bundle scaling; predictable option via subscriptions
+3. Clearer value framing tied to outcomes (resume, tailoring, cover letter, LinkedIn)
+4. Immediate revenue; flexible for sporadic usage
 
 **Implementation Order**:
-1. Story 5.1: Database migration + welcome credits (Day 1-2)
-2. Story 5.2: Credit deduction logic (Day 3-4)
-3. Story 5.3: Stripe integration (Day 5-8)
-4. Story 5.4: UI components (Day 9-11)
-5. Story 5.5: Notifications (Day 12-13)
+1. Story 5.1: DB migration + pricing UI (Day 1-2)
+2. Story 5.2: Variable-cost deduction logic + API guards (Day 3-4)
+3. Story 5.3: Stripe packs + webhook (subscriptions optional) (Day 5-8)
+4. Story 5.4: Billing UI + transactions (Day 9-11)
+5. Story 5.5: Notifications & upsell rules (Day 12-13)
 6. Story 5.6: Admin analytics (Day 14-15)
 
 **Testing Requirements**:
-- Unit tests for credit deduction logic
-- Integration tests for Stripe webhook handling
-- E2E tests for purchase flow
-- Test cases for edge cases (concurrent deductions, failed payments, refunds)
+- Unit tests for variable-cost deductions and concurrency
+- Integration tests for Stripe webhooks and promo bonus
+- E2E tests for purchase and paywall flows
+- Refund and edge cases (double webhooks, retries, idempotency)
 
 ---
 
@@ -645,9 +649,9 @@ AI-powered refinement of individual resume sections.
    - Priority: IMMEDIATE
    - Stories: 5.1, 5.2, 5.3 (blocking), 5.4, 5.5, 5.6 (post-launch)
 
-2. **Welcome Credit System Missing**
-   - Impact: New users cannot use the platform without payment
-   - Effort: 2 days (database migration, auth hook, UI)
+2. **Pricing & Packs Not Implemented**
+   - Impact: Users cannot purchase credits; no path to monetize actions
+   - Effort: 2-3 days (UI, config, DB migration)
    - Priority: CRITICAL
    - Story: 5.1
 
@@ -713,11 +717,11 @@ AI-powered refinement of individual resume sections.
 | 3. AI Optimization | 3.2 Score | ✅ Complete | 100% | No |
 | 4. Design & Export | 4.1 Templates | ✅ Complete | 100% | No |
 | 4. Design & Export | 4.2 Download | ⚠️ Partial | 90% | No |
-| 5. Credit System | 5.1 Welcome Credit | ❌ Not Started | 0% | **YES** |
-| 5. Credit System | 5.2 Credit Deduction | ❌ Not Started | 0% | **YES** |
-| 5. Credit System | 5.3 Stripe Payment | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.1 Pricing & Onboarding | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.2 Variable-Cost Deduction | ❌ Not Started | 0% | **YES** |
+| 5. Credit System | 5.3 Stripe Packs/Subscriptions | ❌ Not Started | 0% | **YES** |
 | 5. Credit System | 5.4 Transaction UI | ❌ Not Started | 0% | No |
-| 5. Credit System | 5.5 Notifications | ❌ Not Started | 0% | No |
+| 5. Credit System | 5.5 Notifications & Upsell | ❌ Not Started | 0% | No |
 | 5. Credit System | 5.6 Admin Analytics | ❌ Not Started | 0% | No |
 | 6. App Tracker | 6.1 Tracking | ✅ Complete | 95% | No |
 
@@ -727,7 +731,7 @@ AI-powered refinement of individual resume sections.
 
 **Epic 5 Business Model Change**:
 - **Old Model**: Freemium subscription (1 free optimization, then $X/month unlimited)
-- **New Model**: Pay-as-you-go credits ($4 welcome credit, $5 purchase = $4 credits + $1 platform fee, $0.40/optimization)
+- **New Model**: Credits-and-bundles pricing with hero offer and volume packs (Starter $6/10, Job Seeker $12/25, Career Upgrade $20/50, Pro $35/100), feature-based costs (2/1/3/4), optional subscriptions ($8/20, $14/40). No default welcome credit; optional promo bonus configurable.
 
 ---
 
@@ -785,12 +789,11 @@ AI-powered refinement of individual resume sections.
 ### Phase 1: Critical Path to Beta Launch (3 weeks)
 
 **Week 1: Credit System Foundation**
-1. ✅ Story 5.1: Database migration for credit system (Day 1)
-2. ✅ Story 5.1: Implement welcome credit on signup (Day 2)
-3. ✅ Story 5.1: Add credit balance display in UI (Day 2)
-4. ✅ Story 5.2: Implement credit deduction logic (Day 3-4)
-5. ✅ Story 5.2: Update optimization API to check credits (Day 4)
-6. ✅ Story 5.2: Add insufficient credits paywall modal (Day 5)
+1. ✅ Story 5.1: DB migration + pricing packs + header balance (Day 1)
+2. ✅ Story 5.1: Feature cost labels in UI (Day 2)
+3. ✅ Story 5.2: Implement variable-cost deduction logic (Day 3-4)
+4. ✅ Story 5.2: Guard feature APIs with balance checks (Day 4)
+5. ✅ Story 5.2: Add insufficient credits paywall modal (Day 5)
 
 **Week 2: Stripe Integration + Testing**
 7. ✅ Story 5.3: Set up Stripe account and products (Day 6)
@@ -868,10 +871,10 @@ The Resume Builder AI application has **significantly exceeded the original MVP 
 
 **Business Model Advantages**:
 - Pay-as-you-go reduces friction vs subscriptions
-- $4 welcome credit enables immediate usage
-- Clear pricing: $0.40/optimization (vs hidden subscription costs)
-- Better suited for sporadic job seekers
-- Simpler to implement than recurring billing
+- Hero offer improves first-purchase conversion and onboarding momentum
+- Clear value framing by action (2/1/3/4 credits)
+- Volume discounts encourage commitment; optional subs add predictability
+- Suited for sporadic and active job seekers alike
 
 ---
 

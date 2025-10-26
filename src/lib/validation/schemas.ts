@@ -65,7 +65,16 @@ export const OptimizedResumeSchema = z.object({
     )
     .optional()
     .default([]),
-  matchScore: z.number().min(0).max(100),
+  // Accept number or numeric string (e.g., "85" or "85%"), then coerce to 0-100
+  matchScore: z
+    .union([z.number(), z.string()])
+    .transform((val) => {
+      if (typeof val === 'number') return val;
+      const cleaned = val.replace(/%/g, '').trim();
+      const parsed = parseFloat(cleaned);
+      return Number.isFinite(parsed) ? parsed : 0;
+    })
+    .pipe(z.number().min(0).max(100)),
   keyImprovements: z.array(z.string()).default([]),
   missingKeywords: z.array(z.string()).default([]),
 });

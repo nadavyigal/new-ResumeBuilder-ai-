@@ -95,7 +95,8 @@ Provide the optimized resume as a structured JSON object with the following sche
       "technologies": ["tech1", "tech2"]
     }
   ],
-  "matchScore": "Estimated ATS match percentage (0-100) based on keyword alignment",
+  // IMPORTANT: matchScore MUST be a number between 0 and 100. Do not include a percent sign.
+  "matchScore": 0,
   "keyImprovements": [
     "Brief description of major optimization made",
     "Another key improvement"

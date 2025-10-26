@@ -136,7 +136,8 @@ OUTPUT FORMAT - Return a structured JSON object with this exact schema:
       "technologies": ["tech1", "tech2"]
     }
   ],
-  "matchScore": "Estimated ATS match percentage (0-100)",
+  // IMPORTANT: matchScore MUST be a number between 0 and 100. Do not include a percent sign.
+  "matchScore": 0,
   "keyImprovements": [
     "Brief description of major optimization made"
   ],

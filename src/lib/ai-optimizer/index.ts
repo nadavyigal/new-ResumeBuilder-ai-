@@ -5,7 +5,7 @@ import {
   OPTIMIZATION_CONFIG,
 } from '../prompts/resume-optimizer';
 import { OPENAI_API_KEY } from '@/lib/env';
-import { OptimizedResumeSchema, parseAndValidate } from '@/lib/validation/schemas';
+import { OptimizedResumeSchema } from '@/lib/validation/schemas';
 
 /**
  * Optimized resume structure returned by AI
@@ -111,17 +111,48 @@ export async function optimizeResume(
       };
     }
 
-    // Parse and validate the JSON response using Zod
+    // Parse, normalize, and validate the JSON response using Zod
     try {
-      const optimizedResume = parseAndValidate(
-        responseContent,
-        OptimizedResumeSchema,
-        'AI resume optimization response'
-      );
+      const raw = JSON.parse(responseContent);
+
+      // Normalize common variations to increase robustness
+      const normalized: any = { ...raw };
+
+      // Rename alternative keys if present
+      if (normalized.improvements && !normalized.keyImprovements) {
+        normalized.keyImprovements = normalized.improvements;
+      }
+      if (normalized.keywords && !normalized.missingKeywords) {
+        normalized.missingKeywords = normalized.keywords;
+      }
+
+      // Ensure nested structures exist
+      normalized.contact = normalized.contact || {
+        name: '',
+        email: '',
+        phone: '',
+        location: '',
+      };
+      normalized.skills = normalized.skills || { technical: [], soft: [] };
+      normalized.skills.technical = normalized.skills.technical || [];
+      normalized.skills.soft = normalized.skills.soft || [];
+      normalized.experience = normalized.experience || [];
+      normalized.education = normalized.education || [];
+      normalized.projects = normalized.projects || [];
+      normalized.certifications = normalized.certifications || [];
+
+      // Coerce matchScore from string like "85%" to number 0-100
+      if (typeof normalized.matchScore === 'string') {
+        const cleaned = normalized.matchScore.replace(/%/g, '').trim();
+        const parsed = parseFloat(cleaned);
+        if (Number.isFinite(parsed)) normalized.matchScore = parsed;
+      }
+
+      const parsed = OptimizedResumeSchema.parse(normalized);
 
       return {
         success: true,
-        optimizedResume,
+        optimizedResume: parsed,
         tokensUsed: completion.usage?.total_tokens,
       };
     } catch (validationError) {

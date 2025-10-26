@@ -170,6 +170,19 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
+    // Normalize match score to number 0-100 for DB
+    let matchScore = 0;
+    const rawScore = optimizationResult.optimizedResume?.matchScore as unknown;
+    if (typeof rawScore === 'number' && Number.isFinite(rawScore)) {
+      matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
+    } else if (typeof rawScore === 'string') {
+      const cleaned = rawScore.replace(/%/g, '').trim();
+      const parsed = parseFloat(cleaned);
+      if (Number.isFinite(parsed)) {
+        matchScore = Math.max(0, Math.min(100, Math.round(parsed)));
+      }
+    }
+
     // Save optimization results
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
@@ -178,7 +191,7 @@ export async function POST(req: NextRequest) {
           user_id: user.id,
           resume_id: resumeData.id,
           jd_id: jdData.id,
-          match_score: optimizationResult.optimizedResume?.matchScore || 0,
+          match_score: matchScore,
           gaps_data: {
             missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
             keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
