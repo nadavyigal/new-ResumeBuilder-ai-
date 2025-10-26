@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
     // Temporarily ignore build errors for deployment (agent route has pre-existing type issue)
     ignoreBuildErrors: true,
   },
+  // Skip static optimization to avoid build-time Supabase initialization
+  // This ensures environment variables are available at runtime
+  output: 'standalone',
   webpack: (config, { isServer }) => {
     if (isServer) {
       // Exclude pdf-parse from webpack bundling to avoid test code execution
