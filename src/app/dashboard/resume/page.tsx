@@ -64,8 +64,8 @@ export default function ResumeUploadPage() {
         throw new Error(errorData.error || "Something went wrong");
       }
 
-      const { resumeId, jobDescriptionId } = await response.json();
-      router.push(`${ROUTES.optimizations}/${resumeId}`);
+      const { resumeId, jobDescriptionId, optimizationId } = await response.json();
+      router.push(`${ROUTES.optimizations}/${optimizationId}`);
     } catch (error: any) {
       setError(error.message);
     } finally {
