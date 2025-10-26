@@ -32,8 +32,8 @@ export const OptimizedResumeSchema = z.object({
   experience: z
     .array(
       z.object({
-        title: z.string().min(1, "Job title is required"),
-        company: z.string().min(1, "Company name is required"),
+        title: z.string().default(""),
+        company: z.string().default(""),
         location: z.string().default(""),
         startDate: z.string().default(""),
         endDate: z.string().default(""),
@@ -45,8 +45,8 @@ export const OptimizedResumeSchema = z.object({
   education: z
     .array(
       z.object({
-        degree: z.string().min(1, "Degree is required"),
-        institution: z.string().min(1, "Institution is required"),
+        degree: z.string().default(""),
+        institution: z.string().default(""),
         location: z.string().default(""),
         graduationDate: z.string().default(""),
         gpa: z.string().optional(),
@@ -58,8 +58,8 @@ export const OptimizedResumeSchema = z.object({
   projects: z
     .array(
       z.object({
-        name: z.string().min(1, "Project name is required"),
-        description: z.string().min(1, "Description is required"),
+        name: z.string().default(""),
+        description: z.string().default(""),
         technologies: z.array(z.string()).default([]),
       }),
     )
