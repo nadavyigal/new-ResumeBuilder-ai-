@@ -1,6 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '@/types/database';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/env';
 
 /**
  * Singleton Supabase client for browser
@@ -13,8 +12,16 @@ let clientInstance: ReturnType<typeof createBrowserClient<Database>> | null = nu
  * This ensures only one client instance exists throughout the app lifecycle
  */
 export const createClientComponentClient = () => {
+  // Get env vars directly from process.env to support both build and runtime
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+
   if (!clientInstance) {
-    clientInstance = createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
+    clientInstance = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
   }
   return clientInstance;
 };
