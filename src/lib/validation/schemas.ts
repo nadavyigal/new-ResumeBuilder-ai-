@@ -16,9 +16,9 @@ import { z } from "zod";
  * This ensures the AI response is properly structured
  */
 export const OptimizedResumeSchema = z.object({
-  summary: z.string().min(1, "Summary is required"),
+  summary: z.string().default(""),
   contact: z.object({
-    name: z.string().min(1, "Name is required"),
+    name: z.string().default(""),
     email: z.string().default(""),
     phone: z.string().default(""),
     location: z.string().default(""),
