@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   description: "Optimize your resume for any job with AI-powered insights",
 };
 
+// Force dynamic rendering to prevent build-time static generation
+// This ensures environment variables are available at runtime
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
