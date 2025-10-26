@@ -25,15 +25,32 @@ The following environment variables are configured in Vercel for all environment
 
 ### Branches
 - **`main`** - Production branch, deploys to https://new-resume-builder-ai.vercel.app
-- **`develop`** - Development branch, auto-deploys to preview URLs
+- **`develop`** - Development branch, auto-deploys to preview URLs (now active)
 
 ### Workflow
 1. Create feature branches from `develop`
 2. Work on features and commit to feature branches
 3. Create PR to merge feature branch → `develop`
-4. Test on preview deployment
+4. Test on preview deployment (Vercel automatically creates preview URLs)
 5. When ready for production, create PR to merge `develop` → `main`
 6. Main branch automatically deploys to production
+
+### Testing the Workflow
+To test preview deployments:
+```bash
+# Switch to develop branch
+git checkout develop
+
+# Make changes and commit
+git add .
+git commit -m "test: verify preview deployment workflow"
+
+# Push to GitHub
+git push github develop
+
+# Vercel will automatically create a preview deployment
+# Check Vercel dashboard for the preview URL
+```
 
 ## Supabase Connection
 
