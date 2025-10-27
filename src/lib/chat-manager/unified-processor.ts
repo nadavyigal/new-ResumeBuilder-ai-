@@ -78,6 +78,17 @@ export async function processUnifiedMessage(
       }
     );
   } else {
+    // Ensure context has all required fields (handle database loaded contexts)
+    if (!resumeContext.changes_in_session) {
+      resumeContext.changes_in_session = [];
+    }
+    if (!resumeContext.current_design) {
+      resumeContext.current_design = {};
+    }
+    if (!resumeContext.current_content) {
+      resumeContext.current_content = {};
+    }
+
     // Update context with latest data
     resumeContext = updateContextContent(resumeContext, input.currentResumeContent);
     resumeContext = updateContextDesign(resumeContext, {

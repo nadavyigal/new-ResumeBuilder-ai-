@@ -40,13 +40,13 @@ export function buildResumeContext(context: ResumeContext): string {
 
   // Current design
   contextText += '**Current Design:**\n';
-  if (current_design.template_name) {
+  if (current_design?.template_name) {
     contextText += `Template: ${current_design.template_name}\n`;
   } else {
     contextText += 'Template: Natural (no template selected)\n';
   }
 
-  if (current_design.customization) {
+  if (current_design?.customization) {
     contextText += 'Customizations:\n';
     contextText += JSON.stringify(current_design.customization, null, 2);
   } else {
@@ -54,8 +54,8 @@ export function buildResumeContext(context: ResumeContext): string {
   }
   contextText += '\n';
 
-  // Changes made in this session
-  if (changes_in_session.length > 0) {
+  // Changes made in this session - handle undefined safely
+  if (changes_in_session && changes_in_session.length > 0) {
     contextText += '**Changes Made in This Session:**\n';
     changes_in_session.forEach((change, index) => {
       contextText += `${index + 1}. [${change.type}] ${change.description}`;
