@@ -1,15 +1,21 @@
 /**
  * Template Engine Library
  * Epic 4: Resume Templates and Export
+ * Feature 003: Design Selection Integration
  *
  * Provides multiple resume templates and rendering capabilities
  * FR-015: At least two templates (ATS-Safe and Modern)
  * FR-016: Preview in different templates
  * FR-018: Formatting consistency
- * FR-019: ATS compatibility
+ * FR-019: ATS compatibility with design customizations
  */
 
 import { OptimizedResume } from '../ai-optimizer';
+import { renderTemplatePreview, transformToJsonResume } from '../design-manager/template-renderer';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export type TemplateType = 'ats-safe' | 'modern' | 'professional' | 'minimal';
 
@@ -530,4 +536,123 @@ export function validateATSCompatibility(html: string): {
     issues,
     warnings,
   };
+}
+
+/**
+ * Get design assignment for an optimization
+ * Feature 003: Design Selection Integration
+ * Task: T040
+ */
+export async function getDesignAssignment(optimizationId: string): Promise<any | null> {
+  try {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase
+      .from('resume_design_assignments')
+      .select(`
+        *,
+        template:design_templates(*),
+        customization:design_customizations(*)
+      `)
+      .eq('optimization_id', optimizationId)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // No design assigned
+      }
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch design assignment:', error);
+    return null;
+  }
+}
+
+/**
+ * Render resume with design template and customizations
+ * Feature 003: Integrates design selection into export
+ * Task: T040
+ *
+ * @param resume - Optimized resume data
+ * @param optimizationId - Optimization UUID to fetch design assignment
+ * @returns HTML string with applied design and customizations
+ */
+export async function renderWithDesign(
+  resume: OptimizedResume,
+  optimizationId: string
+): Promise<string> {
+  try {
+    // Fetch design assignment
+    const assignment = await getDesignAssignment(optimizationId);
+
+    if (!assignment || !assignment.template) {
+      // No design assigned - use default ATS-safe template
+      return generateATSSafeHTML(resume);
+    }
+
+    // Get template slug from design assignment
+    const templateSlug = assignment.template.slug;
+
+    // Get customization if exists
+    const customization = assignment.customization || null;
+
+    // Transform resume data to format expected by design templates
+    const resumeData = {
+      personalInfo: {
+        fullName: resume.contact.name,
+        email: resume.contact.email,
+        phone: resume.contact.phone,
+        location: resume.contact.location,
+        linkedin: resume.contact.linkedin,
+        website: resume.contact.portfolio
+      },
+      summary: resume.summary,
+      experience: resume.experience.map(exp => ({
+        company: exp.company,
+        position: exp.title,
+        startDate: exp.startDate,
+        endDate: exp.endDate,
+        description: '',
+        achievements: exp.achievements
+      })),
+      education: resume.education.map(edu => ({
+        institution: edu.institution,
+        degree: edu.degree,
+        graduationDate: edu.graduationDate,
+        gpa: edu.gpa
+      })),
+      skills: resume.skills.technical.concat(resume.skills.soft || []),
+      certifications: (resume.certifications || []).map(cert => ({
+        name: cert,
+        issuer: '',
+        date: ''
+      })),
+      projects: (resume.projects || []).map(proj => ({
+        name: proj.name,
+        description: proj.description,
+        technologies: proj.technologies
+      }))
+    };
+
+    // Render with design template and customizations
+    const html = renderTemplatePreview(templateSlug, resumeData, customization);
+
+    return html;
+  } catch (error) {
+    console.error('Error rendering with design:', error);
+    // Fallback to default template on error
+    return generateATSSafeHTML(resume);
+  }
+}
+
+/**
+ * Check if an optimization has a design assignment
+ * Task: T040
+ */
+export async function hasDesignAssignment(optimizationId: string): Promise<boolean> {
+  const assignment = await getDesignAssignment(optimizationId);
+  return assignment !== null;
 }

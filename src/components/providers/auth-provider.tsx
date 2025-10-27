@@ -7,13 +7,11 @@ import { createClientComponentClient } from "@/lib/supabase";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  error?: Error | null;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  error: null,
 });
 
 export const useAuth = () => {
@@ -31,31 +29,13 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const supabase = createClientComponentClient();
 
   useEffect(() => {
-    // Create client in useEffect to ensure it only runs in browser
-    let supabase: ReturnType<typeof createClientComponentClient>;
-
-    try {
-      supabase = createClientComponentClient();
-    } catch (err) {
-      setError(err as Error);
-      setLoading(false);
-      console.error('Failed to initialize Supabase client:', err);
-      return;
-    }
-
     const getUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setUser(session?.user ?? null);
-        setLoading(false);
-      } catch (err) {
-        setError(err as Error);
-        setLoading(false);
-        console.error('Failed to get user session:', err);
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user ?? null);
+      setLoading(false);
     };
 
     getUser();
@@ -68,16 +48,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  // If there's an error initializing auth, still render children but log the error
-  // This prevents the entire app from crashing
-  if (error) {
-    console.error('Auth initialization error:', error);
-  }
+  }, [supabase]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, error }}>
+    <AuthContext.Provider value={{ user, loading }}>
       {children}
     </AuthContext.Provider>
   );

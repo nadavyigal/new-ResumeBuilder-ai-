@@ -123,6 +123,8 @@ export interface Database {
           status: 'processing' | 'completed' | 'failed';
           created_at: string;
           updated_at: string;
+          resume_text: string | null;
+          jd_text: string | null;
         };
         Insert: {
           id?: string;
@@ -137,6 +139,8 @@ export interface Database {
           status?: 'processing' | 'completed' | 'failed';
           created_at?: string;
           updated_at?: string;
+          resume_text?: string | null;
+          jd_text?: string | null;
         };
         Update: {
           id?: string;
@@ -151,6 +155,8 @@ export interface Database {
           status?: 'processing' | 'completed' | 'failed';
           created_at?: string;
           updated_at?: string;
+          resume_text?: string | null;
+          jd_text?: string | null;
         };
       };
       templates: {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { OptimizedResume } from '@/lib/validation/schemas';
+import { OptimizedResume } from '@/lib/ai-optimizer';
 
 interface ATSResumeTemplateProps {
   data: OptimizedResume;
@@ -167,6 +167,45 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
           ))}
         </section>
       )}
+
+      {/* Match Score Indicator (for display only, not in exported version) */}
+      <div className="mt-8 pt-6 border-t border-gray-300 print:hidden">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-semibold text-gray-900">ATS Match Score</span>
+            <span className="text-2xl font-bold text-blue-600">
+              {data.matchScore}%
+            </span>
+          </div>
+
+          {data.keyImprovements && data.keyImprovements.length > 0 && (
+            <div className="mt-3">
+              <h4 className="font-semibold text-gray-900 mb-2">Key Improvements:</h4>
+              <ul className="list-disc list-inside space-y-1 text-sm text-gray-700">
+                {data.keyImprovements.map((improvement, i) => (
+                  <li key={i}>{improvement}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {data.missingKeywords && data.missingKeywords.length > 0 && (
+            <div className="mt-3">
+              <h4 className="font-semibold text-gray-900 mb-2">Missing Keywords:</h4>
+              <div className="flex flex-wrap gap-2">
+                {data.missingKeywords.map((keyword, i) => (
+                  <span
+                    key={i}
+                    className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

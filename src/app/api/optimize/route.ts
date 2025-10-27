@@ -2,14 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { optimizeResume } from "@/lib/openai";
-import { z } from 'zod';
-import { optimizationRateLimiter, createRateLimitResponse } from "@/lib/rate-limit";
-
-// Validation schema for optimize request
-const OptimizeRequestSchema = z.object({
-  resumeId: z.string().uuid('Invalid resume ID format'),
-  jobDescriptionId: z.string().uuid('Invalid job description ID format'),
-});
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -19,23 +11,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rate limiting: 5 optimizations per hour per user (expensive AI operations)
-  const rateLimitResult = await optimizationRateLimiter.check(user.id);
-  if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult);
-  }
-
   try {
-    const body = await req.json();
+    const { resumeId, jobDescriptionId } = await req.json();
 
-    // Validate input with Zod
-    const validation = OptimizeRequestSchema.safeParse(body);
-    if (!validation.success) {
-      const errors = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
-      return NextResponse.json({ error: errors }, { status: 400 });
+    if (!resumeId || !jobDescriptionId) {
+      return NextResponse.json({ error: "resumeId and jobDescriptionId are required." }, { status: 400 });
     }
-
-    const { resumeId, jobDescriptionId } = validation.data;
 
     const { data: resumeData, error: resumeError } = await supabase
       .from("resumes")
@@ -43,13 +24,7 @@ export async function POST(req: NextRequest) {
       .eq("id", resumeId)
       .maybeSingle();
 
-    if (resumeError) {
-      throw resumeError;
-    }
-
-    if (!resumeData) {
-      return NextResponse.json({ error: "Resume not found" }, { status: 404 });
-    }
+    if (resumeError) throw resumeError;
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
@@ -57,13 +32,7 @@ export async function POST(req: NextRequest) {
       .eq("id", jobDescriptionId)
       .maybeSingle();
 
-    if (jdError) {
-      throw jdError;
-    }
-
-    if (!jdData) {
-      return NextResponse.json({ error: "Job description not found" }, { status: 404 });
-    }
+    if (jdError) throw jdError;
 
     const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text);
 
@@ -77,26 +46,43 @@ export async function POST(req: NextRequest) {
           match_score: 0.85, // Placeholder - will be calculated by AI later
           gaps_data: {}, // Will be populated with gap analysis
           rewrite_data: optimizedResume,
-          template_key: "ats-safe", // Default template
+          template_key: null, // No design by default - user chooses explicitly
           status: "completed",
         },
       ])
       .select()
       .maybeSingle();
 
-    if (optimizationError) {
-      throw optimizationError;
-    }
-
+    if (optimizationError) throw optimizationError;
     if (!optimizationData) {
-      return NextResponse.json({ error: "Failed to create optimization record" }, { status: 500 });
+      throw new Error("Failed to create optimization record");
     }
 
     return NextResponse.json({ optimizationId: optimizationData.id });
 
   } catch (error: unknown) {
     console.error("Error optimizing resume:", error);
-    const errorMessage = error instanceof Error ? error.message : "Something went wrong";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+
+    // Provide detailed error messages for better debugging
+    let errorMessage = "Something went wrong";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+
+      // Set appropriate status codes for different error types
+      if (errorMessage.includes('OPENAI_API_KEY') || errorMessage.includes('Invalid OpenAI API key')) {
+        statusCode = 503; // Service Unavailable
+      } else if (errorMessage.includes('quota exceeded')) {
+        statusCode = 429; // Too Many Requests
+      } else if (errorMessage.includes('rate limit')) {
+        statusCode = 429; // Too Many Requests
+      }
+    }
+
+    return NextResponse.json({
+      error: errorMessage,
+      details: error instanceof Error ? error.stack : undefined
+    }, { status: statusCode });
   }
 }

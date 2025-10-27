@@ -7,13 +7,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ROUTES } from "@/lib/constants";
-import { LoadingPage } from "@/components/ui/loading";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <LoadingPage message="Loading your dashboard..." />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-lg text-foreground/60">Loading...</div>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -38,58 +44,60 @@ export default function DashboardPage() {
           {/* Quick Actions */}
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">📄</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Upload Resume</CardTitle>
-                  <CardDescription className="text-base">
-                    Start by uploading your current resume
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Upload Resume</CardTitle>
+                <CardDescription className="text-base">
+                  Start by uploading your current resume
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild className="w-full">
                   <Link href={ROUTES.upload}>
                     Get Started
                   </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">🎨</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Browse Templates</CardTitle>
-                  <CardDescription className="text-base">
-                    Choose from professional templates
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Browse Templates</CardTitle>
+                <CardDescription className="text-base">
+                  Choose from professional templates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild variant="outline" className="w-full">
                   <Link href={ROUTES.templates}>
                     Explore
                   </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
 
             <Card className="hover:shadow-lg transition-shadow">
-              <div className="space-y-6">
-                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center">
+              <CardHeader>
+                <div className="w-16 h-16 rounded-full bg-foreground flex items-center justify-center mb-4">
                   <span className="text-3xl">📊</span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl mb-2">Applications</CardTitle>
-                  <CardDescription className="text-base">
-                    View your job applications and optimized resumes
-                  </CardDescription>
-                </div>
+                <CardTitle className="text-2xl">Applications</CardTitle>
+                <CardDescription className="text-base">
+                  Track your job applications and optimized resumes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <Button asChild variant="outline" className="w-full">
-                  <Link href="/dashboard/applications">View Applications</Link>
+                  <Link href={ROUTES.dashboard + "/applications"}>
+                    View Applications
+                  </Link>
                 </Button>
-              </div>
+              </CardContent>
             </Card>
           </div>
 

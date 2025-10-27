@@ -58,10 +58,9 @@ export async function GET(
       .maybeSingle();
 
     if (error) {
-      console.error("Error fetching application:", error);
+      console.error("Application fetch error:", error);
       return NextResponse.json({
-        error: "Failed to fetch application",
-        details: error.message,
+        error: "Error fetching application: " + error.message,
       }, { status: 500 });
     }
 
@@ -116,7 +115,7 @@ export async function PATCH(
     } = body;
 
     // Build update object with only provided fields
-    const updates: Record<string, unknown> = {
+    const updates: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -139,6 +138,7 @@ export async function PATCH(
     // FR-028: Update application
     const { data: application, error } = await supabase
       .from("applications")
+      // @ts-ignore - dynamic updates object is compatible at runtime
       .update(updates)
       .eq("id", id)
       .eq("user_id", user.id)

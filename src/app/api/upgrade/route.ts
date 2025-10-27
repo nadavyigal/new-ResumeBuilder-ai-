@@ -98,3 +98,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/**
+ * NOTE: Stripe webhook handler was removed from this file.
+ * Webhooks should be handled at /api/webhooks/stripe route instead.
+ *
+ * Epic 5: FR-024 - Stripe webhook integration pending
+ * See docs for implementation: https://stripe.com/docs/webhooks
+ */

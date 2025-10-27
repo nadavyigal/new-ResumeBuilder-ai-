@@ -13,18 +13,18 @@ export default function Home() {
         <section className="container px-4 py-16 mx-auto lg:py-24">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <h1 className="text-5xl font-bold tracking-tight sm:text-7xl text-foreground leading-tight">
-              Your Resume, Optimized
-              <span className="inline-block ml-2 text-6xl">💥</span>
+              AI-Powered Resume Optimization
+              <span className="inline-block ml-2 text-6xl">✨</span>
             </h1>
 
             <p className="mt-6 text-xl leading-relaxed text-foreground/80 max-w-xl mx-auto font-medium">
-              Just killer resumes, tailored to perform.
+              Transform your resume for any job. Get ATS-optimized resumes that get you interviews.
             </p>
 
             <div className="mt-10">
               <Button asChild size="lg" variant="outline">
                 <Link href={ROUTES.auth.signUp}>
-                  Get in Touch
+                  Get Started Free
                 </Link>
               </Button>
             </div>
@@ -34,9 +34,9 @@ export default function Home() {
         {/* Features Section */}
         <section id="features" className="py-16 lg:py-20 bg-accent/30">
           <div className="container px-4 mx-auto">
-            <div className="max-w-xl mx-auto mb-12">
+            <div className="max-w-xl mx-auto mb-12 text-center">
               <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
-                Resumes that get noticed
+                Why Choose Our AI Resume Optimizer
               </h2>
             </div>
 
@@ -45,9 +45,19 @@ export default function Home() {
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
                   <span className="text-4xl">🤖</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">ATS-Friendly</h3>
+                <h3 className="text-xl font-bold text-foreground">AI-Powered</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Optimized to pass automated screening systems
+                  Advanced AI analyzes job descriptions and optimizes your resume automatically
+                </p>
+              </div>
+
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
+                  <span className="text-4xl">📊</span>
+                </div>
+                <h3 className="text-xl font-bold text-foreground">ATS-Optimized</h3>
+                <p className="text-foreground/70 leading-relaxed">
+                  Get match scores and keyword optimization to pass ATS systems
                 </p>
               </div>
 
@@ -55,19 +65,9 @@ export default function Home() {
                 <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
                   <span className="text-4xl">⚡</span>
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Lightning Fast</h3>
+                <h3 className="text-xl font-bold text-foreground">Fast Results</h3>
                 <p className="text-foreground/70 leading-relaxed">
-                  Get your optimized resume in seconds, not hours
-                </p>
-              </div>
-
-              <div className="flex flex-col items-center text-center space-y-4">
-                <div className="w-20 h-20 rounded-full bg-foreground flex items-center justify-center">
-                  <span className="text-4xl">🎯</span>
-                </div>
-                <h3 className="text-xl font-bold text-foreground">Job-Matched</h3>
-                <p className="text-foreground/70 leading-relaxed">
-                  Tailored to each specific job description
+                  Generate optimized resumes in minutes with professional templates
                 </p>
               </div>
             </div>
@@ -77,31 +77,37 @@ export default function Home() {
         {/* How It Works Section */}
         <section className="py-16 lg:py-20">
           <div className="container px-4 mx-auto">
-            <div className="max-w-xl mx-auto mb-12 text-center">
-              <h2 className="text-3xl font-bold tracking-tight text-foreground mb-4">
-                How it works
-              </h2>
-            </div>
-
+            <h2 className="text-3xl font-bold text-foreground mb-12 text-center">
+              How It Works
+            </h2>
             <div className="grid gap-8 md:grid-cols-3 max-w-6xl mx-auto">
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">1. Upload</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  1
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Upload Your Resume</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">Drop in your resume.</span> Upload your existing resume and paste the job description you're targeting.
+                  Begin by uploading your current resume in PDF or Word format. Our system will instantly parse and analyze your professional experience, skills, and achievements to create a structured profile.
                 </p>
               </div>
 
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">2. Analyze</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  2
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Add Job Description</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">AI does the heavy lifting.</span> Our AI analyzes your resume against the job requirements and identifies gaps and opportunities.
+                  Simply paste the job description you&apos;re applying for, and our AI will extract key requirements, desired skills, and important keywords to understand exactly what the employer is seeking.
                 </p>
               </div>
 
-              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-3">
-                <h3 className="text-3xl font-bold text-foreground">3. Download</h3>
+              <div className="rounded-3xl border-2 border-border bg-muted p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-foreground text-background flex items-center justify-center font-bold text-xl">
+                  3
+                </div>
+                <h3 className="text-2xl font-bold text-foreground">Get Optimized Resume</h3>
                 <p className="text-base text-foreground/60 leading-relaxed">
-                  <span className="font-semibold">Get your optimized resume.</span> Download a perfectly formatted, ATS-friendly resume tailored to your target job.
+                  Receive your professionally optimized resume tailored to the specific job, complete with ATS match insights, keyword optimization, and strategic improvements to maximize your chances of landing an interview.
                 </p>
               </div>
             </div>

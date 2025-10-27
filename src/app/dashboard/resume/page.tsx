@@ -19,8 +19,27 @@ export default function ResumeUploadPage() {
   const router = useRouter();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setResumeFile(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      // Validate file type
+      const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|doc|docx)$/i)) {
+        setError('Please upload a PDF, DOC, or DOCX file.');
+        setResumeFile(null);
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        setError('File size must be less than 10MB.');
+        setResumeFile(null);
+        return;
+      }
+
+      setError(null);
+      setResumeFile(file);
+      console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
     }
   };
 
@@ -54,10 +73,17 @@ export default function ResumeUploadPage() {
     }
 
     try {
+      // Create AbortController with 60 second timeout (AI optimization can take 30-40 seconds)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
+
       const response = await fetch("/api/upload-resume", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -67,7 +93,11 @@ export default function ResumeUploadPage() {
       const { resumeId, jobDescriptionId, optimizationId } = await response.json();
       router.push(`${ROUTES.optimizations}/${optimizationId}`);
     } catch (error: any) {
-      setError(error.message);
+      if (error.name === 'AbortError') {
+        setError('Request timed out. The optimization is taking longer than expected. Please try again.');
+      } else {
+        setError(error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -85,8 +115,18 @@ export default function ResumeUploadPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="resume">Resume File</Label>
-              <Input id="resume" type="file" onChange={handleFileChange} accept=".pdf,.doc,.docx" />
+              <Label htmlFor="resume">Resume File (PDF, DOC, DOCX - Max 10MB)</Label>
+              <Input
+                id="resume"
+                type="file"
+                onChange={handleFileChange}
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              />
+              {resumeFile && (
+                <p className="text-sm text-green-600">
+                  ✓ Selected: {resumeFile.name} ({(resumeFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Job Description</Label>
@@ -128,8 +168,13 @@ export default function ResumeUploadPage() {
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Optimizing..." : "Optimize My Resume"}
+              {loading ? "Optimizing... (this may take 30-60 seconds)" : "Optimize My Resume"}
             </Button>
+            {loading && (
+              <p className="text-xs text-muted-foreground text-center">
+                AI is analyzing your resume and job description. Please wait...
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>

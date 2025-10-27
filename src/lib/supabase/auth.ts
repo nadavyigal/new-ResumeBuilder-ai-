@@ -117,10 +117,6 @@ export class AuthClient {
       throw new Error(`Profile update failed: ${error.message}`)
     }
 
-    if (!data) {
-      throw new Error('Profile not found')
-    }
-
     return data
   }
 
@@ -209,10 +205,6 @@ export class AuthServer {
 
     if (error) {
       throw new Error(`Profile creation failed: ${error.message}`)
-    }
-
-    if (!data) {
-      throw new Error('Failed to create profile')
     }
 
     return data

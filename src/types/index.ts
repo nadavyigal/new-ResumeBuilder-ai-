@@ -101,3 +101,6 @@ export interface UserProfile {
   optimizationsUsed: number;
   createdAt: string;
 }
+
+// Export all design-related types from design.ts (Feature 003)
+export * from './design';

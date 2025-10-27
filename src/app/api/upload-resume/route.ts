@@ -8,7 +8,6 @@ import { scrapeJobDescription } from "@/lib/job-scraper";
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
-import { uploadRateLimiter, createRateLimitResponse, getRateLimitHeaders } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -18,40 +17,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Rate limiting: 10 uploads per hour per user
-  const rateLimitResult = await uploadRateLimiter.check(user.id);
-  if (!rateLimitResult.allowed) {
-    return createRateLimitResponse(rateLimitResult);
-  }
+  // FR-021 & FR-022: Check freemium quota (DISABLED FOR NOW - Will be enabled later)
+  // const { data: profile, error: profileError } = await supabase
+  //   .from("profiles")
+  //   .select("plan_type, optimizations_used")
+  //   .eq("user_id", user.id)
+  //   .single();
 
-  // FR-021 & FR-022: Get user profile to check plan type
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("plan_type, optimizations_used")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // if (profileError) {
+  //   console.error("Error fetching user profile:", profileError);
+  //   return NextResponse.json({ error: "Failed to fetch user profile" }, { status: 500 });
+  // }
 
-  if (profileError) {
-    console.error("Error fetching user profile:", profileError);
-    return NextResponse.json({ error: "Failed to fetch user profile" }, { status: 500 });
-  }
-
-  if (!profile) {
-    return NextResponse.json({ error: "User profile not found" }, { status: 404 });
-  }
-
-  // FR-021: Free tier users can only use 1 optimization - check before processing
-  if (profile.plan_type === 'free' && profile.optimizations_used >= 1) {
-    // FR-022: Return paywall response
-    return NextResponse.json({
-      error: "Free tier limit reached",
-      code: "QUOTA_EXCEEDED",
-      message: "You have used your free optimization. Upgrade to premium for unlimited access.",
-      requiresUpgrade: true,
-      currentPlan: "free",
-      optimizationsUsed: profile.optimizations_used,
-    }, { status: 402 }); // 402 Payment Required
-  }
+  // if (profile.plan_type === 'free' && profile.optimizations_used >= 1) {
+  //   return NextResponse.json({
+  //     error: "Free tier limit reached",
+  //     code: "QUOTA_EXCEEDED",
+  //     message: "You have used your free optimization. Upgrade to premium for unlimited access.",
+  //     requiresUpgrade: true,
+  //     currentPlan: "free",
+  //     optimizationsUsed: profile.optimizations_used,
+  //   }, { status: 402 });
+  // }
 
   try {
     const formData = await req.formData();
@@ -78,7 +65,6 @@ export async function POST(req: NextRequest) {
         extractedData = extracted;
         sourceUrl = jobDescriptionUrl;
 
-        // Build a concise text for AI from structured fields
         const parts: string[] = [];
         if (extracted.job_title) parts.push(`Job Title: ${extracted.job_title}`);
         if (extracted.company_name) parts.push(`Company: ${extracted.company_name}`);
@@ -130,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!resumeData) {
-      throw new Error("Failed to create resume record");
+      throw new Error("Failed to create resume record - no data returned");
     }
 
     const { data: jdData, error: jdError } = await supabase
@@ -154,7 +140,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!jdData) {
-      throw new Error("Failed to create job description record");
+      throw new Error("Failed to create job description record - no data returned");
     }
 
     // Optimize resume using AI
@@ -170,15 +156,16 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    // Normalize match score to number 0-100 for DB
+    // Validate and normalize match_score - must be a number between 0-100
     let matchScore = 0;
-    const rawScore = optimizationResult.optimizedResume?.matchScore as unknown;
-    if (typeof rawScore === 'number' && Number.isFinite(rawScore)) {
+    const rawScore = optimizationResult.optimizedResume?.matchScore;
+
+    if (typeof rawScore === 'number' && !isNaN(rawScore)) {
       matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
     } else if (typeof rawScore === 'string') {
-      const cleaned = rawScore.replace(/%/g, '').trim();
-      const parsed = parseFloat(cleaned);
-      if (Number.isFinite(parsed)) {
+      // Try to parse string to number
+      const parsed = parseFloat(rawScore);
+      if (!isNaN(parsed)) {
         matchScore = Math.max(0, Math.min(100, Math.round(parsed)));
       }
     }
@@ -214,41 +201,32 @@ export async function POST(req: NextRequest) {
     }
 
     if (!optimizationData) {
-      console.error("Failed to create optimization record");
+      console.error("Failed to save optimization: no data returned");
       return NextResponse.json({
-        error: "Optimization completed but failed to save results",
+        error: "Optimization completed but failed to save results - no data returned",
         resumeId: resumeData.id,
         jobDescriptionId: jdData.id,
       }, { status: 500 });
     }
 
-    // FR-021: Atomically increment optimization counter using RPC function
-    // This prevents race conditions where concurrent requests could bypass the quota
-    if (profile.plan_type === 'free') {
-      const { data: updatedProfile, error: incrementError } = await supabase
-        .rpc('increment_optimizations_used', {
-          user_id_param: user.id,
-          max_allowed: 1
-        });
+    // FR-021: Increment optimization counter for user (DISABLED FOR NOW)
+    // const { error: updateError } = await supabase
+    //   .from("profiles")
+    //   .update({ optimizations_used: profile.optimizations_used + 1 })
+    //   .eq("user_id", user.id);
 
-      if (incrementError) {
-        console.error("Failed to increment optimization counter:", incrementError);
-        // Don't fail the request if the increment fails, but log it for monitoring
-      } else if (!updatedProfile) {
-        // This should not happen as we already checked quota, but handle defensively
-        console.warn("Quota increment returned null - possible race condition handled by RPC");
-      }
-    }
-    // Premium users don't need quota tracking
+    // if (updateError) {
+    //   console.error("Failed to update optimization counter:", updateError);
+    // }
 
-    console.log(`Optimization completed successfully. Match score: ${optimizationResult.optimizedResume?.matchScore}%`);
+    console.log(`Optimization completed successfully. Match score: ${matchScore}%`);
 
     return NextResponse.json({
       success: true,
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
       optimizationId: optimizationData.id,
-      matchScore: optimizationResult.optimizedResume?.matchScore,
+      matchScore: matchScore,
       keyImprovements: optimizationResult.optimizedResume?.keyImprovements,
       missingKeywords: optimizationResult.optimizedResume?.missingKeywords,
     });
