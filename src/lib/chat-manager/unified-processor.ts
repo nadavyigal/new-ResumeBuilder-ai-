@@ -1,19 +1,29 @@
 /**
- * Unified Message Processor
+ * Unified Message Processor (OpenAI Assistants API)
  *
- * Routes user messages to either content processor or design processor
- * based on intent detection. Provides single interface for all chat interactions.
+ * Uses OpenAI Assistants API with function calling to understand user intent
+ * and make design or content changes. Provides conversation memory and
+ * context tracking for natural multi-turn conversations.
  */
 
-import { processMessage as processContentMessage, AmendmentRequest } from './processor';
+import { AssistantManager, type RunAssistantInput, type FunctionCall } from './assistant-manager';
 import {
-  interpretDesignRequest,
-  validateAndApply,
-  InterpretationResult,
-  CustomizationResult
-} from '../design-manager/customization-engine';
+  isUpdateDesignParams,
+  isUpdateContentParams,
+  isClarifyRequestParams,
+  type UpdateDesignParams,
+  type UpdateContentParams
+} from './assistant-functions';
+import {
+  createEmptyContext,
+  updateContextContent,
+  updateContextDesign,
+  recordChange,
+  type ResumeContext
+} from './memory-manager';
+import type { AmendmentRequest } from './processor';
 
-export type MessageIntent = 'content' | 'design' | 'unclear';
+export type MessageIntent = 'content' | 'design' | 'unclear' | 'clarify';
 
 export interface UnifiedProcessInput {
   message: string;
@@ -22,6 +32,8 @@ export interface UnifiedProcessInput {
   currentResumeContent: Record<string, unknown>;
   currentDesignConfig?: any;
   currentTemplateId?: string;
+  threadId?: string; // OpenAI thread ID if exists
+  resumeContext?: ResumeContext; // Resume context from session
 }
 
 export interface UnifiedProcessOutput {
@@ -33,183 +45,138 @@ export interface UnifiedProcessOutput {
   designReasoning?: string;
   shouldApply: boolean;
   requiresClarification: boolean;
+  updatedContext?: ResumeContext; // Updated context to save back to session
+  threadId?: string; // OpenAI thread ID for storage
 }
 
 /**
- * Detect user intent from message
- */
-export function detectIntent(message: string): MessageIntent {
-  const lowerMessage = message.toLowerCase();
-
-  // Design-related keywords
-  const designKeywords = [
-    'color', 'font', 'design', 'style', 'layout', 'spacing',
-    'header', 'template', 'theme', 'background', 'text color',
-    'font size', 'bold', 'italic', 'underline', 'margin', 'padding',
-    'make it look', 'change the look', 'visual', 'appearance'
-  ];
-
-  // Content-related keywords
-  const contentKeywords = [
-    'add', 'remove', 'delete', 'modify', 'change', 'update',
-    'experience', 'skill', 'education', 'summary', 'achievement',
-    'work history', 'job', 'company', 'certification', 'project'
-  ];
-
-  // Check for design intent
-  const hasDesignKeyword = designKeywords.some(keyword => lowerMessage.includes(keyword));
-
-  // Check for content intent
-  const hasContentKeyword = contentKeywords.some(keyword => lowerMessage.includes(keyword));
-
-  // Prioritize design if both are present but design is more specific
-  if (hasDesignKeyword && !hasContentKeyword) {
-    return 'design';
-  }
-
-  // If only content keywords
-  if (hasContentKeyword && !hasDesignKeyword) {
-    return 'content';
-  }
-
-  // If both or neither, it's unclear
-  if (hasDesignKeyword && hasContentKeyword) {
-    // Try to determine which is more prominent
-    const designMatches = designKeywords.filter(k => lowerMessage.includes(k)).length;
-    const contentMatches = contentKeywords.filter(k => lowerMessage.includes(k)).length;
-
-    if (designMatches > contentMatches) {
-      return 'design';
-    } else if (contentMatches > designMatches) {
-      return 'content';
-    }
-  }
-
-  return 'unclear';
-}
-
-/**
- * Process message through unified router
+ * Process message through OpenAI Assistant
  */
 export async function processUnifiedMessage(
   input: UnifiedProcessInput
 ): Promise<UnifiedProcessOutput> {
 
-  // Detect intent
-  const intent = detectIntent(input.message);
-
-  // Handle unclear intent
-  if (intent === 'unclear') {
-    return {
-      intent: 'unclear',
-      aiResponse: "I'm not sure if you want to modify the resume content or change the design. Could you please clarify?\n\n• For content changes: \"add Python to skills\" or \"update my summary\"\n• For design changes: \"make headers blue\" or \"change font to Times New Roman\"",
-      shouldApply: false,
-      requiresClarification: true
-    };
+  // Get OpenAI API key
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is not set');
   }
 
-  // Route to appropriate processor
-  if (intent === 'design') {
-    return await processDesignMessage(input);
+  // Create assistant manager
+  const assistantManager = new AssistantManager({ apiKey });
+
+  // Build or use existing resume context
+  let resumeContext = input.resumeContext;
+  if (!resumeContext) {
+    resumeContext = createEmptyContext(
+      input.optimizationId,
+      input.currentResumeContent,
+      {
+        template_id: input.currentTemplateId,
+        template_name: input.currentTemplateId ? 'Selected Template' : undefined,
+        customization: input.currentDesignConfig
+      }
+    );
   } else {
-    return await processContentMessage_(input);
+    // Update context with latest data
+    resumeContext = updateContextContent(resumeContext, input.currentResumeContent);
+    resumeContext = updateContextDesign(resumeContext, {
+      template_id: input.currentTemplateId,
+      customization: input.currentDesignConfig
+    });
   }
-}
 
-/**
- * Process design-related messages
- */
-async function processDesignMessage(
-  input: UnifiedProcessInput
-): Promise<UnifiedProcessOutput> {
-
-  // Check if design assignment exists
-  if (!input.currentTemplateId) {
-    return {
-      intent: 'design',
-      aiResponse: "You haven't selected a design template yet. Please choose a template from the 'Change Design' button first, then I can help you customize it!",
-      shouldApply: false,
-      requiresClarification: true
-    };
-  }
+  // Prepare assistant input
+  const assistantInput: RunAssistantInput = {
+    threadId: input.threadId || '', // Will be created if empty
+    userMessage: input.message,
+    resumeContext
+  };
 
   try {
-    // Use design customization engine
-    const result = await validateAndApply(
-      input.message,
-      input.currentTemplateId,
-      input.currentDesignConfig || {},
-      input.currentResumeContent
-    );
+    // Run the assistant
+    const assistantOutput = await assistantManager.runAssistant(assistantInput);
 
-    // Check if interpretation failed
-    if ('understood' in result && !result.understood) {
-      const interpretResult = result as InterpretationResult;
+    // Process function calls to determine intent and actions
+    let intent: MessageIntent = 'unclear';
+    const contentAmendments: AmendmentRequest[] = [];
+    let designCustomization: any = null;
+    let shouldApply = false;
+    let requiresClarification = assistantOutput.requiresClarification;
 
-      return {
-        intent: 'design',
-        aiResponse: interpretResult.clarificationNeeded || 'Unable to process design request.',
-        shouldApply: false,
-        requiresClarification: true
-      };
+    for (const functionCall of assistantOutput.functionCalls) {
+      if (functionCall.name === 'update_design' && isUpdateDesignParams(functionCall.params)) {
+        intent = 'design';
+        shouldApply = true;
+        designCustomization = convertDesignParamsToCustomization(functionCall.params);
+
+        // Record change in context
+        resumeContext = recordChange(
+          resumeContext,
+          'design',
+          `Design update: ${functionCall.params.reasoning || 'Applied design changes'}`,
+          undefined,
+          functionCall.params
+        );
+      } else if (functionCall.name === 'update_content' && isUpdateContentParams(functionCall.params)) {
+        intent = 'content';
+        shouldApply = true;
+
+        // Convert to amendment request format
+        contentAmendments.push({
+          type: functionCall.params.operation as any,
+          targetSection: functionCall.params.section,
+          description: `${functionCall.params.operation} ${functionCall.params.value} in ${functionCall.params.section}`
+        });
+
+        // Record change in context
+        resumeContext = recordChange(
+          resumeContext,
+          'content',
+          functionCall.params.reasoning || `${functionCall.params.operation} content in ${functionCall.params.section}`,
+          functionCall.params.section,
+          functionCall.params
+        );
+      } else if (functionCall.name === 'clarify_request' && isClarifyRequestParams(functionCall.params)) {
+        intent = 'clarify';
+        requiresClarification = true;
+      }
     }
 
-    // Success
-    const customResult = result as CustomizationResult;
-
     return {
-      intent: 'design',
-      aiResponse: `✅ ${customResult.reasoning}`,
-      designCustomization: customResult.customization,
-      designPreview: customResult.preview,
-      designReasoning: customResult.reasoning,
-      shouldApply: true,
-      requiresClarification: false
+      intent,
+      aiResponse: assistantOutput.response,
+      contentAmendments: contentAmendments.length > 0 ? contentAmendments : undefined,
+      designCustomization,
+      shouldApply,
+      requiresClarification,
+      updatedContext: resumeContext,
+      threadId: assistantOutput.threadId
     };
 
   } catch (error) {
-    console.error('Error processing design message:', error);
+    console.error('Error in OpenAI Assistant processing:', error);
 
     return {
-      intent: 'design',
-      aiResponse: `❌ Error: ${error instanceof Error ? error.message : 'Failed to process design request'}`,
+      intent: 'unclear',
+      aiResponse: `Sorry, I encountered an error processing your request: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
       shouldApply: false,
-      requiresClarification: false
+      requiresClarification: false,
+      updatedContext: resumeContext,
+      threadId: input.threadId // Return existing thread ID on error
     };
   }
 }
 
 /**
- * Process content-related messages
+ * Convert UpdateDesignParams to customization format
  */
-async function processContentMessage_(
-  input: UnifiedProcessInput
-): Promise<UnifiedProcessOutput> {
-
-  try {
-    // Use existing content processor
-    const result = await processContentMessage({
-      message: input.message,
-      sessionId: input.sessionId,
-      currentResumeContent: input.currentResumeContent
-    });
-
-    return {
-      intent: 'content',
-      aiResponse: result.aiResponse,
-      contentAmendments: result.amendments,
-      shouldApply: result.shouldApply,
-      requiresClarification: !result.shouldApply
-    };
-
-  } catch (error) {
-    console.error('Error processing content message:', error);
-
-    return {
-      intent: 'content',
-      aiResponse: `❌ Error: ${error instanceof Error ? error.message : 'Failed to process content request'}`,
-      shouldApply: false,
-      requiresClarification: false
-    };
-  }
+function convertDesignParamsToCustomization(params: UpdateDesignParams): any {
+  return {
+    color_scheme: params.color_scheme || {},
+    font_family: params.font_family || {},
+    spacing: params.spacing || {},
+    custom_css: params.custom_css || '',
+    is_ats_safe: true // Default to ATS-safe
+  };
 }

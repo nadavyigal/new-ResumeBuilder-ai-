@@ -23,6 +23,7 @@ export interface CustomizationResult {
 
 /** Allowed named colors mapped to hex */
 const NAMED_COLORS: Record<string, string> = {
+  // Basic colors
   black: '#000000',
   white: '#ffffff',
   gray: '#6b7280',
@@ -36,10 +37,46 @@ const NAMED_COLORS: Record<string, string> = {
   pink: '#ec4899',
   teal: '#14b8a6',
   navy: '#001f3f',
-  'navy blue': '#001f3f',
   indigo: '#6366f1',
   slate: '#334155',
   zinc: '#3f3f46',
+  brown: '#a0522d',
+
+  // Multi-word color variations (common shades)
+  'navy blue': '#001f3f',
+  'light blue': '#87CEEB',
+  'sky blue': '#87CEEB',
+  'dark blue': '#00008B',
+  'royal blue': '#4169E1',
+  'powder blue': '#B0E0E6',
+
+  'light green': '#90EE90',
+  'dark green': '#006400',
+  'forest green': '#228B22',
+  'lime green': '#32CD32',
+  'olive green': '#6B8E23',
+
+  'light red': '#FFB6C1',
+  'dark red': '#8B0000',
+  'crimson red': '#DC143C',
+
+  'light gray': '#D3D3D3',
+  'light grey': '#D3D3D3',
+  'dark gray': '#A9A9A9',
+  'dark grey': '#A9A9A9',
+  'charcoal gray': '#36454F',
+
+  'light purple': '#DDA0DD',
+  'dark purple': '#800080',
+
+  'light pink': '#FFB6C1',
+  'hot pink': '#FF69B4',
+
+  'light yellow': '#FFFFE0',
+  'golden yellow': '#FFD700',
+
+  'light orange': '#FFD580',
+  'dark orange': '#FF8C00'
 };
 
 const HEX_COLOR_RE = /#(?:[\da-fA-F]{3}){1,2}\b/;
@@ -48,11 +85,100 @@ const HSL_COLOR_RE = /hsl\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)/i;
 
 function normalizeColor(input: string): string | null {
   const lower = input.toLowerCase().trim();
+
+  // Direct match
   if (NAMED_COLORS[lower]) return NAMED_COLORS[lower];
+
+  // Check for color formats
   if (HEX_COLOR_RE.test(lower)) return lower;
   if (RGB_COLOR_RE.test(lower)) return lower;
   if (HSL_COLOR_RE.test(lower)) return lower;
+
+  // Fuzzy matching for common misspellings and variations
+  // Handle typos like "backround" -> "background" (though background isn't a color)
+  // Handle "lite" -> "light", "lite blue" -> "light blue"
+  const fuzzyLower = lower
+    .replace(/lite\s/, 'light ')
+    .replace(/\s+/g, ' ') // normalize multiple spaces
+    .trim();
+
+  if (fuzzyLower !== lower && NAMED_COLORS[fuzzyLower]) {
+    return NAMED_COLORS[fuzzyLower];
+  }
+
+  // Try splitting by space and checking if it matches a two-word color
+  const words = fuzzyLower.split(' ');
+  if (words.length === 2) {
+    // Try with hyphen: "light-blue"
+    const hyphenated = words.join('-');
+    if (NAMED_COLORS[hyphenated]) return NAMED_COLORS[hyphenated];
+
+    // Try common patterns
+    if (words[0] === 'light' && NAMED_COLORS[words[1]]) {
+      // Generate a lighter version of the base color
+      return lightenColor(NAMED_COLORS[words[1]]);
+    }
+    if (words[0] === 'dark' && NAMED_COLORS[words[1]]) {
+      // Generate a darker version of the base color
+      return darkenColor(NAMED_COLORS[words[1]]);
+    }
+  }
+
   return null;
+}
+
+/**
+ * Lighten a hex color by 30%
+ */
+function lightenColor(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+
+  const lightened = {
+    r: Math.min(255, Math.floor(rgb.r + (255 - rgb.r) * 0.4)),
+    g: Math.min(255, Math.floor(rgb.g + (255 - rgb.g) * 0.4)),
+    b: Math.min(255, Math.floor(rgb.b + (255 - rgb.b) * 0.4))
+  };
+
+  return rgbToHex(lightened);
+}
+
+/**
+ * Darken a hex color by 30%
+ */
+function darkenColor(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+
+  const darkened = {
+    r: Math.floor(rgb.r * 0.6),
+    g: Math.floor(rgb.g * 0.6),
+    b: Math.floor(rgb.b * 0.6)
+  };
+
+  return rgbToHex(darkened);
+}
+
+/**
+ * Convert hex to RGB
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+/**
+ * Convert RGB to hex
+ */
+function rgbToHex(rgb: { r: number; g: number; b: number }): string {
+  return '#' + [rgb.r, rgb.g, rgb.b].map(x => {
+    const hex = x.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
 }
 
 /** Safe font whitelist */

@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process message through unified processor
+    // Process message through unified processor with OpenAI Assistants API
     const startTime = Date.now();
     const processResult = await processUnifiedMessage({
       message,
@@ -290,9 +290,23 @@ export async function POST(request: NextRequest) {
       optimizationId: optimization_id,
       currentResumeContent,
       currentDesignConfig,
-      currentTemplateId
+      currentTemplateId,
+      threadId: (chatSession as any).thread_id, // OpenAI thread ID from session
+      resumeContext: (chatSession as any).resume_context // Resume context from session
     });
     const processingTime = Date.now() - startTime;
+
+    // Save thread_id and resume_context back to session
+    if (processResult.threadId || processResult.updatedContext) {
+      await supabase
+        .from('chat_sessions')
+        .update({
+          thread_id: processResult.threadId,
+          resume_context: processResult.updatedContext,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', chatSession.id);
+    }
 
     const aiResponseText = processResult.aiResponse;
 
