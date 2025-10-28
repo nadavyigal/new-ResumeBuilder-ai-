@@ -114,7 +114,7 @@ export default function OptimizationPage() {
       // Use maybeSingle() instead of single() to avoid 406 errors
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data, resume_id, jd_id, match_score, ats_version, ats_score_original, ats_score_optimized, ats_subscores, ats_suggestions, ats_confidence")
+        .select("rewrite_data, resume_id, jd_id, match_score, ats_version, ats_score_original, ats_score_optimized, ats_subscores, ats_subscores_original, ats_suggestions, ats_confidence")
         .eq("id", idVal)
         .maybeSingle();
 
@@ -172,6 +172,7 @@ export default function OptimizationPage() {
           ats_score_original: row.ats_score_original,
           ats_score_optimized: row.ats_score_optimized,
           subscores: row.ats_subscores,
+          subscores_original: row.ats_subscores_original,
           confidence: row.ats_confidence,
         });
         setAtsSuggestions(row.ats_suggestions || []);
@@ -590,30 +591,11 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Top Row: Current Design (Left) | ATS Score (Right) - Matches resume and chat widths exactly */}
+      {/* Top Row: ATS Score (Left) | Current Design (Right) - Matches resume and chat widths exactly */}
       <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
-        {/* Current Design Info - Left side (2/3 width) - Exactly matches Resume width */}
-        <div className="lg:col-span-2">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  Current Design: {currentDesignAssignment?.template?.name || 'Natural (Clean Format)'}
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                  {currentDesignAssignment?.template?.description || 'Professional plain format • Click "Change Design" to browse templates'}
-                </p>
-              </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
-                ATS-Friendly
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ATS Match Score - Right side (1/3 width) - Exactly matches AI Assistant width */}
+        {/* ATS Match Score - Left side (2/3 width) - Exactly matches Resume width */}
         {matchScore !== null && (
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-2">
             {atsV2Data ? (
               <CompactATSScoreCard
                 atsScoreOriginal={atsV2Data.ats_score_original || matchScore}
@@ -631,6 +613,25 @@ export default function OptimizationPage() {
             )}
           </div>
         )}
+
+        {/* Current Design Info - Right side (1/3 width) - Exactly matches AI Assistant width */}
+        <div className="lg:col-span-1">
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Current Design: {currentDesignAssignment?.template?.name || 'Natural (Clean Format)'}
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                  {currentDesignAssignment?.template?.description || 'Professional plain format • Click "Change Design" to browse templates'}
+                </p>
+              </div>
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
+                ATS-Friendly
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Layout: Resume Preview (Left) | AI Assistant (Right) */}

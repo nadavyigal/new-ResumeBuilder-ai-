@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { optimizeResume } from "@/lib/openai";
+import { scoreOptimization } from "@/lib/ats/integration";
+import type { OptimizedResume } from "@/lib/ai-optimizer";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -25,31 +27,67 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (resumeError) throw resumeError;
+    if (!resumeData) throw new Error("Resume not found");
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
-      .select("raw_text")
+      .select("title, raw_text")
       .eq("id", jobDescriptionId)
       .maybeSingle();
 
     if (jdError) throw jdError;
+    if (!jdData) throw new Error("Job description not found");
 
-    const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text);
+    // Generate optimized resume
+    const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text) as OptimizedResume;
+
+    // Score the optimization using ATS v2
+    let atsResult;
+    try {
+      atsResult = await scoreOptimization({
+        resumeOriginalText: resumeData.raw_text,
+        resumeOptimizedJson: optimizedResume,
+        jobDescriptionText: jdData.raw_text,
+        jobTitle: jdData.title || 'Position',
+      });
+      console.log('ATS v2 scoring completed:', {
+        original: atsResult.ats_score_original,
+        optimized: atsResult.ats_score_optimized,
+        confidence: atsResult.confidence,
+        suggestions: atsResult.suggestions.length,
+      });
+    } catch (atsError) {
+      console.error('ATS v2 scoring failed, using fallback:', atsError);
+      // Don't block optimization if ATS scoring fails
+      atsResult = null;
+    }
+
+    // Prepare optimization data with ATS v2 results
+    const optimizationRecord = {
+      user_id: user.id,
+      resume_id: resumeId,
+      jd_id: jobDescriptionId,
+      match_score: atsResult?.ats_score_optimized || optimizedResume.matchScore || 85,
+      gaps_data: {}, // Will be populated with gap analysis
+      rewrite_data: optimizedResume,
+      template_key: null, // No design by default - user chooses explicitly
+      status: "completed" as const,
+      // ATS v2 fields
+      ats_version: atsResult ? 2 : 1,
+      ats_score_original: atsResult?.ats_score_original || null,
+      ats_score_optimized: atsResult?.ats_score_optimized || null,
+      ats_subscores: atsResult?.subscores || null,
+      ats_subscores_original: atsResult?.subscores_original || null,
+      ats_suggestions: atsResult?.suggestions || null,
+      ats_confidence: atsResult?.confidence || null,
+      // Store original and optimized text for future re-scoring
+      resume_text: resumeData.raw_text,
+      jd_text: jdData.raw_text,
+    };
 
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
-      .insert([
-        {
-          user_id: user.id,
-          resume_id: resumeId,
-          jd_id: jobDescriptionId,
-          match_score: 0.85, // Placeholder - will be calculated by AI later
-          gaps_data: {}, // Will be populated with gap analysis
-          rewrite_data: optimizedResume,
-          template_key: null, // No design by default - user chooses explicitly
-          status: "completed",
-        },
-      ])
+      .insert([optimizationRecord])
       .select()
       .maybeSingle();
 
