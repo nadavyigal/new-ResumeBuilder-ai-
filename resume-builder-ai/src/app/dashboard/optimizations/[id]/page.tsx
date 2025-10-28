@@ -13,6 +13,7 @@ import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
+import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
 
 
 // Disable static generation for this dynamic page
@@ -25,6 +26,10 @@ export default function OptimizationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
+
+  // ATS v2 state
+  const [atsV2Data, setAtsV2Data] = useState<any>(null);
+  const [atsSuggestions, setAtsSuggestions] = useState<any[]>([]);
 
   // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
   // Removing this state will cause runtime crashes when designs change
@@ -105,11 +110,11 @@ export default function OptimizationPage() {
     try {
       const idVal = String(params.id || "");
 
-      // First get the optimization data including match_score
+      // First get the optimization data including match_score and ATS v2 data
       // Use maybeSingle() instead of single() to avoid 406 errors
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data, resume_id, jd_id, match_score")
+        .select("rewrite_data, resume_id, jd_id, match_score, ats_version, ats_score_original, ats_score_optimized, ats_subscores, ats_suggestions, ats_confidence")
         .eq("id", idVal)
         .maybeSingle();
 
@@ -159,6 +164,18 @@ export default function OptimizationPage() {
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
+
+      // Set ATS v2 data if available
+      const row = optimizationRow as any;
+      if (row.ats_version === 2 && row.ats_score_optimized !== null) {
+        setAtsV2Data({
+          ats_score_original: row.ats_score_original,
+          ats_score_optimized: row.ats_score_optimized,
+          subscores: row.ats_subscores,
+          confidence: row.ats_confidence,
+        });
+        setAtsSuggestions(row.ats_suggestions || []);
+      }
 
       // Generate AI summary of job description
       generateJobDescriptionSummary(jdData as any);
@@ -597,21 +614,21 @@ export default function OptimizationPage() {
         {/* ATS Match Score - Right side (1/3 width) - Exactly matches AI Assistant width */}
         {matchScore !== null && (
           <div className="lg:col-span-1">
-            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                    ATS Match Score
-                  </p>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                    Job requirements match
-                  </p>
-                </div>
-                <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xl rounded-full font-bold">
-                  {matchScore}%
-                </span>
-              </div>
-            </div>
+            {atsV2Data ? (
+              <CompactATSScoreCard
+                atsScoreOriginal={atsV2Data.ats_score_original || matchScore}
+                atsScoreOptimized={atsV2Data.ats_score_optimized || matchScore}
+                subscores={atsV2Data.subscores}
+                subscoresOriginal={atsV2Data.subscores_original}
+                legacy={false}
+              />
+            ) : (
+              <CompactATSScoreCard
+                atsScoreOriginal={matchScore}
+                atsScoreOptimized={matchScore}
+                legacy={true}
+              />
+            )}
           </div>
         )}
       </div>
