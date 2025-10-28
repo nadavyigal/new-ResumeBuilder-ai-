@@ -357,3 +357,4 @@ All migrations stored in `supabase/migrations/`.
 Database schema designed, RLS policies defined, functions implemented.
 
 
+

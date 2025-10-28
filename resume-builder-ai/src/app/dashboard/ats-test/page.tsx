@@ -77,19 +77,24 @@ const sampleScoreData: ATSScoreOutput = {
   ],
   confidence: 0.85,
   metadata: {
-    scoring_time_ms: 2340,
-    analyzer_versions: {
-      keyword_exact: '1.0',
-      keyword_phrase: '1.0',
-      semantic_relevance: '1.0',
-      title_alignment: '1.0',
-      metrics_presence: '1.0',
-      section_completeness: '1.0',
-      format_parseability: '1.0',
-      recency_fit: '1.0',
+    version: 2,
+    scored_at: new Date(),
+    processing_time_ms: 2340,
+    warnings: [],
+    analyzers_used: [
+      'keyword_exact',
+      'keyword_phrase',
+      'semantic_relevance',
+      'title_alignment',
+      'metrics_presence',
+      'section_completeness',
+      'format_parseability',
+      'recency_fit',
+    ],
+    cache_stats: {
+      embeddings_cached: true,
+      cache_key: 'test_cache_key',
     },
-    openai_embeddings_used: true,
-    cache_hit_rate: 0.65,
   },
 };
 
@@ -135,19 +140,19 @@ export default function ATSTestPage() {
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
               <span className="font-medium">Scoring Time:</span>{' '}
-              {sampleScoreData.metadata.scoring_time_ms}ms
+              {sampleScoreData.metadata.processing_time_ms}ms
             </div>
             <div>
               <span className="font-medium">Confidence:</span>{' '}
               {(sampleScoreData.confidence * 100).toFixed(0)}%
             </div>
             <div>
-              <span className="font-medium">OpenAI Embeddings:</span>{' '}
-              {sampleScoreData.metadata.openai_embeddings_used ? 'Yes' : 'No'}
+              <span className="font-medium">Embeddings Cached:</span>{' '}
+              {sampleScoreData.metadata.cache_stats?.embeddings_cached ? 'Yes' : 'No'}
             </div>
             <div>
-              <span className="font-medium">Cache Hit Rate:</span>{' '}
-              {(sampleScoreData.metadata.cache_hit_rate * 100).toFixed(0)}%
+              <span className="font-medium">Analyzers Used:</span>{' '}
+              {sampleScoreData.metadata.analyzers_used.length}/8
             </div>
           </div>
         </section>

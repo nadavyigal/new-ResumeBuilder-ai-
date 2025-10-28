@@ -87,9 +87,9 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Analyzers Used:</span>
-              <span className="font-medium">{scoreData.metadata.analyzers_used.length}/8</span>
+              <span className="font-medium">{scoreData.metadata.analyzers_used?.length || 8}/8</span>
             </div>
-            {scoreData.metadata.warnings.length > 0 && (
+            {scoreData.metadata.warnings && scoreData.metadata.warnings.length > 0 && (
               <div className="mt-2 text-amber-600 text-xs">
                 ⚠️ {scoreData.metadata.warnings[0]}
               </div>
