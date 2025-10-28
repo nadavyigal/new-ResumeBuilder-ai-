@@ -657,6 +657,7 @@ export default function OptimizationPage() {
                 optimizationId={params.id as string}
                 onMessageSent={handleChatMessageSent}
                 onDesignPreview={(c) => setEphemeralCustomization(c)}
+                atsSuggestions={atsSuggestions}
               />
             </div>
           )}
