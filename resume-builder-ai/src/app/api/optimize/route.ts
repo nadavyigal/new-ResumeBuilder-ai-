@@ -3,7 +3,6 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { cookies } from "next/headers";
 import { optimizeResume } from "@/lib/openai";
 import { scoreOptimization } from "@/lib/ats/integration";
-import type { OptimizedResume } from "@/lib/ai-optimizer";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -27,74 +26,64 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (resumeError) throw resumeError;
-    if (!resumeData) throw new Error("Resume not found");
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
-      .select("title, raw_text")
+      .select("raw_text")
       .eq("id", jobDescriptionId)
       .maybeSingle();
 
     if (jdError) throw jdError;
-    if (!jdData) throw new Error("Job description not found");
 
-    // Generate optimized resume
-    const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text) as OptimizedResume;
+    const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text);
 
     // Score the optimization using ATS v2
-    let atsResult;
+    let atsResult = null;
     try {
+      console.log('Starting ATS v2 scoring...');
       atsResult = await scoreOptimization({
         resumeOriginalText: resumeData.raw_text,
         resumeOptimizedJson: optimizedResume,
         jobDescriptionText: jdData.raw_text,
-        jobTitle: jdData.title || 'Position',
+        jobTitle: 'Position', // TODO: Extract from JD if available
       });
       console.log('ATS v2 scoring completed:', {
         original: atsResult.ats_score_original,
         optimized: atsResult.ats_score_optimized,
-        confidence: atsResult.confidence,
-        suggestions: atsResult.suggestions.length,
+        improvement: atsResult.ats_score_optimized - atsResult.ats_score_original,
       });
     } catch (atsError) {
       console.error('ATS v2 scoring failed, using fallback:', atsError);
-      // Don't block optimization if ATS scoring fails
-      atsResult = null;
+      // Continue with optimization even if ATS scoring fails
     }
 
     // Prepare optimization data with ATS v2 results
-    const optimizationRecord = {
+    const optimizationInsert = {
       user_id: user.id,
       resume_id: resumeId,
       jd_id: jobDescriptionId,
-      match_score: atsResult?.ats_score_optimized || optimizedResume.matchScore || 85,
+      match_score: atsResult ? atsResult.ats_score_optimized : 85,
       gaps_data: {}, // Will be populated with gap analysis
       rewrite_data: optimizedResume,
       template_key: null, // No design by default - user chooses explicitly
-      status: "completed" as const,
+      status: "completed",
       // ATS v2 fields
       ats_version: atsResult ? 2 : 1,
-      ats_score_original: atsResult?.ats_score_original || null,
-      ats_score_optimized: atsResult?.ats_score_optimized || null,
-      ats_subscores: atsResult?.subscores || null,
-      ats_subscores_original: atsResult?.subscores_original || null,
-      ats_suggestions: atsResult?.suggestions || null,
-      ats_confidence: atsResult?.confidence || null,
-      // Store original and optimized text for future re-scoring
-      resume_text: resumeData.raw_text,
-      jd_text: jdData.raw_text,
+      ats_score_original: atsResult?.ats_score_original ?? null,
+      ats_score_optimized: atsResult?.ats_score_optimized ?? null,
+      ats_subscores: atsResult?.subscores ?? null,
+      ats_subscores_original: atsResult?.subscores_original ?? null,
+      ats_suggestions: atsResult?.suggestions ?? null,
+      ats_confidence: atsResult?.confidence ?? null,
     };
 
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
-      .insert([optimizationRecord])
+      .insert([optimizationInsert])
       .select()
       .maybeSingle();
 
     if (optimizationError) throw optimizationError;
-    if (!optimizationData) {
-      throw new Error("Failed to create optimization record");
-    }
 
     return NextResponse.json({ optimizationId: optimizationData.id });
 

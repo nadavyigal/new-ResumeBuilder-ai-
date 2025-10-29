@@ -5,12 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createRouteHandlerClient();
 
     // Get current user
     const {
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Extract necessary data
-    const resumeOriginal = optimization.resumes?.parsed_data || {};
-    const resumeOptimized = optimization.rewrite_json || resumeOriginal;
+    const resumeOriginal = optimization.resumes?.raw_text || '';
+    const resumeOptimized = optimization.rewrite_data || {};
     const jobDescription = optimization.job_descriptions?.raw_text || '';
     const jobData = optimization.job_descriptions?.extracted_data || null;
 
@@ -68,8 +68,10 @@ export async function POST(request: NextRequest) {
         ats_score_original: result.ats_score_original,
         ats_score_optimized: result.ats_score_optimized,
         ats_subscores: result.subscores,
+        ats_subscores_original: result.subscores_original,
         ats_suggestions: result.suggestions,
         ats_confidence: result.confidence,
+        match_score: result.ats_score_optimized, // Update match_score too
       })
       .eq('id', optimization_id)
       .eq('user_id', user.id);

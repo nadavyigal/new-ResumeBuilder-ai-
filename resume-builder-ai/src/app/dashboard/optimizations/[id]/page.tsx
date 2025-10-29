@@ -14,6 +14,7 @@ import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
+import { AutoUpgradeATSV2 } from "@/components/ats/AutoUpgradeATSV2";
 
 
 // Disable static generation for this dynamic page
@@ -577,6 +578,16 @@ export default function OptimizationPage() {
           </Button>
         </div>
       </div>
+
+      {/* ATS v2 Upgrade Banner (for old optimizations) */}
+      <AutoUpgradeATSV2
+        optimizationId={params.id as string}
+        hasV2Data={!!atsV2Data}
+        onUpgradeComplete={() => {
+          // Reload the page to show new v2 data
+          window.location.reload();
+        }}
+      />
 
       {/* Design Controls (if customizations exist) */}
       {currentDesignAssignment?.customization && (
