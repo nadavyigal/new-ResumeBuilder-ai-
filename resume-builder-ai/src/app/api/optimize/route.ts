@@ -45,20 +45,32 @@ export async function POST(req: NextRequest) {
     let atsResult = null;
     try {
       console.log('Starting ATS v2 scoring...');
-      atsResult = await scoreOptimization({
+      const scoringPromise = scoreOptimization({
         resumeOriginalText: (resumeData as any).raw_text,
         resumeOptimizedJson: optimizedResume,
         jobDescriptionText: (jdData as any).raw_text,
         jobTitle: 'Position', // TODO: Extract from JD if available
       });
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('ATS scoring timeout')), 30000)
+      );
+      
+      atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
+      
       console.log('ATS v2 scoring completed:', {
-        original: atsResult.ats_score_original,
-        optimized: atsResult.ats_score_optimized,
-        improvement: atsResult.ats_score_optimized - atsResult.ats_score_original,
+        original: atsResult?.ats_score_original,
+        optimized: atsResult?.ats_score_optimized,
+        improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
       });
-    } catch (atsError) {
-      console.error('ATS v2 scoring failed, using fallback:', atsError);
+    } catch (atsError: any) {
+      console.error('ATS v2 scoring failed, continuing without it:', {
+        error: atsError?.message,
+        stack: atsError?.stack?.substring(0, 200),
+      });
       // Continue with optimization even if ATS scoring fails
+      atsResult = null;
     }
 
     // Prepare optimization data with ATS v2 results
@@ -66,19 +78,19 @@ export async function POST(req: NextRequest) {
       user_id: user.id,
       resume_id: resumeId,
       jd_id: jobDescriptionId,
-      match_score: atsResult ? atsResult.ats_score_optimized : 85,
+      match_score: atsResult?.ats_score_optimized || 85,
       gaps_data: {}, // Will be populated with gap analysis
       rewrite_data: optimizedResume,
       template_key: null, // No design by default - user chooses explicitly
       status: "completed" as const,
-      // ATS v2 fields
+      // ATS v2 fields - only include if scoring succeeded
       ats_version: atsResult ? 2 : 1,
-      ats_score_original: atsResult?.ats_score_original ?? null,
-      ats_score_optimized: atsResult?.ats_score_optimized ?? null,
-      ats_subscores: atsResult?.subscores ?? null,
-      ats_subscores_original: atsResult?.subscores_original ?? null,
-      ats_suggestions: atsResult?.suggestions ?? null,
-      ats_confidence: atsResult?.confidence ?? null,
+      ats_score_original: atsResult?.ats_score_original || null,
+      ats_score_optimized: atsResult?.ats_score_optimized || null,
+      ats_subscores: atsResult?.subscores || null,
+      ats_subscores_original: atsResult?.subscores_original || null,
+      ats_suggestions: atsResult?.suggestions || null,
+      ats_confidence: atsResult?.confidence || null,
     };
 
     const { data: optimizationData, error: optimizationError } = await supabase
