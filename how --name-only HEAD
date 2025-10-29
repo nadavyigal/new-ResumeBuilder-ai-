@@ -1,0 +1,5 @@
+[33m8942642[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31mgithub/main[m[33m)[m feat(ats-v2): add compact ATS score card to optimization page
+ src/app/dashboard/optimizations/[id]/page.tsx | 34 [32m++++++++++++[m[31m--[m
+ src/components/ats/ATSCompactScoreCard.tsx    | 66 [32m+++++++++++++++++++++++++++[m
+ src/lib/templates/external/index.ts           |  2 [32m+[m[31m-[m
+ 3 files changed, 98 insertions(+), 4 deletions(-)
