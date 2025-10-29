@@ -10,7 +10,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { ATSSuggestionsBanner } from './ATSSuggestionsBanner';
 import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageResponse } from '@/types/chat';
+import type { Suggestion } from '@/lib/ats/types';
 import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
@@ -19,7 +21,8 @@ export function ChatSidebar({
   optimizationId,
   onMessageSent,
   onDesignPreview,
-}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'>) {
+  atsSuggestions,
+}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'> & { atsSuggestions?: Suggestion[] }) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -285,6 +288,11 @@ export function ChatSidebar({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50 min-h-0">
+        {/* ATS Suggestions Banner */}
+        {atsSuggestions && atsSuggestions.length > 0 && (
+          <ATSSuggestionsBanner suggestions={atsSuggestions} />
+        )}
+
         {isLoading && messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
