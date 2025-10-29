@@ -25,7 +25,9 @@ export async function POST(req: NextRequest) {
       .eq("id", resumeId)
       .maybeSingle();
 
-    if (resumeError) throw resumeError;
+    if (resumeError || !resumeData) {
+      throw new Error(resumeError?.message || "Resume not found");
+    }
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
@@ -33,18 +35,20 @@ export async function POST(req: NextRequest) {
       .eq("id", jobDescriptionId)
       .maybeSingle();
 
-    if (jdError) throw jdError;
+    if (jdError || !jdData) {
+      throw new Error(jdError?.message || "Job description not found");
+    }
 
-    const optimizedResume = await optimizeResume(resumeData.raw_text, jdData.raw_text);
+    const optimizedResume = await optimizeResume((resumeData as any).raw_text, (jdData as any).raw_text);
 
     // Score the optimization using ATS v2
     let atsResult = null;
     try {
       console.log('Starting ATS v2 scoring...');
       atsResult = await scoreOptimization({
-        resumeOriginalText: resumeData.raw_text,
+        resumeOriginalText: (resumeData as any).raw_text,
         resumeOptimizedJson: optimizedResume,
-        jobDescriptionText: jdData.raw_text,
+        jobDescriptionText: (jdData as any).raw_text,
         jobTitle: 'Position', // TODO: Extract from JD if available
       });
       console.log('ATS v2 scoring completed:', {
@@ -58,7 +62,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Prepare optimization data with ATS v2 results
-    const optimizationInsert = {
+    const optimizationInsert: any = {
       user_id: user.id,
       resume_id: resumeId,
       jd_id: jobDescriptionId,
@@ -66,7 +70,7 @@ export async function POST(req: NextRequest) {
       gaps_data: {}, // Will be populated with gap analysis
       rewrite_data: optimizedResume,
       template_key: null, // No design by default - user chooses explicitly
-      status: "completed",
+      status: "completed" as const,
       // ATS v2 fields
       ats_version: atsResult ? 2 : 1,
       ats_score_original: atsResult?.ats_score_original ?? null,
@@ -79,13 +83,15 @@ export async function POST(req: NextRequest) {
 
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
-      .insert([optimizationInsert])
+      .insert(optimizationInsert)
       .select()
       .maybeSingle();
 
-    if (optimizationError) throw optimizationError;
+    if (optimizationError || !optimizationData) {
+      throw new Error(optimizationError?.message || "Failed to create optimization");
+    }
 
-    return NextResponse.json({ optimizationId: optimizationData.id });
+    return NextResponse.json({ optimizationId: (optimizationData as any).id });
 
   } catch (error: unknown) {
     console.error("Error optimizing resume:", error);
