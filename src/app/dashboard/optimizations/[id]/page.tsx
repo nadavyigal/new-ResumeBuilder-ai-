@@ -13,6 +13,8 @@ import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
+import { ATSCompactScoreCard } from "@/components/ats/ATSCompactScoreCard";
+import type { ATSScoreOutput } from "@/lib/ats/types";
 
 
 // Disable static generation for this dynamic page
@@ -25,6 +27,7 @@ export default function OptimizationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
+  const [atsScoreData, setAtsScoreData] = useState<ATSScoreOutput | null>(null);
 
   // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
   // Removing this state will cause runtime crashes when designs change
@@ -105,11 +108,11 @@ export default function OptimizationPage() {
     try {
       const idVal = String(params.id || "");
 
-      // First get the optimization data including match_score
+      // First get the optimization data including match_score and ATS v2 data
       // Use maybeSingle() instead of single() to avoid 406 errors
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data, resume_id, jd_id, match_score")
+        .select("rewrite_data, resume_id, jd_id, match_score, ats_score_original, ats_score_optimized, ats_subscores, ats_suggestions, ats_confidence, ats_version")
         .eq("id", idVal)
         .maybeSingle();
 
@@ -159,6 +162,24 @@ export default function OptimizationPage() {
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
+
+      // Check if ATS v2 data is available
+      const row = optimizationRow as any;
+      if (row.ats_version >= 2 && row.ats_score_original !== null && row.ats_score_optimized !== null) {
+        setAtsScoreData({
+          ats_score_original: row.ats_score_original,
+          ats_score_optimized: row.ats_score_optimized,
+          subscores: row.ats_subscores || {},
+          subscores_original: row.ats_subscores_original || {},
+          suggestions: row.ats_suggestions || [],
+          confidence: row.ats_confidence || 0.8,
+          metadata: {
+            processing_time_ms: 0,
+            analyzers_used: [],
+            warnings: []
+          }
+        });
+      }
 
       // Generate AI summary of job description
       generateJobDescriptionSummary(jdData as any);
@@ -595,7 +616,14 @@ export default function OptimizationPage() {
         </div>
 
         {/* ATS Match Score - Right side (1/3 width) - Exactly matches AI Assistant width */}
-        {matchScore !== null && (
+        {atsScoreData ? (
+          <div className="lg:col-span-1">
+            <ATSCompactScoreCard 
+              scoreData={atsScoreData} 
+              optimizationId={String(params.id || "")} 
+            />
+          </div>
+        ) : matchScore !== null && (
           <div className="lg:col-span-1">
             <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
               <div className="flex items-center justify-between">
