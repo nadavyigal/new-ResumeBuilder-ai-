@@ -31,6 +31,7 @@ export default function OptimizationPage() {
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
   const [atsSuggestions, setAtsSuggestions] = useState<any[]>([]);
+  const [autoUpgrading, setAutoUpgrading] = useState(false);
 
   // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
   // Removing this state will cause runtime crashes when designs change
@@ -177,6 +178,10 @@ export default function OptimizationPage() {
           confidence: row.ats_confidence,
         });
         setAtsSuggestions(row.ats_suggestions || []);
+      } else {
+        // Automatically upgrade old optimizations to ATS v2 in the background
+        console.log('🔄 Optimization is using old ATS v1, auto-upgrading to v2...');
+        autoUpgradeToV2(idVal);
       }
 
       // Generate AI summary of job description
@@ -187,6 +192,40 @@ export default function OptimizationPage() {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Auto-upgrade old optimizations to ATS v2
+  const autoUpgradeToV2 = async (optimizationId: string) => {
+    if (autoUpgrading) return; // Prevent duplicate upgrades
+    
+    setAutoUpgrading(true);
+    try {
+      console.log('🚀 Starting automatic ATS v2 upgrade...');
+      
+      const response = await fetch('/api/ats/rescan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          optimization_id: optimizationId,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Auto-upgrade successful:', result);
+        
+        // Refresh the page data to show new v2 scores
+        await fetchOptimizationData();
+      } else {
+        console.error('❌ Auto-upgrade failed:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Auto-upgrade error:', error);
+    } finally {
+      setAutoUpgrading(false);
     }
   };
 
@@ -579,15 +618,22 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* ATS v2 Upgrade Banner (for old optimizations) */}
-      <AutoUpgradeATSV2
-        optimizationId={params.id as string}
-        hasV2Data={!!atsV2Data}
-        onUpgradeComplete={() => {
-          // Reload the page to show new v2 data
-          window.location.reload();
-        }}
-      />
+      {/* Show upgrading indicator if auto-upgrading */}
+      {autoUpgrading && (
+        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin text-2xl">⏳</div>
+            <div>
+              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Upgrading to ATS v2...
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Adding detailed score breakdown and improvement tips
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Design Controls (if customizations exist) */}
       {currentDesignAssignment?.customization && (
