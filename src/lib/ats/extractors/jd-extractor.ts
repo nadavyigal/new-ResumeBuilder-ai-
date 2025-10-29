@@ -82,7 +82,7 @@ function extractMustHaveSkills(text: string): string[] {
   const matches = text.matchAll(requiredPattern);
 
   for (const match of matches) {
-    const skills Extracted = extractKeywords(match[1]);
+    const skillsExtracted = extractKeywords(match[1]);
     skillsExtracted.forEach(skill => skills.add(skill));
   }
 
