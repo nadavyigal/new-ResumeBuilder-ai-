@@ -55,7 +55,7 @@ ALTER TABLE optimizations
 
 ALTER TABLE optimizations
   ADD CONSTRAINT check_ats_score_optimized_range
-  CHECK (ats_score_optimized IS NULL OR (ats_score_optimized <= 0 AND ats_score_optimized <= 100));
+  CHECK (ats_score_optimized IS NULL OR (ats_score_optimized >= 0 AND ats_score_optimized <= 100));
 
 ALTER TABLE optimizations
   ADD CONSTRAINT check_ats_confidence_range
