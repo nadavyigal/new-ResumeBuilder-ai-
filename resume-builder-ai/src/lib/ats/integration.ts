@@ -7,60 +7,15 @@
 import { scoreResume } from './index';
 import type { ATSScoreInput, JobExtraction, FormatReport, ATSScoreOutput } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
+import { extractJobData } from './extractors/jd-extractor';
 
 /**
  * Extract keywords and requirements from job description text
- * This is a simple extraction - can be enhanced with AI/NLP later
+ * @deprecated Use extractJobData from jd-extractor instead
  */
 export function extractJobRequirements(jobDescriptionText: string, title: string = 'Position'): JobExtraction {
-  const jdLower = jobDescriptionText.toLowerCase();
-
-  // Common technical keywords that might appear in job descriptions
-  const technicalKeywords = [
-    'javascript', 'typescript', 'python', 'java', 'react', 'node.js', 'nodejs',
-    'angular', 'vue', 'sql', 'nosql', 'mongodb', 'postgresql', 'aws', 'azure',
-    'docker', 'kubernetes', 'git', 'ci/cd', 'agile', 'scrum', 'rest api',
-    'graphql', 'html', 'css', 'tailwind', 'next.js', 'express', 'django',
-    'flask', 'spring', 'microservices', 'cloud', 'devops', 'terraform',
-  ];
-
-  // Find keywords mentioned in the JD
-  const foundKeywords = technicalKeywords.filter(keyword =>
-    jdLower.includes(keyword)
-  );
-
-  // Split into must-have (mentioned multiple times or in requirements section)
-  // and nice-to-have (mentioned once)
-  const keywordCounts = foundKeywords.reduce((acc, keyword) => {
-    const regex = new RegExp(keyword, 'gi');
-    const matches = jobDescriptionText.match(regex);
-    acc[keyword] = matches ? matches.length : 0;
-    return acc;
-  }, {} as Record<string, number>);
-
-  const must_have = foundKeywords.filter(k => keywordCounts[k] >= 2);
-  const nice_to_have = foundKeywords.filter(k => keywordCounts[k] === 1);
-
-  // Extract responsibilities (simple approach: look for bullet points or "will" statements)
-  const responsibilities: string[] = [];
-  const lines = jobDescriptionText.split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (
-      (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) ||
-      trimmed.toLowerCase().includes('you will') ||
-      trimmed.toLowerCase().includes('responsible for')
-    ) {
-      responsibilities.push(trimmed.replace(/^[•\-*]\s*/, ''));
-    }
-  }
-
-  return {
-    title,
-    must_have,
-    nice_to_have,
-    responsibilities: responsibilities.slice(0, 10), // Top 10
-  };
+  // Use the enhanced extractor instead of the simple one
+  return extractJobData(jobDescriptionText, { title });
 }
 
 /**

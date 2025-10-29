@@ -128,7 +128,7 @@ export function countPhraseMatches(text: string, phrases: string[]): number {
 }
 
 /**
- * Extract keywords from text (capitalized words, acronyms, etc.)
+ * Extract keywords from text (capitalized words, acronyms, technical terms, etc.)
  */
 export function extractKeywords(text: string, maxKeywords: number = KEYWORD_THRESHOLDS.max_keywords): string[] {
   const keywords: string[] = [];
@@ -141,11 +141,50 @@ export function extractKeywords(text: string, maxKeywords: number = KEYWORD_THRE
   const acronymPattern = /\b[A-Z]{2,}\b/g;
   const acronyms = text.match(acronymPattern) || [];
 
-  // Combine and deduplicate
+  // Extract common technical terms and skills (lowercase or mixed case)
+  const technicalTerms = [
+    // Programming languages
+    'javascript', 'typescript', 'python', 'java', 'c\\+\\+', 'c#', 'ruby', 'php', 'swift', 'kotlin', 'go', 'rust', 'scala',
+    // Frontend
+    'react', 'vue', 'angular', 'next\\.js', 'svelte', 'html', 'css', 'sass', 'tailwind', 'bootstrap',
+    // Backend
+    'node\\.js', 'express', 'django', 'flask', 'spring', 'laravel', '\\.net', 'asp\\.net',
+    // Databases
+    'sql', 'nosql', 'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch', 'dynamodb', 'cassandra',
+    // Cloud & DevOps
+    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'k8s', 'terraform', 'ansible', 'jenkins', 'ci/cd', 'gitlab', 'github',
+    // API & Architecture
+    'rest api', 'graphql', 'grpc', 'microservices', 'serverless', 'api', 'websocket',
+    // Methodologies
+    'agile', 'scrum', 'kanban', 'devops', 'tdd', 'test-driven',
+    // Soft skills
+    'leadership', 'communication', 'problem-solving', 'teamwork', 'analytical', 'strategic',
+  ];
+
+  // Find all technical terms that appear in the text (case-insensitive)
+  const textLower = text.toLowerCase();
+  for (const term of technicalTerms) {
+    const regex = new RegExp(term, 'gi');
+    const matches = text.match(regex);
+    if (matches) {
+      // Preserve original casing from text
+      keywords.push(...matches);
+    }
+  }
+
+  // Combine capitalized words, acronyms, and technical terms
   keywords.push(...capitalized, ...acronyms);
 
-  // Deduplicate and limit
-  return [...new Set(keywords)].slice(0, maxKeywords);
+  // Deduplicate (case-insensitive) and limit
+  const uniqueKeywords = new Map<string, string>();
+  for (const keyword of keywords) {
+    const key = keyword.toLowerCase();
+    if (!uniqueKeywords.has(key)) {
+      uniqueKeywords.set(key, keyword);
+    }
+  }
+
+  return Array.from(uniqueKeywords.values()).slice(0, maxKeywords);
 }
 
 /**

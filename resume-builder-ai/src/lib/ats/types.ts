@@ -243,19 +243,9 @@ export interface ScoringMetadata {
 // ============================================================================
 
 /**
- * Weight configuration for sub-scores
- * Must sum to 1.0
+ * Weight configuration for sub-scores is defined in ./config/weights
+ * Import SUB_SCORE_WEIGHTS from there to use weight values.
  */
-export const SUB_SCORE_WEIGHTS: Record<SubScoreKey, number> = {
-  keyword_exact: 0.22,
-  keyword_phrase: 0.12,
-  semantic_relevance: 0.16,
-  title_alignment: 0.10,
-  metrics_presence: 0.10,
-  section_completeness: 0.08,
-  format_parseability: 0.14,
-  recency_fit: 0.08,
-};
 
 /**
  * Penalty thresholds for cross-checks
