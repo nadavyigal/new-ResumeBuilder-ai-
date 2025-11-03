@@ -125,6 +125,13 @@ export interface Database {
           updated_at: string;
           resume_text: string | null;
           jd_text: string | null;
+          // ATS v2 columns (added by migration 20250128000000_ats_v2_schema.sql)
+          ats_score_original: number | null;
+          ats_score_optimized: number | null;
+          ats_subscores: any | null;
+          ats_suggestions: any | null;
+          ats_confidence: number | null;
+          ats_version: number | null;
         };
         Insert: {
           id?: string;
@@ -141,6 +148,13 @@ export interface Database {
           updated_at?: string;
           resume_text?: string | null;
           jd_text?: string | null;
+          // ATS v2 columns (optional on insert)
+          ats_score_original?: number | null;
+          ats_score_optimized?: number | null;
+          ats_subscores?: any | null;
+          ats_suggestions?: any | null;
+          ats_confidence?: number | null;
+          ats_version?: number | null;
         };
         Update: {
           id?: string;
@@ -157,6 +171,13 @@ export interface Database {
           updated_at?: string;
           resume_text?: string | null;
           jd_text?: string | null;
+          // ATS v2 columns (optional on update)
+          ats_score_original?: number | null;
+          ats_score_optimized?: number | null;
+          ats_subscores?: any | null;
+          ats_suggestions?: any | null;
+          ats_confidence?: number | null;
+          ats_version?: number | null;
         };
       };
       templates: {

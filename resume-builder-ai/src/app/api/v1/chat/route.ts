@@ -19,16 +19,32 @@ import {
   getDesignCustomizationById
 } from '@/lib/supabase/design-customizations';
 import { AmendmentRequest } from '@/lib/chat-manager/processor';
+import { CHAT_CONFIG, TECHNICAL_KEYWORDS } from '@/lib/constants';
 
 /**
  * Apply amendments to resume content
- * Intelligently modifies resume structure based on amendment requests
+ *
+ * Intelligently modifies resume structure based on amendment requests from chat.
+ * Supports operations on skills, summary, and experience sections.
+ *
+ * @param currentContent - Current resume data structure
+ * @param amendments - Array of amendment requests to apply
+ * @returns Updated resume data with all amendments applied
+ *
+ * @example
+ * ```ts
+ * const updated = applyAmendmentsToResume(resumeData, [
+ *   { type: 'add', targetSection: 'skills', description: 'add Python and React' }
+ * ]);
+ * ```
+ *
+ * @complexity O(n*m) where n is number of amendments and m is average skill array length
  */
 function applyAmendmentsToResume(
   currentContent: Record<string, unknown>,
   amendments: AmendmentRequest[]
 ): Record<string, unknown> {
-  const updatedContent = JSON.parse(JSON.stringify(currentContent)); // Deep clone
+  const updatedContent = structuredClone(currentContent); // Deep clone (faster and safer than JSON methods)
 
   for (const amendment of amendments) {
     const section = amendment.targetSection || 'summary';
@@ -56,11 +72,9 @@ function applyAmendmentsToResume(
 
               const skills = updatedContent.skills as { technical: string[], soft: string[] };
 
-              const technicalKeywords = ['python', 'javascript', 'java', 'react', 'node', 'sql', 'aws', 'docker', 'git', 'api', 'css', 'html', 'typescript', 'ai', 'automation'];
-
               for (const candidate of candidates) {
                 const lower = candidate.toLowerCase();
-                const isTechnical = technicalKeywords.some(keyword => lower.includes(keyword));
+                const isTechnical = TECHNICAL_KEYWORDS.some(keyword => lower.includes(keyword));
                 if (isTechnical) {
                   if (!skills.technical.includes(candidate)) {
                     skills.technical.push(candidate);
@@ -147,9 +161,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (message.trim().length === 0 || message.length > 5000) {
+    if (message.trim().length < CHAT_CONFIG.minMessageLength || message.length > CHAT_CONFIG.maxMessageLength) {
       return NextResponse.json(
-        { error: 'Message must be between 1 and 5000 characters.' },
+        { error: `Message must be between ${CHAT_CONFIG.minMessageLength} and ${CHAT_CONFIG.maxMessageLength} characters.` },
         { status: 400 }
       );
     }
@@ -256,14 +270,15 @@ export async function POST(request: NextRequest) {
       .update({ last_activity_at: new Date().toISOString() })
       .eq('id', chatSession.id);
 
-    // Get current resume content and design configuration for processing
+    // Get current resume content, ATS suggestions, and design configuration for processing
     const { data: optimization } = await supabase
       .from('optimizations')
-      .select('rewrite_data, resume_id')
+      .select('rewrite_data, resume_id, ats_suggestions')
       .eq('id', optimization_id)
       .maybeSingle();
 
     const currentResumeContent = optimization?.rewrite_data || {};
+    const atsSuggestions = optimization?.ats_suggestions || [];
 
     // Get design assignment and customization if exists
     const designAssignment = await getDesignAssignment(supabase, optimization_id, user.id);
@@ -290,7 +305,8 @@ export async function POST(request: NextRequest) {
       optimizationId: optimization_id,
       currentResumeContent,
       currentDesignConfig,
-      currentTemplateId
+      currentTemplateId,
+      atsSuggestions  // Pass ATS suggestions for tip implementation
     });
     const processingTime = Date.now() - startTime;
 
@@ -393,11 +409,18 @@ export async function POST(request: NextRequest) {
     // Attach design preview/customization if available
     if (processResult.intent === 'design') {
       if (processResult.designPreview) {
-        (response as any).design_preview = processResult.designPreview;
+        response.design_preview = processResult.designPreview;
       }
       if (processResult.designCustomization) {
-        (response as any).design_customization = processResult.designCustomization;
+        response.design_customization = processResult.designCustomization;
       }
+    }
+
+    // Attach pending changes for ATS tip implementation
+    if (processResult.intent === 'ats_tip' && processResult.pendingChanges) {
+      response.pending_changes = processResult.pendingChanges;
+      response.tip_numbers = processResult.atsTipNumbers;
+      response.intent = processResult.intent;
     }
 
     // Return response
