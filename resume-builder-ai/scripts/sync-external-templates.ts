@@ -43,7 +43,10 @@ async function syncTemplates(): Promise<void> {
 
   // Step 1: Validate source directory exists
   if (!fs.existsSync(EXTERNAL_TEMPLATES_SOURCE)) {
-    throw new Error(`Source directory not found: ${EXTERNAL_TEMPLATES_SOURCE}`);
+    console.log('⚠️  Source directory not found (expected in production/CI)');
+    console.log('📦 Using pre-synced templates from repository');
+    console.log('✅ Template sync skipped - using existing templates\n');
+    return; // Skip sync in production - templates are already in the repo
   }
 
   console.log(`📂 Source: ${EXTERNAL_TEMPLATES_SOURCE}`);
