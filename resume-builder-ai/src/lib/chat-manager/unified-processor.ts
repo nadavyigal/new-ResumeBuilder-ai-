@@ -13,6 +13,8 @@ import {
   CustomizationResult
 } from '../design-manager/customization-engine';
 import { DESIGN_KEYWORDS, CONTENT_KEYWORDS } from '../constants';
+import { generateAmendments, generateAmendmentsBatch } from '../ats/amendment-generator';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 
 export type MessageIntent = 'content' | 'design' | 'ats_tip' | 'unclear';
 
@@ -132,11 +134,30 @@ export function detectIntent(message: string): MessageIntent {
     return 'ats_tip';
   }
 
-  // Check for design intent
+  // Design-specific nouns that strongly indicate design intent
+  const DESIGN_SPECIFIC_NOUNS = [
+    'font', 'color', 'colour', 'style', 'layout', 'spacing', 'template', 'theme',
+    'background', 'header', 'footer', 'margin', 'padding', 'bold', 'italic',
+    'underline', 'arial', 'times', 'helvetica', 'calibri', 'size'
+  ];
+
+  // Generic action verbs that can apply to both design and content
+  const GENERIC_VERBS = ['change', 'update', 'modify', 'make', 'set', 'add'];
+
+  // Check if message contains design-specific nouns
+  const hasDesignNoun = DESIGN_SPECIFIC_NOUNS.some(noun => lowerMessage.includes(noun));
+
+  // Check for design intent keywords
   const hasDesignKeyword = DESIGN_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
 
-  // Check for content intent
+  // Check for content intent keywords
   const hasContentKeyword = CONTENT_KEYWORDS.some(keyword => lowerMessage.includes(keyword));
+
+  // IMPROVED: If message has design-specific noun + generic verb, it's design intent
+  // Example: "change font to Arial" → has 'font' (design noun) + 'change' (generic verb) → design
+  if (hasDesignNoun) {
+    return 'design';
+  }
 
   // Prioritize design if both are present but design is more specific
   if (hasDesignKeyword && !hasContentKeyword) {
@@ -148,16 +169,25 @@ export function detectIntent(message: string): MessageIntent {
     return 'content';
   }
 
-  // If both or neither, it's unclear
+  // If both or neither, count matches
   if (hasDesignKeyword && hasContentKeyword) {
-    // Try to determine which is more prominent
+    // Filter out generic verbs from content matches
+    const contentMatchesFiltered = CONTENT_KEYWORDS.filter(k =>
+      lowerMessage.includes(k) && !GENERIC_VERBS.includes(k)
+    );
+
     const designMatches = DESIGN_KEYWORDS.filter(k => lowerMessage.includes(k)).length;
-    const contentMatches = CONTENT_KEYWORDS.filter(k => lowerMessage.includes(k)).length;
+    const contentMatches = contentMatchesFiltered.length;
 
     if (designMatches > contentMatches) {
       return 'design';
     } else if (contentMatches > designMatches) {
       return 'content';
+    }
+
+    // If equal but has design keywords, prefer design
+    if (designMatches > 0) {
+      return 'design';
     }
   }
 
@@ -202,13 +232,12 @@ async function processDesignMessage(
 ): Promise<UnifiedProcessOutput> {
 
   // Check if design assignment exists
+  // Note: Allow design changes even without template by using 'natural' as pseudo-template
+  // This enables inline styling and customization for the natural/plain text view
   if (!input.currentTemplateId) {
-    return {
-      intent: 'design',
-      aiResponse: "You haven't selected a design template yet. Please choose a template from the 'Change Design' button first, then I can help you customize it!",
-      shouldApply: false,
-      requiresClarification: true
-    };
+    console.log('ℹ️ No template selected, using "natural" pseudo-template for inline styling');
+    input.currentTemplateId = 'natural';
+    input.currentDesignConfig = input.currentDesignConfig || {};
   }
 
   try {
@@ -301,41 +330,43 @@ async function processATSTipMessage(
     // Get the selected suggestions (convert 1-indexed to 0-indexed)
     const selectedSuggestions = tipNumbers.map(n => input.atsSuggestions![n - 1]);
 
-    // For now, return a response indicating preview mode
-    // The actual amendment generation will be handled in the next phase
     const tipList = selectedSuggestions
       .map((s, i) => `• Tip #${tipNumbers[i]}: ${s.text}`)
       .join('\n');
 
-    // TODO: Implement amendment generator to populate affectedFields
-    // This would require:
-    // 1. Parsing the suggestion text to extract specific changes
-    // 2. Mapping changes to resume sections (summary, experience, skills, etc.)
-    // 3. Computing before/after values for preview
-    //
-    // For now, affectedFields is empty - users will see general descriptions
-    // but won't see specific field-level previews. This is a known limitation
-    // until the amendment generator is fully implemented.
-    //
-    // Suggested implementation approach:
-    // - Create a separate `generateAmendments(suggestion, resumeContent)` function
-    // - Use pattern matching or AI to extract actionable changes from suggestion text
-    // - Return structured AffectedField[] with sectionId, field, originalValue, newValue
+    // Generate amendments for each selected suggestion
+    console.log(`🔄 Generating amendments for ${selectedSuggestions.length} suggestions...`);
+    const resumeContent = input.currentResumeContent as OptimizedResume;
+    const amendmentResults = await generateAmendmentsBatch(selectedSuggestions, resumeContent);
+
+    // Create pending changes with populated affectedFields
+    const pendingChanges = selectedSuggestions.map((s, i) => {
+      const result = amendmentResults.get(s.id);
+      const affectedFields = result?.success ? result.affectedFields : [];
+
+      if (!result?.success) {
+        console.warn(`Failed to generate amendments for suggestion ${s.id}:`, result?.error);
+      }
+
+      return {
+        suggestionId: s.id,
+        suggestionNumber: tipNumbers[i],
+        suggestionText: s.text,
+        description: s.explanation || s.text,
+        affectedFields, // Now populated with specific changes!
+        amendments: [],
+        status: 'pending' as const,
+        createdAt: new Date().toISOString()
+      };
+    });
+
+    console.log(`✅ Generated pending changes with ${pendingChanges.reduce((sum, pc) => sum + pc.affectedFields.length, 0)} total affected fields`);
 
     return {
       intent: 'ats_tip',
       aiResponse: `I'll prepare the following changes for your review:\n\n${tipList}\n\nPlease review the highlighted changes on your resume and approve or reject each one.`,
       atsTipNumbers: tipNumbers,
-      pendingChanges: selectedSuggestions.map((s, i) => ({
-        suggestionId: s.id,
-        suggestionNumber: tipNumbers[i],
-        suggestionText: s.text,
-        description: s.explanation || s.text,
-        affectedFields: [], // TODO: Will be populated by amendment generator (see above)
-        amendments: [],
-        status: 'pending',
-        createdAt: new Date().toISOString() // Use ISO string for proper serialization
-      })),
+      pendingChanges,
       shouldApply: false, // Preview mode - don't apply immediately
       requiresClarification: false
     };

@@ -49,6 +49,9 @@ export default function OptimizationPage() {
   const [jobDescriptionSummary, setJobDescriptionSummary] = useState<string>("");
   const [applying, setApplying] = useState(false);
 
+  // Pending changes for ATS tip highlighting
+  const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+
   const params = useParams();
   const supabase = createClientComponentClient();
 
@@ -240,20 +243,60 @@ export default function OptimizationPage() {
 
       console.log('🔄 Chat message sent, refreshing resume data...');
 
-      // Add delay to ensure database has been updated (increased to 2s for reliability)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // IMPROVED: Poll for updates instead of fixed delay
+      let attempts = 0;
+      const maxAttempts = 10;
+      let optimizationRow: any = null;
+      let optError: any = null;
+      let previousUpdatedAt: string | null = null;
 
-      // Refresh resume content with force update
-      // Use maybeSingle() instead of single() to avoid 406 errors
-      const { data: optimizationRow, error: optError } = await supabase
+      // Get initial updated_at timestamp to compare against
+      const { data: initialData } = await supabase
         .from("optimizations")
-        .select("rewrite_data")
+        .select("updated_at")
         .eq("id", idVal2)
         .maybeSingle();
 
-      if (optError) {
-        console.error('❌ Error fetching optimization data:', optError);
-      } else if (optimizationRow) {
+      previousUpdatedAt = initialData?.updated_at || null;
+      console.log('📅 Initial timestamp:', previousUpdatedAt);
+
+      while (attempts < maxAttempts) {
+        // Wait 500ms between polls
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Refresh resume content with force update
+        // Use maybeSingle() instead of single() to avoid 406 errors
+        // Include ATS scores to show score updates after implementing tips
+        const result = await supabase
+          .from("optimizations")
+          .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, updated_at")
+          .eq("id", idVal2)
+          .maybeSingle();
+
+        optimizationRow = result.data;
+        optError = result.error;
+
+        if (optError) {
+          console.error('❌ Error fetching optimization data:', optError);
+          break;
+        }
+
+        // Check if data has been updated (compare timestamp)
+        const currentUpdatedAt = optimizationRow?.updated_at;
+        if (currentUpdatedAt && currentUpdatedAt !== previousUpdatedAt) {
+          console.log('✅ Data updated! Previous:', previousUpdatedAt, '→ Current:', currentUpdatedAt, 'on attempt', attempts + 1);
+          break;
+        }
+
+        attempts++;
+        console.log(`⏳ Polling attempt ${attempts}/${maxAttempts}, no updates yet...`);
+      }
+
+      if (attempts >= maxAttempts) {
+        console.warn('⚠️ Max polling attempts reached, using last fetched data');
+      }
+
+      if (!optError && optimizationRow) {
         console.log('✅ Refreshed resume data after chat message');
         console.log('📊 Resume sections:', Object.keys((optimizationRow as any).rewrite_data || {}));
 
@@ -265,6 +308,24 @@ export default function OptimizationPage() {
         // Force a complete re-render by creating new object reference
         const newData = JSON.parse(JSON.stringify((optimizationRow as any).rewrite_data));
         setOptimizedResume(newData);
+
+        // Update ATS scores if they changed
+        const optRow = optimizationRow as any;
+        if (optRow.ats_score_optimized !== null || optRow.ats_score_original !== null) {
+          console.log('📊 Updating ATS scores:', {
+            original: optRow.ats_score_original,
+            optimized: optRow.ats_score_optimized
+          });
+
+          setAtsV2Data(prev => ({
+            ...prev,
+            ats_score_original: optRow.ats_score_original,
+            ats_score_optimized: optRow.ats_score_optimized,
+            subscores: optRow.ats_subscores,
+            subscores_original: optRow.ats_subscores_original
+          }));
+        }
+
         // Force component re-render
         setRefreshKey(prev => prev + 1);
       } else {
@@ -703,6 +764,7 @@ export default function OptimizationPage() {
               resumeData={optimizedResume}
               templateSlug={currentDesignAssignment?.template?.slug}
               customization={ephemeralCustomization || currentDesignAssignment?.customization}
+              pendingChanges={pendingChanges}
             />
           )}
         </div>
@@ -716,6 +778,7 @@ export default function OptimizationPage() {
                 onMessageSent={handleChatMessageSent}
                 onDesignPreview={(c) => setEphemeralCustomization(c)}
                 atsSuggestions={atsSuggestions}
+                onPendingChanges={setPendingChanges}
               />
             </div>
           )}

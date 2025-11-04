@@ -14,6 +14,7 @@ interface DesignRendererProps {
   resumeData: OptimizedResume;
   templateSlug?: string;
   customization?: any;
+  pendingChanges?: any[]; // ATS tip pending changes for highlighting
 }
 
 /**
@@ -160,7 +161,7 @@ function ExternalTemplateRenderer({
           minHeight: '1100px',
           height: '100%'
         }}
-        sandbox="allow-same-origin"
+        sandbox="allow-same-origin allow-scripts"
       />
     </div>
   );
@@ -538,27 +539,67 @@ function InternalTemplateRenderer({
 export function DesignRenderer({
   resumeData,
   templateSlug,
-  customization
+  customization,
+  pendingChanges = []
 }: DesignRendererProps) {
   // Check if this is an external template
   const isExternalTemplate = templateSlug && ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'].includes(templateSlug);
 
-  // Route to appropriate renderer
-  if (isExternalTemplate) {
-    return (
-      <ExternalTemplateRenderer
-        resumeData={resumeData}
-        templateSlug={templateSlug}
-        customization={customization}
-      />
-    );
-  }
+  // Calculate total affected sections
+  const affectedSections = new Set(
+    pendingChanges.flatMap(pc =>
+      (pc.affectedFields || []).map((af: any) => af.sectionId)
+    )
+  );
 
-  return (
+  // Route to appropriate renderer
+  const rendererComponent = isExternalTemplate ? (
+    <ExternalTemplateRenderer
+      resumeData={resumeData}
+      templateSlug={templateSlug}
+      customization={customization}
+      pendingChanges={pendingChanges}
+    />
+  ) : (
     <InternalTemplateRenderer
       resumeData={resumeData}
       templateSlug={templateSlug}
       customization={customization}
+      pendingChanges={pendingChanges}
     />
   );
+
+  // Render with pending changes indicator if applicable
+  if (pendingChanges.length > 0 && affectedSections.size > 0) {
+    return (
+      <div className="relative">
+        {/* Pending Changes Indicator Banner */}
+        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-l-4 border-yellow-500 px-4 py-2 shadow-md">
+          <div className="flex items-center gap-2 text-sm">
+            <svg className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <div className="flex-1">
+              <span className="font-semibold text-yellow-800 dark:text-yellow-300">
+                Preview Mode:
+              </span>
+              <span className="text-yellow-700 dark:text-yellow-400 ml-1">
+                {affectedSections.size} section(s) will be modified  ({Array.from(affectedSections).slice(0, 3).join(', ')}{affectedSections.size > 3 ? '...' : ''})
+              </span>
+            </div>
+            <span className="text-xs text-yellow-600 dark:text-yellow-400 italic">
+              Review in chat sidebar →
+            </span>
+          </div>
+        </div>
+
+        {/* Add padding to account for banner */}
+        <div className="pt-14">
+          {rendererComponent}
+        </div>
+      </div>
+    );
+  }
+
+  return rendererComponent;
 }
