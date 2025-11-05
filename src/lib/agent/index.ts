@@ -51,7 +51,7 @@ export class AgentRuntime {
     let resume = ensureResumeJson(input.resume_json);
 
     // Job text
-    let jobText = input.job_text;
+    let jobText = input.job_description ?? input.job_text;
     let jobMeta: any = undefined;
     if (!jobText && input.job_url) {
       actions.push({ tool: "JobLinkScraper.getJob", args: { job_url: input.job_url }, rationale: "Fetch job details" });

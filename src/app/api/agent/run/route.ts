@@ -16,6 +16,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const command = String(body.command || "");
+    const jobDescriptionRaw = typeof body.job_description === "string"
+      ? body.job_description
+      : typeof body.job_text === "string"
+        ? body.job_text
+        : undefined;
+    const jobDescription = typeof jobDescriptionRaw === "string"
+      ? jobDescriptionRaw.trim() || undefined
+      : undefined;
 
     // Gate by flags: disabled and not shadow => 501
     if (!agentFlags.enabled && !agentFlags.shadow) {
@@ -26,7 +34,7 @@ export async function POST(req: NextRequest) {
     if (agentFlags.shadow && !agentFlags.enabled) {
       // Legacy: use ai-optimizer to produce an optimized resume (no schema or DB coupling)
       const resumeText = typeof body.resume_text === 'string' ? body.resume_text : (body.resume_json?.summary ?? "");
-      const jobText = body.job_text ?? "";
+      const jobText = jobDescription ?? "";
       const legacy = await optimizeResume(resumeText, jobText);
 
       // Compute baseline ATS (before agent)
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest) {
         resume_file_path: body.resume_file_path,
         resume_json: body.resume_json,
         job_url: body.job_url,
-        job_text: body.job_text,
+        job_description: jobDescription,
         design: body.design,
       })
         .then(async (agentResult) => {
@@ -87,7 +95,7 @@ export async function POST(req: NextRequest) {
       resume_file_path: body.resume_file_path,
       resume_json: body.resume_json,
       job_url: body.job_url,
-      job_text: body.job_text,
+      job_description: jobDescription,
       design: body.design,
     });
     log("agent_run", "agent run completed", { userId: user.id, intent: result.intent });

@@ -17,6 +17,7 @@ describe('Diff safety contract', () => {
         keyImprovements: [],
         missingKeywords: [],
       } as any,
+      job_description: 'Looking for backend developers with API experience',
     });
 
     // Safety: no deletion unless an explicit delete op (we do not emit 'op' in v1)
