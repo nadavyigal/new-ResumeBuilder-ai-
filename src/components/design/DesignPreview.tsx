@@ -8,8 +8,9 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Check, Loader2 } from 'lucide-react';
+import { useLocalization } from '@/hooks/useLocalization';
 
 interface DesignPreviewProps {
   templateId: string;
@@ -18,6 +19,7 @@ interface DesignPreviewProps {
   onApply: () => void;
   onClose: () => void;
   isOpen: boolean;
+  previewUrl?: string | null;
 }
 
 export function DesignPreview({
@@ -26,18 +28,30 @@ export function DesignPreview({
   optimizationId,
   onApply,
   onClose,
-  isOpen
+  isOpen,
+  previewUrl,
 }: DesignPreviewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const { direction } = useLocalization();
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
       setError(null);
+      setRefreshKey((key) => key + 1);
     }
-  }, [isOpen, templateId]);
+  }, [isOpen, templateId, previewUrl]);
+
+  const previewSrc = useMemo(() => {
+    if (previewUrl) {
+      const separator = previewUrl.includes('?') ? '&' : '?';
+      return `${previewUrl}${separator}v=${refreshKey}`;
+    }
+    return `/api/v1/design/templates/${templateId}/preview?v=${refreshKey}`;
+  }, [previewUrl, templateId, refreshKey]);
 
   const handleApply = async () => {
     setApplying(true);
@@ -54,7 +68,7 @@ export function DesignPreview({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" dir={direction}>
       <div className="relative w-full max-w-6xl max-h-[95vh] bg-white dark:bg-gray-900 rounded-lg shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
@@ -110,7 +124,8 @@ export function DesignPreview({
           )}
 
           <iframe
-            src={`/api/v1/design/templates/${templateId}/preview`}
+            key={previewSrc}
+            src={previewSrc}
             className="w-full h-full border-none"
             title={`${templateName || 'Template'} Preview`}
             onLoad={() => setLoading(false)}
