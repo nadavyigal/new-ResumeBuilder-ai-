@@ -2,9 +2,16 @@ import { z } from "zod";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import type { AgentArtifacts, AgentResult, Diff, RunInput } from "./types";
 
+const DIFF_SCOPES = ["section", "paragraph", "bullet", "style", "layout"] as const;
+const PROPOSED_CHANGE_CATEGORIES = ["content", "structure", "formatting", "data_quality", "compliance"] as const;
+const CONFIDENCE_LEVELS = ["low", "medium", "high"] as const;
+const COACHING_TONES = ["supportive", "direct", "analytical"] as const;
+const COACHING_FOCUS = ["language", "skills", "metrics", "design", "ats"] as const;
+const LANGUAGE_SOURCES = ["heuristic", "model"] as const;
+
 // Core schemas
 export const DiffSchema = z.object({
-  scope: z.enum(["section", "paragraph", "bullet", "style", "layout"]).default("paragraph"),
+  scope: z.enum(DIFF_SCOPES).default("paragraph"),
   before: z.string().default(""),
   after: z.string().default(""),
 });
@@ -25,18 +32,52 @@ export const AgentArtifactsSchema = z.object({
 
 export const OptimizedResumeSchema: z.ZodType<OptimizedResume> = z.any();
 
+export const LanguageDetectionSchema = z.object({
+  lang: z.string(),
+  confidence: z.number().min(0).max(1),
+  rtl: z.boolean(),
+  source: z.enum(LANGUAGE_SOURCES).optional(),
+});
+
+export const ProposedChangeSchema = z.object({
+  id: z.string(),
+  summary: z.string(),
+  scope: z.enum(DIFF_SCOPES),
+  category: z.enum(PROPOSED_CHANGE_CATEGORIES),
+  confidence: z.enum(CONFIDENCE_LEVELS),
+  rationale: z.string().optional(),
+  before: z.string().optional(),
+  after: z.string().optional(),
+  requires_human_review: z.boolean().optional(),
+  tags: z.array(z.string()).optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
+export const CoachingPayloadSchema = z.object({
+  headline: z.string().optional(),
+  focus: z.array(z.enum(COACHING_FOCUS)).default([]),
+  tone: z.enum(COACHING_TONES).optional(),
+  guidance: z.array(z.string()).default([]),
+  proposed_changes: z.array(ProposedChangeSchema).optional(),
+  blockers: z.array(z.string()).optional(),
+  follow_up_questions: z.array(z.string()).optional(),
+  language: LanguageDetectionSchema.optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
 export const ATSReportSchema = z.object({
   score: z.number().min(0).max(100).default(0),
   missing_keywords: z.array(z.string()).default([]),
   recommendations: z.array(z.string()).default([]),
 });
 
-export const RunInputSchema: z.ZodType<RunInput> = z.object({
+const BaseRunInputSchema = z.object({
   userId: z.string(),
   command: z.string(),
   resume_file_path: z.string().optional(),
-  resume_json: z.any().optional(),
-  job_url: z.string().optional(),
+  resume_json: z.any(),
+  job_url: z.string().url().optional(),
+  job_description: z.string().trim().min(1).optional(),
   job_text: z.string().optional(),
   design: z
     .object({
@@ -48,6 +89,21 @@ export const RunInputSchema: z.ZodType<RunInput> = z.object({
     })
     .optional(),
 });
+
+export const RunInputSchema: z.ZodType<RunInput> = BaseRunInputSchema.superRefine((value, ctx) => {
+  if (!value.job_description && !value.job_url) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Provide job_description or job_url",
+      path: ["job_description"],
+    });
+  }
+}).transform((value) => {
+  return {
+    ...value,
+    job_text: value.job_description ?? value.job_text,
+  };
+}) as unknown as z.ZodType<RunInput>;
 
 export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
   intent: z.enum([
@@ -61,6 +117,7 @@ export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
     "redo",
     "compare",
     "save_history",
+    "resume.guide.optimize",
   ]),
   actions: z.array(
     z.object({
@@ -90,6 +147,9 @@ export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
     })
     .optional(),
   ui_prompts: z.array(z.string()).optional(),
+  proposed_changes: z.array(ProposedChangeSchema).optional(),
+  coaching: CoachingPayloadSchema.optional(),
+  language: LanguageDetectionSchema.optional(),
 });
 
 // Safe parse helpers (coerce or default)

@@ -18,7 +18,7 @@ describe('AgentResult schema contract: /api/agent/run', () => {
         keyImprovements: [],
         missingKeywords: [],
       } as any,
-      job_text: 'Looking for Kubernetes and Vercel experience',
+      job_description: 'Looking for Kubernetes and Vercel experience',
     });
 
     const parsed = AgentResultSchema.safeParse(result);

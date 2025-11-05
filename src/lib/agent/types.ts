@@ -67,7 +67,8 @@ export type Intent =
   | "undo"
   | "redo"
   | "compare"
-  | "save_history";
+  | "save_history"
+  | "resume.guide.optimize";
 
 export type DiffScope = "section" | "paragraph" | "bullet" | "style" | "layout";
 
@@ -100,7 +101,8 @@ export interface RunInput {
   userId: string;
   command: string;
   resume_file_path?: string;
-  resume_json?: OptimizedResume | any;
+  resume_json: OptimizedResume | any;
+  job_description?: string;
   job_url?: string;
   job_text?: string;
   design?: { font_family?: string; color_hex?: string; layout?: string; spacing?: string; density?: "compact" | "cozy" };
