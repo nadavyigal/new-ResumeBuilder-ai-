@@ -14,8 +14,9 @@ describe('SkillsMiner.extract', () => {
       missingKeywords: [],
     };
     const out = SkillsMiner.extract({ resume_json: resume as any, job_text: 'Experience with React and GraphQL' });
-    expect(Array.isArray(out)).toBe(true);
-    expect(new Set(out).size).toBe(out.length);
+    expect(Array.isArray(out.keywords)).toBe(true);
+    expect(new Set(out.keywords).size).toBe(out.keywords.length);
+    expect(out.languages.en?.gaps).toContain('experience');
   });
 });
 

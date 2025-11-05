@@ -6,18 +6,33 @@ import { safeParseAgentArtifacts } from "../validators";
 import { getFallbackArtifacts } from "../runtime/fallbacks";
 import { log } from "../utils/logger";
 
+function applyDirection(html: string, direction: "ltr" | "rtl", lang?: string): string {
+  if (!html || !html.includes("<html")) return html;
+  const langAttr = lang ? lang.toLowerCase() : direction === "rtl" ? "ar" : "en";
+  return html.replace(
+    /<html(.*?)>/i,
+    (_match, attrs) => {
+      const cleaned = attrs
+        .replace(/\sdir="(rtl|ltr)"/i, "")
+        .replace(/\slang="[^"]*"/i, "");
+      return `<html${cleaned} lang="${langAttr}" dir="${direction}">`;
+    }
+  );
+}
+
 export const LayoutEngine = {
   async render(resume_json: OptimizedResume, theme: any): Promise<{ html: string; preview_pdf_path?: string }> {
     const templateKey: TemplateType = (theme?.layout as TemplateType) || "ats-safe";
-    const html = renderTemplate(resume_json, templateKey);
+    const direction: "ltr" | "rtl" = theme?.direction === "rtl" || resume_json?.language?.rtl ? "rtl" : "ltr";
+    const lang = resume_json?.language?.lang;
+    const html = applyDirection(renderTemplate(resume_json, templateKey), direction, lang);
 
     // Try to generate a PDF preview and upload to Supabase Storage
     try {
       if (process.env.BENCH_SKIP_PDF === '1') {
-        const htmlOnly = renderTemplate(resume_json, templateKey);
-        return { html: htmlOnly };
+        return { html };
       }
-      const pdfBuffer = await generatePdf(resume_json);
+      const pdfBuffer = await generatePdf(html);
       const supabase = createServiceRoleClient();
       const bucket = "artifacts";
       const userId = resume_json?.contact?.email || "anon";

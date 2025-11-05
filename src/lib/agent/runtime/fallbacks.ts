@@ -7,6 +7,7 @@ export function getFallbackATS() {
     recommendations: [
       "We could not compute ATS score due to a transient issue. Try again shortly.",
     ],
+    languages: {},
   };
 }
 
