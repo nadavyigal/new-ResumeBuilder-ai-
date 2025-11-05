@@ -8,10 +8,16 @@ const createJestConfig = nextJest({
 // Add any custom config to be passed to Jest
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
+  // Use the Node test environment since our suites exercise server-side modules
+  // and agent utilities without requiring a DOM implementation. This avoids
+  // pulling in the separate `jest-environment-jsdom` package, which is blocked
+  // in the execution environment.
+  testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  modulePathIgnorePatterns: ['<rootDir>/resume-builder-ai'],
   testMatch: [
     '**/__tests__/**/*.test.[jt]s?(x)',
     '**/?(*.)+(spec|test).[jt]s?(x)',
