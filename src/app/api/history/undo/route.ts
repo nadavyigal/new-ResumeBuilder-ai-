@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { HistoryStore } from "@/lib/agent/tools/history-store";
 import { safeParseOptimizedResume } from "@/lib/agent/validators";
 import type { LanguageDetection } from "@/lib/agent/types";
+import { recordTelemetryEvent } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 
@@ -82,6 +83,23 @@ export async function handleHistoryNavigation(action: HistoryAction) {
     const atsScore = typeof transition.current.ats_score === "number" ? transition.current.ats_score : null;
 
     const timeline = HistoryStore.getTimeline(user.id);
+
+    if (action === "undo") {
+      await recordTelemetryEvent(supabase, {
+        name: "undo_usage",
+        userId: user.id,
+        payload: {
+          restored_entry_id: transition.current.id,
+          undone_entry_id: transition.moved?.id ?? null,
+          timeline: {
+            past: timeline.past.length,
+            future: timeline.future.length,
+          },
+          ats_score: atsScore,
+          language: language.lang,
+        },
+      });
+    }
 
     return NextResponse.json({
       resume_json: resumeJson,

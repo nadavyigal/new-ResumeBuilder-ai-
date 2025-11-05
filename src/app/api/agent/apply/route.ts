@@ -13,6 +13,7 @@ import { detectLanguage } from "@/lib/agent/utils/language";
 import { extractResumeText } from "@/lib/ats";
 import type { ThemeOptions } from "@/lib/agent/types";
 import { getFallbackATS, getFallbackArtifacts } from "@/lib/agent/runtime/fallbacks";
+import { recordTelemetryEvent } from "@/lib/telemetry";
 
 const ThemeSchema = z
   .object({
@@ -126,6 +127,57 @@ export async function POST(req: NextRequest) {
       artifacts: previewPath ? [{ type: "pdf", path: previewPath }] : [],
       proposed_changes,
     });
+
+    const categoryCounts = proposed_changes.reduce<Record<string, number>>((acc, change) => {
+      const category = change.category ?? "unknown";
+      acc[category] = (acc[category] ?? 0) + 1;
+      return acc;
+    }, {});
+
+    const requiresReviewCount = proposed_changes.reduce(
+      (count, change) => (change.requires_human_review ? count + 1 : count),
+      0
+    );
+
+    const missingKeywords = atsReport.missing_keywords ?? [];
+
+    await Promise.allSettled([
+      recordTelemetryEvent(supabase, {
+        name: "proposal_acceptance",
+        userId: user.id,
+        payload: {
+          history_entry_id: history.id,
+          resume_version_id: version.resume_version_id,
+          proposed_change_count: proposed_changes.length,
+          requires_review_count: requiresReviewCount,
+          categories: categoryCounts,
+          ats_after: afterScore,
+          ats_before: beforeScore,
+          ats_delta: delta,
+        },
+      }),
+      recordTelemetryEvent(supabase, {
+        name: "ats_delta",
+        userId: user.id,
+        payload: {
+          before: beforeScore,
+          after: afterScore,
+          delta,
+          missing_keyword_count: missingKeywords.length,
+          top_missing_keywords: missingKeywords.slice(0, 5),
+        },
+      }),
+      recordTelemetryEvent(supabase, {
+        name: "language_distribution",
+        userId: user.id,
+        payload: {
+          language: language.lang,
+          confidence: language.confidence,
+          rtl: language.rtl,
+          source: language.source ?? "unknown",
+        },
+      }),
+    ]);
 
     return NextResponse.json({
       resume_json: normalizedResume,
