@@ -24,11 +24,11 @@ function isNumericKey(key: string): boolean {
   return /^\d+$/.test(key);
 }
 
-function ensureContainer(container: any, key: string): any {
-  if (container[key] === undefined) {
-    container[key] = isNumericKey(key) ? [] : {};
+function createContainerForNextSegment(nextSegment: string | undefined): any {
+  if (nextSegment === undefined || nextSegment === '') {
+    return {};
   }
-  return container[key];
+  return nextSegment === '-' || isNumericKey(nextSegment) ? [] : {};
 }
 
 export function getByPointer<T = any>(target: unknown, pointer: JSONPointer): T | undefined {
@@ -96,15 +96,21 @@ export function setByPointer(target: any, pointer: JSONPointer, value: unknown):
       break;
     }
 
+    const nextSegment = segments[i + 1];
+
     if (Array.isArray(current)) {
       const index = segment === '-' ? current.length : parseInt(segment, 10);
       if (Number.isNaN(index)) {
         throw new Error(`Invalid array index '${segment}' in pointer ${pointer}`);
       }
-      current[index] = ensureContainer(current, index.toString());
+      if (current[index] === undefined) {
+        current[index] = createContainerForNextSegment(nextSegment);
+      }
       current = current[index];
     } else {
-      current[segment] = ensureContainer(current, segment);
+      if (current[segment] === undefined) {
+        current[segment] = createContainerForNextSegment(nextSegment);
+      }
       current = current[segment];
     }
   }
