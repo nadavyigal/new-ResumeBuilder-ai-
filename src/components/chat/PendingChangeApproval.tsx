@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, ChevronDown, ChevronUp, Loader2, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { ProposedChange } from '@/lib/agent/types';
@@ -121,6 +121,35 @@ export function PendingChangeApproval({
   const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const knownProposedIdsRef = useRef<Set<string>>(new Set(proposedChanges.map((change) => change.id)));
+
+  useEffect(() => {
+    const currentIds = new Set(proposedChanges.map((change) => change.id));
+    const previousIds = knownProposedIdsRef.current;
+    let hasMutation = false;
+
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+
+      for (const id of currentIds) {
+        if (!previousIds.has(id)) {
+          next.add(id);
+          hasMutation = true;
+        }
+      }
+
+      for (const id of Array.from(next)) {
+        if (!currentIds.has(id)) {
+          next.delete(id);
+          hasMutation = true;
+        }
+      }
+
+      return hasMutation ? next : previous;
+    });
+
+    knownProposedIdsRef.current = currentIds;
+  }, [proposedChanges]);
 
   const allSelected = useMemo(() => proposedChanges.every((change) => selectedIds.has(change.id)), [proposedChanges, selectedIds]);
   const selectedChanges = useMemo(() => proposedChanges.filter((change) => selectedIds.has(change.id)), [proposedChanges, selectedIds]);
