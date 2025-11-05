@@ -15,12 +15,47 @@ import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { ATSCompactScoreCard } from "@/components/ats/ATSCompactScoreCard";
 import type { ATSScoreOutput } from "@/lib/ats/types";
+import { LocalizationProvider, useLocalization } from "@/hooks/useLocalization";
+
+type HistoryNavigationResponse = {
+  resume_json: OptimizedResume;
+  preview_url: string | null;
+  after_scores?: {
+    ats?: {
+      score: number | null;
+      before: number | null;
+      delta: number | null;
+      missing_keywords?: string[];
+      recommendations?: string[];
+      languages?: Record<string, unknown>;
+    };
+  };
+  history_entry_id?: string;
+  language?: {
+    lang: string;
+    confidence?: number;
+    rtl?: boolean;
+    source?: string;
+  };
+  timeline?: {
+    past: string[];
+    future: string[];
+  };
+};
 
 
 // Disable static generation for this dynamic page
 export const dynamic = 'force-dynamic';
 
 export default function OptimizationPage() {
+  return (
+    <LocalizationProvider>
+      <OptimizationPageInner />
+    </LocalizationProvider>
+  );
+}
+
+function OptimizationPageInner() {
   const [resumeText, setResumeText] = useState("");
   const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
@@ -39,6 +74,8 @@ export default function OptimizationPage() {
   const [designLoading, setDesignLoading] = useState(false);
   // Ephemeral customization from chat for instant preview
   const [ephemeralCustomization, setEphemeralCustomization] = useState<any>(null);
+  const [currentPreviewUrl, setCurrentPreviewUrl] = useState<string | null>(null);
+  const [historyTimeline, setHistoryTimeline] = useState<{ past: string[]; future: string[] }>({ past: [], future: [] });
 
   // Job description data for Apply functionality
   const [jobDescription, setJobDescription] = useState<any>(null);
@@ -47,6 +84,13 @@ export default function OptimizationPage() {
 
   const params = useParams();
   const supabase = createClientComponentClient();
+  const { setLanguage } = useLocalization();
+
+  useEffect(() => {
+    if (currentPreviewUrl !== null) {
+      setRefreshKey((prev) => prev + 1);
+    }
+  }, [currentPreviewUrl]);
 
   const generateJobDescriptionSummary = (jdData: any) => {
     try {
@@ -103,6 +147,51 @@ export default function OptimizationPage() {
       setJobDescriptionSummary(fallback);
     }
   };
+
+  const applyHistoryPayload = useCallback((payload?: HistoryNavigationResponse) => {
+    if (!payload) return;
+
+    if (payload.resume_json) {
+      const normalized = JSON.parse(JSON.stringify(payload.resume_json)) as OptimizedResume;
+      setOptimizedResume(normalized);
+      setRefreshKey((prev) => prev + 1);
+    }
+
+    if (payload.preview_url !== undefined) {
+      setCurrentPreviewUrl(payload.preview_url);
+    }
+
+    if (payload.language) {
+      setLanguage({
+        lang: payload.language.lang ?? 'en',
+        confidence: payload.language.confidence ?? 0,
+        rtl: Boolean(payload.language.rtl),
+        source: payload.language.source ?? 'heuristic',
+      });
+    }
+
+    if (payload.after_scores?.ats) {
+      const summary = payload.after_scores.ats;
+      if (typeof summary.score === 'number') {
+        setMatchScore(summary.score);
+      }
+      setAtsScoreData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ats_score_original: summary.before ?? prev.ats_score_original,
+          ats_score_optimized: summary.score ?? prev.ats_score_optimized,
+        };
+      });
+    }
+
+    if (payload.timeline) {
+      setHistoryTimeline({
+        past: Array.isArray(payload.timeline.past) ? payload.timeline.past : [],
+        future: Array.isArray(payload.timeline.future) ? payload.timeline.future : [],
+      });
+    }
+  }, [setLanguage]);
 
   const fetchOptimizationData = async () => {
     try {
@@ -581,15 +670,25 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* Design Controls (if customizations exist) */}
-      {currentDesignAssignment?.customization && (
+      {/* Design Controls (History + Customizations) */}
+      {(currentDesignAssignment?.customization || historyTimeline.past.length > 0) && (
         <div className="mb-6 print:hidden">
           <UndoControls
             optimizationId={params.id as string}
-            canUndo={!!currentDesignAssignment?.previous_customization_id}
+            canUndo={historyTimeline.past.length > 0}
+            canRedo={historyTimeline.future.length > 0}
             hasCustomizations={!!currentDesignAssignment?.customization}
-            onUndo={handleDesignUpdate}
-            onRevert={handleDesignUpdate}
+            onUndo={(payload) => {
+              applyHistoryPayload(payload);
+              handleDesignUpdate();
+            }}
+            onRedo={(payload) => {
+              applyHistoryPayload(payload);
+              handleDesignUpdate();
+            }}
+            onRevert={() => {
+              handleDesignUpdate();
+            }}
           />
         </div>
       )}

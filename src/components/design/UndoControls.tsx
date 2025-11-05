@@ -9,48 +9,110 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Undo, RotateCcw, Loader2 } from 'lucide-react';
+import { Undo, RotateCcw, Loader2, Redo2 } from 'lucide-react';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
+import type { LanguageDetection } from '@/lib/agent/types';
+import { useLocalization } from '@/hooks/useLocalization';
 
 interface UndoControlsProps {
   optimizationId: string;
   canUndo: boolean;
   hasCustomizations: boolean;
-  onUndo: () => void;
+  canRedo?: boolean;
+  onUndo: (payload?: HistoryNavigationResponse) => void;
+  onRedo?: (payload?: HistoryNavigationResponse) => void;
   onRevert: () => void;
+}
+
+interface HistoryNavigationResponse {
+  resume_json: OptimizedResume;
+  preview_url: string | null;
+  after_scores?: {
+    ats?: {
+      score: number;
+      before: number | null;
+      delta: number | null;
+      missing_keywords?: string[];
+      recommendations?: string[];
+      languages?: Record<string, unknown>;
+    };
+  };
+  history_entry_id?: string;
+  language?: LanguageDetection;
+  timeline?: {
+    past: string[];
+    future: string[];
+  };
 }
 
 export function UndoControls({
   optimizationId,
   canUndo,
   hasCustomizations,
+  canRedo = false,
   onUndo,
+  onRedo,
   onRevert
 }: UndoControlsProps) {
   const [isUndoing, setIsUndoing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
+  const [isRedoing, setIsRedoing] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
+  const { setLanguage } = useLocalization();
 
   const handleUndo = async () => {
     if (!canUndo || isUndoing) return;
 
     setIsUndoing(true);
     try {
-      const response = await fetch(`/api/v1/design/${optimizationId}/undo`, {
-        method: 'POST'
+      const response = await fetch('/api/history/undo', {
+        method: 'POST',
       });
 
+      const data: HistoryNavigationResponse & { error?: string } = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to undo');
+        throw new Error(data?.error || 'Failed to undo');
       }
 
-      // Notify parent component
-      onUndo();
+      if (data.language) {
+        setLanguage(data.language);
+      }
+
+      onUndo(data);
     } catch (error) {
       console.error('Undo failed:', error);
       alert(error instanceof Error ? error.message : 'Failed to undo');
     } finally {
       setIsUndoing(false);
+    }
+  };
+
+  const handleRedo = async () => {
+    if (!canRedo || isRedoing) return;
+
+    setIsRedoing(true);
+    try {
+      const response = await fetch('/api/history/redo', {
+        method: 'POST',
+      });
+
+      const data: HistoryNavigationResponse & { error?: string } = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to redo');
+      }
+
+      if (data.language) {
+        setLanguage(data.language);
+      }
+
+      onRedo?.(data);
+    } catch (error) {
+      console.error('Redo failed:', error);
+      alert(error instanceof Error ? error.message : 'Failed to redo');
+    } finally {
+      setIsRedoing(false);
     }
   };
 
@@ -101,6 +163,21 @@ export function UndoControls({
             <Undo className="w-4 h-4" />
           )}
           Undo
+        </button>
+
+        {/* Redo Button */}
+        <button
+          onClick={handleRedo}
+          disabled={!canRedo || isRedoing || isUndoing || isReverting}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={canRedo ? 'Redo reverted change' : 'No changes to redo'}
+        >
+          {isRedoing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Redo2 className="w-4 h-4" />
+          )}
+          Redo
         </button>
 
         {/* Revert Button */}

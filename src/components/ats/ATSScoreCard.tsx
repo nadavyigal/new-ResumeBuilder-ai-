@@ -4,22 +4,41 @@
  * Displays original vs optimized ATS scores with improvement delta
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import type { ATSScoreOutput } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ATSScoreCardProps {
   scoreData: ATSScoreOutput;
   showDetails?: boolean;
+  afterSummary?: {
+    score: number;
+    before: number | null;
+    delta: number | null;
+  };
 }
 
-export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProps) {
-  const improvement = scoreData.ats_score_optimized - scoreData.ats_score_original;
-  const improvementPercent = scoreData.ats_score_original > 0
-    ? ((improvement / scoreData.ats_score_original) * 100).toFixed(1)
-    : '0';
+export function ATSScoreCard({ scoreData, showDetails = true, afterSummary }: ATSScoreCardProps) {
+  const summary = useMemo(() => {
+    const after = typeof afterSummary?.score === 'number' ? afterSummary.score : scoreData.ats_score_optimized;
+    const before = afterSummary?.before ?? scoreData.ats_score_original ?? null;
+    const delta = typeof afterSummary?.delta === 'number'
+      ? afterSummary.delta
+      : before !== null
+        ? after - before
+        : null;
+
+    const improvementPercent = before && before > 0 && delta !== null
+      ? ((delta / before) * 100).toFixed(1)
+      : null;
+
+    return { after, before, delta, improvementPercent };
+  }, [afterSummary, scoreData.ats_score_optimized, scoreData.ats_score_original]);
+
+  const hasImprovement = summary.delta !== null && summary.delta !== 0;
 
   return (
     <Card>
@@ -36,39 +55,45 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         <div className="flex items-center justify-between mb-6">
           <div className="text-center">
             <div className="text-sm text-gray-600 mb-1">Original</div>
-            <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_original)}`}>
-              {scoreData.ats_score_original}
+            <div className={`text-4xl font-bold ${getScoreColor(summary.before ?? scoreData.ats_score_original)}`}>
+              {summary.before ?? scoreData.ats_score_original}
             </div>
             <div className="text-xs text-gray-500">out of 100</div>
           </div>
 
           <div className="flex flex-col items-center px-4">
             <ArrowRight className="w-8 h-8 text-gray-400 mb-2" />
-            {improvement > 0 && (
+            {hasImprovement && summary.delta !== null && summary.delta > 0 && (
               <div className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-sm font-medium">+{improvement} pts</span>
+                <span className="text-sm font-medium">+{summary.delta} pts</span>
+              </div>
+            )}
+            {summary.delta !== null && summary.delta <= 0 && (
+              <div className="flex items-center gap-1 text-amber-600 text-sm font-medium">
+                {summary.delta === 0 ? 'No change' : `${summary.delta} pts`}
               </div>
             )}
           </div>
 
           <div className="text-center">
             <div className="text-sm text-gray-600 mb-1">Optimized</div>
-            <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_optimized)}`}>
-              {scoreData.ats_score_optimized}
+            <div className={`text-4xl font-bold ${getScoreColor(summary.after)}`}>
+              {summary.after}
             </div>
             <div className="text-xs text-gray-500">out of 100</div>
           </div>
         </div>
 
         {/* Improvement Summary */}
-        {improvement > 0 && (
+        {summary.delta !== null && summary.delta !== 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
               <div>
                 <div className="font-medium text-green-900">
-                  {improvement} point improvement ({improvementPercent}%)
+                  {summary.delta > 0 ? `+${summary.delta}` : summary.delta} point change
+                  {summary.improvementPercent ? ` (${summary.improvementPercent}%)` : null}
                 </div>
                 <div className="text-sm text-green-700">
                   Your optimized resume scores significantly better!
@@ -77,6 +102,26 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
             </div>
           </div>
         )}
+
+        {/* Delta Badges */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Badge variant="outline" className="text-xs">
+            Before: {summary.before ?? '—'}
+          </Badge>
+          <Badge
+            className={cn(
+              'text-xs',
+              summary.delta !== null && summary.delta > 0 && 'bg-emerald-100 text-emerald-700',
+              summary.delta !== null && summary.delta < 0 && 'bg-red-100 text-red-700',
+              summary.delta === 0 && 'bg-slate-100 text-slate-700'
+            )}
+          >
+            Δ {summary.delta !== null && summary.delta > 0 ? `+${summary.delta}` : summary.delta ?? '—'}
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            After: {summary.after}
+          </Badge>
+        </div>
 
         {/* Details */}
         {showDetails && (

@@ -9,6 +9,7 @@ import type { SubScores } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface SubScoreBreakdownProps {
   subscores: SubScores;
@@ -84,10 +85,23 @@ export function SubScoreBreakdown({
                     <span className={`text-sm font-medium ${getScoreColor(score)}`}>
                       {score}
                     </span>
-                    {showComparison && improvement !== 0 && (
-                      <span className={`text-xs ${improvement > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ({improvement > 0 ? '+' : ''}{improvement})
-                      </span>
+                    {showComparison && originalScore !== undefined && (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px]">
+                          {originalScore}
+                        </Badge>
+                        <Badge
+                          className={`text-[10px] ${
+                            improvement > 0
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : improvement < 0
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          Δ {improvement > 0 ? `+${improvement}` : improvement}
+                        </Badge>
+                      </div>
                     )}
                   </div>
                 </div>
