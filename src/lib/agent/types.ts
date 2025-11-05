@@ -1,5 +1,62 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 
+export type ConfidenceLevel = "low" | "medium" | "high";
+
+export enum ProposedChangeCategory {
+  Content = "content",
+  Structure = "structure",
+  Formatting = "formatting",
+  DataQuality = "data_quality",
+  Compliance = "compliance",
+}
+
+export enum CoachingTone {
+  Supportive = "supportive",
+  Direct = "direct",
+  Analytical = "analytical",
+}
+
+export enum CoachingFocusArea {
+  Language = "language",
+  Skills = "skills",
+  Metrics = "metrics",
+  Design = "design",
+  Ats = "ats",
+}
+
+export interface LanguageDetection {
+  lang: string;
+  confidence: number;
+  rtl: boolean;
+  source?: "heuristic" | "model";
+}
+
+export interface ProposedChange {
+  id: string;
+  summary: string;
+  scope: DiffScope;
+  category: ProposedChangeCategory;
+  confidence: ConfidenceLevel;
+  rationale?: string;
+  before?: string;
+  after?: string;
+  requires_human_review?: boolean;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface CoachingPayload {
+  headline?: string;
+  focus: CoachingFocusArea[];
+  tone?: CoachingTone;
+  guidance: string[];
+  proposed_changes?: ProposedChange[];
+  blockers?: string[];
+  follow_up_questions?: string[];
+  language?: LanguageDetection;
+  metadata?: Record<string, unknown>;
+}
+
 export type Intent =
   | "rewrite"
   | "add_skills"
@@ -34,6 +91,9 @@ export interface AgentResult {
     notes?: string;
   };
   ui_prompts?: string[];
+  proposed_changes?: ProposedChange[];
+  coaching?: CoachingPayload;
+  language?: LanguageDetection;
 }
 
 export interface RunInput {
