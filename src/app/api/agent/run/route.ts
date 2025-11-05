@@ -272,12 +272,14 @@ function mergeAtsReports(
   return {
     ...primary,
     score: typeof primary.score === "number" ? primary.score : fallback.score,
-    missing_keywords: primary.missing_keywords?.length
-      ? primary.missing_keywords
-      : fallback.missing_keywords,
-    recommendations: primary.recommendations?.length
-      ? primary.recommendations
-      : fallback.recommendations,
+    missing_keywords:
+      primary.missing_keywords !== undefined && primary.missing_keywords !== null
+        ? primary.missing_keywords
+        : fallback.missing_keywords,
+    recommendations:
+      primary.recommendations !== undefined && primary.recommendations !== null
+        ? primary.recommendations
+        : fallback.recommendations,
     languages: Object.keys(primary.languages ?? {}).length
       ? primary.languages
       : fallback.languages,
