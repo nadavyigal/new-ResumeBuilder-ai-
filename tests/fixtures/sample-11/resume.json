@@ -1,0 +1,35 @@
+{
+  "summary": "מפתח תוכנה עם ניסיון בבניית מערכות ווב ואפליקציות מובייל.",
+  "contact": {
+    "name": "דניאל כהן",
+    "email": "daniel@example.com",
+    "phone": "+972-52-1234567",
+    "location": "תל אביב, ישראל"
+  },
+  "skills": {
+    "technical": ["React", "Node.js", "TypeScript", "GraphQL"],
+    "soft": ["עבודה בצוות", "יצירתיות"]
+  },
+  "experience": [
+    {
+      "company": "סטארטאפ מוביל",
+      "position": "מפתח פול סטאק",
+      "startDate": "2022-01",
+      "endDate": "",
+      "description": "פיתוח רכיבי UI מורכבים ולוגיקת שרת",
+      "achievements": ["הובלת פרויקט מיקרו-שרותים", "שיפור ביצועים ב-30%"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "האוניברסיטה העברית",
+      "degree": "B.Sc מדעי המחשב",
+      "startDate": "2017-10",
+      "endDate": "2021-06",
+      "gpa": "87"
+    }
+  ],
+  "matchScore": 62,
+  "keyImprovements": [],
+  "missingKeywords": []
+}
