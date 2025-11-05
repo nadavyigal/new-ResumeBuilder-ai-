@@ -274,10 +274,17 @@ export async function POST(request: NextRequest) {
         resume_updated: !!updatedResumeData,
         suggestion_id: suggestion.id
       });
-      // Don't fail the request if score calculation fails
+
+      // Return error response so frontend knows score update failed
+      return NextResponse.json({
+        success: false,
+        error: 'Changes applied but ATS score calculation failed',
+        details: scoreError instanceof Error ? scoreError.message : 'Unknown error',
+        updated_resume: updatedResumeData,
+      }, { status: 500 });
     }
 
-    // Return success even if scoring failed
+    // This should not be reached anymore (score calculation always returns inside try/catch)
     return NextResponse.json({
       success: true,
       message: `Applied changes from Tip #${suggestion.number || '?'}`,
