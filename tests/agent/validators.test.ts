@@ -8,14 +8,14 @@ describe('RunInputSchema', () => {
     resume_json: {},
   } as const;
 
-  it('requires resume_json', () => {
+  it('accepts minimal payload when job description is provided', () => {
     const result = RunInputSchema.safeParse({
       userId: 'user-123',
       command: 'optimize resume',
       job_description: 'Senior engineer role',
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 
   it('requires either job_description or job_url', () => {

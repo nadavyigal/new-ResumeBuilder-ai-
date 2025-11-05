@@ -94,7 +94,8 @@ export class AgentRuntime {
     let ats_report = getFallbackATS();
     let atsDegraded = false;
     try {
-      ats_report = safeParseATSReport(ATS.score({ resume_json: resume, job_text: jobText }));
+      const atsResult = await ATS.score({ resume_json: resume, job_text: jobText });
+      ats_report = safeParseATSReport(atsResult);
     } catch (e: any) {
       log("tool_error", "ATS.score exception bubbled", { error: e?.message });
       ats_report = getFallbackATS();

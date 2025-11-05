@@ -114,6 +114,9 @@ export interface ThemeOptions {
   spacing?: string;
   density?: "compact" | "cozy";
   layout?: string;
+  direction?: "ltr" | "rtl";
+  language?: string;
+  rtl?: boolean;
 }
 
 export interface AgentArtifacts {

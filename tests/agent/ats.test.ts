@@ -15,10 +15,11 @@ const resume = {
 };
 
 describe('ATS.score', () => {
-  it('returns a numeric score and recommendations', () => {
-    const rep = ATS.score({ resume_json: resume as any, job_text: 'Looking for React and GraphQL experience' });
+  it('returns a numeric score and recommendations', async () => {
+    const rep = await ATS.score({ resume_json: resume as any, job_text: 'Looking for React and GraphQL experience' });
     expect(typeof rep.score).toBe('number');
     expect(Array.isArray(rep.missing_keywords)).toBe(true);
+    expect(rep.languages).toBeDefined();
   });
 });
 

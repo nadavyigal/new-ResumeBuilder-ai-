@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import type { AgentArtifacts, AgentResult, Diff, RunInput } from "./types";
+import type { SubScores } from "@/lib/ats/types";
 
 const DIFF_SCOPES = ["section", "paragraph", "bullet", "style", "layout"] as const;
 const PROPOSED_CHANGE_CATEGORIES = ["content", "structure", "formatting", "data_quality", "compliance"] as const;
@@ -65,10 +66,43 @@ export const CoachingPayloadSchema = z.object({
   metadata: z.record(z.any()).optional(),
 });
 
+const SubScoreSchema = z
+  .object({
+    keyword_exact: z.number().min(0).max(100).default(0),
+    keyword_phrase: z.number().min(0).max(100).default(0),
+    semantic_relevance: z.number().min(0).max(100).default(0),
+    title_alignment: z.number().min(0).max(100).default(0),
+    metrics_presence: z.number().min(0).max(100).default(0),
+    section_completeness: z.number().min(0).max(100).default(0),
+    format_parseability: z.number().min(0).max(100).default(0),
+    recency_fit: z.number().min(0).max(100).default(0),
+  })
+  .default({
+    keyword_exact: 0,
+    keyword_phrase: 0,
+    semantic_relevance: 0,
+    title_alignment: 0,
+    metrics_presence: 0,
+    section_completeness: 0,
+    format_parseability: 0,
+    recency_fit: 0,
+  } satisfies SubScores);
+
 export const ATSReportSchema = z.object({
   score: z.number().min(0).max(100).default(0),
   missing_keywords: z.array(z.string()).default([]),
   recommendations: z.array(z.string()).default([]),
+  languages: z
+    .record(
+      z.object({
+        score: z.number().min(0).max(100).default(0),
+        rtl: z.boolean().default(false),
+        subscores: SubScoreSchema,
+        missing_keywords: z.array(z.string()).default([]),
+        gaps: z.array(z.string()).default([]),
+      })
+    )
+    .default({}),
 });
 
 const BaseRunInputSchema = z.object({
@@ -165,7 +199,9 @@ export function safeParseAgentArtifacts(value: unknown): AgentArtifacts {
 
 export function safeParseATSReport(value: unknown) {
   const parsed = ATSReportSchema.safeParse(value);
-  return parsed.success ? parsed.data : { score: 0, missing_keywords: [], recommendations: [] };
+  return parsed.success
+    ? parsed.data
+    : { score: 0, missing_keywords: [], recommendations: [], languages: {} };
 }
 
 export function safeParseOptimizedResume(value: unknown): OptimizedResume | any {
