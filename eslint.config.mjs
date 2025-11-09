@@ -18,6 +18,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Exclude nested copy of the project and duplicate scripts folder
+      "resume-builder-ai/**",
+      "scripts/scripts/**",
     ],
   },
 ];

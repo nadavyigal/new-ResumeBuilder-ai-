@@ -2,11 +2,14 @@ import OpenAI from "openai";
 import type { Intent } from "./types";
 
 const INTENT_REGEX: Array<{ intent: Intent; pattern: RegExp }> = [
+  { intent: "tip_implementation", pattern: /(implement|apply|use|do)\s+tip[s]?\s+\d+/i },
+  { intent: "color_customization", pattern: /(change|make|set|update)\s+(?:the\s+)?(?:background|header[s]?|text|font|primary|accent)\s+(?:color\s+)?(?:to\s+)?/i },
   { intent: "add_skills", pattern: /(add|include)\s+skills?/i },
   { intent: "rewrite", pattern: /(rewrite|strengthen|improve)\b/i },
-  { intent: "design", pattern: /(font|color|theme|style)\b/i },
+  { intent: "design", pattern: /(font|theme|style)\b/i },
   { intent: "layout", pattern: /layout|spacing|density/i },
-  { intent: "ats_optimize", pattern: /optimi[sz]e\b|ats/i },
+  { intent: "ats_optimize", pattern: /\bats\b|\bats[ _-]?optimi[sz]e\b/i },
+  { intent: "optimize", pattern: /\bresume\.?guide\.?optimi[sz]e\b|\boptimi[sz]e\b/i },
   { intent: "export", pattern: /export|download|pdf|docx/i },
   { intent: "undo", pattern: /\bundo\b/i },
   { intent: "redo", pattern: /\bredo\b/i },
@@ -44,6 +47,7 @@ export async function classifyIntentLLM(command: string): Promise<Intent | null>
       "design",
       "layout",
       "ats_optimize",
+      "optimize",
       "export",
       "undo",
       "redo",

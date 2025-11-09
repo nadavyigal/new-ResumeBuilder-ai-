@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { chooseTargetLanguage } from '@/lib/i18n/language';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_USER_PROMPT,
@@ -87,6 +88,12 @@ export async function optimizeResume(
   try {
     const openai = getOpenAIClient();
 
+    const lang = chooseTargetLanguage({
+      resumeSummary: resumeText,
+      jobText: jobDescription,
+    });
+    const languageInstruction = `\n\nOUTPUT LANGUAGE: ${lang.code}. Write all textual content (summary, achievements, section labels where applicable) in this language. Follow RTL/LTR conventions implicitly.`;
+
     // Create the chat completion request
     const completion = await openai.chat.completions.create({
       model: OPTIMIZATION_CONFIG.model,
@@ -96,7 +103,7 @@ export async function optimizeResume(
       messages: [
         {
           role: 'system',
-          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT + languageInstruction,
         },
         {
           role: 'user',

@@ -9,6 +9,8 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
+  // Avoid scanning nested duplicate project tree to prevent haste collisions
+  modulePathIgnorePatterns: ['<rootDir>/resume-builder-ai/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },

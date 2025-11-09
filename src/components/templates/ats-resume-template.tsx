@@ -3,6 +3,7 @@ import { OptimizedResume } from '@/lib/ai-optimizer';
 
 interface ATSResumeTemplateProps {
   data: OptimizedResume;
+  customization?: any;
 }
 
 /**
@@ -11,9 +12,12 @@ interface ATSResumeTemplateProps {
  * Clean, single-column layout optimized for Applicant Tracking Systems.
  * No tables, graphics, or complex formatting - just pure, parseable text.
  */
-export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
+export function ATSResumeTemplate({ data, customization }: ATSResumeTemplateProps) {
   return (
-    <div className="max-w-4xl mx-auto bg-white p-8 shadow-sm rounded-lg border border-gray-200">
+    <div
+      className="max-w-4xl mx-auto p-8 shadow-sm rounded-lg border border-gray-200"
+      style={{ backgroundColor: customization?.color_scheme?.background || undefined }}
+    >
       {/* Header */}
       <header className="border-b-2 border-gray-900 pb-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">

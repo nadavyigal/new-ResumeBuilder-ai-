@@ -12,6 +12,7 @@
 
 import { OptimizedResume } from '../ai-optimizer';
 import { renderTemplatePreview, transformToJsonResume } from '../design-manager/template-renderer';
+import { chooseTargetLanguage } from '@/lib/i18n/language';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -119,10 +120,13 @@ export function getFreeTemplates(): Template[] {
  */
 export function generateATSSafeHTML(resume: OptimizedResume): string {
   const { contact, summary, skills, experience, education, certifications, projects } = resume;
+  const langInfo = chooseTargetLanguage({ resumeSummary: summary });
+  const langAttr = langInfo.code;
+  const dirAttr: 'ltr' | 'rtl' = langInfo.direction;
 
   return `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="${langAttr}" dir="${dirAttr}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -279,10 +283,13 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
  */
 export function generateModernHTML(resume: OptimizedResume): string {
   const { contact, summary, skills, experience, education, certifications, projects } = resume;
+  const langInfo = chooseTargetLanguage({ resumeSummary: summary });
+  const langAttr = langInfo.code;
+  const dirAttr: 'ltr' | 'rtl' = langInfo.direction;
 
   return `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="${langAttr}" dir="${dirAttr}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">

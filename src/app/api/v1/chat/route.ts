@@ -259,11 +259,105 @@ export async function POST(request: NextRequest) {
     // Get current resume content and design configuration for processing
     const { data: optimization } = await supabase
       .from('optimizations')
-      .select('rewrite_data, resume_id')
+      .select('rewrite_data, resume_id, ats_suggestions')
       .eq('id', optimization_id)
       .maybeSingle();
 
     const currentResumeContent = optimization?.rewrite_data || {};
+    
+    // Check for special intents first (before unified processor)
+    const { detectIntentRegex } = await import('@/lib/agent/intents');
+    const intent = detectIntentRegex(message);
+    
+    // Handle tip implementation
+    if (intent === 'tip_implementation') {
+      const { handleTipImplementation } = await import('@/lib/agent/handlers/handleTipImplementation');
+      const tipResult = await handleTipImplementation({
+        message,
+        optimizationId: optimization_id,
+        atsSuggestions: optimization?.ats_suggestions || [],
+      });
+      
+      // Save AI response
+      const aiResponseText = tipResult.message || (tipResult.success 
+        ? 'Applied the requested tips successfully!' 
+        : tipResult.error || 'Failed to apply tips');
+      
+      const { data: aiMessage } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: chatSession.id,
+          sender: 'ai',
+          content: aiResponseText,
+          metadata: {
+            intent: 'tip_implementation',
+            tips_applied: tipResult.tips_applied,
+          },
+        })
+        .select()
+        .maybeSingle();
+      
+      // Build response
+      const response: any = {
+        session_id: chatSession.id,
+        message_id: aiMessage?.id,
+        ai_response: aiResponseText,
+        requires_clarification: false,
+      };
+      
+      if (tipResult.tips_applied) {
+        response.tips_applied = tipResult.tips_applied;
+      }
+      
+      return NextResponse.json(response, { status: tipResult.success ? 200 : 400 });
+    }
+    
+    // Handle color customization
+    if (intent === 'color_customization') {
+      const { handleColorCustomization } = await import('@/lib/agent/handlers/handleColorCustomization');
+      const colorResult = await handleColorCustomization({
+        message,
+        optimizationId: optimization_id,
+        userId: user.id,
+      });
+      
+      // Save AI response
+      const aiResponseText = colorResult.message || (colorResult.success 
+        ? 'Applied color changes successfully!' 
+        : colorResult.error || 'Failed to apply colors');
+      
+      const { data: aiMessage } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: chatSession.id,
+          sender: 'ai',
+          content: aiResponseText,
+          metadata: {
+            intent: 'color_customization',
+            color_customization: colorResult.color_customization,
+          },
+        })
+        .select()
+        .maybeSingle();
+      
+      // Build response
+      const response: any = {
+        session_id: chatSession.id,
+        message_id: aiMessage?.id,
+        ai_response: aiResponseText,
+        requires_clarification: false,
+      };
+      
+      if (colorResult.color_customization) {
+        response.color_customization = colorResult.color_customization;
+      }
+      
+      if (colorResult.design_customization) {
+        response.design_customization = colorResult.design_customization;
+      }
+      
+      return NextResponse.json(response, { status: colorResult.success ? 200 : 400 });
+    }
 
     // Get design assignment and customization if exists
     const designAssignment = await getDesignAssignment(supabase, optimization_id, user.id);
@@ -284,16 +378,43 @@ export async function POST(request: NextRequest) {
 
     // Process message through unified processor with OpenAI Assistants API
     const startTime = Date.now();
-    const processResult = await processUnifiedMessage({
-      message,
-      sessionId: chatSession.id,
-      optimizationId: optimization_id,
-      currentResumeContent,
-      currentDesignConfig,
-      currentTemplateId,
-      threadId: (chatSession as any).thread_id, // OpenAI thread ID from session
-      resumeContext: (chatSession as any).resume_context // Resume context from session
-    });
+    let processResult: any;
+    try {
+      processResult = await processUnifiedMessage({
+        message,
+        sessionId: chatSession.id,
+        optimizationId: optimization_id,
+        currentResumeContent,
+        currentDesignConfig,
+        currentTemplateId: currentTemplateId || undefined,
+        threadId: (chatSession as any).openai_thread_id || undefined,
+        resumeContext: chatSession.resume_context || undefined,
+      });
+    } catch (e) {
+      // Fallback: simple local parsing for basic design intents
+      const lower = message.toLowerCase();
+      let designCustomization: any = null;
+      if (/background\s+color|background/i.test(lower)) {
+        const m = lower.match(/#?[0-9a-f]{3,6}|blue|green|red|yellow|orange|purple|pink|teal|navy|indigo|slate|zinc|brown/);
+        const color = m ? m[0] : 'blue';
+        designCustomization = { custom_css: `.resume-container { background-color: ${color}; }` };
+      } else {
+        const m = lower.match(/font\s+(?:to\s+)?([a-zA-Z\s-]+)/);
+        if (m && m[1]) {
+          const font = m[1].trim();
+          designCustomization = { custom_css: `.resume-container { font-family: '${font}', sans-serif; }` };
+        }
+      }
+      processResult = {
+        intent: designCustomization ? 'design' : 'unclear',
+        aiResponse: designCustomization ? 'Applied design update.' : 'Assistant offline. Try again later.',
+        designCustomization,
+        shouldApply: !!designCustomization,
+        requiresClarification: false,
+        updatedContext: chatSession.resume_context || undefined,
+        threadId: (chatSession as any).openai_thread_id || undefined,
+      };
+    }
     const processingTime = Date.now() - startTime;
 
     // Save thread_id and resume_context back to session
@@ -432,3 +553,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

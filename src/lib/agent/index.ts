@@ -10,6 +10,8 @@ import { ATS } from "./tools/ats";
 import { Versioning } from "./tools/versioning";
 import { HistoryStore } from "./tools/history-store";
 import { planWithLLM } from "./llm-planner";
+import { chooseTargetLanguage } from "@/lib/i18n/language";
+import type { ProposedChange } from "./types";
 import { safeParseAgentResult, safeParseATSReport, safeParseAgentArtifacts, safeParseOptimizedResume } from "./validators";
 import { getFallbackATS, getFallbackArtifacts, getFallbackDiffs } from "./runtime/fallbacks";
 import { log } from "./utils/logger";
@@ -90,6 +92,12 @@ export class AgentRuntime {
       diffs.push({ scope: "paragraph", before, after });
     }
 
+    // Determine target language (from resume summary and job text)
+    const language = chooseTargetLanguage({
+      resumeSummary: (resume as any)?.summary,
+      jobText,
+    });
+
     // ATS
     let ats_report = getFallbackATS();
     let atsDegraded = false;
@@ -145,6 +153,13 @@ export class AgentRuntime {
       ui_prompts.push("Undo/Redo/Compare are limited in v1. History is saved.");
     }
 
+    // Map diffs to coarse proposed changes for approval-capable UIs
+    const proposed_changes: ProposedChange[] = diffs.map((d, i) => ({
+      id: `pc_${Date.now()}_${i}`,
+      section: d.scope,
+      text: d.after,
+    }));
+
     const result: AgentResult = {
       intent,
       actions,
@@ -155,6 +170,8 @@ export class AgentRuntime {
         export_files: rendered.preview_pdf_path ? [{ type: "pdf", path: rendered.preview_pdf_path }] : [],
       }),
       ats_report: safeParseATSReport(ats_report),
+      proposed_changes,
+      language,
       history_record: {
         resume_version_id: version.resume_version_id,
         timestamp: version.created_at,

@@ -15,6 +15,8 @@ import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { ATSCompactScoreCard } from "@/components/ats/ATSCompactScoreCard";
 import type { ATSScoreOutput } from "@/lib/ats/types";
+import { ATSScoreCard } from "@/components/ats/ATSScoreCard";
+import { SubScoreBreakdown } from "@/components/ats/SubScoreBreakdown";
 
 
 // Disable static generation for this dynamic page
@@ -195,6 +197,31 @@ export default function OptimizationPage() {
   useEffect(() => {
     fetchOptimizationData();
   }, [params, supabase]);
+
+  // Fallback: if ATS v2 fields are missing in DB, compute on the client
+  useEffect(() => {
+    const computeClientATS = async () => {
+      try {
+        if (atsScoreData || !optimizedResume || !resumeText || !jobDescriptionText) return;
+        const res = await fetch('/api/ats/score', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            resume_original: resumeText,
+            resume_optimized: optimizedResume,
+            job_description: jobDescriptionText,
+            job_data: jobDescription || undefined,
+          }),
+        });
+        if (!res.ok) return;
+        const data: ATSScoreOutput = await res.json();
+        setAtsScoreData(data);
+      } catch (err) {
+        console.warn('ATS client compute failed:', err);
+      }
+    };
+    if (!loading) computeClientATS();
+  }, [loading, atsScoreData, optimizedResume, resumeText, jobDescriptionText, jobDescription]);
 
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
@@ -539,43 +566,64 @@ export default function OptimizationPage() {
 
   return (
     <CacheBustingErrorBoundary>
-    <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+    <div className="min-h-screen bg-[#f5f3f0] p-4 md:p-10">
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
-        <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+        <Link href="/dashboard/applications" className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1">
           ← Back to History
         </Link>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm font-medium text-gray-900">
           {jobDescription?.title && `${jobDescription.title} at ${jobDescription.company}`}
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
+      <div className="mb-6 flex flex-wrap gap-2.5 items-center print:hidden">
         {/* Apply Button - Primary Action */}
-        <Button onClick={handleApply} disabled={applying} className="bg-green-600 hover:bg-green-700">
+        <Button 
+          onClick={handleApply} 
+          disabled={applying} 
+          className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg font-medium shadow-sm"
+        >
           {applying ? '⏳ Applying...' : '✓ Apply Now'}
         </Button>
 
         {/* Export Actions */}
-        <div className="flex gap-3">
-          <Button onClick={handleCopyText} variant="outline">
-            📋 Copy as Text
-          </Button>
-          <Button onClick={handlePrint} variant="outline">
-            🖨️ Print
-          </Button>
-          <Button onClick={handleDownloadPDF}>
-            📄 Download PDF
-          </Button>
-          <Button onClick={handleDownloadDOCX} variant="outline">
-            📝 Download DOCX
-          </Button>
-        </div>
+        <Button 
+          onClick={handleCopyText} 
+          variant="outline" 
+          className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-50"
+        >
+          📋 Copy as Text
+        </Button>
+        <Button 
+          onClick={handlePrint} 
+          variant="outline" 
+          className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-50"
+        >
+          🖨️ Print
+        </Button>
+        <Button 
+          onClick={handleDownloadPDF} 
+          className="bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-lg shadow-sm"
+        >
+          📄 Download PDF
+        </Button>
+        <Button 
+          onClick={handleDownloadDOCX} 
+          variant="outline" 
+          className="px-4 py-2 rounded-lg border-gray-300 hover:bg-gray-50"
+        >
+          📝 Download DOCX
+        </Button>
 
         {/* Design Actions */}
-        <div className="flex gap-3 ml-auto">
-          <Button onClick={() => setShowDesignBrowser(true)} variant="outline">
+        <div className="flex gap-2.5 ml-auto">
+          <Button 
+            onClick={() => setShowDesignBrowser(true)} 
+            variant="outline" 
+            className="border-pink-300 text-pink-600 hover:bg-pink-50 hover:border-pink-400 px-4 py-2 rounded-lg"
+          >
             🎨 Change Design
           </Button>
         </div>
@@ -594,60 +642,38 @@ export default function OptimizationPage() {
         </div>
       )}
 
-      {/* Top Row: Current Design (Left) | ATS Score (Right) - Matches resume and chat widths exactly */}
-      <div className="mb-4 grid grid-cols-1 lg:grid-cols-3 gap-6 print:hidden">
-        {/* Current Design Info - Left side (2/3 width) - Exactly matches Resume width */}
-        <div className="lg:col-span-2">
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      {/* ATS Match Score - Full Width */}
+      {atsScoreData ? (
+        <div className="mb-4 print:hidden">
+          <ATSCompactScoreCard 
+            scoreData={atsScoreData} 
+            optimizationId={String(params.id || "")} 
+          />
+        </div>
+      ) : matchScore !== null && (
+        <div className="mb-4 print:hidden">
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  Current Design: {currentDesignAssignment?.template?.name || 'Natural (Clean Format)'}
+                <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                  ATS Match Score
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                  {currentDesignAssignment?.template?.description || 'Professional plain format • Click "Change Design" to browse templates'}
+                <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                  Job requirements match
                 </p>
               </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
-                ATS-Friendly
+              <span className="w-16 h-16 flex items-center justify-center bg-green-500 text-white text-2xl rounded-full font-bold shadow-sm">
+                {matchScore}%
               </span>
             </div>
           </div>
         </div>
-
-        {/* ATS Match Score - Right side (1/3 width) - Exactly matches AI Assistant width */}
-        {atsScoreData ? (
-          <div className="lg:col-span-1">
-            <ATSCompactScoreCard 
-              scoreData={atsScoreData} 
-              optimizationId={String(params.id || "")} 
-            />
-          </div>
-        ) : matchScore !== null && (
-          <div className="lg:col-span-1">
-            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-green-900 dark:text-green-100">
-                    ATS Match Score
-                  </p>
-                  <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
-                    Job requirements match
-                  </p>
-                </div>
-                <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xl rounded-full font-bold">
-                  {matchScore}%
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Main Layout: Resume Preview (Left) | AI Assistant (Right) */}
       <SectionSelectionProvider>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Left Column: Resume Preview (2/3 width) - Below Current Design */}
+        {/* Left Column: Resume Preview (2/3 width) */}
         <div className="lg:col-span-2">
           {/* Optimized Resume - DesignRenderer handles its own loading and transitions */}
           {optimizedResume && (
@@ -660,20 +686,53 @@ export default function OptimizationPage() {
           )}
         </div>
 
-        {/* Right Column: AI Chat (1/3 width) - Below ATS Score */}
+        {/* Right Column: Current Design + AI Assistant (1/3 width) */}
         <div className="print:hidden">
           {optimizedResume && (
-            <div className="sticky top-4 h-[calc(100vh-220px)]">
-              <ChatSidebar
-                optimizationId={params.id as string}
-                onMessageSent={handleChatMessageSent}
-                onDesignPreview={(c) => setEphemeralCustomization(c)}
-              />
+            <div className="sticky top-4 space-y-4">
+              {/* Current Design Info */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-gray-900 mb-1">
+                      Current Design: {currentDesignAssignment?.template?.name || 'Natural (Clean Format)'}
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      {currentDesignAssignment?.template?.description || 'Professional plain format • Click "Change Design" to browse templates'}
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md font-semibold whitespace-nowrap">
+                    ATS-Friendly
+                  </span>
+                </div>
+              </div>
+
+              {/* AI Assistant with scrollable content */}
+              <div className="h-[calc(100vh-320px)] flex flex-col">
+                <ChatSidebar
+                  optimizationId={params.id as string}
+                  onMessageSent={handleChatMessageSent}
+                  onDesignPreview={(c) => setEphemeralCustomization(c)}
+                  atsSuggestions={atsScoreData?.suggestions}
+                />
+              </div>
             </div>
           )}
         </div>
       </div>
       </SectionSelectionProvider>
+
+      {/* ATS Details Section - full cards with improvement delta and subcategory breakdown */}
+      {atsScoreData && (
+        <div id="ats-details" className="grid gap-6 md:grid-cols-2 mb-8 print:hidden">
+          <ATSScoreCard scoreData={atsScoreData} />
+          <SubScoreBreakdown
+            subscores={atsScoreData.subscores || {}}
+            subscores_original={atsScoreData.subscores_original || {}}
+            showComparison
+          />
+        </div>
+      )}
 
       {/* Original Data (Collapsible) - Below Everything */}
       <div className="grid gap-4 md:grid-cols-2 print:hidden">

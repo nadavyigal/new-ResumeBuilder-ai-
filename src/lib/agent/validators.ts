@@ -56,6 +56,7 @@ export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
     "design",
     "layout",
     "ats_optimize",
+    "optimize",
     "export",
     "undo",
     "redo",
@@ -72,6 +73,21 @@ export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
   diffs: z.array(DiffSchema).default([]),
   artifacts: AgentArtifactsSchema,
   ats_report: ATSReportSchema.optional(),
+  proposed_changes: z
+    .array(
+      z.object({
+        id: z.string(),
+        section: z.string(),
+        field: z.string().optional(),
+        text: z.string(),
+        rationale: z.string().optional(),
+        estimated_gain: z.number().optional(),
+      })
+    )
+    .optional(),
+  language: z
+    .object({ code: z.string(), direction: z.enum(["ltr", "rtl"]) })
+    .optional(),
   history_record: z
     .object({
       resume_version_id: z.string(),

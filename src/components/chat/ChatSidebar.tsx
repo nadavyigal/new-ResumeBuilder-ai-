@@ -14,17 +14,72 @@ import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageR
 import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
+import { SuggestionsList } from '@/components/ats/SuggestionsList';
+import type { Suggestion } from '@/lib/ats/types';
+
+function AtsTipsPanel({ 
+  suggestions,
+  appliedTipIds = [],
+}: { 
+  suggestions: Suggestion[];
+  appliedTipIds?: string[];
+}) {
+  const [open, setOpen] = React.useState(false);
+  const quickWins = suggestions.filter(s => (s as any).quick_win);
+  const count = suggestions.length;
+  const appliedCount = appliedTipIds.length;
+  
+  return (
+    <div className="mb-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left bg-white border border-blue-200 rounded px-2.5 py-1.5 hover:bg-blue-50 hover:border-blue-300 transition-all shadow-sm"
+        aria-expanded={open}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <svg className="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+            <span className="font-semibold text-xs text-gray-900">ATS Tips</span>
+            <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">{count}</span>
+            {appliedCount > 0 && (
+              <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">✓ {appliedCount}</span>
+            )}
+            {quickWins.length > 0 && (
+              <span className="text-[10px] text-gray-500 font-medium">⚡ {quickWins.length}</span>
+            )}
+          </div>
+          <svg className={`w-3.5 h-3.5 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+      {open && (
+        <div className="mt-2">
+          <SuggestionsList 
+            suggestions={suggestions} 
+            maxSuggestions={10}
+            title="ATS Tips" 
+            showNumbers={true}
+            appliedSuggestionIds={appliedTipIds}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ChatSidebar({
   optimizationId,
   onMessageSent,
   onDesignPreview,
-}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'>) {
+  atsSuggestions,
+}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'> & { atsSuggestions?: Suggestion[] }) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refineResult, setRefineResult] = useState<string | null>(null);
+  const [appliedTipIds, setAppliedTipIds] = useState<string[]>([]);
   const { selection, clearSelection } = useSectionSelection();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -168,6 +223,26 @@ export function ChatSidebar({
           onDesignPreview((data as any).design_customization);
         } catch {}
       }
+      
+      // Handle color customization response
+      if (onDesignPreview && (data as any).color_customization) {
+        try {
+          // Apply color customization immediately
+          onDesignPreview({
+            colors: (data as any).color_customization
+          });
+        } catch {}
+      }
+      
+      // Handle tip implementation response
+      if ((data as any).tips_applied) {
+        const appliedTipNumbers = (data as any).tips_applied.tip_numbers;
+        const appliedSuggestionIds = appliedTipNumbers
+          .map((n: number) => atsSuggestions?.[n - 1]?.id)
+          .filter(Boolean);
+        
+        setAppliedTipIds(prev => [...prev, ...appliedSuggestionIds]);
+      }
 
       // Update session ID if this was first message
       if (!sessionId) {
@@ -285,6 +360,10 @@ export function ChatSidebar({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 bg-gray-50 min-h-0">
+        {/* ATS Suggestions Panel (collapsible) */}
+        {Array.isArray(atsSuggestions) && atsSuggestions.length > 0 && (
+          <AtsTipsPanel suggestions={atsSuggestions} appliedTipIds={appliedTipIds} />
+        )}
         {isLoading && messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
