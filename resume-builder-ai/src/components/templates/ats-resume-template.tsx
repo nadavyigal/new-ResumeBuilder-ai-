@@ -1,21 +1,39 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
 
 interface ATSResumeTemplateProps {
   data: OptimizedResume;
 }
 
+// Hebrew character detection pattern (compiled once at module level)
+const HEBREW_PATTERN = /[\u0590-\u05FF]/;
+
 /**
  * ATS-Friendly Resume Template
  *
  * Clean, single-column layout optimized for Applicant Tracking Systems.
  * No tables, graphics, or complex formatting - just pure, parseable text.
+ * Supports RTL (Right-to-Left) for Hebrew and other RTL languages.
  */
 export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
+  // Memoized RTL detection - only recalculates when data changes
+  const isRTL = useMemo(() => {
+    return HEBREW_PATTERN.test(data.summary || '') ||
+           HEBREW_PATTERN.test(data.contact?.name || '') ||
+           data.skills?.technical?.some(skill => HEBREW_PATTERN.test(skill)) ||
+           data.skills?.soft?.some(skill => HEBREW_PATTERN.test(skill)) ||
+           data.experience?.some(exp => HEBREW_PATTERN.test(exp.title || ''));
+  }, [data]);
+
+  // Memoized CSS classes based on RTL detection
+  const directionClass = useMemo(() => isRTL ? 'rtl' : 'ltr', [isRTL]);
+  const textAlignClass = useMemo(() => isRTL ? 'text-right' : 'text-left', [isRTL]);
+  const listMarginClass = useMemo(() => isRTL ? 'mr-5' : 'ml-5', [isRTL]);
+
   return (
-    <div className="max-w-4xl mx-auto bg-white p-8 shadow-sm rounded-lg border border-gray-200">
+    <div className={`max-w-4xl mx-auto bg-white p-8 shadow-sm rounded-lg border border-gray-200 ${directionClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Header */}
-      <header className="border-b-2 border-gray-900 pb-4 mb-6">
+      <header className={`border-b-2 border-gray-900 pb-4 mb-6 ${textAlignClass}`}>
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           {data.contact?.name || 'Name Not Provided'}
         </h1>
@@ -38,7 +56,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Professional Summary */}
       {data.summary && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Professional Summary
           </h2>
@@ -48,7 +66,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Core Skills */}
       {data.skills && (data.skills.technical?.length > 0 || data.skills.soft?.length > 0) && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Skills
           </h2>
@@ -75,7 +93,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Experience */}
       {data.experience && data.experience.length > 0 && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Experience
           </h2>
@@ -93,7 +111,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
                 {job.location && <span className="text-sm text-gray-700">{job.location}</span>}
               </div>
               {job.achievements && job.achievements.length > 0 && (
-                <ul className="list-disc list-outside ml-5 space-y-1">
+                <ul className={`list-disc list-outside ${listMarginClass} space-y-1`}>
                   {job.achievements.map((achievement, i) => (
                     <li key={i} className="text-gray-800 leading-relaxed">
                       {achievement}
@@ -108,7 +126,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Education */}
       {data.education && data.education.length > 0 && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Education
           </h2>
@@ -133,11 +151,11 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Certifications */}
       {data.certifications && data.certifications.length > 0 && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Certifications
           </h2>
-          <ul className="list-disc list-outside ml-5 space-y-1">
+          <ul className={`list-disc list-outside ${listMarginClass} space-y-1`}>
             {data.certifications.map((cert, index) => (
               <li key={index} className="text-gray-800">
                 {cert}
@@ -149,7 +167,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
       {/* Projects */}
       {data.projects && data.projects.length > 0 && (
-        <section className="mb-6">
+        <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
             Projects
           </h2>

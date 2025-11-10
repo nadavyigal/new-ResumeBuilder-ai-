@@ -1,10 +1,11 @@
 import { parseColorRequest, validateColor, getColorName } from '../parseColorRequest';
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface AgentContext {
   message: string;
   optimizationId: string;
   userId: string;
+  supabase: SupabaseClient;
 }
 
 interface AgentResponse {
@@ -19,21 +20,7 @@ interface AgentResponse {
 export async function handleColorCustomization(
   context: AgentContext
 ): Promise<AgentResponse> {
-  const { message, optimizationId, userId } = context;
-  
-  // Create Supabase client
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return {
-      intent: 'color_customization',
-      success: false,
-      error: 'Supabase configuration missing',
-    };
-  }
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { message, optimizationId, userId, supabase } = context;
   
   // 1. Parse color requests
   const colorRequests = parseColorRequest(message);

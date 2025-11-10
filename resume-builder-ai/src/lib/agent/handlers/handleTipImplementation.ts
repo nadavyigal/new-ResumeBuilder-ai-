@@ -1,12 +1,13 @@
 import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
 import { applySuggestions } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface AgentContext {
   message: string;
   optimizationId: string;
   atsSuggestions?: Suggestion[];
+  supabase: SupabaseClient; // Accept authenticated client from caller
 }
 
 interface AgentResponse {
@@ -24,21 +25,7 @@ interface AgentResponse {
 export async function handleTipImplementation(
   context: AgentContext
 ): Promise<AgentResponse> {
-  const { message, optimizationId, atsSuggestions = [] } = context;
-  
-  // Create Supabase client with service role for server-side operations
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  
-  if (!supabaseUrl || !supabaseKey) {
-    return {
-      intent: 'tip_implementation',
-      success: false,
-      error: 'Supabase configuration missing',
-    };
-  }
-  
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { message, optimizationId, atsSuggestions = [], supabase } = context;
   
   // 1. Parse tip numbers
   const tipNumbers = parseTipNumbers(message);
@@ -79,7 +66,7 @@ export async function handleTipImplementation(
     .from('optimizations')
     .select('rewrite_data, ats_score_optimized')
     .eq('id', optimizationId)
-    .single();
+    .maybeSingle(); // Use maybeSingle() to avoid 406 errors when no rows found
   
   if (fetchError || !optimization) {
     console.error('Error fetching optimization:', fetchError);

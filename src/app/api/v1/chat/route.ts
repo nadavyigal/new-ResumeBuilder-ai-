@@ -268,14 +268,18 @@ export async function POST(request: NextRequest) {
     // Check for special intents first (before unified processor)
     const { detectIntentRegex } = await import('@/lib/agent/intents');
     const intent = detectIntentRegex(message);
-    
+
+    console.log('🎯 Intent Detection:', { message, detected_intent: intent });
+
     // Handle tip implementation
     if (intent === 'tip_implementation') {
+      console.log('✅ Handling tip implementation with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, suggestionsCount: optimization?.ats_suggestions?.length || 0 });
       const { handleTipImplementation } = await import('@/lib/agent/handlers/handleTipImplementation');
       const tipResult = await handleTipImplementation({
         message,
         optimizationId: optimization_id,
         atsSuggestions: optimization?.ats_suggestions || [],
+        supabase,
       });
       
       // Save AI response
@@ -314,11 +318,13 @@ export async function POST(request: NextRequest) {
     
     // Handle color customization
     if (intent === 'color_customization') {
+      console.log('🎨 Handling color customization with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, userId: user.id });
       const { handleColorCustomization } = await import('@/lib/agent/handlers/handleColorCustomization');
       const colorResult = await handleColorCustomization({
         message,
         optimizationId: optimization_id,
         userId: user.id,
+        supabase,
       });
       
       // Save AI response

@@ -92,7 +92,16 @@ export async function optimizeResume(
       resumeSummary: resumeText,
       jobText: jobDescription,
     });
-    const languageInstruction = `\n\nOUTPUT LANGUAGE: ${lang.code}. Write all textual content (summary, achievements, section labels where applicable) in this language. Follow RTL/LTR conventions implicitly.`;
+
+    console.log('🌍 Language Detection:', {
+      detected: lang.code,
+      direction: lang.direction,
+      probable: lang.probable,
+      resumePreview: resumeText.substring(0, 100),
+      jdPreview: jobDescription.substring(0, 100),
+    });
+
+    const languageInstruction = `\n\nIMPORTANT - OUTPUT LANGUAGE: ${lang.code.toUpperCase()}. You MUST write ALL textual content (summary, achievements, section labels, skills, etc.) EXCLUSIVELY in ${lang.code === 'he' ? 'HEBREW' : lang.code === 'ar' ? 'ARABIC' : lang.code.toUpperCase()} language. DO NOT translate or change the language. Maintain the original language throughout the entire resume. Follow ${lang.direction.toUpperCase()} (${lang.direction === 'rtl' ? 'right-to-left' : 'left-to-right'}) text direction conventions.`;
 
     // Create the chat completion request
     const completion = await openai.chat.completions.create({
