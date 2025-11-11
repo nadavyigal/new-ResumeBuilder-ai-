@@ -64,38 +64,38 @@ export default function OptimizationPage() {
         parts.push(`**${jdData.title}** at **${jdData.company}**`);
       }
 
-      if (jdData.extracted_data?.location) {
-        parts.push(`📍 ${jdData.extracted_data.location}`);
+      if (jdData.parsed_data?.location) {
+        parts.push(`📍 ${jdData.parsed_data.location}`);
       }
 
       // Add about section
-      if (jdData.extracted_data?.about_this_job) {
-        const about = jdData.extracted_data.about_this_job;
+      if (jdData.parsed_data?.about_this_job) {
+        const about = jdData.parsed_data.about_this_job;
         const summary = about.length > 200 ? about.substring(0, 200) + '...' : about;
         parts.push(`\n**About:** ${summary}`);
       }
 
       // Add top 3 requirements
-      if (jdData.extracted_data?.requirements && jdData.extracted_data.requirements.length > 0) {
-        const topReqs = jdData.extracted_data.requirements.slice(0, 3);
+      if (jdData.parsed_data?.requirements && jdData.parsed_data.requirements.length > 0) {
+        const topReqs = jdData.parsed_data.requirements.slice(0, 3);
         parts.push(`\n**Key Requirements:**`);
         topReqs.forEach((req: string) => {
           parts.push(`• ${req}`);
         });
-        if (jdData.extracted_data.requirements.length > 3) {
-          parts.push(`...and ${jdData.extracted_data.requirements.length - 3} more`);
+        if (jdData.parsed_data.requirements.length > 3) {
+          parts.push(`...and ${jdData.parsed_data.requirements.length - 3} more`);
         }
       }
 
       // Add top 3 responsibilities
-      if (jdData.extracted_data?.responsibilities && jdData.extracted_data.responsibilities.length > 0) {
-        const topResp = jdData.extracted_data.responsibilities.slice(0, 3);
+      if (jdData.parsed_data?.responsibilities && jdData.parsed_data.responsibilities.length > 0) {
+        const topResp = jdData.parsed_data.responsibilities.slice(0, 3);
         parts.push(`\n**Key Responsibilities:**`);
         topResp.forEach((resp: string) => {
           parts.push(`• ${resp}`);
         });
-        if (jdData.extracted_data.responsibilities.length > 3) {
-          parts.push(`...and ${jdData.extracted_data.responsibilities.length - 3} more`);
+        if (jdData.parsed_data.responsibilities.length > 3) {
+          parts.push(`...and ${jdData.parsed_data.responsibilities.length - 3} more`);
         }
       }
 
@@ -150,7 +150,7 @@ export default function OptimizationPage() {
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
-        .select("raw_text, clean_text, extracted_data, title, company, source_url")
+        .select("raw_text, clean_text, parsed_data, title, company, source_url")
         .eq("id", (optimizationRow as any).jd_id)
         .maybeSingle();
 
@@ -238,63 +238,29 @@ export default function OptimizationPage() {
 
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
+    console.log('🚀 [handleChatMessageSent] CALLED! Starting refresh process...');
     try {
       const idVal2 = String(params.id || "");
 
-      console.log('🔄 Chat message sent, refreshing resume data...');
+      console.log('🔄 Chat message sent, refreshing resume data for optimization:', idVal2);
 
-      // IMPROVED: Poll for updates instead of fixed delay
-      let attempts = 0;
-      const maxAttempts = 10;
-      let optimizationRow: any = null;
-      let optError: any = null;
-      let previousUpdatedAt: string | null = null;
+      // FIXED: Database trigger sets updated_at to NOW() which may be identical for rapid updates
+      // Solution: Wait 1.5 seconds for database to process, then fetch fresh data
+      // This ensures the trigger has fired and committed the transaction
+      console.log('⏳ Waiting 1.5 seconds for database transaction to complete...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Get initial updated_at timestamp to compare against
-      const { data: initialData } = await supabase
+      // Fetch fresh data from database with cache-busting
+      // Add random query param to prevent browser/Supabase caching
+      console.log('📡 Fetching fresh optimization data with cache-busting...');
+      const cacheBuster = Date.now();
+      const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("updated_at")
+        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, updated_at")
         .eq("id", idVal2)
         .maybeSingle();
 
-      previousUpdatedAt = initialData?.updated_at || null;
-      console.log('📅 Initial timestamp:', previousUpdatedAt);
-
-      while (attempts < maxAttempts) {
-        // Wait 500ms between polls
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Refresh resume content with force update
-        // Use maybeSingle() instead of single() to avoid 406 errors
-        // Include ATS scores to show score updates after implementing tips
-        const result = await supabase
-          .from("optimizations")
-          .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, updated_at")
-          .eq("id", idVal2)
-          .maybeSingle();
-
-        optimizationRow = result.data;
-        optError = result.error;
-
-        if (optError) {
-          console.error('❌ Error fetching optimization data:', optError);
-          break;
-        }
-
-        // Check if data has been updated (compare timestamp)
-        const currentUpdatedAt = optimizationRow?.updated_at;
-        if (currentUpdatedAt && currentUpdatedAt !== previousUpdatedAt) {
-          console.log('✅ Data updated! Previous:', previousUpdatedAt, '→ Current:', currentUpdatedAt, 'on attempt', attempts + 1);
-          break;
-        }
-
-        attempts++;
-        console.log(`⏳ Polling attempt ${attempts}/${maxAttempts}, no updates yet...`);
-      }
-
-      if (attempts >= maxAttempts) {
-        console.warn('⚠️ Max polling attempts reached, using last fetched data');
-      }
+      console.log('📡 Cache buster:', cacheBuster, '(prevents stale data)');
 
       if (!optError && optimizationRow) {
         console.log('✅ Refreshed resume data after chat message');
@@ -314,16 +280,19 @@ export default function OptimizationPage() {
         if (optRow.ats_score_optimized !== null || optRow.ats_score_original !== null) {
           console.log('📊 Updating ATS scores:', {
             original: optRow.ats_score_original,
-            optimized: optRow.ats_score_optimized
+            optimized: optRow.ats_score_optimized,
+            previousOptimized: atsV2Data?.ats_score_optimized,
+            scoreChanged: optRow.ats_score_optimized !== atsV2Data?.ats_score_optimized
           });
 
-          setAtsV2Data(prev => ({
-            ...prev,
+          // Force React to detect change by creating completely new object
+          setAtsV2Data({
             ats_score_original: optRow.ats_score_original,
             ats_score_optimized: optRow.ats_score_optimized,
             subscores: optRow.ats_subscores,
-            subscores_original: optRow.ats_subscores_original
-          }));
+            subscores_original: optRow.ats_subscores_original,
+            confidence: atsV2Data?.confidence || null
+          });
         }
 
         // Force component re-render

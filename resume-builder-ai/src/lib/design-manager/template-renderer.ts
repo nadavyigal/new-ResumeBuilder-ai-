@@ -61,11 +61,18 @@ export async function renderTemplatePreview(
   customization?: any
 ): Promise<string> {
   try {
+    // HOTFIX: If templateId looks like a UUID, default to minimal-ssr
+    // TODO: Fetch actual template slug from templates table using UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(templateId);
+    const templateSlug = isUUID ? 'minimal-ssr' : templateId;
+
+    console.log(`📋 [renderTemplatePreview] Template ID: ${templateId}, Using slug: ${templateSlug}`);
+
     // Load template component dynamically
-    const TemplateComponent = require(`../templates/external/${templateId}/Resume.jsx`).default;
+    const TemplateComponent = require(`../templates/external/${templateSlug}/Resume.jsx`).default;
 
     if (!TemplateComponent) {
-      throw new Error(`Template component not found: ${templateId}`);
+      throw new Error(`Template component not found: ${templateSlug}`);
     }
 
     // Transform data to JSON Resume format

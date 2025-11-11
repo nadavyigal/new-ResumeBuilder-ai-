@@ -99,15 +99,13 @@ export async function POST(req: NextRequest) {
 
     const { data: resumeData, error: resumeError } = await supabase
       .from("resumes")
-      .insert([
-        {
-          user_id: user.id,
-          filename: resumeFile.name,
-          storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
-          raw_text: pdfData.text,
-          canonical_data: {}, // Will be populated later during optimization
-        },
-      ])
+      .insert({
+        user_id: user.id,
+        filename: resumeFile.name,
+        storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
+        raw_text: pdfData.text,
+        canonical_data: {}, // Will be populated later during optimization
+      })
       .select()
       .maybeSingle();
 
@@ -121,17 +119,15 @@ export async function POST(req: NextRequest) {
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
-      .insert([
-        {
-          user_id: user.id,
-          title: extractedTitle || "Job Position",
-          company: extractedCompany || "Company Name",
-          raw_text: jobDescriptionText,
-          clean_text: jobDescriptionText,
-          extracted_data: extractedData,
-          source_url: sourceUrl,
-        },
-      ])
+      .insert({
+        user_id: user.id,
+        title: extractedTitle || "Job Position",
+        company: extractedCompany || "Company Name",
+        raw_text: jobDescriptionText,
+        clean_text: jobDescriptionText,
+        parsed_data: extractedData,
+        source_url: sourceUrl,
+      })
       .select()
       .maybeSingle();
 
@@ -173,21 +169,19 @@ export async function POST(req: NextRequest) {
     // Save optimization results
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
-      .insert([
-        {
-          user_id: user.id,
-          resume_id: resumeData.id,
-          jd_id: jdData.id,
-          match_score: matchScore,
-          gaps_data: {
-            missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
-            keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
-          },
-          rewrite_data: optimizationResult.optimizedResume,
-          template_key: 'ats-simple',
-          status: 'completed' as const,
+      .insert({
+        user_id: user.id,
+        resume_id: resumeData.id,
+        jd_id: jdData.id,
+        match_score: matchScore,
+        gaps_data: {
+          missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
+          keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
         },
-      ])
+        rewrite_data: optimizationResult.optimizedResume,
+        template_key: 'ats-simple',
+        status: 'completed' as const,
+      })
       .select()
       .maybeSingle();
 
