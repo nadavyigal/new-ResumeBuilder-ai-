@@ -20,7 +20,8 @@ export async function handleColorCustomization(
   context: AgentContext
 ): Promise<AgentResponse> {
   const { message, optimizationId, userId } = context;
-  
+  console.log('🎨 [handleColorCustomization] INVOKED with:', { message, optimizationId, userId });
+
   // Create Supabase client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -37,7 +38,8 @@ export async function handleColorCustomization(
   
   // 1. Parse color requests
   const colorRequests = parseColorRequest(message);
-  
+  console.log('🎨 [handleColorCustomization] Parsed color requests:', colorRequests);
+
   if (colorRequests.length === 0) {
     return {
       intent: 'color_customization',
@@ -60,24 +62,39 @@ export async function handleColorCustomization(
   // 3. Build customization object
   const customization: any = {
     colors: {},
+    fonts: {},
   };
-  
+
   for (const request of colorRequests) {
     switch (request.target) {
       case 'background':
-        customization.colors.background = request.color;
+        if (request.color) {
+          customization.colors.background = request.color;
+        }
         break;
       case 'header':
-        customization.colors.heading = request.color;
-        customization.colors.primary = request.color; // Also set as primary
+        if (request.color) {
+          customization.colors.heading = request.color;
+          customization.colors.primary = request.color; // Also set as primary
+        }
         break;
       case 'text':
-        customization.colors.text = request.color;
+        if (request.color) {
+          customization.colors.text = request.color;
+        }
         break;
       case 'accent':
       case 'primary':
-        customization.colors.primary = request.color;
-        customization.colors.accent = request.color;
+        if (request.color) {
+          customization.colors.primary = request.color;
+          customization.colors.accent = request.color;
+        }
+        break;
+      case 'font':
+        if (request.font) {
+          customization.fonts.body = request.font;
+          customization.fonts.headings = request.font;
+        }
         break;
     }
   }
@@ -96,9 +113,20 @@ export async function handleColorCustomization(
       ...(existing?.customization?.colors || {}),
       ...customization.colors,
     },
+    fonts: {
+      ...(existing?.customization?.fonts || {}),
+      ...customization.fonts,
+    },
   };
   
   // 6. Upsert design assignment
+  console.log('🎨 [handleColorCustomization] Upserting design_assignments with:', {
+    optimization_id: optimizationId,
+    user_id: userId,
+    template_id: existing?.template_id || null,
+    customization: mergedCustomization,
+  });
+
   const { error: upsertError } = await supabase
     .from('design_assignments')
     .upsert({
@@ -110,9 +138,9 @@ export async function handleColorCustomization(
     }, {
       onConflict: 'optimization_id'
     });
-  
+
   if (upsertError) {
-    console.error('Error upserting design assignment:', upsertError);
+    console.error('❌ [handleColorCustomization] Error upserting design assignment:', upsertError);
     return {
       intent: 'color_customization',
       success: false,
@@ -122,20 +150,39 @@ export async function handleColorCustomization(
   
   // 7. Build success message
   const changes = colorRequests.map(r => {
-    const colorName = getColorName(r.color);
-    return `${r.target} to ${colorName}`;
-  });
-  
-  const changesList = changes.length === 1 
+    if (r.target === 'font' && r.font) {
+      return `font to ${r.font}`;
+    } else if (r.color) {
+      const colorName = getColorName(r.color);
+      return `${r.target} to ${colorName}`;
+    }
+    return null;
+  }).filter(Boolean);
+
+  const changesList = changes.length === 1
     ? changes[0]
     : changes.slice(0, -1).join(', ') + ' and ' + changes[changes.length - 1];
-  
+
+  const hasColorChanges = Object.keys(customization.colors).length > 0;
+  const hasFontChanges = Object.keys(customization.fonts).length > 0;
+
+  let successType = 'customizations';
+  if (hasColorChanges && !hasFontChanges) successType = 'colors';
+  if (hasFontChanges && !hasColorChanges) successType = 'fonts';
+
+  console.log('✅ [handleColorCustomization] SUCCESS! Returning:', {
+    color_customization: customization.colors,
+    font_customization: customization.fonts,
+    design_customization: mergedCustomization,
+    message: `✅ Changed ${changesList}! Your resume ${successType} have been updated.`,
+  });
+
   return {
     intent: 'color_customization',
     success: true,
     color_customization: customization.colors,
     design_customization: mergedCustomization,
-    message: `✅ Changed ${changesList}! Your resume colors have been updated.`,
+    message: `✅ Changed ${changesList}! Your resume ${successType} have been updated.`,
   };
 }
 

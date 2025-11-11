@@ -219,6 +219,13 @@ export function ChatSidebar({
 
       const data: ChatSendMessageResponse = await response.json();
 
+      // DEBUG: Log full API response
+      console.log('🔍 FULL API RESPONSE:', JSON.stringify(data, null, 2));
+      console.log('🔍 Response keys:', Object.keys(data));
+      console.log('🔍 tips_applied exists?', 'tips_applied' in data, data.tips_applied);
+      console.log('🔍 design_customization exists?', 'design_customization' in data, data.design_customization);
+      console.log('🔍 onMessageSent defined?', typeof onMessageSent, !!onMessageSent);
+
       // Handle pending changes for ATS tip implementation
       if (data.pending_changes) {
         const pendingChangesData = data.pending_changes;
@@ -238,11 +245,41 @@ export function ChatSidebar({
         }
       }
 
+      // Handle tip implementation - trigger refresh to show applied changes
+      if (data.tips_applied) {
+        console.log('✅ TIPS_APPLIED DETECTED:', data.tips_applied);
+        if (onMessageSent) {
+          console.log('✅ CALLING onMessageSent() for tips');
+          onMessageSent();
+          console.log('✅ onMessageSent() called successfully for tips');
+        } else {
+          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+        }
+      }
+
       // Emit ephemeral design preview if provided
-      if (onDesignPreview && data.design_customization) {
-        try {
-          onDesignPreview(data.design_customization);
-        } catch {}
+      if (data.design_customization) {
+        console.log('✅ DESIGN_CUSTOMIZATION DETECTED:', data.design_customization);
+        if (onDesignPreview) {
+          try {
+            console.log('✅ CALLING onDesignPreview()');
+            onDesignPreview(data.design_customization);
+            console.log('✅ onDesignPreview() called successfully');
+          } catch (err) {
+            console.error('❌ ERROR in onDesignPreview:', err);
+          }
+        } else {
+          console.warn('⚠️ onDesignPreview is undefined');
+        }
+
+        // Also trigger refresh to commit design changes from database
+        if (onMessageSent) {
+          console.log('✅ CALLING onMessageSent() for design');
+          onMessageSent();
+          console.log('✅ onMessageSent() called successfully for design');
+        } else {
+          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+        }
       }
 
       // Update session ID if this was first message
@@ -254,8 +291,8 @@ export function ChatSidebar({
       if (data.session_id) {
         await loadMessages(data.session_id);
 
-        // Only trigger resume refresh if NOT ATS tip (tips use preview mode)
-        if (onMessageSent && data.intent !== 'ats_tip') {
+        // Always trigger resume refresh after messages that change data
+        if (onMessageSent) {
           onMessageSent();
         }
       }

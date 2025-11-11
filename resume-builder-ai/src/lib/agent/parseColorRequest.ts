@@ -42,9 +42,11 @@ const NAMED_COLORS: Record<string, string> = {
 };
 
 export interface ColorRequest {
-  target: 'background' | 'header' | 'text' | 'accent' | 'primary';
-  color: string;  // Normalized hex value
-  originalColor: string; // Original color name/value from user
+  target: 'background' | 'header' | 'text' | 'accent' | 'primary' | 'font';
+  color?: string;  // Normalized hex value (for colors)
+  font?: string;   // Font family name (for fonts)
+  originalColor?: string; // Original color name/value from user
+  originalFont?: string;  // Original font name from user
 }
 
 /**
@@ -109,7 +111,24 @@ export function parseColorRequest(message: string): ColorRequest[] {
       });
     }
   }
-  
+
+  // Font family (e.g., "change fonts to arial", "change font to roboto")
+  const fontMatch = lower.match(/(?:change|make|set|update)\s+(?:the\s+)?fonts?\s+(?:to\s+)?([a-z\s]+)/i);
+  if (fontMatch) {
+    const fontStr = fontMatch[1].trim();
+    // Normalize font name (capitalize first letter of each word)
+    const normalizedFont = fontStr
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+    requests.push({
+      target: 'font',
+      font: normalizedFont,
+      originalFont: fontStr,
+    });
+  }
+
   return requests;
 }
 
