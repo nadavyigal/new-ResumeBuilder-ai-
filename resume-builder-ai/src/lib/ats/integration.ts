@@ -163,3 +163,56 @@ export async function scoreOptimization(params: {
 
   return result;
 }
+
+/**
+ * Re-score a single optimized resume (after tip implementation)
+ * This maintains the original score but calculates a new optimized score
+ */
+export async function rescoreAfterTipImplementation(params: {
+  resumeOriginalText: string;
+  resumeOptimizedJson: OptimizedResume;
+  jobDescriptionText: string;
+  jobTitle?: string;
+  previousOriginalScore: number;
+  previousSubscoresOriginal: any;
+}): Promise<ATSScoreOutput> {
+  const {
+    resumeOriginalText,
+    resumeOptimizedJson,
+    jobDescriptionText,
+    jobTitle = 'Position',
+    previousOriginalScore,
+    previousSubscoresOriginal,
+  } = params;
+
+  // Convert optimized resume JSON to text
+  const resumeOptimizedText = resumeJsonToText(resumeOptimizedJson);
+
+  // Extract job requirements
+  const jobExtraction = extractJobRequirements(jobDescriptionText, jobTitle);
+
+  // Generate format reports
+  const formatReport = generateFormatReport(resumeOriginalText);
+
+  // Prepare ATS input - we only need to score the optimized resume
+  const atsInput: ATSScoreInput = {
+    resume_original_text: resumeOriginalText,
+    resume_optimized_text: resumeOptimizedText,
+    job_clean_text: jobDescriptionText,
+    job_extracted_json: jobExtraction,
+    format_report: formatReport,
+    resume_original_json: undefined,
+    resume_optimized_json: resumeOptimizedJson,
+  };
+
+  // Call ATS scorer
+  const result = await scoreResume(atsInput);
+
+  // IMPORTANT: Keep the original score unchanged (only optimized score should change after tip implementation)
+  // This ensures we don't recalculate the baseline, which would affect the improvement delta
+  return {
+    ...result,
+    ats_score_original: previousOriginalScore,
+    subscores_original: previousSubscoresOriginal,
+  };
+}

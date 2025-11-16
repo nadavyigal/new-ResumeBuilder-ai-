@@ -26,18 +26,19 @@ export async function handleTipImplementation(
   context: AgentContext
 ): Promise<AgentResponse> {
   const { message, optimizationId, atsSuggestions = [], supabase } = context;
-  
+
   // 1. Parse tip numbers
   const tipNumbers = parseTipNumbers(message);
-  
+
   if (tipNumbers.length === 0) {
     return {
       intent: 'tip_implementation',
       success: false,
-      error: 'No valid tip numbers found in message. Try: "implement tip 1" or "apply tips 1, 2 and 3"',
+      error:
+        'No valid tip numbers found in message. Try: "implement tip 1" or "apply tips 1, 2 and 3"',
     };
   }
-  
+
   // 2. Validate tip numbers
   const validation = validateTipNumbers(tipNumbers, atsSuggestions.length);
   if (!validation.valid) {
@@ -47,12 +48,12 @@ export async function handleTipImplementation(
       error: `Tips ${validation.invalid.join(', ')} do not exist. Available tips: 1-${atsSuggestions.length}`,
     };
   }
-  
+
   // 3. Get suggestions for these tip numbers
   const suggestions = tipNumbers
-    .map(num => atsSuggestions[num - 1])
+    .map((num) => atsSuggestions[num - 1])
     .filter(Boolean);
-  
+
   if (suggestions.length === 0) {
     return {
       intent: 'tip_implementation',
@@ -60,14 +61,14 @@ export async function handleTipImplementation(
       error: 'Could not find suggestions for the specified tip numbers',
     };
   }
-  
+
   // 4. Fetch current optimization data
   const { data: optimization, error: fetchError } = await supabase
     .from('optimizations')
     .select('rewrite_data, ats_score_optimized')
     .eq('id', optimizationId)
     .single();
-  
+
   if (fetchError || !optimization) {
     console.error('Error fetching optimization:', fetchError);
     return {
@@ -76,20 +77,23 @@ export async function handleTipImplementation(
       error: 'Failed to fetch optimization data',
     };
   }
-  
+
   const scoreBefore = optimization.ats_score_optimized || 0;
-  
+
   // 5. Apply suggestions to resume
   try {
     const updatedResume = await applySuggestions(
       optimization.rewrite_data,
       suggestions
     );
-    
+
     // 6. Calculate new score (estimate based on gains)
-    const estimatedGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
+    const estimatedGain = suggestions.reduce(
+      (sum, s) => sum + (s.estimated_gain || 0),
+      0
+    );
     const scoreAfter = Math.min(100, scoreBefore + estimatedGain);
-    
+
     // 7. Update database
     const { error: updateError } = await supabase
       .from('optimizations')
@@ -99,7 +103,7 @@ export async function handleTipImplementation(
         updated_at: new Date().toISOString(),
       })
       .eq('id', optimizationId);
-    
+
     if (updateError) {
       console.error('Error updating optimization:', updateError);
       return {
@@ -108,12 +112,13 @@ export async function handleTipImplementation(
         error: 'Failed to update optimization',
       };
     }
-    
+
     // 8. Return success
-    const tipList = tipNumbers.length === 1 
-      ? `tip ${tipNumbers[0]}` 
-      : `tips ${tipNumbers.join(', ')}`;
-    
+    const tipList =
+      tipNumbers.length === 1
+        ? `tip ${tipNumbers[0]}`
+        : `tips ${tipNumbers.join(', ')}`;
+
     return {
       intent: 'tip_implementation',
       success: true,
@@ -122,7 +127,7 @@ export async function handleTipImplementation(
         score_change: scoreAfter - scoreBefore,
         new_ats_score: scoreAfter,
       },
-      message: `✅ Applied ${tipList}! Your ATS score increased from ${scoreBefore}% to ${scoreAfter}% (+${scoreAfter - scoreBefore} points).`,
+      message: `Applied ${tipList}. ATS score: ${scoreBefore}% → ${scoreAfter}% (+${scoreAfter - scoreBefore}).`,
     };
   } catch (error) {
     console.error('Error applying suggestions:', error);
@@ -133,7 +138,4 @@ export async function handleTipImplementation(
     };
   }
 }
-
-
-
 

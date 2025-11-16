@@ -363,6 +363,7 @@ export async function POST(request: NextRequest) {
         message,
         optimizationId: optimization_id,
         userId: user.id,
+        supabase,
       });
 
       if (colorResult.success) {
@@ -481,28 +482,37 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Handle design customization
+        // Handle design customization from OpenAI Assistant
         if (processResult.intent === 'design' && processResult.designCustomization) {
-          // Create new customization record
-          const newCustomization = await createDesignCustomization(user.id, {
+          // Upsert directly to design_assignments table using JSONB customization column
+          const customizationData = {
             color_scheme: processResult.designCustomization.color_scheme,
             font_family: processResult.designCustomization.font_family,
             spacing: processResult.designCustomization.spacing,
             custom_css: processResult.designCustomization.custom_css,
-            is_ats_safe: processResult.designCustomization.is_ats_safe
-          });
+          };
 
-          // Update assignment with new customization (save previous for undo)
-          if (designAssignment) {
-            await updateDesignCustomization(
-              supabase,
-              designAssignment.id,
-              newCustomization.id,
-              designAssignment.customization_id // Save current as previous for undo
-            );
-          }
+          // Merge with existing customization if present
+          const existingCustomization = designAssignment?.customization || {};
+          const mergedCustomization = {
+            ...existingCustomization,
+            ...customizationData,
+          };
 
-          console.log('Successfully applied design customization via chat');
+          // Upsert to design_assignments table
+          await supabase
+            .from('design_assignments')
+            .upsert({
+              optimization_id: optimization_id,
+              user_id: user.id,
+              template_id: designAssignment?.template_id || null,
+              customization: mergedCustomization,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'optimization_id'
+            });
+
+          console.log('Successfully applied design customization via OpenAI Assistant');
         }
       } catch (error) {
         console.error('Error applying changes:', error);

@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import type { Intent } from "./types";
 
 const INTENT_REGEX: Array<{ intent: Intent; pattern: RegExp }> = [
-  { intent: "tip_implementation", pattern: /(implement|apply|use|do)\s+tip[s]?\s+\d+/i },
+  { intent: "tip_implementation", pattern: /(implement|apply|use|do)\s+tip[s]?\s+(?:number\s+|#\s*)?\d+/i },
   { intent: "color_customization", pattern: /(change|make|set|update)\s+(?:the\s+)?(?:background|header[s]?|text|font|primary|accent)\s+(?:color\s+)?(?:to\s+)?/i },
   { intent: "add_skills", pattern: /(add|include)\s+skills?/i },
   { intent: "rewrite", pattern: /(rewrite|strengthen|improve)\b/i },

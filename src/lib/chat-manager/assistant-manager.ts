@@ -244,6 +244,12 @@ export class AssistantManager {
 - Be friendly and conversational
 - If the user's request is unclear, use clarify_request to ask for more information
 
+**CRITICAL: ATS TIP IMPLEMENTATION**
+- When users ask to "implement tip X" or "apply tip number X", DO NOT make any changes
+- These requests are handled by a specialized tip implementation system, NOT by you
+- Simply respond: "I'll apply tip X for you. The changes will appear on your resume shortly."
+- DO NOT interpret tip implementation as design or content changes
+
 **DESIGN GUIDELINES:**
 - For background colors, support common names: light blue (#87CEEB), dark blue (#00008B), navy (#001f3f), etc.
 - Maintain ATS (Applicant Tracking System) friendly formatting

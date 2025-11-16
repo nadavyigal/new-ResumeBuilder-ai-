@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
         `
         *,
         resumes (parsed_data),
-        job_descriptions (extracted_data)
+        job_descriptions (parsed_data)
       `
       )
       .eq('id', optimizationId)
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     // Extract resume and job description data
     const resumeData = (optimization as any).resumes?.parsed_data || {};
-    const jobDescriptionData = (optimization as any).job_descriptions?.extracted_data || {};
+    const jobDescriptionData = (optimization as any).job_descriptions?.parsed_data || {};
     const jobDescriptionText = jobDescriptionData.raw_text || jobDescriptionData.description || '';
 
     if (!resumeData || !jobDescriptionText) {

@@ -248,12 +248,19 @@ export function ChatSidebar({
       // Handle tip implementation - trigger refresh to show applied changes
       if (data.tips_applied) {
         console.log('✅ TIPS_APPLIED DETECTED:', data.tips_applied);
+        console.log('🔍 Callback function defined?', typeof onMessageSent, !!onMessageSent);
+
         if (onMessageSent) {
-          console.log('✅ CALLING onMessageSent() for tips');
-          onMessageSent();
-          console.log('✅ onMessageSent() called successfully for tips');
+          console.log('✅ CALLING onMessageSent() for tips - IMMEDIATE TRIGGER');
+          try {
+            await onMessageSent();
+            console.log('✅ onMessageSent() completed successfully for tips');
+          } catch (err) {
+            console.error('❌ ERROR calling onMessageSent:', err);
+          }
         } else {
           console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+          console.error('❌ Component props:', { optimizationId, onDesignPreview: !!onDesignPreview, atsSuggestions: !!atsSuggestions });
         }
       }
 

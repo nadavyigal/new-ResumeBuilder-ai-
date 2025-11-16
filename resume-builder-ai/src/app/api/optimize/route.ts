@@ -81,10 +81,10 @@ export async function POST(req: NextRequest) {
       match_score: atsResult?.ats_score_optimized || 85,
       gaps_data: {}, // Will be populated with gap analysis
       rewrite_data: optimizedResume,
-      template_key: null, // No design by default - user chooses explicitly
+      template_key: 'natural', // Default natural design (no template)
       status: "completed" as const,
-      // ATS v2 fields - only include if scoring succeeded
-      ats_version: atsResult ? 2 : 1,
+      // ATS v2 fields - always use version 2
+      ats_version: 2,
       ats_score_original: atsResult?.ats_score_original || null,
       ats_score_optimized: atsResult?.ats_score_optimized || null,
       ats_subscores: atsResult?.subscores || null,

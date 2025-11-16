@@ -16,7 +16,6 @@ interface CompactATSScoreCardProps {
   atsScoreOptimized: number;
   subscores?: any;
   subscoresOriginal?: any;
-  legacy?: boolean; // If true, using legacy single score
 }
 
 export function CompactATSScoreCard({
@@ -24,10 +23,9 @@ export function CompactATSScoreCard({
   atsScoreOptimized,
   subscores,
   subscoresOriginal,
-  legacy = false,
 }: CompactATSScoreCardProps) {
   const improvement = atsScoreOptimized - atsScoreOriginal;
-  const hasV2Data = !legacy && subscores && subscoresOriginal;
+  const hasV2Data = subscores && subscoresOriginal;
 
   return (
     <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
@@ -96,13 +94,6 @@ export function CompactATSScoreCard({
                 </div>
               </DialogContent>
             </Dialog>
-          )}
-
-          {/* Legacy indicator */}
-          {legacy && (
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
-              v1
-            </span>
           )}
         </div>
       </div>

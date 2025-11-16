@@ -1,91 +1,12 @@
 import React from 'react';
-
-/**
- * Detect if resume content is primarily Hebrew
- */
-function detectLanguage(data) {
-  const text = JSON.stringify(data);
-  const hebrewRegex = /[\u0590-\u05FF]/;
-  return hebrewRegex.test(text) ? 'he' : 'en';
-}
-
-/**
- * Build custom CSS from user customizations
- */
-function buildCustomCss(customization) {
-  if (!customization) return '';
-
-  const rules = [];
-
-  // Font customizations
-  if (customization.fonts?.body || customization.font_family?.body) {
-    const bodyFont = customization.fonts?.body || customization.font_family?.body;
-    rules.push(`body { font-family: ${bodyFont}
-
-          /* RTL Support for Hebrew */
-          body[dir="rtl"] {
-            text-align: right;
-            direction: rtl;
-          }
-          body[dir="rtl"] .highlights,
-          body[dir="rtl"] ul,
-          body[dir="rtl"] ol {
-            padding-right: 20px;
-            padding-left: 0;
-            margin-right: 0;
-            margin-left: 0;
-          }
-          body[dir="rtl"] .job-header,
-          body[dir="rtl"] .edu-header {
-            flex-direction: row-reverse;
-          }
-          body[dir="rtl"] header {
-            text-align: center; /* Keep header centered even in RTL */
-          }
-, sans-serif !important; }`);
-  }
-  if (customization.fonts?.headings || customization.font_family?.heading) {
-    const headingFont = customization.fonts?.headings || customization.font_family?.heading;
-    rules.push(`h1, h2, h3 { font-family: ${headingFont}, sans-serif !important; }`);
-  }
-
-  // Color customizations
-  if (customization.colors?.background || customization.color_scheme?.background) {
-    const bgColor = customization.colors?.background || customization.color_scheme?.background;
-    rules.push(`body { background: ${bgColor} !important; }`);
-  }
-  if (customization.colors?.text || customization.color_scheme?.text) {
-    const textColor = customization.colors?.text || customization.color_scheme?.text;
-    rules.push(`body, p, li, span, div { color: ${textColor} !important; }`);
-  }
-  if (customization.colors?.primary || customization.color_scheme?.primary) {
-    const primaryColor = customization.colors?.primary || customization.color_scheme?.primary;
-    rules.push(`h1, h2 { color: ${primaryColor} !important; }`);
-  }
-
-  // Custom CSS from design engine
-  if (customization.custom_css) {
-    rules.push(customization.custom_css);
-  }
-
-  return rules.length > 0 ? rules.join('\n') : '';
-}
-
 export default function Resume({ data = {}, customization = {} }) {
   const b = data.basics || {};
   const work = data.work || [];
   const education = data.education || [];
   const skills = data.skills || [];
 
-  // Detect language for RTL support
-  const lang = detectLanguage(data);
-  const isRTL = lang === 'he';
-
-  // Build custom CSS from customizations
-  const customCss = buildCustomCss(customization);
-
   return (
-    <html lang={lang}>
+    <html lang="en">
       <head>
         <meta charSet="utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -368,10 +289,8 @@ export default function Resume({ data = {}, customization = {} }) {
             }
           }
         `}</style>
-              {/* Custom CSS from user customizations */}
-        {customCss && <style>{customCss}</style>}
       </head>
-      <body dir={isRTL ? 'rtl' : 'ltr'}>
+      <body>
         <header>
           <h1>{b.name || 'Your Name'}</h1>
           {b.label && <div className="title">{b.label}</div>}

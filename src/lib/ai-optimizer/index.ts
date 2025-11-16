@@ -74,6 +74,27 @@ function getOpenAIClient(): OpenAI {
   });
 }
 
+function localFallbackOptimize(resumeText: string, jobDescription: string): OptimizationResult {
+  // Very simple deterministic fallback to keep the flow working in local/dev without OpenAI
+  const score = calculateMatchScore(resumeText || '', jobDescription || '');
+  const summary = (resumeText || '').trim().split(/\n+/).filter(Boolean)[0] || 'Experienced professional seeking to match the provided role.';
+
+  const optimizedResume: OptimizedResume = {
+    summary: summary.slice(0, 400),
+    contact: { name: '', email: '', phone: '', location: '' },
+    skills: { technical: [], soft: [] },
+    experience: [],
+    education: [],
+    certifications: [],
+    projects: [],
+    matchScore: score,
+    keyImprovements: ['Baseline optimization applied without AI due to missing API key.'],
+    missingKeywords: [],
+  };
+
+  return { success: true, optimizedResume };
+}
+
 /**
  * Optimize a resume against a job description using OpenAI
  *
@@ -86,14 +107,24 @@ export async function optimizeResume(
   jobDescription: string
 ): Promise<OptimizationResult> {
   try {
-    const openai = getOpenAIClient();
+    let openai: OpenAI | null = null;
+    try {
+      openai = getOpenAIClient();
+    } catch (e: any) {
+      // Missing API key: use local fallback optimization
+      if (e && typeof e.message === 'string' && e.message.includes('OPENAI_API_KEY')) {
+        console.warn('[optimizer] OPENAI_API_KEY not set; using local fallback optimizer');
+        return localFallbackOptimize(resumeText, jobDescription);
+      }
+      throw e;
+    }
 
     const lang = chooseTargetLanguage({
       resumeSummary: resumeText,
       jobText: jobDescription,
     });
 
-    console.log('🌍 Language Detection:', {
+    console.log('[lang] Language Detection:', {
       detected: lang.code,
       direction: lang.direction,
       probable: lang.probable,

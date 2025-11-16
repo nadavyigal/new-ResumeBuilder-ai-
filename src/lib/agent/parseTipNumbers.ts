@@ -1,14 +1,16 @@
 /**
  * Parse tip numbers from user message
- * 
+ *
  * Examples:
  *   "implement tip 1" → [1]
+ *   "implement tip number 2" → [2]
+ *   "apply tip #3" → [3]
  *   "apply tips 1, 2 and 4" → [1, 2, 4]
  *   "do tip 2 and 3" → [2, 3]
  */
 export function parseTipNumbers(message: string): number[] {
-  // Match patterns like "tip 1", "tips 1, 2 and 3"
-  const match = message.match(/tip[s]?\s+(\d+(?:(?:,|\s+and)\s*\d+)*)/i);
+  // Match patterns like "tip 1", "tip number 2", "tip #3", "tips 1, 2 and 3"
+  const match = message.match(/tip[s]?\s+(?:number\s+|#\s*)?(\d+(?:(?:,|\s+and)\s*\d+)*)/i);
   
   if (!match) {
     return [];

@@ -48,6 +48,94 @@ export interface ResumeData {
 }
 
 /**
+ * Detects if text contains Hebrew characters
+ */
+function detectHebrew(text: string): boolean {
+  const hebrewRegex = /[\u0590-\u05FF]/;
+  return hebrewRegex.test(text);
+}
+
+/**
+ * Detects if resume content is RTL (Hebrew/Arabic)
+ */
+function detectRTL(resumeData: any): boolean {
+  const textToCheck = [
+    resumeData.personalInfo?.fullName,
+    resumeData.summary,
+    ...(resumeData.experience || []).map((exp: any) => exp.position),
+  ].filter(Boolean).join(' ');
+
+  return detectHebrew(textToCheck);
+}
+
+/**
+ * Generates CSS for customization
+ */
+function generateCustomizationCSS(customization: any): string {
+  if (!customization) return '';
+
+  let css = '';
+
+  // Color scheme
+  if (customization.color_scheme) {
+    const colors = customization.color_scheme;
+    css += `
+      :root {
+        --resume-primary: ${colors.primary || '#2563eb'};
+        --resume-secondary: ${colors.secondary || '#64748b'};
+        --resume-accent: ${colors.accent || '#0ea5e9'};
+        --resume-background: ${colors.background || '#ffffff'};
+        --resume-text: ${colors.text || '#1f2937'};
+      }
+    `;
+  }
+
+  // Font families
+  if (customization.font_family) {
+    const fonts = customization.font_family;
+    if (fonts.heading) {
+      css += `
+        h1, h2, h3, h4, h5, h6 {
+          font-family: ${fonts.heading}, sans-serif !important;
+        }
+      `;
+    }
+    if (fonts.body) {
+      css += `
+        body, p, li, span {
+          font-family: ${fonts.body}, sans-serif !important;
+        }
+      `;
+    }
+  }
+
+  // Spacing
+  if (customization.spacing) {
+    if (customization.spacing.line_height) {
+      css += `
+        body {
+          line-height: ${customization.spacing.line_height} !important;
+        }
+      `;
+    }
+    if (customization.spacing.section_gap) {
+      css += `
+        .resume-section, section {
+          margin-bottom: ${customization.spacing.section_gap} !important;
+        }
+      `;
+    }
+  }
+
+  // Custom CSS
+  if (customization.custom_css) {
+    css += customization.custom_css;
+  }
+
+  return css;
+}
+
+/**
  * Renders a template to static HTML using React SSR
  * Next.js 15 Compatible: Uses dynamic rendering instead of renderToStaticMarkup
  * @param templateId - Template slug (e.g., 'card-ssr')
@@ -71,27 +159,36 @@ export async function renderTemplatePreview(
     // Transform data to JSON Resume format
     const jsonResume = transformToJsonResume(resumeData);
 
+    // Detect RTL language
+    const isRTL = detectRTL(resumeData);
+    const lang = isRTL ? 'he' : 'en';
+
     // Apply customizations if provided
     // NOTE: Templates expect 'data' prop, not 'resume'
     const props = {
       data: jsonResume,
-      customization: customization || null
+      customization: customization || null,
+      isRTL,
+      language: lang
     };
 
     // Use ReactDOMServer from react-dom/server (compatible with Next.js 15)
     const ReactDOMServer = require('react-dom/server');
     const markup = ReactDOMServer.renderToString(React.createElement(TemplateComponent, props));
 
+    // Generate customization CSS
+    const customCSS = generateCustomizationCSS(customization);
+
     // Wrap in full HTML document
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${lang}" dir="${isRTL ? 'rtl' : 'ltr'}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Resume Preview - ${resumeData.personalInfo?.fullName || 'Resume'}</title>
   <style>
     body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
-    ${customization?.custom_css || ''}
+    ${customCSS}
   </style>
 </head>
 <body>

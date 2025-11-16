@@ -96,23 +96,124 @@ export async function handleTipImplementation(
     );
     console.log('💡 [handleTipImplementation] Resume updated successfully');
 
-    // 6. Calculate new score (estimate based on gains)
-    const estimatedGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
-    const scoreAfter = Math.min(100, scoreBefore + estimatedGain);
-    console.log('💡 [handleTipImplementation] New score:', scoreAfter, '(+' + estimatedGain + ')');
+    // 6. RE-SCORE using actual ATS engine (CRITICAL FIX)
+    console.log('🔍 [handleTipImplementation] Re-scoring resume with ATS engine...');
 
-    // 7. Update database
+    // Fetch job description and original resume for re-scoring
+    const { data: jdData, error: jdError } = await supabase
+      .from('optimizations')
+      .select('jd_id, resume_id, ats_score_original, ats_subscores_original')
+      .eq('id', optimizationId)
+      .maybeSingle();
+
+    if (jdError || !jdData) {
+      console.error('❌ [handleTipImplementation] Failed to fetch optimization data for re-scoring:', jdError);
+      // Fall back to estimated scoring if re-scoring fails
+      const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
+      const scoreAfter = Math.min(100, scoreBefore + Math.min(15, Math.round(rawGain * 0.7)));
+
+      const updatePayload = {
+        rewrite_data: updatedResume,
+        ats_score_optimized: scoreAfter,
+        updated_at: new Date().toISOString(),
+      };
+
+      await supabase
+        .from('optimizations')
+        .update(updatePayload)
+        .eq('id', optimizationId);
+
+      return {
+        intent: 'tip_implementation',
+        success: true,
+        tips_applied: {
+          tip_numbers: tipNumbers,
+          score_change: scoreAfter - scoreBefore,
+          new_ats_score: scoreAfter,
+        },
+        message: `✅ Applied tips! Score updated to ${scoreAfter}% (estimated, re-scoring unavailable).`,
+      };
+    }
+
+    // Fetch job description text AND title
+    const { data: jobDesc, error: jobDescError } = await supabase
+      .from('job_descriptions')
+      .select('clean_text, raw_text, title')
+      .eq('id', jdData.jd_id)
+      .maybeSingle();
+
+    // Fetch original resume text
+    const { data: resumeData, error: resumeError } = await supabase
+      .from('resumes')
+      .select('raw_text')
+      .eq('id', jdData.resume_id)
+      .maybeSingle();
+
+    if (jobDescError || resumeError || !jobDesc || !resumeData) {
+      console.error('❌ [handleTipImplementation] Failed to fetch JD/resume for re-scoring');
+      // Fall back to estimated scoring
+      const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
+      const scoreAfter = Math.min(100, scoreBefore + Math.min(15, Math.round(rawGain * 0.7)));
+
+      const updatePayload = {
+        rewrite_data: updatedResume,
+        ats_score_optimized: scoreAfter,
+        updated_at: new Date().toISOString(),
+      };
+
+      await supabase
+        .from('optimizations')
+        .update(updatePayload)
+        .eq('id', optimizationId);
+
+      return {
+        intent: 'tip_implementation',
+        success: true,
+        tips_applied: {
+          tip_numbers: tipNumbers,
+          score_change: scoreAfter - scoreBefore,
+          new_ats_score: scoreAfter,
+        },
+        message: `✅ Applied tips! Score updated to ${scoreAfter}% (estimated).`,
+      };
+    }
+
+    // Import the re-scoring function
+    const { rescoreAfterTipImplementation } = await import('@/lib/ats/integration');
+
+    // Run real ATS scoring with correct job title
+    const jobTitle = (jobDesc as any).title || 'Position';
+    console.log('💡 [handleTipImplementation] Re-scoring with job title:', jobTitle);
+
+    const atsResult = await rescoreAfterTipImplementation({
+      resumeOriginalText: resumeData.raw_text,
+      resumeOptimizedJson: updatedResume,
+      jobDescriptionText: jobDesc.clean_text || jobDesc.raw_text,
+      jobTitle: jobTitle,
+      previousOriginalScore: jdData.ats_score_original,
+      previousSubscoresOriginal: jdData.ats_subscores_original,
+    });
+
+    const scoreAfter = atsResult.ats_score_optimized;
+    const actualIncrease = scoreAfter - scoreBefore;
+
+    console.log('💡 [handleTipImplementation] Real ATS score calculated:', {
+      scoreBefore,
+      scoreAfter,
+      actualIncrease,
+      subscores: atsResult.subscores,
+    });
+
+    // 7. Update database with REAL scores
     const updatePayload = {
       rewrite_data: updatedResume,
       ats_score_optimized: scoreAfter,
+      ats_subscores: atsResult.subscores,
+      ats_suggestions: atsResult.suggestions,
+      ats_confidence: atsResult.confidence,
       updated_at: new Date().toISOString(),
     };
-    console.log('💡 [handleTipImplementation] Updating optimization in database with payload:', {
-      optimizationId,
-      scoreAfter,
-      hasRewriteData: !!updatedResume,
-      updated_at: updatePayload.updated_at
-    });
+    console.log('💡 [handleTipImplementation] Updating optimization in database with real scores');
 
     const { data: updateResult, error: updateError } = await supabase
       .from('optimizations')
@@ -131,7 +232,7 @@ export async function handleTipImplementation(
       };
     }
 
-    console.log('✅ [handleTipImplementation] Database updated successfully!');
+    console.log('✅ [handleTipImplementation] Database updated successfully with real ATS scores!');
 
     // 8. Return success
     const tipList = tipNumbers.length === 1
@@ -143,10 +244,12 @@ export async function handleTipImplementation(
       success: true,
       tips_applied: {
         tip_numbers: tipNumbers,
-        score_change: scoreAfter - scoreBefore,
+        score_change: actualIncrease,
         new_ats_score: scoreAfter,
       },
-      message: `✅ Applied ${tipList}! Your ATS score increased from ${scoreBefore}% to ${scoreAfter}% (+${scoreAfter - scoreBefore} points).`,
+      message: actualIncrease > 0
+        ? `✅ Applied ${tipList}! Your ATS score increased from ${scoreBefore}% to ${scoreAfter}% (+${actualIncrease} points).`
+        : `✅ Applied ${tipList}! Your ATS score is ${scoreAfter}% (changes applied successfully).`,
     };
 
     console.log('✅ [handleTipImplementation] SUCCESS! Returning:', result);
@@ -160,6 +263,11 @@ export async function handleTipImplementation(
     };
   }
 }
+
+
+
+
+
 
 
 

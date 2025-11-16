@@ -1,6 +1,8 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 
 export type Intent =
+  | "tip_implementation"  // New: Spec 008 - implement tip 1, 2, etc.
+  | "color_customization" // New: Spec 008 - change background to blue, etc.
   | "rewrite"
   | "add_skills"
   | "design"

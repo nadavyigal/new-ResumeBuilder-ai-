@@ -15,6 +15,7 @@ interface DesignRendererProps {
   templateSlug?: string;
   customization?: any;
   pendingChanges?: any[]; // ATS tip pending changes for highlighting
+  refreshKey?: number; // Force re-render when resume data changes
 }
 
 /**
@@ -87,7 +88,8 @@ function transformResumeData(data: OptimizedResume): any {
 function ExternalTemplateRenderer({
   resumeData,
   templateSlug,
-  customization
+  customization,
+  refreshKey
 }: DesignRendererProps) {
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -133,7 +135,7 @@ function ExternalTemplateRenderer({
     };
 
     fetchHtml();
-  }, [templateSlug, resumeData, customization]);
+  }, [templateSlug, resumeData, customization, refreshKey]);
 
   if (loading) {
     return (
@@ -540,7 +542,8 @@ export function DesignRenderer({
   resumeData,
   templateSlug,
   customization,
-  pendingChanges = []
+  pendingChanges = [],
+  refreshKey
 }: DesignRendererProps) {
   // Check if this is an external template
   const isExternalTemplate = templateSlug && ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'].includes(templateSlug);
@@ -559,6 +562,7 @@ export function DesignRenderer({
       templateSlug={templateSlug}
       customization={customization}
       pendingChanges={pendingChanges}
+      refreshKey={refreshKey}
     />
   ) : (
     <InternalTemplateRenderer

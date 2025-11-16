@@ -6,6 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+// Ensure Node runtime for dynamic server-only imports in fallback
+export const runtime = 'nodejs';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
 import { processUnifiedMessage } from '@/lib/chat-manager/unified-processor';
@@ -269,11 +271,11 @@ export async function POST(request: NextRequest) {
     const { detectIntentRegex } = await import('@/lib/agent/intents');
     const intent = detectIntentRegex(message);
 
-    console.log('🎯 Intent Detection:', { message, detected_intent: intent });
+    console.log('[intent]', { message, detected_intent: intent });
 
     // Handle tip implementation
     if (intent === 'tip_implementation') {
-      console.log('✅ Handling tip implementation with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, suggestionsCount: optimization?.ats_suggestions?.length || 0 });
+      console.log('[tip] Handling tip implementation with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, suggestionsCount: optimization?.ats_suggestions?.length || 0 });
       const { handleTipImplementation } = await import('@/lib/agent/handlers/handleTipImplementation');
       const tipResult = await handleTipImplementation({
         message,
@@ -318,7 +320,7 @@ export async function POST(request: NextRequest) {
     
     // Handle color customization
     if (intent === 'color_customization') {
-      console.log('🎨 Handling color customization with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, userId: user.id });
+      console.log('[color] Handling color customization with supabase client:', { hasSupabase: !!supabase, optimizationId: optimization_id, userId: user.id });
       const { handleColorCustomization } = await import('@/lib/agent/handlers/handleColorCustomization');
       const colorResult = await handleColorCustomization({
         message,
@@ -397,29 +399,51 @@ export async function POST(request: NextRequest) {
         resumeContext: chatSession.resume_context || undefined,
       });
     } catch (e) {
-      // Fallback: simple local parsing for basic design intents
-      const lower = message.toLowerCase();
-      let designCustomization: any = null;
-      if (/background\s+color|background/i.test(lower)) {
-        const m = lower.match(/#?[0-9a-f]{3,6}|blue|green|red|yellow|orange|purple|pink|teal|navy|indigo|slate|zinc|brown/);
-        const color = m ? m[0] : 'blue';
-        designCustomization = { custom_css: `.resume-container { background-color: ${color}; }` };
-      } else {
-        const m = lower.match(/font\s+(?:to\s+)?([a-zA-Z\s-]+)/);
-        if (m && m[1]) {
-          const font = m[1].trim();
-          designCustomization = { custom_css: `.resume-container { font-family: '${font}', sans-serif; }` };
+      // Robust fallback: use local design customization engine for natural-language design requests
+      try {
+        // Dynamic import to avoid edge-runtime import issues for server-only modules
+        const { validateAndApply } = await import('@/lib/design-manager/customization-engine');
+        const templateIdFallback = currentTemplateId || 'natural';
+        const result = await validateAndApply(
+          message,
+          templateIdFallback,
+          currentDesignConfig || {},
+          currentResumeContent
+        );
+
+        if ('understood' in (result as any) && (result as any).understood === false) {
+          processResult = {
+            intent: 'unclear',
+            aiResponse: (result as any).clarificationNeeded || 'Unable to process request.',
+            shouldApply: false,
+            requiresClarification: true,
+            updatedContext: chatSession.resume_context || undefined,
+            threadId: (chatSession as any).openai_thread_id || undefined,
+          };
+        } else {
+          const custom = result as any;
+          processResult = {
+            intent: 'design',
+            aiResponse: custom.reasoning || 'Applied design customization.',
+            designCustomization: custom.customization,
+            designPreview: custom.preview,
+            shouldApply: true,
+            requiresClarification: false,
+            updatedContext: chatSession.resume_context || undefined,
+            threadId: (chatSession as any).openai_thread_id || undefined,
+          };
         }
+      } catch (innerErr) {
+        // Final minimal fallback on total failure: provide a basic reply instead of 500
+        processResult = {
+          intent: 'unclear',
+          aiResponse: 'I could not process that. For design, try: "change background to navy" or "font to Georgia". For content, try: "add Python to skills".',
+          shouldApply: false,
+          requiresClarification: true,
+          updatedContext: chatSession.resume_context || undefined,
+          threadId: (chatSession as any).openai_thread_id || undefined,
+        };
       }
-      processResult = {
-        intent: designCustomization ? 'design' : 'unclear',
-        aiResponse: designCustomization ? 'Applied design update.' : 'Assistant offline. Try again later.',
-        designCustomization,
-        shouldApply: !!designCustomization,
-        requiresClarification: false,
-        updatedContext: chatSession.resume_context || undefined,
-        threadId: (chatSession as any).openai_thread_id || undefined,
-      };
     }
     const processingTime = Date.now() - startTime;
 
@@ -467,8 +491,8 @@ export async function POST(request: NextRequest) {
       try {
         // Handle content amendments
         if (processResult.intent === 'content' && processResult.contentAmendments && processResult.contentAmendments.length > 0) {
-          console.log('💾 Applying content amendments to database...');
-          console.log('📝 Amendments:', processResult.contentAmendments.map(a => `${a.type} - ${a.targetSection}`));
+          console.log('[db] Applying content amendments to database...');
+          console.log('[amendments]:', processResult.contentAmendments.map(a => `${a.type} - ${a.targetSection}`));
 
           // Apply amendments to current resume content
           const updatedContent = applyAmendmentsToResume(
@@ -476,7 +500,7 @@ export async function POST(request: NextRequest) {
             processResult.contentAmendments
           );
 
-          console.log('📊 Updated content sections:', Object.keys(updatedContent));
+          console.log('[sections]:', Object.keys(updatedContent));
 
           // Update the optimization's rewrite_data in database
           const { error: updateError } = await supabase
@@ -485,37 +509,46 @@ export async function POST(request: NextRequest) {
             .eq('id', optimization_id);
 
           if (updateError) {
-            console.error('❌ Failed to update optimization data:', updateError);
+            console.error('[error] Failed to update optimization data:', updateError);
           } else {
-            console.log('✅ Successfully updated optimization data after chat amendment');
+            console.log('[ok] Updated optimization data after chat amendment');
             if (updatedContent.skills) {
-              console.log('🔧 Updated skills:', updatedContent.skills);
+              console.log('[skills] Updated skills:', updatedContent.skills);
             }
           }
         }
 
-        // Handle design customization
+        // Handle design customization from OpenAI Assistant
         if (processResult.intent === 'design' && processResult.designCustomization) {
-          // Create new customization record
-          const newCustomization = await createDesignCustomization(user.id, {
+          // Upsert directly to design_assignments table using JSONB customization column
+          const customizationData = {
             color_scheme: processResult.designCustomization.color_scheme,
             font_family: processResult.designCustomization.font_family,
             spacing: processResult.designCustomization.spacing,
             custom_css: processResult.designCustomization.custom_css,
-            is_ats_safe: processResult.designCustomization.is_ats_safe
-          });
+          };
 
-          // Update assignment with new customization (save previous for undo)
-          if (designAssignment) {
-            await updateDesignCustomization(
-              supabase,
-              designAssignment.id,
-              newCustomization.id,
-              designAssignment.customization_id // Save current as previous for undo
-            );
-          }
+          // Merge with existing customization if present
+          const existingCustomization = designAssignment?.customization || {};
+          const mergedCustomization = {
+            ...existingCustomization,
+            ...customizationData,
+          };
 
-          console.log('Successfully applied design customization via chat');
+          // Upsert to design_assignments table
+          await supabase
+            .from('design_assignments')
+            .upsert({
+              optimization_id: optimization_id,
+              user_id: user.id,
+              template_id: designAssignment?.template_id || null,
+              customization: mergedCustomization,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'optimization_id'
+            });
+
+          console.log('Successfully applied design customization via OpenAI Assistant');
         }
       } catch (error) {
         console.error('Error applying changes:', error);

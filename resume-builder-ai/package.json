@@ -62,6 +62,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
     "jest": "^30.2.0",
+    "pg": "^8.16.3",
+    "playwright": "^1.56.1",
     "postcss": "^8.5.6",
     "supabase": "^2.40.7",
     "tailwindcss": "^4",

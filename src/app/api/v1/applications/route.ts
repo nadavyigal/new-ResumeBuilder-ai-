@@ -55,9 +55,9 @@ export async function POST(req: NextRequest) {
     let mappedCompany: string | null = company || null;
     let sourceUrl: string | null = (body?.jobUrl as string | undefined) || null;
     if (url) {
-      console.log('🔍 Extracting job from URL:', url);
+      console.log('[extract] Extracting job from URL:', url);
       extracted = await extractJob(url);
-      console.log('📊 Extracted data:', {
+      console.log('[extract] Extracted data:', {
         company: extracted.company_name,
         title: extracted.job_title,
         sourceUrl: extracted.source_url
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
 
     // Best-effort: try to persist new fields if migration is applied; ignore if columns missing
     if (sourceUrl || extracted) {
-      console.log('💾 Saving job_extraction to database:', { sourceUrl, hasExtracted: !!extracted });
+      console.log('[db] Saving job_extraction to database:', { sourceUrl, hasExtracted: !!extracted });
       const { error: optionalErr } = await supabase
         .from("applications")
         .update({
@@ -162,11 +162,11 @@ export async function POST(req: NextRequest) {
       // If optionalErr mentions missing column, ignore
       if (optionalErr && !/column .* does not exist/i.test(optionalErr.message)) {
         // Log-only path; do not fail request to avoid blocking UX
-        console.warn("❌ Optional fields update failed:", optionalErr.message);
+        console.warn("[warn] Optional fields update failed:", optionalErr.message);
       } else if (optionalErr) {
-        console.warn("⚠️  Columns don't exist (migration not applied):", optionalErr.message);
+        console.warn("[warn] Columns don't exist (migration not applied):", optionalErr.message);
       } else {
-        console.log('✅ Successfully saved job_extraction to database');
+        console.log('[ok] Saved job_extraction to database');
       }
     }
 

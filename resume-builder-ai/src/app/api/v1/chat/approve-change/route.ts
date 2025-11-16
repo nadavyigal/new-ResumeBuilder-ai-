@@ -192,10 +192,10 @@ export async function POST(request: NextRequest) {
         current_score: optimization.ats_score_optimized
       });
 
-      // Get job description for scoring
+      // Get job description for scoring (need raw_text for semantic analysis)
       const { data: jobDescription, error: jdError } = await supabase
         .from('job_descriptions')
-        .select('parsed_data, embeddings')
+        .select('parsed_data, embeddings, raw_text, clean_text')
         .eq('id', optimization.jd_id)
         .maybeSingle();
 
@@ -224,11 +224,44 @@ export async function POST(request: NextRequest) {
       }
 
       if (jobDescription) {
+        // Map parsed_data from database to JobExtraction format expected by scorer
+        // Database structure: { job_title, requirements, nice_to_have, responsibilities, ... }
+        // Scorer expects: { title, must_have, nice_to_have, responsibilities, ... }
+        const jobDataForScorer = {
+          title: jobDescription.parsed_data.job_title || '',
+          company: jobDescription.parsed_data.company_name || '',
+          must_have: Array.isArray(jobDescription.parsed_data.requirements)
+            ? jobDescription.parsed_data.requirements
+            : (typeof jobDescription.parsed_data.requirements === 'string'
+              ? [jobDescription.parsed_data.requirements]
+              : []),
+          nice_to_have: Array.isArray(jobDescription.parsed_data.nice_to_have)
+            ? jobDescription.parsed_data.nice_to_have
+            : [],
+          responsibilities: Array.isArray(jobDescription.parsed_data.responsibilities)
+            ? jobDescription.parsed_data.responsibilities
+            : [],
+          seniority: jobDescription.parsed_data.seniority || '',
+          location: jobDescription.parsed_data.location || '',
+          industry: '',
+          // raw_text and clean_text are table-level columns, not in parsed_data
+          raw_text: jobDescription.clean_text || jobDescription.raw_text || '',
+          clean_text: jobDescription.clean_text || jobDescription.raw_text || '',
+        };
+
+        console.log('🔍 Mapped job data for scorer:', {
+          title: jobDataForScorer.title,
+          must_have_count: jobDataForScorer.must_have.length,
+          nice_to_have_count: jobDataForScorer.nice_to_have.length,
+          responsibilities_count: jobDataForScorer.responsibilities.length,
+          has_raw_text: !!jobDataForScorer.raw_text
+        });
+
         // Calculate new ATS score
         const scoreResult = await scoreResume(
           updatedResumeData,
           {},  // original resume (not needed for optimized score)
-          jobDescription.parsed_data,
+          jobDataForScorer,
           jobDescription.embeddings || null
         );
 
@@ -236,7 +269,7 @@ export async function POST(request: NextRequest) {
         const { error: scoreUpdateError } = await supabase
           .from('optimizations')
           .update({
-            ats_score_optimized: scoreResult.optimizedScore,
+            ats_score_optimized: scoreResult.ats_score_optimized,
             ats_subscores: scoreResult.subscores,
           })
           .eq('id', optimization_id);
@@ -248,8 +281,8 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ ATS score recalculated:', {
           previous: optimization.ats_score_optimized,
-          new: scoreResult.optimizedScore,
-          improvement: scoreResult.optimizedScore - (optimization.ats_score_optimized || 0)
+          new: scoreResult.ats_score_optimized,
+          improvement: scoreResult.ats_score_optimized - (optimization.ats_score_optimized || 0)
         });
 
         return NextResponse.json({

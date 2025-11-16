@@ -77,7 +77,7 @@ export interface Database {
           company: string;
           raw_text: string;
           clean_text: string;
-          extracted_data: any;
+          parsed_data: any;
           embeddings: number[] | null;
           created_at: string;
           updated_at: string;
@@ -90,7 +90,7 @@ export interface Database {
           company: string;
           raw_text: string;
           clean_text: string;
-          extracted_data: any;
+          parsed_data: any;
           embeddings?: number[] | null;
           created_at?: string;
           updated_at?: string;
@@ -103,7 +103,7 @@ export interface Database {
           company?: string;
           raw_text?: string;
           clean_text?: string;
-          extracted_data?: any;
+          parsed_data?: any;
           embeddings?: number[] | null;
           created_at?: string;
           updated_at?: string;
