@@ -2,6 +2,7 @@ import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
 import { applySuggestions } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 
 interface AgentContext {
   message: string;
@@ -78,12 +79,24 @@ export async function handleTipImplementation(
     };
   }
 
-  const scoreBefore = optimization.ats_score_optimized || 0;
+  const resumeData = ensureOptimizedResume(optimization.rewrite_data);
+  if (!resumeData) {
+    return {
+      intent: 'tip_implementation',
+      success: false,
+      error:
+        'No editable resume data found for this optimization. Run an optimization first, then try applying the tips again.',
+    };
+  }
+
+  const scoreBefore = typeof optimization.ats_score_optimized === 'number'
+    ? optimization.ats_score_optimized
+    : 0;
 
   // 5. Apply suggestions to resume
   try {
     const updatedResume = await applySuggestions(
-      optimization.rewrite_data,
+      resumeData,
       suggestions
     );
 
@@ -137,5 +150,26 @@ export async function handleTipImplementation(
       error: 'Failed to apply suggestions to resume',
     };
   }
+}
+
+function ensureOptimizedResume(data: unknown): OptimizedResume | null {
+  if (!data) {
+    return null;
+  }
+
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data) as OptimizedResume;
+    } catch (error) {
+      console.error('Failed to parse rewrite_data JSON', error);
+      return null;
+    }
+  }
+
+  if (typeof data === 'object') {
+    return data as OptimizedResume;
+  }
+
+  return null;
 }
 
