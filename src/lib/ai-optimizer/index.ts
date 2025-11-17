@@ -214,12 +214,20 @@ export function calculateMatchScore(
   resumeText: string,
   jobDescription: string
 ): number {
+  if (!jobDescription || jobDescription.trim().length === 0) {
+    return 0;
+  }
+
   // Extract keywords from job description (simple approach)
   const jdWords = jobDescription
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(word => word.length > 3); // Filter short words
+
+  if (jdWords.length === 0) {
+    return 0;
+  }
 
   // Count how many JD keywords appear in resume
   const resumeLower = resumeText.toLowerCase();
@@ -229,7 +237,13 @@ export function calculateMatchScore(
   const uniqueJdWords = [...new Set(jdWords)];
   const uniqueMatches = [...new Set(matchedKeywords)];
 
-  return Math.round((uniqueMatches.length / uniqueJdWords.length) * 100);
+  const rawScore = (uniqueMatches.length / uniqueJdWords.length) * 100;
+
+  if (!isFinite(rawScore)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(rawScore)));
 }
 
 /**
