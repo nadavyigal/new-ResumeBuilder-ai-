@@ -19,20 +19,39 @@ export async function applySuggestions(
   resume: OptimizedResume,
   suggestions: Suggestion[]
 ): Promise<OptimizedResume> {
+  console.log(`🔄 Starting to apply ${suggestions.length} suggestions...`);
+  console.log(`📝 Suggestions to apply:`, suggestions.map((s, i) => `#${i + 1}: ${s.category} - ${s.text.substring(0, 60)}...`));
+
   let updated = JSON.parse(JSON.stringify(resume)); // Deep clone
   let changesApplied = 0;
   const changeLog: string[] = [];
 
-  for (const suggestion of suggestions) {
+  for (let i = 0; i < suggestions.length; i++) {
+    const suggestion = suggestions[i];
+    console.log(`\n🔧 Applying suggestion #${i + 1}/${suggestions.length}:`, {
+      category: suggestion.category,
+      text: suggestion.text.substring(0, 100),
+    });
+
     const result = await applySingleSuggestion(updated, suggestion);
+
+    console.log(`📊 Suggestion #${i + 1} result:`, {
+      changed: result.changed,
+      description: result.changeDescription,
+    });
+
     if (result.changed) {
       updated = result.resume;
       changesApplied++;
-      changeLog.push(result.changeDescription);
+      changeLog.push(`#${i + 1}: ${result.changeDescription}`);
+      console.log(`✅ Suggestion #${i + 1} APPLIED. Total applied: ${changesApplied}`);
+    } else {
+      console.log(`⏭️ Suggestion #${i + 1} SKIPPED: ${result.changeDescription}`);
     }
   }
 
-  console.log(`✅ Applied ${changesApplied}/${suggestions.length} suggestions:`, changeLog);
+  console.log(`\n✅ FINAL: Applied ${changesApplied}/${suggestions.length} suggestions`);
+  console.log(`📝 Change log:`, changeLog);
 
   return updated;
 }

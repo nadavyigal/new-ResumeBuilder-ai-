@@ -1,5 +1,5 @@
 /**
- * Supabase Database Wrapper: design_assignments table
+ * Supabase Database Wrapper: design_customizations table
  * Provides type-safe access to design customizations with RLS enforcement
  *
  * Reference: specs/003-i-want-to/data-model.md
@@ -47,7 +47,7 @@ export async function createDesignCustomization(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data, error} = await supabase
-    .from('design_assignments')
+    .from('design_customizations')
     .insert({
       user_id: userId,
       ...customization
@@ -75,7 +75,7 @@ export async function getDesignCustomizationById(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase
-    .from('design_assignments')
+    .from('design_customizations')
     .select('*')
     .eq('id', customizationId)
     .eq('user_id', userId)
@@ -102,7 +102,7 @@ export async function getUserCustomizations(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase
-    .from('design_assignments')
+    .from('design_customizations')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
@@ -126,7 +126,7 @@ export async function deleteDesignCustomization(
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { error } = await supabase
-    .from('design_assignments')
+    .from('design_customizations')
     .delete()
     .eq('id', customizationId)
     .eq('user_id', userId);

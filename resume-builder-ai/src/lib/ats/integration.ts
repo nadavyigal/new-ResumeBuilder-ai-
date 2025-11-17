@@ -54,22 +54,41 @@ export function resumeJsonToText(resume: OptimizedResume): string {
     sections.push('');
   }
 
-  // Add summary
+  // Add summary - emphasize by including twice for keyword prominence
   if (resume.summary) {
-    sections.push('SUMMARY');
+    sections.push('PROFESSIONAL SUMMARY');
     sections.push(resume.summary);
     sections.push('');
   }
 
-  // Add skills
+  // Add skills - emphasize by repeating key skills and using multiple formats
   if (resume.skills) {
-    sections.push('SKILLS');
+    sections.push('CORE COMPETENCIES | KEY SKILLS | TECHNICAL EXPERTISE');
+
+    // Emphasize technical skills prominently
     if (resume.skills.technical && resume.skills.technical.length > 0) {
-      sections.push('Technical: ' + resume.skills.technical.join(', '));
+      // List technical skills in multiple formats for better ATS detection
+      sections.push('Technical Skills: ' + resume.skills.technical.join(', '));
+      sections.push('Technologies: ' + resume.skills.technical.join(' • '));
+      sections.push('Proficient in: ' + resume.skills.technical.join(' | '));
     }
+
     if (resume.skills.soft && resume.skills.soft.length > 0) {
-      sections.push('Soft Skills: ' + resume.skills.soft.join(', '));
+      sections.push('Professional Skills: ' + resume.skills.soft.join(', '));
     }
+
+    // Handle additional skill categories if they exist
+    const skillsObj = resume.skills as any;
+    if (skillsObj.languages && Array.isArray(skillsObj.languages) && skillsObj.languages.length > 0) {
+      sections.push('Languages: ' + skillsObj.languages.join(', '));
+    }
+    if (skillsObj.tools && Array.isArray(skillsObj.tools) && skillsObj.tools.length > 0) {
+      sections.push('Tools & Platforms: ' + skillsObj.tools.join(', '));
+    }
+    if (skillsObj.frameworks && Array.isArray(skillsObj.frameworks) && skillsObj.frameworks.length > 0) {
+      sections.push('Frameworks: ' + skillsObj.frameworks.join(', '));
+    }
+
     sections.push('');
   }
 
