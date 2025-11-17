@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { calculateMatchScore } from '../ai-optimizer';
 
 describe('calculateMatchScore', () => {
