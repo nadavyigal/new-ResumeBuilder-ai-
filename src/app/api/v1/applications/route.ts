@@ -152,9 +152,9 @@ export async function POST(req: NextRequest) {
       const { error: optionalErr } = await supabase
         .from("applications")
         .update({
-          // @ts-ignore - columns may not exist pre-migration
+          // @ts-expect-error - columns may not exist pre-migration
           source_url: sourceUrl || null,
-          // @ts-ignore - columns may not exist pre-migration
+          // @ts-expect-error - columns may not exist pre-migration
           job_extraction: extracted || null,
         } as any)
         .eq("id", appId)

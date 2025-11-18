@@ -79,7 +79,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Something went wrong
               </h1>
               <p className="text-muted-foreground">
-                We encountered an unexpected error. Don't worry, your data is safe.
+                We encountered an unexpected error. Don&rsquo;t worry, your data is safe.
               </p>
             </div>
 
@@ -130,7 +130,7 @@ export function ApiErrorBoundary({ children }: { children: ReactNode }) {
             <div className="text-5xl mb-4">🔌</div>
             <h1 className="text-2xl font-bold">Connection Error</h1>
             <p className="text-muted-foreground">
-              We're having trouble connecting to our servers. Please check your internet connection and try again.
+              We&rsquo;re having trouble connecting to our servers. Please check your internet connection and try again.
             </p>
             <Button onClick={() => window.location.reload()}>
               Retry

@@ -76,7 +76,7 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
             Upgrade to Premium
           </DialogTitle>
           <DialogDescription className="text-base">
-            You've used your free optimization ({optimizationsUsed}/1)
+            You&rsquo;ve used your free optimization ({optimizationsUsed}/1)
           </DialogDescription>
         </DialogHeader>
 
