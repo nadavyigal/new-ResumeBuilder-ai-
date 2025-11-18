@@ -1054,3 +1054,32 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
+// Convenience exports used across the app
+export type Profile = Tables<'profiles'>
+export type ProfileInsert = TablesInsert<'profiles'>
+export type ProfileUpdate = TablesUpdate<'profiles'>
+
+export type Template = Tables<'templates'>
+export type Resume = Tables<'resumes'>
+export type ResumeInsert = TablesInsert<'resumes'>
+export type ResumeUpdate = TablesUpdate<'resumes'>
+
+export type JobDescription = Tables<'job_descriptions'>
+export type JobDescriptionInsert = TablesInsert<'job_descriptions'>
+export type JobDescriptionUpdate = TablesUpdate<'job_descriptions'>
+
+export type Optimization = Tables<'optimizations'>
+export type OptimizationInsert = TablesInsert<'optimizations'>
+export type OptimizationUpdate = TablesUpdate<'optimizations'>
+
+export type Event = Tables<'events'>
+
+export interface SubscriptionStatus {
+  subscription_tier: 'free' | 'premium'
+  optimizations_used: number
+  max_optimizations: number
+  can_optimize: boolean
+  remaining_optimizations: number
+  member_since: string
+}
