@@ -10,7 +10,7 @@
     "sync-templates": "tsx scripts/sync-external-templates.ts",
     "prebuild": "npm run sync-templates",
     "test": "jest",
-    "test:contracts": "jest tests/contracts",
+    "test:contracts": "jest --env=node tests/contracts",
     "test:agent": "jest tests/agent",
     "test:api": "jest tests/api",
     "bench:agent": "node scripts/bench-agent.mjs"

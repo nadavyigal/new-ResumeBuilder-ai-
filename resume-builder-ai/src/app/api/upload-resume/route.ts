@@ -8,6 +8,7 @@ import { scrapeJobDescription } from "@/lib/job-scraper";
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
+import { scoreOptimization } from "@/lib/ats/integration";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -99,15 +100,13 @@ export async function POST(req: NextRequest) {
 
     const { data: resumeData, error: resumeError } = await supabase
       .from("resumes")
-      .insert([
-        {
-          user_id: user.id,
-          filename: resumeFile.name,
-          storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
-          raw_text: pdfData.text,
-          canonical_data: {}, // Will be populated later during optimization
-        },
-      ])
+      .insert({
+        user_id: user.id,
+        filename: resumeFile.name,
+        storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
+        raw_text: pdfData.text,
+        canonical_data: {}, // Will be populated later during optimization
+      })
       .select()
       .maybeSingle();
 
@@ -121,17 +120,15 @@ export async function POST(req: NextRequest) {
 
     const { data: jdData, error: jdError } = await supabase
       .from("job_descriptions")
-      .insert([
-        {
-          user_id: user.id,
-          title: extractedTitle || "Job Position",
-          company: extractedCompany || "Company Name",
-          raw_text: jobDescriptionText,
-          clean_text: jobDescriptionText,
-          extracted_data: extractedData,
-          source_url: sourceUrl,
-        },
-      ])
+      .insert({
+        user_id: user.id,
+        title: extractedTitle || "Job Position",
+        company: extractedCompany || "Company Name",
+        raw_text: jobDescriptionText,
+        clean_text: jobDescriptionText,
+        parsed_data: extractedData,
+        source_url: sourceUrl,
+      })
       .select()
       .maybeSingle();
 
@@ -170,24 +167,63 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Score the optimization using ATS v2
+    let atsResult = null;
+    try {
+      console.log('Starting ATS v2 scoring...');
+      const scoringPromise = scoreOptimization({
+        resumeOriginalText: pdfData.text,
+        resumeOptimizedJson: optimizationResult.optimizedResume,
+        jobDescriptionText: jobDescriptionText,
+        jobTitle: extractedTitle || 'Position',
+      });
+
+      // Add timeout to prevent hanging (60 seconds)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('ATS scoring timeout')), 60000)
+      );
+
+      atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
+
+      console.log('ATS v2 scoring completed:', {
+        original: atsResult?.ats_score_original,
+        optimized: atsResult?.ats_score_optimized,
+        improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
+        suggestions: atsResult?.suggestions?.length || 0,
+      });
+    } catch (atsError: any) {
+      console.error('ATS v2 scoring failed, continuing without it:', {
+        error: atsError?.message,
+        stack: atsError?.stack?.substring(0, 200),
+      });
+      // Continue with optimization even if ATS scoring fails
+      atsResult = null;
+    }
+
     // Save optimization results
     const { data: optimizationData, error: optimizationError } = await supabase
       .from("optimizations")
-      .insert([
-        {
-          user_id: user.id,
-          resume_id: resumeData.id,
-          jd_id: jdData.id,
-          match_score: matchScore,
-          gaps_data: {
-            missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
-            keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
-          },
-          rewrite_data: optimizationResult.optimizedResume,
-          template_key: 'ats-simple',
-          status: 'completed' as const,
+      .insert({
+        user_id: user.id,
+        resume_id: resumeData.id,
+        jd_id: jdData.id,
+        match_score: atsResult?.ats_score_optimized || matchScore,
+        gaps_data: {
+          missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
+          keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
         },
-      ])
+        rewrite_data: optimizationResult.optimizedResume,
+        template_key: 'natural', // Default natural design (no template)
+        status: 'completed' as const,
+        // ATS v2 fields - always use version 2
+        ats_version: 2,
+        ats_score_original: atsResult?.ats_score_original || null,
+        ats_score_optimized: atsResult?.ats_score_optimized || null,
+        ats_subscores: atsResult?.subscores || null,
+        ats_subscores_original: atsResult?.subscores_original || null,
+        ats_suggestions: atsResult?.suggestions || null,
+        ats_confidence: atsResult?.confidence || null,
+      })
       .select()
       .maybeSingle();
 

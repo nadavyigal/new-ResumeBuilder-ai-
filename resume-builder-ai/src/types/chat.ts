@@ -118,6 +118,10 @@ export interface ChatSendMessageResponse {
   // Optional: returned when a design intent was processed
   design_preview?: string;
   design_customization?: any;
+  // Optional: returned when ATS tip implementation is requested
+  pending_changes?: PendingChange[];
+  tip_numbers?: number[];
+  intent?: 'content' | 'design' | 'ats_tip' | 'unclear';
 }
 
 /**
@@ -251,3 +255,40 @@ export type AmendmentRequestInsert = Omit<AmendmentRequest, 'id' | 'created_at' 
  */
 export type ChatSessionUpdate = Partial<Omit<ChatSession, 'id' | 'user_id' | 'optimization_id' | 'created_at'>> & { id: string };
 export type AmendmentRequestUpdate = Partial<Omit<AmendmentRequest, 'id' | 'session_id' | 'message_id' | 'created_at'>> & { id: string };
+
+// ========================================
+// ATS Tip Implementation Types
+// ========================================
+
+/**
+ * Change Status for pending ATS tip implementations
+ */
+export type ChangeStatus = 'pending' | 'approved' | 'rejected';
+
+/**
+ * Affected Field tracking for highlighting changes
+ */
+export interface AffectedField {
+  sectionId: string;      // e.g., 'summary', 'experience-0', 'skills'
+  field: string;          // e.g., 'text', 'bullet', 'items'
+  originalValue: any;     // Original value before change
+  newValue: any;          // New value after change
+  changeType: 'add' | 'modify' | 'remove';
+}
+
+/**
+ * Pending Change for ATS tip implementation
+ *
+ * Represents a preview of changes from implementing one or more ATS tips.
+ * Changes are held in this state until user approves or rejects them.
+ */
+export interface PendingChange {
+  suggestionId: string;           // ID of the ATS suggestion being implemented
+  suggestionNumber: number;       // Display number (1, 2, 3...)
+  suggestionText: string;         // Human-readable suggestion text
+  description: string;            // Detailed description of changes
+  affectedFields: AffectedField[]; // List of fields being modified
+  amendments: AmendmentRequest[];  // Associated amendment requests
+  status: ChangeStatus;           // Current status of the change
+  createdAt: string;              // ISO string timestamp when the change was created (for proper serialization)
+}

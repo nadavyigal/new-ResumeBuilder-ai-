@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       .update(sampleData)
       .eq('id', optimization_id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Database error:', error);

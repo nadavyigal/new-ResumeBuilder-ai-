@@ -15,7 +15,6 @@ export function log(category: Category, message: string, meta?: Record<string, a
   const safeMessage = redactPII(String(message || ""));
   const safeMeta = meta ? JSON.parse(redactPII(JSON.stringify(meta))) : undefined;
   const payload = { t: new Date().toISOString(), category, message: safeMessage, ...(safeMeta ? { meta: safeMeta } : {}) };
-  // eslint-disable-next-line no-console
   console.log(JSON.stringify(payload));
 }
 

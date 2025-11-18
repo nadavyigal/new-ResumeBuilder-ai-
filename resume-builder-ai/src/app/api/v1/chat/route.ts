@@ -20,6 +20,9 @@ import {
 } from '@/lib/supabase/design-customizations';
 import { AmendmentRequest } from '@/lib/chat-manager/processor';
 import { CHAT_CONFIG, TECHNICAL_KEYWORDS } from '@/lib/constants';
+import { detectIntentRegex } from '@/lib/agent/intents';
+import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
+import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
 
 /**
  * Apply amendments to resume content
@@ -297,7 +300,117 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Process message through unified processor
+    // NEW: Detect intent and route to appropriate handler (Spec 008 features)
+    const intent = detectIntentRegex(message);
+
+    // Handle tip implementation
+    if (intent === 'tip_implementation') {
+      const tipResult = await handleTipImplementation({
+        message,
+        optimizationId: optimization_id,
+        atsSuggestions,
+        supabase
+      });
+
+      if (tipResult.success) {
+        // Save AI message
+        const { data: aiMessage } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: chatSession.id,
+            sender: 'ai',
+            content: tipResult.message || 'Applied tips successfully',
+            metadata: {
+              intent: 'tip_implementation',
+              tip_numbers: tipResult.tips_applied?.tip_numbers,
+              score_change: tipResult.tips_applied?.score_change,
+            }
+          })
+          .select()
+          .maybeSingle();
+
+        // Return success response with tips_applied
+        return NextResponse.json({
+          session_id: chatSession.id,
+          message_id: aiMessage.id,
+          ai_response: tipResult.message,
+          tips_applied: tipResult.tips_applied,
+        });
+      } else {
+        // Save error message
+        const { data: aiMessage } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: chatSession.id,
+            sender: 'ai',
+            content: tipResult.error || 'Failed to apply tips',
+          })
+          .select()
+          .maybeSingle();
+
+        // Return error response
+        return NextResponse.json({
+          session_id: chatSession.id,
+          message_id: aiMessage.id,
+          ai_response: tipResult.error,
+        });
+      }
+    }
+
+    // Handle color customization
+    if (intent === 'color_customization') {
+      const colorResult = await handleColorCustomization({
+        message,
+        optimizationId: optimization_id,
+        userId: user.id,
+        supabase,
+      });
+
+      if (colorResult.success) {
+        // Save AI message
+        const { data: aiMessage } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: chatSession.id,
+            sender: 'ai',
+            content: colorResult.message || 'Color customization applied',
+            metadata: {
+              intent: 'color_customization',
+              colors_changed: colorResult.color_customization,
+            }
+          })
+          .select()
+          .maybeSingle();
+
+        // Return success response with design_customization
+        return NextResponse.json({
+          session_id: chatSession.id,
+          message_id: aiMessage.id,
+          ai_response: colorResult.message,
+          design_customization: colorResult.design_customization,
+        });
+      } else {
+        // Save error message
+        const { data: aiMessage } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: chatSession.id,
+            sender: 'ai',
+            content: colorResult.error || 'Failed to apply color customization',
+          })
+          .select()
+          .maybeSingle();
+
+        // Return error response
+        return NextResponse.json({
+          session_id: chatSession.id,
+          message_id: aiMessage.id,
+          ai_response: colorResult.error,
+        });
+      }
+    }
+
+    // Otherwise, continue with existing flow (processUnifiedMessage)
     const startTime = Date.now();
     const processResult = await processUnifiedMessage({
       message,
@@ -369,28 +482,37 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Handle design customization
+        // Handle design customization from OpenAI Assistant
         if (processResult.intent === 'design' && processResult.designCustomization) {
-          // Create new customization record
-          const newCustomization = await createDesignCustomization(user.id, {
+          // Upsert directly to design_assignments table using JSONB customization column
+          const customizationData = {
             color_scheme: processResult.designCustomization.color_scheme,
             font_family: processResult.designCustomization.font_family,
             spacing: processResult.designCustomization.spacing,
             custom_css: processResult.designCustomization.custom_css,
-            is_ats_safe: processResult.designCustomization.is_ats_safe
-          });
+          };
 
-          // Update assignment with new customization (save previous for undo)
-          if (designAssignment) {
-            await updateDesignCustomization(
-              supabase,
-              designAssignment.id,
-              newCustomization.id,
-              designAssignment.customization_id // Save current as previous for undo
-            );
-          }
+          // Merge with existing customization if present
+          const existingCustomization = designAssignment?.customization || {};
+          const mergedCustomization = {
+            ...existingCustomization,
+            ...customizationData,
+          };
 
-          console.log('Successfully applied design customization via chat');
+          // Upsert to design_assignments table
+          await supabase
+            .from('design_assignments')
+            .upsert({
+              optimization_id: optimization_id,
+              user_id: user.id,
+              template_id: designAssignment?.template_id || null,
+              customization: mergedCustomization,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'optimization_id'
+            });
+
+          console.log('Successfully applied design customization via OpenAI Assistant');
         }
       } catch (error) {
         console.error('Error applying changes:', error);

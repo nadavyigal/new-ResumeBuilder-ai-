@@ -153,7 +153,7 @@ export class AssistantManager {
       await this.sleep(1000);
 
       console.log('Retrieving run status - thread:', resolvedThreadId, 'run:', run.id);
-      run = await this.client.beta.threads.runs.retrieve(run.id, { thread_id: resolvedThreadId });
+      run = await this.client.beta.threads.runs.retrieve(resolvedThreadId, run.id);
 
       // Handle function calls
       if (run.status === 'requires_action' && run.required_action?.type === 'submit_tool_outputs') {
@@ -188,9 +188,9 @@ export class AssistantManager {
 
         // Submit tool outputs to continue the run
         run = await this.client.beta.threads.runs.submitToolOutputs(
+          resolvedThreadId,
           run.id,
           {
-            thread_id: resolvedThreadId,
             tool_outputs: toolOutputs
           }
         );
@@ -243,6 +243,12 @@ export class AssistantManager {
 - Always confirm what you changed in your response
 - Be friendly and conversational
 - If the user's request is unclear, use clarify_request to ask for more information
+
+**CRITICAL: ATS TIP IMPLEMENTATION**
+- When users ask to "implement tip X" or "apply tip number X", DO NOT make any changes
+- These requests are handled by a specialized tip implementation system, NOT by you
+- Simply respond: "I'll apply tip X for you. The changes will appear on your resume shortly."
+- DO NOT interpret tip implementation as design or content changes
 
 **DESIGN GUIDELINES:**
 - For background colors, support common names: light blue (#87CEEB), dark blue (#00008B), navy (#001f3f), etc.

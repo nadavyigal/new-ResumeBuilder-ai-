@@ -24,29 +24,101 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { optimization_id, suggestion_id, affected_fields } = body;
+
+    // Support both optimization_id and optimizationId (flexible parsing)
+    const optimization_id = body.optimization_id || body.optimizationId;
+    const suggestion_id = body.suggestion_id || body.suggestionId;
+    const affected_fields = body.affected_fields || body.affectedFields;
+
+    console.log('🔍 DEBUG - Approve Change Request:', {
+      optimization_id,
+      suggestion_id,
+      affected_fields_count: affected_fields?.length || 0,
+      user_id: user.id,
+      user_email: user.email,
+      body_keys: Object.keys(body)
+    });
 
     if (!optimization_id || !suggestion_id) {
+      console.error('❌ Missing required fields:', {
+        has_optimization_id: !!optimization_id,
+        has_suggestion_id: !!suggestion_id,
+        body
+      });
       return NextResponse.json(
-        { error: 'Missing required fields: optimization_id and suggestion_id are required.' },
+        {
+          error: 'Missing required fields: optimization_id and suggestion_id are required.',
+          received: {
+            optimization_id: !!optimization_id,
+            suggestion_id: !!suggestion_id
+          }
+        },
         { status: 400 }
       );
     }
 
     // Get optimization data
+    console.log('🔍 DEBUG - Querying database for optimization:', {
+      optimization_id,
+      user_id: user.id
+    });
+
     const { data: optimization, error: fetchError } = await supabase
       .from('optimizations')
-      .select('rewrite_data, resume_id, job_description_id, ats_suggestions')
+      .select('rewrite_data, resume_id, jd_id, ats_suggestions, ats_score_optimized')
       .eq('id', optimization_id)
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (fetchError || !optimization) {
+    console.log('🔍 DEBUG - Query Result:', {
+      found: !!optimization,
+      has_error: !!fetchError,
+      error_message: fetchError?.message,
+      error_details: fetchError?.details,
+      error_hint: fetchError?.hint,
+      error_code: (fetchError as any)?.code,
+      optimization_id,
+      user_id: user.id
+    });
+
+    if (fetchError) {
+      console.error('❌ Database error fetching optimization:', fetchError);
       return NextResponse.json(
-        { error: 'Optimization not found or access denied.' },
+        {
+          error: 'Database error',
+          details: fetchError.message,
+          hint: fetchError.hint,
+          optimization_id,
+          user_id: user.id
+        },
+        { status: 500 }
+      );
+    }
+
+    if (!optimization) {
+      console.error('❌ Optimization not found:', {
+        optimization_id,
+        user_id: user.id,
+        message: 'The optimization ID does not exist or does not belong to this user'
+      });
+      return NextResponse.json(
+        {
+          error: 'Optimization not found',
+          details: `No optimization found with ID "${optimization_id}" for user "${user.id}"`,
+          optimization_id,
+          user_id: user.id,
+          hint: 'Check that the optimization ID is correct and belongs to the authenticated user'
+        },
         { status: 404 }
       );
     }
+
+    console.log('✅ Optimization found:', {
+      optimization_id,
+      has_rewrite_data: !!optimization.rewrite_data,
+      has_ats_suggestions: !!optimization.ats_suggestions,
+      ats_suggestions_count: optimization.ats_suggestions?.length || 0
+    });
 
     const currentResumeData = optimization.rewrite_data || {};
     const atsSuggestions = optimization.ats_suggestions || [];
@@ -113,19 +185,83 @@ export async function POST(request: NextRequest) {
 
     // Recalculate ATS score with the updated resume
     try {
-      // Get job description for scoring
-      const { data: jobDescription } = await supabase
+      console.log('🔄 Starting ATS score recalculation...', {
+        optimization_id,
+        has_jd_id: !!optimization.jd_id,
+        jd_id: optimization.jd_id,
+        current_score: optimization.ats_score_optimized
+      });
+
+      // Get job description for scoring (need raw_text for semantic analysis)
+      const { data: jobDescription, error: jdError } = await supabase
         .from('job_descriptions')
-        .select('parsed_data, embeddings')
-        .eq('id', optimization.job_description_id)
+        .select('parsed_data, embeddings, raw_text, clean_text')
+        .eq('id', optimization.jd_id)
         .maybeSingle();
 
+      console.log('📊 Job description fetch result:', {
+        found: !!jobDescription,
+        has_error: !!jdError,
+        error: jdError?.message,
+        has_parsed_data: !!jobDescription?.parsed_data,
+        has_embeddings: !!jobDescription?.embeddings,
+        parsed_data_keys: jobDescription?.parsed_data ? Object.keys(jobDescription.parsed_data) : []
+      });
+
+      if (jdError) {
+        console.error('❌ Failed to fetch job description:', jdError);
+        throw new Error(`Job description fetch failed: ${jdError.message}`);
+      }
+
+      if (!jobDescription) {
+        console.error('❌ Job description not found for id:', optimization.jd_id);
+        throw new Error('Job description not found');
+      }
+
+      if (!jobDescription.parsed_data) {
+        console.error('❌ Job description has no parsed_data');
+        throw new Error('Job description missing parsed_data');
+      }
+
       if (jobDescription) {
+        // Map parsed_data from database to JobExtraction format expected by scorer
+        // Database structure: { job_title, requirements, nice_to_have, responsibilities, ... }
+        // Scorer expects: { title, must_have, nice_to_have, responsibilities, ... }
+        const jobDataForScorer = {
+          title: jobDescription.parsed_data.job_title || '',
+          company: jobDescription.parsed_data.company_name || '',
+          must_have: Array.isArray(jobDescription.parsed_data.requirements)
+            ? jobDescription.parsed_data.requirements
+            : (typeof jobDescription.parsed_data.requirements === 'string'
+              ? [jobDescription.parsed_data.requirements]
+              : []),
+          nice_to_have: Array.isArray(jobDescription.parsed_data.nice_to_have)
+            ? jobDescription.parsed_data.nice_to_have
+            : [],
+          responsibilities: Array.isArray(jobDescription.parsed_data.responsibilities)
+            ? jobDescription.parsed_data.responsibilities
+            : [],
+          seniority: jobDescription.parsed_data.seniority || '',
+          location: jobDescription.parsed_data.location || '',
+          industry: '',
+          // raw_text and clean_text are table-level columns, not in parsed_data
+          raw_text: jobDescription.clean_text || jobDescription.raw_text || '',
+          clean_text: jobDescription.clean_text || jobDescription.raw_text || '',
+        };
+
+        console.log('🔍 Mapped job data for scorer:', {
+          title: jobDataForScorer.title,
+          must_have_count: jobDataForScorer.must_have.length,
+          nice_to_have_count: jobDataForScorer.nice_to_have.length,
+          responsibilities_count: jobDataForScorer.responsibilities.length,
+          has_raw_text: !!jobDataForScorer.raw_text
+        });
+
         // Calculate new ATS score
         const scoreResult = await scoreResume(
           updatedResumeData,
           {},  // original resume (not needed for optimized score)
-          jobDescription.parsed_data,
+          jobDataForScorer,
           jobDescription.embeddings || null
         );
 
@@ -133,7 +269,7 @@ export async function POST(request: NextRequest) {
         const { error: scoreUpdateError } = await supabase
           .from('optimizations')
           .update({
-            ats_score_optimized: scoreResult.optimizedScore,
+            ats_score_optimized: scoreResult.ats_score_optimized,
             ats_subscores: scoreResult.subscores,
           })
           .eq('id', optimization_id);
@@ -145,8 +281,8 @@ export async function POST(request: NextRequest) {
 
         console.log('✅ ATS score recalculated:', {
           previous: optimization.ats_score_optimized,
-          new: scoreResult.optimizedScore,
-          improvement: scoreResult.optimizedScore - (optimization.ats_score_optimized || 0)
+          new: scoreResult.ats_score_optimized,
+          improvement: scoreResult.ats_score_optimized - (optimization.ats_score_optimized || 0)
         });
 
         return NextResponse.json({
@@ -154,15 +290,34 @@ export async function POST(request: NextRequest) {
           message: `Applied changes from Tip #${suggestion.number || '?'}`,
           updated_resume: updatedResumeData,
           new_ats_score: scoreResult.optimizedScore,
+          previous_ats_score: optimization.ats_score_optimized,
           score_improvement: scoreResult.optimizedScore - (optimization.ats_score_optimized || 0),
         }, { status: 200 });
       }
     } catch (scoreError) {
       console.error('⚠️ Error recalculating ATS score:', scoreError);
-      // Don't fail the request if score calculation fails
+      console.error('❌ SCORE CALCULATION FAILED - Detailed Error:', {
+        error_message: scoreError instanceof Error ? scoreError.message : String(scoreError),
+        error_name: scoreError instanceof Error ? scoreError.name : typeof scoreError,
+        error_stack: scoreError instanceof Error ? scoreError.stack : undefined,
+        optimization_id,
+        user_id: user.id,
+        has_job_description: !!optimization.jd_id,
+        job_desc_id: optimization.jd_id,
+        resume_updated: !!updatedResumeData,
+        suggestion_id: suggestion.id
+      });
+
+      // Return error response so frontend knows score update failed
+      return NextResponse.json({
+        success: false,
+        error: 'Changes applied but ATS score calculation failed',
+        details: scoreError instanceof Error ? scoreError.message : 'Unknown error',
+        updated_resume: updatedResumeData,
+      }, { status: 500 });
     }
 
-    // Return success even if scoring failed
+    // This should not be reached anymore (score calculation always returns inside try/catch)
     return NextResponse.json({
       success: true,
       message: `Applied changes from Tip #${suggestion.number || '?'}`,
@@ -217,13 +372,118 @@ function applyATSSuggestion(
   const updated = structuredClone(resumeData); // Deep clone (faster and safer than JSON methods)
 
   try {
-    // Extract keywords or terms to add from the suggestion text
+    // NEW: Use affectedFields if provided (the proper way!)
+    if (affectedFields && affectedFields.length > 0) {
+      console.log('✅ Applying changes using affectedFields:', {
+        suggestion_id: suggestion.id,
+        fields_count: affectedFields.length,
+        suggestion_text: suggestion.text.substring(0, 100)
+      });
+
+      affectedFields.forEach((affectedField: any) => {
+        // Map field names from amendment generator to expected names
+        // Amendment generator uses 'field' and 'newValue', we need 'fieldPath' and 'after'
+        const sectionId = affectedField.sectionId;
+        const fieldPath = affectedField.field || affectedField.fieldPath;  // Support both naming conventions
+        const after = affectedField.newValue !== undefined ? affectedField.newValue : affectedField.after;  // Support both naming conventions
+        const changeType = affectedField.changeType;
+
+        // CRITICAL: Check for missing fieldPath before proceeding
+        if (!fieldPath) {
+          console.warn('⚠️ Missing fieldPath for affectedField - skipping:', {
+            sectionId,
+            changeType,
+            affectedFieldKeys: Object.keys(affectedField),
+            fullField: affectedField
+          });
+          return; // Skip this field safely
+        }
+
+        console.log('🔧 Applying field change:', {
+          sectionId,
+          fieldPath,
+          changeType,
+          after: typeof after === 'string' ? after.substring(0, 50) : after,
+          affectedFieldKeys: Object.keys(affectedField)  // Debug: see what keys are available
+        });
+
+        // Parse sectionId to get section name and index
+        // Format: "skills", "experience-0", "education-1", etc.
+        const match = sectionId.match(/^([a-z]+)(?:-(\d+))?$/);
+        if (!match) {
+          console.warn('⚠️ Invalid sectionId format:', sectionId);
+          return;
+        }
+
+        const [, sectionName, indexStr] = match;
+        const sectionIndex = indexStr ? parseInt(indexStr, 10) : null;
+
+        // Get the section
+        let section = updated[sectionName];
+        if (!section) {
+          console.warn('⚠️ Section not found:', sectionName);
+          return;
+        }
+
+        // If section is an array and we have an index, get that item
+        if (Array.isArray(section) && sectionIndex !== null) {
+          if (sectionIndex >= section.length) {
+            console.warn('⚠️ Section index out of bounds:', { sectionName, index: sectionIndex, length: section.length });
+            return;
+          }
+          section = section[sectionIndex];
+        }
+
+        // Navigate to the field using fieldPath
+        const pathParts = fieldPath.split('.');
+        let target: any = section;
+
+        // Navigate to parent of final field
+        for (let i = 0; i < pathParts.length - 1; i++) {
+          if (!target[pathParts[i]]) {
+            console.warn('⚠️ Field path not found:', { path: pathParts.slice(0, i + 1).join('.') });
+            return;
+          }
+          target = target[pathParts[i]];
+        }
+
+        const finalFieldName = pathParts[pathParts.length - 1];
+
+        // Apply the change based on changeType
+        if (changeType === 'replace' || changeType === 'modify') {
+          // 'modify' and 'replace' both mean replace the entire value
+          target[finalFieldName] = after;
+          console.log('✅ Replaced field:', { field: finalFieldName, newValue: after, changeType });
+        } else if (changeType === 'add' || changeType === 'append') {
+          // Ensure field is an array
+          if (!Array.isArray(target[finalFieldName])) {
+            target[finalFieldName] = [];
+          }
+
+          // Add new items
+          const items = Array.isArray(after) ? after : [after];
+          items.forEach(item => {
+            if (!target[finalFieldName].includes(item)) {
+              target[finalFieldName].push(item);
+            }
+          });
+          console.log('✅ Added to array field:', { field: finalFieldName, added: items });
+        } else {
+          console.warn('⚠️ Unknown changeType:', changeType);
+        }
+      });
+
+      console.log('✅ Applied all field changes successfully');
+      return updated;
+    }
+
+    // FALLBACK: Old regex-based parsing (kept for backward compatibility)
+    console.warn('⚠️ No affectedFields provided, falling back to regex parsing');
+
     const suggestionText = suggestion.text.toLowerCase();
     const category = suggestion.category || 'keywords';
 
-    // Handle different suggestion categories
     if (category === 'keywords' && suggestionText.includes('add')) {
-      // Extract terms to add (simple pattern matching with fallback)
       const termsMatch = suggestionText.match(/add\s+(?:exact\s+term\s+)?['"]?([^'"]+)['"]?/i);
 
       if (termsMatch) {
@@ -232,7 +492,6 @@ function applyATSSuggestion(
           .map(t => t.trim().replace(/['"`]/g, ''))
           .filter(Boolean);
 
-        // Add to skills section
         if (!updated.skills) {
           updated.skills = { technical: [], soft: [] };
         }
@@ -248,77 +507,30 @@ function applyATSSuggestion(
           }
         });
 
-        console.log('✅ Applied ATS suggestion (keywords):', {
-          category: suggestion.category,
-          termsAdded: terms,
-          text: suggestion.text.substring(0, 100)
+        console.log('✅ Applied ATS suggestion (fallback - keywords):', {
+          termsAdded: terms
         });
-      } else {
-        // Fallback: If pattern matching fails, log warning and try to extract quoted terms
-        console.warn('⚠️ Regex pattern matching failed for suggestion:', suggestion.text);
-
-        const quotedTermsMatch = suggestionText.match(/["']([^"']+)["']/g);
-        if (quotedTermsMatch) {
-          const terms = quotedTermsMatch.map(t => t.replace(/["']/g, ''));
-
-          if (!updated.skills) {
-            updated.skills = { technical: [], soft: [] };
-          }
-
-          const skills = updated.skills as { technical: string[], soft: string[] };
-
-          terms.forEach(term => {
-            const isTechnical = TECHNICAL_KEYWORDS.some(kw => term.toLowerCase().includes(kw));
-            if (isTechnical && !skills.technical.includes(term)) {
-              skills.technical.push(term);
-            } else if (!isTechnical && !skills.soft.includes(term)) {
-              skills.soft.push(term);
-            }
-          });
-
-          console.log('✅ Applied ATS suggestion (fallback - quoted terms):', {
-            category: suggestion.category,
-            termsAdded: terms,
-            text: suggestion.text.substring(0, 100)
-          });
-        } else {
-          console.error('❌ Could not parse suggestion text. No terms extracted.', {
-            text: suggestion.text,
-            explanation: 'Pattern matching failed and no quoted terms found. Consider improving suggestion format.'
-          });
-        }
       }
     } else if (category === 'content' && Array.isArray(updated.experience)) {
-      // Add to experience section achievements
       const experiences = updated.experience as any[];
       if (experiences.length > 0 && experiences[0].achievements) {
         const achievementText = suggestion.explanation || suggestion.text;
         if (!experiences[0].achievements.includes(achievementText)) {
           experiences[0].achievements.push(achievementText);
 
-          console.log('✅ Applied ATS suggestion (content):', {
-            category: suggestion.category,
+          console.log('✅ Applied ATS suggestion (fallback - content):', {
             achievementAdded: achievementText.substring(0, 100)
           });
         }
-      } else {
-        console.warn('⚠️ Cannot apply content suggestion: No experience entries or achievements array found.');
       }
-    } else {
-      console.warn('⚠️ Unsupported suggestion category or format:', {
-        category,
-        text: suggestion.text.substring(0, 100)
-      });
     }
 
   } catch (error) {
     console.error('❌ Error applying ATS suggestion:', error);
     console.error('Suggestion that failed:', {
       text: suggestion.text,
-      category: suggestion.category,
-      explanation: suggestion.explanation
+      category: suggestion.category
     });
-    // Return original data if application fails
     return resumeData;
   }
 

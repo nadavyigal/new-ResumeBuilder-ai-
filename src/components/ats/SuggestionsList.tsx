@@ -15,12 +15,18 @@ interface SuggestionsListProps {
   suggestions: Suggestion[];
   onApplySuggestion?: (suggestion: Suggestion) => void;
   maxSuggestions?: number;
+  title?: string;
+  showNumbers?: boolean;
+  appliedSuggestionIds?: string[];
 }
 
 export function SuggestionsList({
   suggestions,
   onApplySuggestion,
   maxSuggestions = 10,
+  title = 'Improvement Suggestions',
+  showNumbers = false,
+  appliedSuggestionIds = [],
 }: SuggestionsListProps) {
   const displayedSuggestions = suggestions.slice(0, maxSuggestions);
 
@@ -28,7 +34,7 @@ export function SuggestionsList({
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Suggestions</CardTitle>
+          <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-gray-500">
@@ -46,31 +52,37 @@ export function SuggestionsList({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="py-2 px-3">
         <div className="flex items-center justify-between">
-          <CardTitle>Improvement Suggestions</CardTitle>
-          <Badge variant="secondary">
-            {displayedSuggestions.length} suggestions
+          <CardTitle className="text-sm">{title}</CardTitle>
+          <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+            {displayedSuggestions.length}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+      <CardContent className="px-3 pb-3">
+        <div className="space-y-3">
           {/* Quick Wins */}
           {quickWins.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-4 h-4 text-yellow-500" />
-                <h3 className="font-semibold text-sm">Quick Wins</h3>
+              <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200">
+                <Zap className="w-3 h-3 text-yellow-500" />
+                <h3 className="font-semibold text-xs text-gray-700">Quick Wins</h3>
+                <span className="text-[10px] text-gray-500">({quickWins.length})</span>
               </div>
-              <div className="space-y-3">
-                {quickWins.map(suggestion => (
-                  <SuggestionCard
-                    key={suggestion.id}
-                    suggestion={suggestion}
-                    onApply={onApplySuggestion}
-                  />
-                ))}
+              <div className="space-y-1.5">
+                {quickWins.map(suggestion => {
+                  const globalIndex = displayedSuggestions.findIndex(s => s.id === suggestion.id);
+                  return (
+                    <SuggestionCard
+                      key={suggestion.id}
+                      suggestion={suggestion}
+                      index={showNumbers ? globalIndex : undefined}
+                      isApplied={appliedSuggestionIds.includes(suggestion.id)}
+                      onApply={onApplySuggestion}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -78,18 +90,24 @@ export function SuggestionsList({
           {/* High Impact */}
           {highImpact.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <TrendingUp className="w-4 h-4 text-green-500" />
-                <h3 className="font-semibold text-sm">High Impact</h3>
+              <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200">
+                <TrendingUp className="w-3 h-3 text-green-500" />
+                <h3 className="font-semibold text-xs text-gray-700">High Impact</h3>
+                <span className="text-[10px] text-gray-500">({highImpact.length})</span>
               </div>
-              <div className="space-y-3">
-                {highImpact.map(suggestion => (
-                  <SuggestionCard
-                    key={suggestion.id}
-                    suggestion={suggestion}
-                    onApply={onApplySuggestion}
-                  />
-                ))}
+              <div className="space-y-1.5">
+                {highImpact.map(suggestion => {
+                  const globalIndex = displayedSuggestions.findIndex(s => s.id === suggestion.id);
+                  return (
+                    <SuggestionCard
+                      key={suggestion.id}
+                      suggestion={suggestion}
+                      index={showNumbers ? globalIndex : undefined}
+                      isApplied={appliedSuggestionIds.includes(suggestion.id)}
+                      onApply={onApplySuggestion}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -97,18 +115,24 @@ export function SuggestionsList({
           {/* Other Suggestions */}
           {otherSuggestions.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-4 h-4 text-blue-500" />
-                <h3 className="font-semibold text-sm">Other Improvements</h3>
+              <div className="flex items-center gap-1.5 mb-1.5 pb-1 border-b border-gray-200">
+                <Lightbulb className="w-3 h-3 text-blue-500" />
+                <h3 className="font-semibold text-xs text-gray-700">Other Improvements</h3>
+                <span className="text-[10px] text-gray-500">({otherSuggestions.length})</span>
               </div>
-              <div className="space-y-3">
-                {otherSuggestions.map(suggestion => (
-                  <SuggestionCard
-                    key={suggestion.id}
-                    suggestion={suggestion}
-                    onApply={onApplySuggestion}
-                  />
-                ))}
+              <div className="space-y-1.5">
+                {otherSuggestions.map(suggestion => {
+                  const globalIndex = displayedSuggestions.findIndex(s => s.id === suggestion.id);
+                  return (
+                    <SuggestionCard
+                      key={suggestion.id}
+                      suggestion={suggestion}
+                      index={showNumbers ? globalIndex : undefined}
+                      isApplied={appliedSuggestionIds.includes(suggestion.id)}
+                      onApply={onApplySuggestion}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -120,41 +144,55 @@ export function SuggestionsList({
 
 function SuggestionCard({
   suggestion,
+  index,
+  isApplied,
   onApply,
 }: {
   suggestion: Suggestion;
+  index?: number;
+  isApplied?: boolean;
   onApply?: (suggestion: Suggestion) => void;
 }) {
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            {suggestion.quick_win && (
-              <Badge variant="default" className="text-xs">
-                Quick Win
+    <div className={`border rounded p-2 transition-all ${
+      isApplied 
+        ? 'bg-green-50 border-green-300 opacity-75' 
+        : 'bg-white hover:bg-blue-50 hover:border-blue-300 border-gray-200'
+    }`}>
+      <div className="flex items-start gap-2">
+        {/* Number badge - compact */}
+        {index !== undefined && (
+          <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+            isApplied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+          }`}>
+            {index + 1}
+          </div>
+        )}
+        
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center flex-wrap gap-1 mb-1">
+            {isApplied && (
+              <Badge variant="default" className="text-[10px] bg-green-600 px-1.5 py-0 h-4">
+                ✓
               </Badge>
             )}
-            <Badge variant="outline" className="text-xs">
+            {suggestion.quick_win && !isApplied && (
+              <Badge variant="default" className="text-[10px] bg-yellow-500 px-1.5 py-0 h-4">
+                ⚡
+              </Badge>
+            )}
+            <Badge variant="outline" className="text-[10px] border-gray-300 px-1.5 py-0 h-4">
               {getCategoryLabel(suggestion.category)}
             </Badge>
+            <span className={`text-[10px] font-bold ml-auto ${
+              isApplied ? 'text-green-700' : 'text-green-600'
+            }`}>
+              +{suggestion.estimated_gain}
+            </span>
           </div>
-          <p className="text-sm text-gray-900">{suggestion.text}</p>
-        </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-sm font-semibold text-green-600">
-            +{suggestion.estimated_gain} pts
-          </div>
-          {onApply && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="mt-2"
-              onClick={() => onApply(suggestion)}
-            >
-              Apply
-            </Button>
-          )}
+          <p className={`text-xs leading-tight ${isApplied ? 'text-gray-600 line-through' : 'text-gray-900'}`}>
+            {suggestion.text}
+          </p>
         </div>
       </div>
     </div>

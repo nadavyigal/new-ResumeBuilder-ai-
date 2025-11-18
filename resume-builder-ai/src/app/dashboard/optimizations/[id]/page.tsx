@@ -14,7 +14,6 @@ import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
-import { AutoUpgradeATSV2 } from "@/components/ats/AutoUpgradeATSV2";
 
 
 // Disable static generation for this dynamic page
@@ -31,7 +30,6 @@ export default function OptimizationPage() {
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
   const [atsSuggestions, setAtsSuggestions] = useState<any[]>([]);
-  const [autoUpgrading, setAutoUpgrading] = useState(false);
 
   // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
   // Removing this state will cause runtime crashes when designs change
@@ -49,6 +47,9 @@ export default function OptimizationPage() {
   const [jobDescriptionSummary, setJobDescriptionSummary] = useState<string>("");
   const [applying, setApplying] = useState(false);
 
+  // Pending changes for ATS tip highlighting
+  const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+
   const params = useParams();
   const supabase = createClientComponentClient();
 
@@ -61,38 +62,38 @@ export default function OptimizationPage() {
         parts.push(`**${jdData.title}** at **${jdData.company}**`);
       }
 
-      if (jdData.extracted_data?.location) {
-        parts.push(`📍 ${jdData.extracted_data.location}`);
+      if (jdData.parsed_data?.location) {
+        parts.push(`📍 ${jdData.parsed_data.location}`);
       }
 
       // Add about section
-      if (jdData.extracted_data?.about_this_job) {
-        const about = jdData.extracted_data.about_this_job;
+      if (jdData.parsed_data?.about_this_job) {
+        const about = jdData.parsed_data.about_this_job;
         const summary = about.length > 200 ? about.substring(0, 200) + '...' : about;
         parts.push(`\n**About:** ${summary}`);
       }
 
       // Add top 3 requirements
-      if (jdData.extracted_data?.requirements && jdData.extracted_data.requirements.length > 0) {
-        const topReqs = jdData.extracted_data.requirements.slice(0, 3);
+      if (jdData.parsed_data?.requirements && jdData.parsed_data.requirements.length > 0) {
+        const topReqs = jdData.parsed_data.requirements.slice(0, 3);
         parts.push(`\n**Key Requirements:**`);
         topReqs.forEach((req: string) => {
           parts.push(`• ${req}`);
         });
-        if (jdData.extracted_data.requirements.length > 3) {
-          parts.push(`...and ${jdData.extracted_data.requirements.length - 3} more`);
+        if (jdData.parsed_data.requirements.length > 3) {
+          parts.push(`...and ${jdData.parsed_data.requirements.length - 3} more`);
         }
       }
 
       // Add top 3 responsibilities
-      if (jdData.extracted_data?.responsibilities && jdData.extracted_data.responsibilities.length > 0) {
-        const topResp = jdData.extracted_data.responsibilities.slice(0, 3);
+      if (jdData.parsed_data?.responsibilities && jdData.parsed_data.responsibilities.length > 0) {
+        const topResp = jdData.parsed_data.responsibilities.slice(0, 3);
         parts.push(`\n**Key Responsibilities:**`);
         topResp.forEach((resp: string) => {
           parts.push(`• ${resp}`);
         });
-        if (jdData.extracted_data.responsibilities.length > 3) {
-          parts.push(`...and ${jdData.extracted_data.responsibilities.length - 3} more`);
+        if (jdData.parsed_data.responsibilities.length > 3) {
+          parts.push(`...and ${jdData.parsed_data.responsibilities.length - 3} more`);
         }
       }
 
@@ -147,7 +148,7 @@ export default function OptimizationPage() {
 
       const { data: jdData, error: jdError } = await supabase
         .from("job_descriptions")
-        .select("raw_text, clean_text, extracted_data, title, company, source_url")
+        .select("raw_text, clean_text, parsed_data, title, company, source_url")
         .eq("id", (optimizationRow as any).jd_id)
         .maybeSingle();
 
@@ -178,10 +179,6 @@ export default function OptimizationPage() {
           confidence: row.ats_confidence,
         });
         setAtsSuggestions(row.ats_suggestions || []);
-      } else {
-        // Automatically upgrade old optimizations to ATS v2 in the background
-        console.log('🔄 Optimization is using old ATS v1, auto-upgrading to v2...');
-        autoUpgradeToV2(idVal);
       }
 
       // Generate AI summary of job description
@@ -195,65 +192,37 @@ export default function OptimizationPage() {
     }
   };
 
-  // Auto-upgrade old optimizations to ATS v2
-  const autoUpgradeToV2 = async (optimizationId: string) => {
-    if (autoUpgrading) return; // Prevent duplicate upgrades
-    
-    setAutoUpgrading(true);
-    try {
-      console.log('🚀 Starting automatic ATS v2 upgrade...');
-      
-      const response = await fetch('/api/ats/rescan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          optimization_id: optimizationId,
-        }),
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('✅ Auto-upgrade successful:', result);
-        
-        // Refresh the page data to show new v2 scores
-        await fetchOptimizationData();
-      } else {
-        console.error('❌ Auto-upgrade failed:', response.status);
-      }
-    } catch (error) {
-      console.error('❌ Auto-upgrade error:', error);
-    } finally {
-      setAutoUpgrading(false);
-    }
-  };
-
   useEffect(() => {
     fetchOptimizationData();
   }, [params, supabase]);
 
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
+    console.log('🚀 [handleChatMessageSent] CALLED! Starting refresh process...');
     try {
       const idVal2 = String(params.id || "");
 
-      console.log('🔄 Chat message sent, refreshing resume data...');
+      console.log('🔄 Chat message sent, refreshing resume data for optimization:', idVal2);
 
-      // Add delay to ensure database has been updated (increased to 2s for reliability)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // FIXED: Database trigger sets updated_at to NOW() which may be identical for rapid updates
+      // Solution: Wait 1.5 seconds for database to process, then fetch fresh data
+      // This ensures the trigger has fired and committed the transaction
+      console.log('⏳ Waiting 1.5 seconds for database transaction to complete...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Refresh resume content with force update
-      // Use maybeSingle() instead of single() to avoid 406 errors
+      // Fetch fresh data from database with cache-busting
+      // Add random query param to prevent browser/Supabase caching
+      console.log('📡 Fetching fresh optimization data with cache-busting...');
+      const cacheBuster = Date.now();
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data")
+        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, updated_at")
         .eq("id", idVal2)
         .maybeSingle();
 
-      if (optError) {
-        console.error('❌ Error fetching optimization data:', optError);
-      } else if (optimizationRow) {
+      console.log('📡 Cache buster:', cacheBuster, '(prevents stale data)');
+
+      if (!optError && optimizationRow) {
         console.log('✅ Refreshed resume data after chat message');
         console.log('📊 Resume sections:', Object.keys((optimizationRow as any).rewrite_data || {}));
 
@@ -265,6 +234,27 @@ export default function OptimizationPage() {
         // Force a complete re-render by creating new object reference
         const newData = JSON.parse(JSON.stringify((optimizationRow as any).rewrite_data));
         setOptimizedResume(newData);
+
+        // Update ATS scores if they changed
+        const optRow = optimizationRow as any;
+        if (optRow.ats_score_optimized !== null || optRow.ats_score_original !== null) {
+          console.log('📊 Updating ATS scores:', {
+            original: optRow.ats_score_original,
+            optimized: optRow.ats_score_optimized,
+            previousOptimized: atsV2Data?.ats_score_optimized,
+            scoreChanged: optRow.ats_score_optimized !== atsV2Data?.ats_score_optimized
+          });
+
+          // Force React to detect change by creating completely new object
+          setAtsV2Data({
+            ats_score_original: optRow.ats_score_original,
+            ats_score_optimized: optRow.ats_score_optimized,
+            subscores: optRow.ats_subscores,
+            subscores_original: optRow.ats_subscores_original,
+            confidence: atsV2Data?.confidence || null
+          });
+        }
+
         // Force component re-render
         setRefreshKey(prev => prev + 1);
       } else {
@@ -618,23 +608,6 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* Show upgrading indicator if auto-upgrading */}
-      {autoUpgrading && (
-        <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className="animate-spin text-2xl">⏳</div>
-            <div>
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Upgrading to ATS v2...
-              </p>
-              <p className="text-xs text-blue-700 dark:text-blue-300">
-                Adding detailed score breakdown and improvement tips
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Design Controls (if customizations exist) */}
       {currentDesignAssignment?.customization && (
         <div className="mb-6 print:hidden">
@@ -659,14 +632,21 @@ export default function OptimizationPage() {
                 atsScoreOptimized={atsV2Data.ats_score_optimized || matchScore}
                 subscores={atsV2Data.subscores}
                 subscoresOriginal={atsV2Data.subscores_original}
-                legacy={false}
               />
             ) : (
-              <CompactATSScoreCard
-                atsScoreOriginal={matchScore}
-                atsScoreOptimized={matchScore}
-                legacy={true}
-              />
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">⚠️</div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-yellow-900 dark:text-yellow-100">
+                      ATS Scoring Unavailable
+                    </p>
+                    <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">
+                      The detailed ATS analysis couldn't be completed. The resume was optimized successfully, but without score breakdown and tips.
+                    </p>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -703,6 +683,8 @@ export default function OptimizationPage() {
               resumeData={optimizedResume}
               templateSlug={currentDesignAssignment?.template?.slug}
               customization={ephemeralCustomization || currentDesignAssignment?.customization}
+              pendingChanges={pendingChanges}
+              refreshKey={refreshKey}
             />
           )}
         </div>
@@ -716,6 +698,7 @@ export default function OptimizationPage() {
                 onMessageSent={handleChatMessageSent}
                 onDesignPreview={(c) => setEphemeralCustomization(c)}
                 atsSuggestions={atsSuggestions}
+                onPendingChanges={setPendingChanges}
               />
             </div>
           )}

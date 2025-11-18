@@ -7,27 +7,81 @@
  * Displays conversation history and handles message sending.
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import { ATSSuggestionsBanner } from './ATSSuggestionsBanner';
-import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageResponse } from '@/types/chat';
+import { PendingChangeApproval } from './PendingChangeApproval';
+import type { ChatSidebarProps, ChatMessage as ChatMessageType, ChatSendMessageResponse, PendingChange } from '@/types/chat';
 import type { Suggestion } from '@/lib/ats/types';
 import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
+
+/**
+ * Validate and deduplicate pending changes
+ *
+ * Ensures:
+ * 1. No duplicate suggestion IDs
+ * 2. Changes have required fields
+ * 3. No conflicts with existing pending changes
+ */
+function validateAndDeduplicatePendingChanges(
+  newChanges: PendingChange[],
+  existingChanges: PendingChange[]
+): PendingChange[] {
+  const seen = new Set<string>();
+  const validated: PendingChange[] = [];
+
+  // Track existing suggestion IDs to avoid duplicates
+  existingChanges.forEach(change => {
+    seen.add(change.suggestionId);
+  });
+
+  for (const change of newChanges) {
+    // Validate required fields
+    if (!change.suggestionId || !change.suggestionText || !change.suggestionNumber) {
+      console.warn('Skipping invalid pending change (missing required fields):', change);
+      continue;
+    }
+
+    // Skip duplicates
+    if (seen.has(change.suggestionId)) {
+      console.warn('Skipping duplicate pending change:', change.suggestionId);
+      continue;
+    }
+
+    // Validate status
+    if (change.status !== 'pending' && change.status !== 'approved' && change.status !== 'rejected') {
+      console.warn('Invalid status for pending change, defaulting to pending:', change.status);
+      change.status = 'pending';
+    }
+
+    seen.add(change.suggestionId);
+    validated.push(change);
+  }
+
+  // Merge with existing changes (existing ones first)
+  return [...existingChanges, ...validated];
+}
 
 export function ChatSidebar({
   optimizationId,
   onMessageSent,
   onDesignPreview,
   atsSuggestions,
-}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'> & { atsSuggestions?: Suggestion[] }) {
+  onPendingChanges,
+}: Omit<ChatSidebarProps, 'initialOpen' | 'onClose'> & {
+  atsSuggestions?: Suggestion[];
+  onPendingChanges?: (changes: PendingChange[]) => void;
+}) {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refineResult, setRefineResult] = useState<string | null>(null);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
+  const [processingRequests, setProcessingRequests] = useState<Set<string>>(new Set());
   const { selection, clearSelection } = useSectionSelection();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -165,11 +219,74 @@ export function ChatSidebar({
 
       const data: ChatSendMessageResponse = await response.json();
 
+      // DEBUG: Log full API response
+      console.log('🔍 FULL API RESPONSE:', JSON.stringify(data, null, 2));
+      console.log('🔍 Response keys:', Object.keys(data));
+      console.log('🔍 tips_applied exists?', 'tips_applied' in data, data.tips_applied);
+      console.log('🔍 design_customization exists?', 'design_customization' in data, data.design_customization);
+      console.log('🔍 onMessageSent defined?', typeof onMessageSent, !!onMessageSent);
+
+      // Handle pending changes for ATS tip implementation
+      if (data.pending_changes) {
+        const pendingChangesData = data.pending_changes;
+
+        // Validate and deduplicate pending changes
+        const validatedChanges = validateAndDeduplicatePendingChanges(
+          pendingChangesData,
+          pendingChanges
+        );
+
+        setPendingChanges(validatedChanges);
+        console.log('📝 Received pending changes for ATS tips:', validatedChanges);
+
+        // Emit to parent for resume highlighting
+        if (onPendingChanges) {
+          onPendingChanges(validatedChanges);
+        }
+      }
+
+      // Handle tip implementation - trigger refresh to show applied changes
+      if (data.tips_applied) {
+        console.log('✅ TIPS_APPLIED DETECTED:', data.tips_applied);
+        console.log('🔍 Callback function defined?', typeof onMessageSent, !!onMessageSent);
+
+        if (onMessageSent) {
+          console.log('✅ CALLING onMessageSent() for tips - IMMEDIATE TRIGGER');
+          try {
+            await onMessageSent();
+            console.log('✅ onMessageSent() completed successfully for tips');
+          } catch (err) {
+            console.error('❌ ERROR calling onMessageSent:', err);
+          }
+        } else {
+          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+          console.error('❌ Component props:', { optimizationId, onDesignPreview: !!onDesignPreview, atsSuggestions: !!atsSuggestions });
+        }
+      }
+
       // Emit ephemeral design preview if provided
-      if (onDesignPreview && (data as any).design_customization) {
-        try {
-          onDesignPreview((data as any).design_customization);
-        } catch {}
+      if (data.design_customization) {
+        console.log('✅ DESIGN_CUSTOMIZATION DETECTED:', data.design_customization);
+        if (onDesignPreview) {
+          try {
+            console.log('✅ CALLING onDesignPreview()');
+            onDesignPreview(data.design_customization);
+            console.log('✅ onDesignPreview() called successfully');
+          } catch (err) {
+            console.error('❌ ERROR in onDesignPreview:', err);
+          }
+        } else {
+          console.warn('⚠️ onDesignPreview is undefined');
+        }
+
+        // Also trigger refresh to commit design changes from database
+        if (onMessageSent) {
+          console.log('✅ CALLING onMessageSent() for design');
+          onMessageSent();
+          console.log('✅ onMessageSent() called successfully for design');
+        } else {
+          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+        }
       }
 
       // Update session ID if this was first message
@@ -181,7 +298,7 @@ export function ChatSidebar({
       if (data.session_id) {
         await loadMessages(data.session_id);
 
-        // Trigger resume refresh in parent component
+        // Always trigger resume refresh after messages that change data
         if (onMessageSent) {
           onMessageSent();
         }
@@ -216,6 +333,116 @@ export function ChatSidebar({
       setError(err instanceof Error ? err.message : 'Failed to close session');
     }
   };
+
+  // Handle approving a pending change
+  const handleApproveChange = async (suggestionId: string) => {
+    // Prevent duplicate requests
+    if (processingRequests.has(suggestionId)) {
+      console.log('Request already in progress for:', suggestionId);
+      return;
+    }
+
+    try {
+      setError(null);
+
+      // Mark this request as processing
+      setProcessingRequests(prev => new Set(prev).add(suggestionId));
+
+      // Find the pending change
+      const change = pendingChanges.find(c => c.suggestionId === suggestionId);
+      if (!change) {
+        setProcessingRequests(prev => {
+          const next = new Set(prev);
+          next.delete(suggestionId);
+          return next;
+        });
+        return;
+      }
+
+      // Apply the changes to the database
+      const requestBody = {
+        optimization_id: optimizationId,
+        suggestion_id: suggestionId,
+        affected_fields: change.affectedFields,
+      };
+
+      console.log('🔍 CLIENT - Sending approve request:', {
+        optimization_id: optimizationId,
+        suggestion_id: suggestionId,
+        affected_fields_count: change.affectedFields?.length || 0,
+        change
+      });
+
+      const response = await fetch('/api/v1/chat/approve-change', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('🔍 CLIENT - Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ CLIENT - Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to apply changes');
+      }
+
+      const responseData = await response.json();
+      console.log('✅ CLIENT - Success response:', responseData);
+
+      // Remove from pending changes
+      const updatedChanges = pendingChanges.filter(c => c.suggestionId !== suggestionId);
+      setPendingChanges(updatedChanges);
+
+      // Notify parent about pending changes update
+      if (onPendingChanges) {
+        onPendingChanges(updatedChanges);
+      }
+
+      // Trigger resume refresh
+      if (onMessageSent) {
+        onMessageSent();
+      }
+    } catch (err) {
+      console.error('Error approving change:', err);
+      setError(err instanceof Error ? err.message : 'Failed to approve changes');
+    } finally {
+      // Always remove from processing set
+      setProcessingRequests(prev => {
+        const next = new Set(prev);
+        next.delete(suggestionId);
+        return next;
+      });
+    }
+  };
+
+  // Handle rejecting a pending change
+  const handleRejectChange = (suggestionId: string) => {
+    // Simply remove from pending changes without saving
+    const updatedChanges = pendingChanges.filter(c => c.suggestionId !== suggestionId);
+    setPendingChanges(updatedChanges);
+
+    // Notify parent about pending changes update
+    if (onPendingChanges) {
+      onPendingChanges(updatedChanges);
+    }
+  };
+
+  // Update parent when pending changes change
+  // Using useEffect with onPendingChanges in dependency array is intentional here
+  // The parent should provide a stable callback (useCallback) to avoid infinite loops
+  useEffect(() => {
+    if (onPendingChanges) {
+      onPendingChanges(pendingChanges);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingChanges]);
 
   return (
     <div className="h-full flex flex-col bg-white shadow-lg border border-gray-200 rounded-lg overflow-hidden">
@@ -291,6 +518,16 @@ export function ChatSidebar({
         {/* ATS Suggestions Banner */}
         {atsSuggestions && atsSuggestions.length > 0 && (
           <ATSSuggestionsBanner suggestions={atsSuggestions} />
+        )}
+
+        {/* Pending Changes Approval UI */}
+        {pendingChanges.length > 0 && (
+          <PendingChangeApproval
+            changes={pendingChanges}
+            onApprove={handleApproveChange}
+            onReject={handleRejectChange}
+            processingIds={processingRequests}
+          />
         )}
 
         {isLoading && messages.length === 0 ? (

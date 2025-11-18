@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,20 +20,37 @@ export default function HistorySearch({
   placeholder = 'Search by job title or company...',
 }: HistorySearchProps) {
   const [localValue, setLocalValue] = useState(value);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Debounced onChange handler - delays API call by 300ms
+   * Fixed: Now properly maintains timeout reference and clears previous timeouts
    */
   const debouncedOnChange = useCallback(
     (searchValue: string) => {
-      const timeoutId = setTimeout(() => {
+      // Clear previous timeout to prevent multiple API calls
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set new timeout
+      timeoutRef.current = setTimeout(() => {
         onChange(searchValue);
       }, 300);
-
-      return () => clearTimeout(timeoutId);
     },
     [onChange]
   );
+
+  /**
+   * Cleanup timeout on unmount
+   */
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   /**
    * Handle input change - updates local state immediately,

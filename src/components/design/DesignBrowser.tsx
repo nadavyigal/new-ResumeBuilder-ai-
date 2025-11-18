@@ -117,9 +117,9 @@ export function DesignBrowser({
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Choose a Design
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Select a template to customize your resume's appearance
-            </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Select a template to customize your resume&rsquo;s appearance
+              </p>
           </div>
           <button
             onClick={onClose}

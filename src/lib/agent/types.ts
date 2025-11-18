@@ -6,11 +6,14 @@ export type Intent =
   | "design"
   | "layout"
   | "ats_optimize"
+  | "optimize" // resume.guide.optimize workflow
   | "export"
   | "undo"
   | "redo"
   | "compare"
-  | "save_history";
+  | "save_history"
+  | "tip_implementation"
+  | "color_customization";
 
 export type DiffScope = "section" | "paragraph" | "bullet" | "style" | "layout";
 
@@ -20,12 +23,26 @@ export interface Diff {
   after: string;
 }
 
+// A structured proposal the agent can surface for user approval
+export interface ProposedChange {
+  id: string;
+  section: string; // e.g., 'summary', 'experience[0]'
+  field?: string; // e.g., 'bullet', 'title', 'skills'
+  text: string; // proposed text or instruction
+  rationale?: string;
+  estimated_gain?: number; // e.g., ATS point estimate
+}
+
 export interface AgentResult {
   intent: Intent;
   actions: { tool: string; args: Record<string, any>; rationale: string }[];
   diffs: Diff[];
   artifacts: AgentArtifacts;
   ats_report?: { score: number; missing_keywords: string[]; recommendations: string[] };
+  // Proposed changes allow UI to present actionable items for approval
+  proposed_changes?: ProposedChange[];
+  // Chosen target language and direction for rendering
+  language?: { code: string; direction: 'ltr' | 'rtl' };
   history_record?: {
     resume_version_id: string;
     timestamp: string;

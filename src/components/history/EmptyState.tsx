@@ -22,7 +22,7 @@ export default function EmptyState() {
         No Optimizations Yet
       </h3>
       <p className="text-muted-foreground mb-6 max-w-md">
-        You haven't created any resume optimizations yet. Start by uploading
+        You haven&rsquo;t created any resume optimizations yet. Start by uploading
         your resume and a job description to get personalized recommendations.
       </p>
 

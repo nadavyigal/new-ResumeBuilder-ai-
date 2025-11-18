@@ -87,6 +87,49 @@ export async function optimizeResume(
   try {
     const openai = getOpenAIClient();
 
+    // Detect if resume is in Hebrew
+    const hebrewPattern = /[\u0590-\u05FF]/;
+    const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
+
+    // Language instruction
+    const languageInstruction = isHebrew
+      ? `\n\n🔴 CRITICAL LANGUAGE REQUIREMENT - HEBREW (עברית) 🔴
+
+YOU MUST WRITE THE ENTIRE OPTIMIZED RESUME IN HEBREW LANGUAGE WITH RIGHT-TO-LEFT (RTL) TEXT DIRECTION.
+
+MANDATORY RULES:
+1. ALL text content MUST be in Hebrew (עברית) - summary, skills, achievements, job titles, descriptions, etc.
+2. Use ONLY Hebrew characters: א-ת, no English letters in Hebrew text
+3. Text direction: RIGHT-TO-LEFT (RTL) - Hebrew reads from right to left: ←
+4. Numbers: Use Western numerals (2024, 5, etc.) but maintain RTL flow
+5. Keep proper nouns in their original form (company names, software tools like "Excel", "Python")
+6. Dates: Use Hebrew month names or format: "ינואר 2024" or "2024-01"
+7. JSON structure: Field names stay in English ("summary", "skills"), but ALL VALUES in Hebrew
+
+TEXT DIRECTION EXAMPLES:
+✅ CORRECT RTL: "מנהל פיתוח עסקי בכיר עם 10+ שנות ניסיון בניהול צוותים"
+❌ WRONG LTR: "Manager Development Business senior with experience years 10+"
+
+CONTENT EXAMPLES:
+✅ CORRECT: "summary": "מנהל פיתוח עסקי מנוסה עם רקע חזק בניהול קשרי לקוחות ופיתוח אסטרטגיות עסקיות"
+✅ CORRECT: "title": "מנהל פיתוח עסקי"
+✅ CORRECT: "achievements": ["ניהול תיק לקוחות בהיקף של 5 מיליון שקל בשנה"]
+❌ WRONG: "summary": "Experienced Business Development Manager..."
+❌ WRONG: "title": "Business Development Manager"
+
+REMEMBER: Hebrew is written RIGHT-TO-LEFT (←). The optimized resume must read naturally in Hebrew RTL direction.
+
+DO NOT TRANSLATE TO ENGLISH. DO NOT USE ENGLISH TEXT WHERE HEBREW IS REQUIRED.`
+      : '';
+
+    console.log('🌍 Language Detection:', {
+      isHebrew,
+      resumeHasHebrew: hebrewPattern.test(resumeText),
+      jobHasHebrew: hebrewPattern.test(jobDescription),
+      resumePreview: resumeText.substring(0, 100),
+      jobPreview: jobDescription.substring(0, 100)
+    });
+
     // Create the chat completion request
     const completion = await openai.chat.completions.create({
       model: OPTIMIZATION_CONFIG.model,
@@ -96,7 +139,7 @@ export async function optimizeResume(
       messages: [
         {
           role: 'system',
-          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT + languageInstruction,
         },
         {
           role: 'user',

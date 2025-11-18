@@ -46,7 +46,7 @@ export async function createDesignCustomization(
 ): Promise<DesignCustomization> {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data, error } = await supabase
+  const { data, error} = await supabase
     .from('design_customizations')
     .insert({
       user_id: userId,

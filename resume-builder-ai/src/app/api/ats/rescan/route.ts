@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       .select('*, resumes(*), job_descriptions(*)')
       .eq('id', optimization_id)
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !optimization) {
       return NextResponse.json(
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     const resumeOriginal = optimization.resumes?.raw_text || '';
     const resumeOptimized = optimization.rewrite_data || {};
     const jobDescription = optimization.job_descriptions?.raw_text || '';
-    const jobData = optimization.job_descriptions?.extracted_data || null;
+    const jobData = optimization.job_descriptions?.parsed_data || null;
 
     // Re-score using ATS v2
     const result = await rescoreOptimization({

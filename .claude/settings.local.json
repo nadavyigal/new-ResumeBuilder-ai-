@@ -25,7 +25,16 @@
       "Read(//c/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/AI Travel Club/resume-style-bank/react/minimal-ssr/**)",
       "Bash(npm run sync-templates:*)",
       "Bash(rm -f \"e --abbrev-ref HEAD\" \"tatus --porcelain=v1\")",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_close",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

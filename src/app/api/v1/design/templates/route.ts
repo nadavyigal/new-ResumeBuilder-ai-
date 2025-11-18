@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
     // Fetch templates from database
     const templates = await getDesignTemplates(supabase, category || undefined);
 
-    console.log('📋 Templates fetched:', templates.length, 'templates');
-    console.log('📋 First template:', templates[0] ? JSON.stringify(templates[0], null, 2) : 'none');
+    console.log('[templates] fetched:', templates.length, 'templates');
+    console.log('[templates] first:', templates[0] ? JSON.stringify(templates[0], null, 2) : 'none');
 
     return NextResponse.json(
       {

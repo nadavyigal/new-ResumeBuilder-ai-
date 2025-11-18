@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { chooseTargetLanguage } from '@/lib/i18n/language';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_USER_PROMPT,
@@ -73,6 +74,27 @@ function getOpenAIClient(): OpenAI {
   });
 }
 
+function localFallbackOptimize(resumeText: string, jobDescription: string): OptimizationResult {
+  // Very simple deterministic fallback to keep the flow working in local/dev without OpenAI
+  const score = calculateMatchScore(resumeText || '', jobDescription || '');
+  const summary = (resumeText || '').trim().split(/\n+/).filter(Boolean)[0] || 'Experienced professional seeking to match the provided role.';
+
+  const optimizedResume: OptimizedResume = {
+    summary: summary.slice(0, 400),
+    contact: { name: '', email: '', phone: '', location: '' },
+    skills: { technical: [], soft: [] },
+    experience: [],
+    education: [],
+    certifications: [],
+    projects: [],
+    matchScore: score,
+    keyImprovements: ['Baseline optimization applied without AI due to missing API key.'],
+    missingKeywords: [],
+  };
+
+  return { success: true, optimizedResume };
+}
+
 /**
  * Optimize a resume against a job description using OpenAI
  *
@@ -85,7 +107,32 @@ export async function optimizeResume(
   jobDescription: string
 ): Promise<OptimizationResult> {
   try {
-    const openai = getOpenAIClient();
+    let openai: OpenAI | null = null;
+    try {
+      openai = getOpenAIClient();
+    } catch (e: any) {
+      // Missing API key: use local fallback optimization
+      if (e && typeof e.message === 'string' && e.message.includes('OPENAI_API_KEY')) {
+        console.warn('[optimizer] OPENAI_API_KEY not set; using local fallback optimizer');
+        return localFallbackOptimize(resumeText, jobDescription);
+      }
+      throw e;
+    }
+
+    const lang = chooseTargetLanguage({
+      resumeSummary: resumeText,
+      jobText: jobDescription,
+    });
+
+    console.log('[lang] Language Detection:', {
+      detected: lang.code,
+      direction: lang.direction,
+      probable: lang.probable,
+      resumePreview: resumeText.substring(0, 100),
+      jdPreview: jobDescription.substring(0, 100),
+    });
+
+    const languageInstruction = `\n\nIMPORTANT - OUTPUT LANGUAGE: ${lang.code.toUpperCase()}. You MUST write ALL textual content (summary, achievements, section labels, skills, etc.) EXCLUSIVELY in ${lang.code === 'he' ? 'HEBREW' : lang.code === 'ar' ? 'ARABIC' : lang.code.toUpperCase()} language. DO NOT translate or change the language. Maintain the original language throughout the entire resume. Follow ${lang.direction.toUpperCase()} (${lang.direction === 'rtl' ? 'right-to-left' : 'left-to-right'}) text direction conventions.`;
 
     // Create the chat completion request
     const completion = await openai.chat.completions.create({
@@ -96,7 +143,7 @@ export async function optimizeResume(
       messages: [
         {
           role: 'system',
-          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT + languageInstruction,
         },
         {
           role: 'user',
@@ -167,12 +214,20 @@ export function calculateMatchScore(
   resumeText: string,
   jobDescription: string
 ): number {
+  if (!jobDescription || jobDescription.trim().length === 0) {
+    return 0;
+  }
+
   // Extract keywords from job description (simple approach)
   const jdWords = jobDescription
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
     .filter(word => word.length > 3); // Filter short words
+
+  if (jdWords.length === 0) {
+    return 0;
+  }
 
   // Count how many JD keywords appear in resume
   const resumeLower = resumeText.toLowerCase();
@@ -182,7 +237,13 @@ export function calculateMatchScore(
   const uniqueJdWords = [...new Set(jdWords)];
   const uniqueMatches = [...new Set(matchedKeywords)];
 
-  return Math.round((uniqueMatches.length / uniqueJdWords.length) * 100);
+  const rawScore = (uniqueMatches.length / uniqueJdWords.length) * 100;
+
+  if (!isFinite(rawScore)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(rawScore)));
 }
 
 /**

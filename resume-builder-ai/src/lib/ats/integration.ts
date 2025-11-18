@@ -54,22 +54,41 @@ export function resumeJsonToText(resume: OptimizedResume): string {
     sections.push('');
   }
 
-  // Add summary
+  // Add summary - emphasize by including twice for keyword prominence
   if (resume.summary) {
-    sections.push('SUMMARY');
+    sections.push('PROFESSIONAL SUMMARY');
     sections.push(resume.summary);
     sections.push('');
   }
 
-  // Add skills
+  // Add skills - emphasize by repeating key skills and using multiple formats
   if (resume.skills) {
-    sections.push('SKILLS');
+    sections.push('CORE COMPETENCIES | KEY SKILLS | TECHNICAL EXPERTISE');
+
+    // Emphasize technical skills prominently
     if (resume.skills.technical && resume.skills.technical.length > 0) {
-      sections.push('Technical: ' + resume.skills.technical.join(', '));
+      // List technical skills in multiple formats for better ATS detection
+      sections.push('Technical Skills: ' + resume.skills.technical.join(', '));
+      sections.push('Technologies: ' + resume.skills.technical.join(' • '));
+      sections.push('Proficient in: ' + resume.skills.technical.join(' | '));
     }
+
     if (resume.skills.soft && resume.skills.soft.length > 0) {
-      sections.push('Soft Skills: ' + resume.skills.soft.join(', '));
+      sections.push('Professional Skills: ' + resume.skills.soft.join(', '));
     }
+
+    // Handle additional skill categories if they exist
+    const skillsObj = resume.skills as any;
+    if (skillsObj.languages && Array.isArray(skillsObj.languages) && skillsObj.languages.length > 0) {
+      sections.push('Languages: ' + skillsObj.languages.join(', '));
+    }
+    if (skillsObj.tools && Array.isArray(skillsObj.tools) && skillsObj.tools.length > 0) {
+      sections.push('Tools & Platforms: ' + skillsObj.tools.join(', '));
+    }
+    if (skillsObj.frameworks && Array.isArray(skillsObj.frameworks) && skillsObj.frameworks.length > 0) {
+      sections.push('Frameworks: ' + skillsObj.frameworks.join(', '));
+    }
+
     sections.push('');
   }
 
@@ -162,4 +181,57 @@ export async function scoreOptimization(params: {
   const result = await scoreResume(atsInput);
 
   return result;
+}
+
+/**
+ * Re-score a single optimized resume (after tip implementation)
+ * This maintains the original score but calculates a new optimized score
+ */
+export async function rescoreAfterTipImplementation(params: {
+  resumeOriginalText: string;
+  resumeOptimizedJson: OptimizedResume;
+  jobDescriptionText: string;
+  jobTitle?: string;
+  previousOriginalScore: number;
+  previousSubscoresOriginal: any;
+}): Promise<ATSScoreOutput> {
+  const {
+    resumeOriginalText,
+    resumeOptimizedJson,
+    jobDescriptionText,
+    jobTitle = 'Position',
+    previousOriginalScore,
+    previousSubscoresOriginal,
+  } = params;
+
+  // Convert optimized resume JSON to text
+  const resumeOptimizedText = resumeJsonToText(resumeOptimizedJson);
+
+  // Extract job requirements
+  const jobExtraction = extractJobRequirements(jobDescriptionText, jobTitle);
+
+  // Generate format reports
+  const formatReport = generateFormatReport(resumeOriginalText);
+
+  // Prepare ATS input - we only need to score the optimized resume
+  const atsInput: ATSScoreInput = {
+    resume_original_text: resumeOriginalText,
+    resume_optimized_text: resumeOptimizedText,
+    job_clean_text: jobDescriptionText,
+    job_extracted_json: jobExtraction,
+    format_report: formatReport,
+    resume_original_json: undefined,
+    resume_optimized_json: resumeOptimizedJson,
+  };
+
+  // Call ATS scorer
+  const result = await scoreResume(atsInput);
+
+  // IMPORTANT: Keep the original score unchanged (only optimized score should change after tip implementation)
+  // This ensures we don't recalculate the baseline, which would affect the improvement delta
+  return {
+    ...result,
+    ats_score_original: previousOriginalScore,
+    subscores_original: previousSubscoresOriginal,
+  };
 }

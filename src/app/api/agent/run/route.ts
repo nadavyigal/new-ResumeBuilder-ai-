@@ -5,6 +5,7 @@ import { log } from "@/lib/agent/utils/logger";
 import { agentFlags } from "@/lib/agent/config";
 import { optimizeResume } from "@/lib/ai-optimizer";
 import { ATS } from "@/lib/agent/tools/ats";
+import { safeParseRunInput } from "@/lib/agent/validators";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const command = String(body.command || "");
+    const parsed = safeParseRunInput({
+      userId: 'placeholder', // temp to satisfy schema; user.id used below
+      command: body?.command ?? '',
+      resume_file_path: body?.resume_file_path,
+      resume_json: body?.resume_json,
+      job_url: body?.job_url,
+      job_text: body?.job_text,
+      design: body?.design,
+    });
+    if (!parsed || !parsed.command) {
+      return NextResponse.json({ error: "Invalid request: command is required" }, { status: 400 });
+    }
+    const command = String(parsed.command);
 
     // Gate by flags: disabled and not shadow => 501
     if (!agentFlags.enabled && !agentFlags.shadow) {
@@ -25,8 +38,8 @@ export async function POST(req: NextRequest) {
     // Shadow mode: return legacy response, run agent in background
     if (agentFlags.shadow && !agentFlags.enabled) {
       // Legacy: use ai-optimizer to produce an optimized resume (no schema or DB coupling)
-      const resumeText = typeof body.resume_text === 'string' ? body.resume_text : (body.resume_json?.summary ?? "");
-      const jobText = body.job_text ?? "";
+      const resumeText = typeof (body as any).resume_text === 'string' ? (body as any).resume_text : (parsed.resume_json as any)?.summary ?? "";
+      const jobText = parsed.job_text ?? "";
       const legacy = await optimizeResume(resumeText, jobText);
 
       // Compute baseline ATS (before agent)
@@ -42,11 +55,11 @@ export async function POST(req: NextRequest) {
       runtime.run({
         userId: user.id,
         command,
-        resume_file_path: body.resume_file_path,
-        resume_json: body.resume_json,
-        job_url: body.job_url,
-        job_text: body.job_text,
-        design: body.design,
+        resume_file_path: parsed.resume_file_path,
+        resume_json: parsed.resume_json,
+        job_url: parsed.job_url,
+        job_text: parsed.job_text,
+        design: parsed.design,
       })
         .then(async (agentResult) => {
           try {
@@ -84,11 +97,11 @@ export async function POST(req: NextRequest) {
     const result = await runtime.run({
       userId: user.id,
       command,
-      resume_file_path: body.resume_file_path,
-      resume_json: body.resume_json,
-      job_url: body.job_url,
-      job_text: body.job_text,
-      design: body.design,
+      resume_file_path: parsed.resume_file_path,
+      resume_json: parsed.resume_json,
+      job_url: parsed.job_url,
+      job_text: parsed.job_text,
+      design: parsed.design,
     });
     log("agent_run", "agent run completed", { userId: user.id, intent: result.intent });
     return NextResponse.json(result);

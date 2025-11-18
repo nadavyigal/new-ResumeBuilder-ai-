@@ -131,7 +131,7 @@ export interface Database {
           title: string
           company: string | null
           url: string | null
-          extracted_data: Json
+          parsed_data: Json
           embeddings: number[] | null
           created_at: string
           updated_at: string
@@ -142,7 +142,7 @@ export interface Database {
           title: string
           company?: string | null
           url?: string | null
-          extracted_data?: Json
+          parsed_data?: Json
           embeddings?: number[] | null
           created_at?: string
           updated_at?: string
@@ -153,7 +153,7 @@ export interface Database {
           title?: string
           company?: string | null
           url?: string | null
-          extracted_data?: Json
+          parsed_data?: Json
           embeddings?: number[] | null
           created_at?: string
           updated_at?: string

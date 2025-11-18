@@ -12,16 +12,22 @@ interface ATSSuggestionsBannerProps {
   suggestions: Suggestion[];
 }
 
+// Type for suggestions with added sequential numbering
+type NumberedSuggestion = Suggestion & { number: number };
+
 export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // Start collapsed to match target UI
 
   if (suggestions.length === 0) {
     return null;
   }
 
-  const quickWins = suggestions.filter(s => s.quick_win).slice(0, 3);
-  const highImpact = suggestions.filter(s => !s.quick_win && s.estimated_gain >= 8).slice(0, 2);
-  const displaySuggestions = [...quickWins, ...highImpact];
+  // Add sequential numbering to all suggestions
+  const numberedSuggestions: NumberedSuggestion[] = suggestions.map((s, index) => ({ ...s, number: index + 1 }));
+
+  const quickWins = numberedSuggestions.filter(s => s.quick_win).slice(0, 3);
+  const highImpact = numberedSuggestions.filter(s => !s.quick_win && s.estimated_gain >= 8).slice(0, 2);
+  const displaySuggestions: NumberedSuggestion[] = [...quickWins, ...highImpact];
 
   return (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-3">
@@ -62,7 +68,7 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-900 dark:text-gray-100">
-                    {suggestion.text}
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">Tip #{suggestion.number}:</span> {suggestion.text}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded font-medium">
@@ -86,7 +92,7 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
           )}
 
           <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-            💬 Ask me to implement any of these suggestions!
+            💬 Ask me to implement suggestions by number (e.g., "implement tip 1, 2, and 4")
           </p>
         </div>
       )}
