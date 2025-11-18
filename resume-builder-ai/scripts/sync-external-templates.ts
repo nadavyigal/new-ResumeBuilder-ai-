@@ -142,9 +142,11 @@ async function transformAndCopyTemplate(
 ): Promise<void> {
   let content = await fs.readFile(sourceFile, 'utf-8');
 
-  // Check if already transformed (has customization prop)
-  if (content.includes('customization')) {
-    // Already transformed, copy as-is
+  // Check if contains full HTML structure (needs transformation)
+  const needsTransform = content.includes('<html') || content.includes('<body');
+
+  if (!needsTransform) {
+    // Already transformed to div-based component, copy as-is
     await fs.writeFile(targetFile, content, 'utf-8');
     return;
   }
@@ -240,20 +242,24 @@ ${bodyContent.split('\n').map(line => '      ' + line).join('\n')}
 }
 
 /**
- * Generate auto-registry file with template imports
+ * Generate auto-registry file with dynamic template imports
+ * Uses dynamic imports to avoid SSR/build-time issues with full HTML templates
  */
 async function generateRegistry(templates: TemplateInfo[]): Promise<void> {
   console.log('\n📝 Generating template registry...');
 
   const registryPath = path.join(TARGET_DIR, 'index.ts');
 
-  const imports = templates
-    .map((t) => `import ${slugToPascalCase(t.slug)} from './${t.slug}/Resume';`)
-    .join('\n');
+  const templateIds = templates.map(t => `'${t.slug}'`).join(',\n  ');
 
-  const registry = templates
-    .map((t) => `  '${t.slug}': ${slugToPascalCase(t.slug)}`)
-    .join(',\n');
+  const switchCases = templates
+    .map((t) => {
+      const componentName = slugToPascalCase(t.slug);
+      return `      case '${t.slug}':
+        const ${componentName} = await import('./${t.slug}/Resume');
+        return ${componentName}.default;`;
+    })
+    .join('\n');
 
   const content = `/**
  * Auto-generated Template Registry
@@ -263,25 +269,49 @@ async function generateRegistry(templates: TemplateInfo[]): Promise<void> {
  * DO NOT EDIT MANUALLY - Changes will be overwritten on next sync
  */
 
-${imports}
-
 export interface TemplateComponent {
   (props: any): JSX.Element;
 }
 
-export const TEMPLATE_REGISTRY: Record<string, TemplateComponent> = {
-${registry}
-};
+// Template IDs available for dynamic import
+const AVAILABLE_TEMPLATES = [
+  ${templateIds}
+] as const;
 
-export function getExternalTemplate(templateId: string): TemplateComponent | null {
-  return TEMPLATE_REGISTRY[templateId] || null;
+/**
+ * Dynamically import a template component to avoid SSR/build-time issues
+ * These templates may contain full HTML structure and should only be loaded when needed
+ */
+export async function getExternalTemplate(templateId: string): Promise<TemplateComponent | null> {
+  try {
+    switch (templateId) {
+${switchCases}
+      default:
+        return null;
+    }
+  } catch (error) {
+    console.error(\`Failed to load template: \${templateId}\`, error);
+    return null;
+  }
 }
 
 export function listExternalTemplates(): string[] {
-  return Object.keys(TEMPLATE_REGISTRY);
+  return [...AVAILABLE_TEMPLATES];
 }
 
-export default TEMPLATE_REGISTRY;
+// For backward compatibility - note this is now async
+export const loadTemplateRegistry = async (): Promise<Record<string, TemplateComponent>> => {
+  const registry: Record<string, TemplateComponent> = {};
+
+  for (const templateId of AVAILABLE_TEMPLATES) {
+    const template = await getExternalTemplate(templateId);
+    if (template) {
+      registry[templateId] = template;
+    }
+  }
+
+  return registry;
+};
 `;
 
   await fs.writeFile(registryPath, content, 'utf-8');
