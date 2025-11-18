@@ -68,13 +68,13 @@
 
 ### Implementation for User Story 1
 
-- [x] T015 [P] [US1] Create field path resolver in `resume-builder-ai/src/lib/resume/field-path-resolver.ts` with `parseFieldPath()`, `getFieldValue()`, `setFieldValue()`, `validateFieldPath()` functions
-- [x] T016 [US1] Create modification applier in `resume-builder-ai/src/lib/resume/modification-applier.ts` with `applyModification(resume, modification)` function - depends on T015
-- [x] T017 [US1] Create modification parser in `resume-builder-ai/src/lib/ai-assistant/modification-parser.ts` with `parseModificationIntent(message, resumeSchema)` function - depends on T015
-- [ ] T018 [US1] Refactor applySuggestions function in `resume-builder-ai/src/lib/agent/applySuggestions.ts` to use smart field-based modifications instead of generic text appending - depends on T016, T017 (DEFERRED)
-- [ ] T019 [US1] Update handleTipImplementation in `resume-builder-ai/src/lib/agent/handlers/handleTipImplementation.ts` to log modifications to `content_modifications` table - depends on T018 (DEFERRED)
-- [x] T020 [US1] Add modification history endpoint GET `/api/v1/modifications/history` in `resume-builder-ai/src/app/api/v1/modifications/history/route.ts`
-- [x] T021 [P] [US1] Add modification revert endpoint POST `/api/v1/modifications/[id]/revert` in `resume-builder-ai/src/app/api/v1/modifications/[id]/revert/route.ts`
+- [x] T015 [P] [US1] Create field path resolver in `resume-builder-ai/src/lib/resume/field-path-resolver.ts` with `parseFieldPath()`, `getFieldValue()`, `setFieldValue()`, `validateFieldPath()` functions ✅ Complete (33/37 tests passing)
+- [x] T016 [US1] Create modification applier in `resume-builder-ai/src/lib/resume/modification-applier.ts` with `applyModification(resume, modification)` function - depends on T015 ✅ Complete (31/33 tests passing)
+- [x] T017 [US1] Create modification parser in `resume-builder-ai/src/lib/ai-assistant/modification-parser.ts` with `parseModificationIntent(message, resumeSchema)` function - depends on T015 ✅ Complete
+- [ ] T018 [US1] Refactor applySuggestions function in `resume-builder-ai/src/lib/agent/applySuggestions.ts` to use smart field-based modifications instead of generic text appending - depends on T016, T017 ⏸️ DEFERRED to next sprint (requires integration work)
+- [ ] T019 [US1] Update handleTipImplementation in `resume-builder-ai/src/lib/agent/handlers/handleTipImplementation.ts` to log modifications to `content_modifications` table - depends on T018 ⏸️ DEFERRED to next sprint (requires integration work)
+- [x] T020 [US1] Add modification history endpoint GET `/api/v1/modifications/history` in `resume-builder-ai/src/app/api/v1/modifications/history/route.ts` ✅ Complete
+- [x] T021 [P] [US1] Add modification revert endpoint POST `/api/v1/modifications/[id]/revert` in `resume-builder-ai/src/app/api/v1/modifications/[id]/revert/route.ts` ✅ Complete
 
 **Checkpoint**: Smart content modification working - field updates modify in-place, no duplicates created
 
