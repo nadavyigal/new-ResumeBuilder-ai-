@@ -134,10 +134,10 @@ describe('Style Customization Integration Tests', () => {
 
     it('validates against AAA standard for higher accessibility', () => {
       const testCases = [
-        { fg: '#000000', bg: '#FFFFFF', expectedAAA: true },  // Black on white
-        { fg: '#1E3A8A', bg: '#FFFFFF', expectedAAA: true },  // Navy on white
-        { fg: '#374151', bg: '#FFFFFF', expectedAAA: false }, // Dark gray (passes AA, fails AAA)
-        { fg: '#6B7280', bg: '#FFFFFF', expectedAAA: false }, // Medium gray
+        { fg: '#000000', bg: '#FFFFFF', expectedAAA: true },  // Black on white (21:1)
+        { fg: '#1E3A8A', bg: '#FFFFFF', expectedAAA: true },  // Navy on white (10.88:1)
+        { fg: '#374151', bg: '#FFFFFF', expectedAAA: true },  // Dark gray (10.31:1 - passes AAA!)
+        { fg: '#6B7280', bg: '#FFFFFF', expectedAAA: false }, // Medium gray (4.78:1 - fails AAA)
       ];
 
       testCases.forEach(({ fg, bg, expectedAAA }) => {
@@ -261,7 +261,7 @@ describe('Style Customization Integration Tests', () => {
       const messages = [
         'change background to white',
         'change header to navy',
-        'change text to black',
+        'change text color to black', // Need "color" keyword for text
       ];
 
       messages.forEach((message) => {

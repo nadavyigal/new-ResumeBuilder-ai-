@@ -25,8 +25,31 @@ export interface WCAGValidationResult {
  * @throws Error if hex color is invalid
  */
 export function getRelativeLuminance(hexColor: string): number {
-  // TODO: Implement in T026
-  throw new Error('Not implemented - T026');
+  // Validate hex format (must be 6-digit hex with #)
+  if (!/^#[0-9a-f]{6}$/i.test(hexColor)) {
+    throw new Error(`Invalid hex color format: ${hexColor}. Expected format: #RRGGBB`);
+  }
+
+  // Extract RGB components
+  const r = parseInt(hexColor.slice(1, 3), 16) / 255;
+  const g = parseInt(hexColor.slice(3, 5), 16) / 255;
+  const b = parseInt(hexColor.slice(5, 7), 16) / 255;
+
+  // Apply sRGB to linear RGB transformation
+  const toLinear = (channel: number): number => {
+    return channel <= 0.03928
+      ? channel / 12.92
+      : Math.pow((channel + 0.055) / 1.055, 2.4);
+  };
+
+  const rLinear = toLinear(r);
+  const gLinear = toLinear(g);
+  const bLinear = toLinear(b);
+
+  // Calculate relative luminance using ITU-R BT.709 coefficients
+  const luminance = 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+
+  return luminance;
 }
 
 /**
@@ -38,8 +61,17 @@ export function getRelativeLuminance(hexColor: string): number {
  * @returns Contrast ratio (1 to 21), rounded to 2 decimal places
  */
 export function getContrastRatio(foreground: string, background: string): number {
-  // TODO: Implement in T026
-  throw new Error('Not implemented - T026');
+  const L1 = getRelativeLuminance(foreground);
+  const L2 = getRelativeLuminance(background);
+
+  // Always divide lighter by darker (formula requires lighter + 0.05 / darker + 0.05)
+  const lighter = Math.max(L1, L2);
+  const darker = Math.min(L1, L2);
+
+  const ratio = (lighter + 0.05) / (darker + 0.05);
+
+  // Round to 2 decimal places, unless it's a whole number
+  return Math.round(ratio * 100) / 100;
 }
 
 /**
@@ -65,6 +97,27 @@ export function validateWCAG(
   level: WCAGLevel,
   textSize: TextSize
 ): WCAGValidationResult {
-  // TODO: Implement in T026
-  throw new Error('Not implemented - T026');
+  const ratio = getContrastRatio(foreground, background);
+
+  // WCAG 2.1 minimum contrast ratios
+  const thresholds = {
+    AA: {
+      normal: 4.5,
+      large: 3.0,
+    },
+    AAA: {
+      normal: 7.0,
+      large: 4.5,
+    },
+  };
+
+  const minimumRatio = thresholds[level][textSize];
+  const passes = ratio >= minimumRatio;
+
+  return {
+    passes,
+    ratio,
+    level,
+    textSize,
+  };
 }

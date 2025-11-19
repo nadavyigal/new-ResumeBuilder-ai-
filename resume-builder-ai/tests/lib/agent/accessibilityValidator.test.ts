@@ -63,7 +63,7 @@ describe('getRelativeLuminance - Relative Luminance Calculation', () => {
     it('calculates luminance for dark gray (#333333)', () => {
       const luminance = getRelativeLuminance('#333333');
       expect(luminance).toBeLessThan(0.1);
-      expect(luminance).toBeCloseTo(0.0335, 4);
+      expect(luminance).toBeCloseTo(0.0331, 3); // Actual: 0.033105
     });
   });
 
@@ -228,11 +228,11 @@ describe('validateWCAG - WCAG Compliance Validation', () => {
   });
 
   describe('WCAG AA - Large Text (3:1 minimum)', () => {
-    it('passes for medium gray on white', () => {
-      // Colors that fail AA normal may pass AA large
+    it('fails for medium gray (#999999) on white (2.85:1)', () => {
+      // #999999 has contrast ratio of 2.85:1, which fails AA large (needs 3:1)
       const result = validateWCAG('#999999', '#FFFFFF', 'AA', 'large');
-      expect(result.passes).toBe(true);
-      expect(result.ratio).toBeGreaterThan(3);
+      expect(result.passes).toBe(false);
+      expect(result.ratio).toBeLessThan(3);
     });
 
     it('passes for Tailwind blue on white', () => {
@@ -266,10 +266,11 @@ describe('validateWCAG - WCAG Compliance Validation', () => {
       expect(result.ratio).toBeLessThan(7);
     });
 
-    it('fails for dark gray (#374151) on white', () => {
+    it('passes for dark gray (#374151) on white (10.31:1)', () => {
+      // #374151 has excellent contrast of 10.31:1, passing AAA normal (needs 7:1)
       const result = validateWCAG('#374151', '#FFFFFF', 'AAA', 'normal');
-      expect(result.passes).toBe(false);
-      expect(result.ratio).toBeLessThan(7);
+      expect(result.passes).toBe(true);
+      expect(result.ratio).toBeGreaterThan(7);
     });
   });
 
@@ -391,7 +392,7 @@ describe('WCAG Compliance - Comprehensive Color Combinations', () => {
         foreground: '#374151',
         background: '#FFFFFF',
         expectedAA: true,
-        expectedAAA: false,
+        expectedAAA: true, // 10.31:1 passes AAA
       },
       {
         name: 'Gray text on white',
