@@ -5,7 +5,7 @@
  */
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { Suggestion } from '@/lib/ats/types';
-import { applyModification, type ModificationOperation } from '../../resume-builder-ai/src/lib/resume/modification-applier';
+import { applyModification, type ModificationOperation } from '../resume/modification-applier';
 
 export interface ApplySuggestionsResult {
   resume: OptimizedResume;
