@@ -533,22 +533,20 @@ function extractKeywordsFromText(text: string): string[] {
   }
 
   // 6. Look for capitalized technical terms (fallback for implicit skills)
-  if (keywords.length === 0) {
-    const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
-    if (techTerms) {
-      for (const term of techTerms) {
-        const lowerTerm = term.toLowerCase();
-        if (GENERIC_ACRONYMS.has(lowerTerm)) {
-          const enriched = findAcronymContext(term, text);
-          if (enriched && isValidSkill(enriched)) {
-            keywords.push(enriched);
-          }
-          continue;
+  const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
+  if (techTerms) {
+    for (const term of techTerms) {
+      const lowerTerm = term.toLowerCase();
+      if (GENERIC_ACRONYMS.has(lowerTerm)) {
+        const enriched = findAcronymContext(term, text);
+        if (enriched && isValidSkill(enriched)) {
+          keywords.push(enriched);
         }
+        continue;
+      }
 
-        if (isValidSkill(term)) {
-          keywords.push(term);
-        }
+      if (isValidSkill(term)) {
+        keywords.push(term);
       }
     }
   }
