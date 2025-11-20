@@ -149,12 +149,12 @@ export async function POST(
     const amendment = processResult.amendments[0];
 
     if (amendment) {
-      const section = amendment.targetSection || 'summary';
+      const section = amendment.section || 'summary';
       if (!proposedContent[section]) {
         proposedContent[section] = '';
       }
 
-      switch (amendment.type) {
+      switch (amendment.operation) {
         case 'add':
           proposedContent[section] = `${proposedContent[section]} [Preview: Add]`;
           break;
@@ -174,7 +174,7 @@ export async function POST(
 
     // Generate change summary
     const changeSummary = amendment
-      ? `Preview: ${amendment.type} in ${amendment.targetSection || 'summary'}`
+      ? `Preview: ${amendment.operation} in ${amendment.section || 'summary'}`
       : 'Preview: Changes to resume';
 
     // Build response
