@@ -31,6 +31,7 @@ export interface UpdateContentParams {
   operation: 'add' | 'modify' | 'remove';
   value: string;
   target_index?: number; // For arrays like experience, education
+  target_field?: string; // Optional sub-field selector (e.g., title vs achievements)
   reasoning?: string;
 }
 
@@ -149,6 +150,10 @@ export const ASSISTANT_FUNCTIONS = [
           target_index: {
             type: 'number',
             description: 'For array sections (experience, education), which item to modify (0-indexed). Omit to add to end or modify most recent.'
+          },
+          target_field: {
+            type: 'string',
+            description: 'For nested sections, which field to adjust (e.g., "title", "achievements[0]"). Defaults to section-specific sensible target.'
           },
           reasoning: {
             type: 'string',

@@ -108,29 +108,30 @@ export async function POST(
     // For now, create a simple mock implementation
     const updatedContent = { ...currentContent };
 
-    // Apply the amendment based on type
+    // Apply the amendment based on structured fields
     // This is a simplified implementation - Phase 3.5 will add proper AI-based amendment application
-    const section = amendmentRequest.target_section || 'summary';
+    const section = amendmentRequest.section || amendmentRequest.target_section || 'summary';
+    const operation = amendmentRequest.operation || amendmentRequest.type || 'modify';
     if (!updatedContent[section]) {
       updatedContent[section] = '';
     }
 
-    switch (amendmentRequest.type) {
+    switch (operation) {
       case 'add':
-        updatedContent[section] = `${updatedContent[section]} [Added: ${amendmentRequest.type}]`;
+        updatedContent[section] = `${updatedContent[section]} [Added: ${operation}]`;
         break;
       case 'modify':
-        updatedContent[section] = `${updatedContent[section]} [Modified: ${amendmentRequest.type}]`;
+        updatedContent[section] = `${updatedContent[section]} [Modified: ${operation}]`;
         break;
       case 'remove':
-        updatedContent[section] = `${updatedContent[section]} [Removed: ${amendmentRequest.type}]`;
+        updatedContent[section] = `${updatedContent[section]} [Removed: ${operation}]`;
         break;
       default:
         break;
     }
 
     // Create new version
-    const changeSummary = `Applied ${amendmentRequest.type} amendment to ${section}`;
+    const changeSummary = `Applied ${operation} amendment to ${section}`;
     const newVersion = await createVersion({
       optimizationId: session.optimization_id,
       sessionId: sessionId,

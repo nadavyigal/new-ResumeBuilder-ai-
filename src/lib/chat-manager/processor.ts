@@ -12,9 +12,12 @@ export interface ProcessMessageInput {
 }
 
 export interface AmendmentRequest {
-  type: 'add' | 'modify' | 'remove' | 'clarify';
-  targetSection: string | null;
-  description: string;
+  section: 'skills' | 'experience' | 'education' | 'summary' | 'certifications' | 'projects' | null;
+  operation: 'add' | 'modify' | 'remove' | 'clarify';
+  value: string;
+  targetIndex?: number;
+  targetField?: string;
+  reasoning?: string;
 }
 
 export interface ProcessMessageOutput {
@@ -54,36 +57,37 @@ export async function processMessage(
   // Extract amendment type from message using basic keyword matching
   const amendments: AmendmentRequest[] = [];
   const lowerMessage = input.message.toLowerCase();
+  const section = extractSection(input.message);
 
   if (lowerMessage.includes('add')) {
     amendments.push({
-      type: 'add',
-      targetSection: extractSection(input.message),
-      description: input.message,
+      operation: 'add',
+      section: section || 'summary',
+      value: message,
     });
   } else if (lowerMessage.includes('remove') || lowerMessage.includes('delete')) {
     amendments.push({
-      type: 'remove',
-      targetSection: extractSection(input.message),
-      description: input.message,
+      operation: 'remove',
+      section: section || 'summary',
+      value: message,
     });
   } else if (lowerMessage.includes('change') || lowerMessage.includes('modify') || lowerMessage.includes('update')) {
     amendments.push({
-      type: 'modify',
-      targetSection: extractSection(input.message),
-      description: input.message,
+      operation: 'modify',
+      section: section || 'summary',
+      value: message,
     });
   } else {
     amendments.push({
-      type: 'clarify',
-      targetSection: null,
-      description: input.message,
+      operation: 'clarify',
+      section: null,
+      value: message,
     });
   }
 
   return {
     amendments,
-    aiResponse: `I'll help you ${amendments[0].type} content ${amendments[0].targetSection ? `in your ${amendments[0].targetSection} section` : ''}. Let me process that change.`,
+    aiResponse: `I'll help you ${amendments[0].operation} content ${amendments[0].section ? `in your ${amendments[0].section} section` : ''}. Let me process that change.`,
     shouldApply: true,
   };
 }
