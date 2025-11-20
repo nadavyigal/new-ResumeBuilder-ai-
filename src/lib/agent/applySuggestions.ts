@@ -1,14 +1,17 @@
 /**
  * Apply suggestions to resume with smart keyword filtering
  * Updated: 2025-11-16 - Added context-aware skill validation
+ * Updated: 2025-11-18 - Integrated field-based modification system (Phase 3, T018)
  */
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { Suggestion } from '@/lib/ats/types';
+import { applyModification, type ModificationOperation } from '../resume/modification-applier';
 
 export interface ApplySuggestionsResult {
   resume: OptimizedResume;
   changesApplied: number;
   changeLog: string[];
+  modifications: ModificationOperation[]; // Track all modifications for audit trail (Phase 3)
 }
 
 /**
@@ -58,6 +61,7 @@ export async function applySuggestions(
 
 /**
  * Apply multiple ATS suggestions with detailed change tracking
+ * Now includes modification operations for database audit trail (Phase 3)
  */
 export async function applySuggestionsWithTracking(
   resume: OptimizedResume,
@@ -66,6 +70,7 @@ export async function applySuggestionsWithTracking(
   let updated = JSON.parse(JSON.stringify(resume)); // Deep clone
   let changesApplied = 0;
   const changeLog: string[] = [];
+  const modifications: ModificationOperation[] = [];
 
   for (const suggestion of suggestions) {
     const result = await applySingleSuggestion(updated, suggestion);
@@ -73,15 +78,22 @@ export async function applySuggestionsWithTracking(
       updated = result.resume;
       changesApplied++;
       changeLog.push(result.changeDescription);
+
+      // Track modification operations for database logging (Phase 3)
+      if (result.modification) {
+        modifications.push(result.modification);
+      }
     }
   }
 
   console.log(`✅ Applied ${changesApplied}/${suggestions.length} suggestions:`, changeLog);
+  console.log(`📝 Tracked ${modifications.length} field modifications for audit trail`);
 
   return {
     resume: updated,
     changesApplied,
     changeLog,
+    modifications,
   };
 }
 
@@ -89,6 +101,7 @@ interface SuggestionResult {
   resume: OptimizedResume;
   changed: boolean;
   changeDescription: string;
+  modification?: ModificationOperation; // Optional: Only set if using field-based modification (Phase 3)
 }
 
 async function applySingleSuggestion(
@@ -127,7 +140,7 @@ async function applySingleSuggestion(
 }
 
 /**
- * Apply keyword-related suggestions
+ * Apply keyword-related suggestions using field-based modifications (Phase 3)
  */
 function applyKeywordSuggestion(
   resume: OptimizedResume,
@@ -156,15 +169,48 @@ function applyKeywordSuggestion(
     };
   }
 
-  const next: OptimizedResume = JSON.parse(JSON.stringify(resume));
-  next.skills = next.skills || { technical: [], soft: [] } as any;
-  next.skills.technical = [...(next.skills.technical || []), ...newKeywords];
+  // USE FIELD-BASED MODIFICATION (Phase 3) - append keywords to skills.technical array
+  try {
+    let updated = resume;
 
-  return {
-    resume: next,
-    changed: true,
-    changeDescription: `Added keywords: ${newKeywords.join(', ')}`,
-  };
+    // Ensure skills.technical exists before appending
+    if (!resume.skills || !Array.isArray(resume.skills.technical)) {
+      // Initialize the skills structure if needed
+      updated = JSON.parse(JSON.stringify(resume));
+      updated.skills = updated.skills || ({} as any);
+      updated.skills.technical = updated.skills.technical || [];
+    }
+
+    // Track all modifications for audit trail
+    const modifications: ModificationOperation[] = [];
+
+    // Append each new keyword using field-based modification
+    for (const keyword of newKeywords) {
+      const modification: ModificationOperation = {
+        operation: 'append',
+        field_path: 'skills.technical',
+        new_value: keyword,
+        old_value: undefined,
+      };
+
+      updated = applyModification(updated, modification);
+      modifications.push(modification);
+    }
+
+    return {
+      resume: updated,
+      changed: true,
+      changeDescription: `Added keywords: ${newKeywords.join(', ')}`,
+      modification: modifications[0], // Return first modification for tracking (rest are similar)
+    };
+  } catch (error) {
+    console.error('Failed to apply keyword modifications:', error);
+    return {
+      resume,
+      changed: false,
+      changeDescription: `Failed to add keywords: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
 }
 
 /**
@@ -234,10 +280,10 @@ function applyMetricsSuggestion(
 }
 
 /**
- * Apply content suggestions
+ * Apply content suggestions using field-based modifications (Phase 3)
  *
- * Mirrors quoted phrases from the suggestion into experience achievements (or summary fallback)
- * without inserting visible banners.
+ * Uses smart modification system to append to achievements array
+ * instead of directly mutating resume structure.
  */
 function applyContentSuggestion(
   resume: OptimizedResume,
@@ -253,23 +299,40 @@ function applyContentSuggestion(
   }
 
   const phrase = phrases[0];
-  const updated = JSON.parse(JSON.stringify(resume)) as OptimizedResume;
 
-  if (Array.isArray(updated.experience) && updated.experience.length > 0) {
-    const latestExp = updated.experience[0] as any;
-    latestExp.achievements = Array.isArray(latestExp.achievements) ? latestExp.achievements : [];
+  if (Array.isArray(resume.experience) && resume.experience.length > 0) {
+    const latestExp = resume.experience[0] as any;
+    const achievements = Array.isArray(latestExp.achievements) ? latestExp.achievements : [];
 
-    const alreadyPresent = latestExp.achievements.some(
+    const alreadyPresent = achievements.some(
       (a: unknown) => typeof a === 'string' && a.toLowerCase().includes(phrase.toLowerCase())
     );
+
     if (!alreadyPresent) {
-      latestExp.achievements.push(phrase);
-      updated.experience[0] = latestExp;
-      return {
-        resume: updated,
-        changed: true,
-        changeDescription: `Added content: "${phrase.substring(0, 50)}${phrase.length > 50 ? '...' : ''}" to ${latestExp.title || 'latest experience'}`,
+      // USE FIELD-BASED MODIFICATION (Phase 3) instead of direct mutation
+      const modification: ModificationOperation = {
+        operation: 'append',
+        field_path: 'experience[0].achievements',
+        new_value: phrase,
+        old_value: undefined, // Append doesn't have old_value
       };
+
+      try {
+        const updated = applyModification(resume, modification);
+        return {
+          resume: updated,
+          changed: true,
+          changeDescription: `Added content: "${phrase.substring(0, 50)}${phrase.length > 50 ? '...' : ''}" to ${latestExp.title || 'latest experience'}`,
+          modification, // Track for audit trail
+        };
+      } catch (error) {
+        console.error('Failed to apply content modification:', error);
+        return {
+          resume,
+          changed: false,
+          changeDescription: `Failed to add content: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        };
+      }
     } else {
       return {
         resume,
@@ -279,15 +342,32 @@ function applyContentSuggestion(
     }
   }
 
-  // Fallback: ensure the phrase appears in the summary
-  if (typeof updated.summary === 'string') {
-    if (!updated.summary.toLowerCase().includes(phrase.toLowerCase())) {
-      updated.summary = `${updated.summary ? updated.summary + ' ' : ''}${phrase}`;
-      return {
-        resume: updated,
-        changed: true,
-        changeDescription: `Added content: "${phrase.substring(0, 50)}..." to summary`,
+  // Fallback: ensure the phrase appears in the summary using suffix operation
+  if (typeof resume.summary === 'string') {
+    if (!resume.summary.toLowerCase().includes(phrase.toLowerCase())) {
+      const modification: ModificationOperation = {
+        operation: 'suffix',
+        field_path: 'summary',
+        new_value: ` ${phrase}`,
+        old_value: resume.summary,
       };
+
+      try {
+        const updated = applyModification(resume, modification);
+        return {
+          resume: updated,
+          changed: true,
+          changeDescription: `Added content: "${phrase.substring(0, 50)}..." to summary`,
+          modification,
+        };
+      } catch (error) {
+        console.error('Failed to apply summary modification:', error);
+        return {
+          resume,
+          changed: false,
+          changeDescription: `Failed to add to summary: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        };
+      }
     } else {
       return {
         resume,
@@ -321,11 +401,24 @@ const NON_SKILL_WORDS = new Set([
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
 
+const GENERIC_ACRONYMS = new Set(['api', 'apis', 'qa', 'sql']);
+
+const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
+  api: ['REST API', 'REST APIs', 'GraphQL API', 'GraphQL APIs', 'SOAP API', 'SOAP APIs', 'Web API', 'Web APIs'],
+  apis: ['REST API', 'REST APIs', 'GraphQL API', 'GraphQL APIs', 'SOAP API', 'SOAP APIs', 'Web API', 'Web APIs'],
+  sql: ['SQL databases', 'SQL queries', 'SQL reporting'],
+  qa: ['Quality Assurance', 'QA automation', 'QA testing'],
+};
+
 /**
  * Check if a term is likely a valid skill
  */
 function isValidSkill(term: string): boolean {
   const lower = term.toLowerCase().trim();
+
+  if (GENERIC_ACRONYMS.has(lower) && !lower.includes(' ')) {
+    return false;
+  }
 
   // Too short to be a meaningful skill
   if (lower.length < 3) return false;
@@ -359,6 +452,33 @@ function isValidSkill(term: string): boolean {
   }
 
   return false;
+}
+
+function findAcronymContext(acronym: string, text: string): string | null {
+  const escapedAcronym = acronym.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const beforePattern = new RegExp(`\\b([A-Za-z][\\w+#.]+\\s+${escapedAcronym}s?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
+  const afterPattern = new RegExp(`\\b(${escapedAcronym}s?\\s+[A-Za-z][\\w+#.]*?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
+
+  const beforeMatch = beforePattern.exec(text);
+  if (beforeMatch && isValidSkill(beforeMatch[1])) {
+    return beforeMatch[1];
+  }
+
+  const afterMatch = afterPattern.exec(text);
+  if (afterMatch && isValidSkill(afterMatch[1])) {
+    return afterMatch[1];
+  }
+
+  const enrichmentOptions = ACRONYM_ENRICHMENT_MAP[acronym.toLowerCase()] || [];
+  for (const phrase of enrichmentOptions) {
+    const escaped = phrase.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const phraseRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (phraseRegex.test(text)) {
+      return phrase;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -403,13 +523,31 @@ function extractKeywordsFromText(text: string): string[] {
     }
   }
 
-  // 5. Look for capitalized technical terms (fallback for implicit skills)
-  // Only use this if we haven't found explicit skills
-  if (keywords.length === 0) {
-    const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
-    if (techTerms) {
-      const filtered = techTerms.filter(isValidSkill);
-      keywords.push(...filtered);
+  // 5. Prefer contextual, multi-word phrases around generic acronyms before falling back
+  const contextualAcronymPattern = /\b([A-Za-z][\w+#.]*\s+(?:API|APIs|SQL|QA)(?:\s+[A-Za-z][\w+#.]*)?)\b/gi;
+  while ((match = contextualAcronymPattern.exec(text)) !== null) {
+    const term = match[1].trim();
+    if (isValidSkill(term)) {
+      keywords.push(term);
+    }
+  }
+
+  // 6. Look for capitalized technical terms (fallback for implicit skills)
+  const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
+  if (techTerms) {
+    for (const term of techTerms) {
+      const lowerTerm = term.toLowerCase();
+      if (GENERIC_ACRONYMS.has(lowerTerm)) {
+        const enriched = findAcronymContext(term, text);
+        if (enriched && isValidSkill(enriched)) {
+          keywords.push(enriched);
+        }
+        continue;
+      }
+
+      if (isValidSkill(term)) {
+        keywords.push(term);
+      }
     }
   }
 

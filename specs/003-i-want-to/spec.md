@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-i-want-to`
 **Created**: 2025-10-08
-**Status**: Clarified
+**Status**: Draft
 **Input**: User description: "- i want to add a new feuture for design, after the resume has been optimized, i want the user to have the ability to design the resume from the deferent disigns in the folowing library - C:\Users\nadav\OneDrive\מסמכים\AI\cursor\cursor playground\AI Travel Club\resume-style-bank. the application will offer 2-3 designs and user can iterate with the ai chat and change the design"
 
 ## Execution Flow (main)
@@ -10,28 +10,27 @@
 1. Parse user description from Input
    → Feature identified: Resume design selection with AI chat iteration
 2. Extract key concepts from description
-   → Actors: Job seekers (all tiers - free and premium)
-   → Actions: View default design, browse all templates, select design, iterate with AI chat
-   → Data: Resume content, design templates, user customizations
-   → Constraints: 1 recommended design by default, immediate application with undo
-3. Clarifications completed (Session 2025-10-08):
-   ✓ Design Selection: 1 recommended + browse all templates
-   ✓ Design Browsing: All designs accessible
-   ✓ Customization Scope: Layout structure, colors, fonts
-   ✓ Change Application: Immediate with undo option
-   ✓ Version Management: Single final version storage
-   ✓ Tier Access: Available to all users (free + premium)
-   ✓ Iteration Limits: Unlimited (for now)
-   ✓ Revert Capabilities: Undo last change + revert to original
-4. User Scenarios & Testing defined
-   → Primary flow: User optimizes resume → Sees default design → Browses templates → Selects design → Iterates with AI → Undos/reverts as needed → Exports final resume
-5. Functional Requirements finalized
-   → 27 testable requirements (all ambiguities resolved)
-6. Key Entities identified
-   → Design templates, design customizations, resume design assignments, design change requests
-7. Review Checklist
-   → SUCCESS: All clarifications resolved, requirements testable
-8. Return: READY for planning phase (/plan)
+   → Actors: Job seekers (users)
+   → Actions: View design previews, select design, iterate with AI chat
+   → Data: Resume content, design templates, user preferences
+   → Constraints: 2-3 design options initially presented
+3. For each unclear aspect:
+   → [NEEDS CLARIFICATION: Which 2-3 designs should be shown by default?]
+   → [NEEDS CLARIFICATION: Can users preview all designs or only suggested ones?]
+   → [NEEDS CLARIFICATION: What design aspects can be changed via AI chat (colors, fonts, layout)?]
+   → [NEEDS CLARIFICATION: Are design changes applied immediately or require confirmation?]
+   → [NEEDS CLARIFICATION: Can users save multiple design versions?]
+   → [NEEDS CLARIFICATION: Should design selection be available for free tier or premium only?]
+4. Fill User Scenarios & Testing section
+   → Primary flow: User optimizes resume → Views design previews → Selects design → Iterates with AI → Exports final resume
+5. Generate Functional Requirements
+   → Each requirement testable
+   → Marked ambiguous requirements with clarification needs
+6. Identify Key Entities
+   → Design templates, design preferences, resume versions with designs
+7. Run Review Checklist
+   → WARN "Spec has uncertainties" - 6 clarification items identified
+8. Return: SUCCESS (spec ready for clarification and planning)
 ```
 
 ---
@@ -46,24 +45,23 @@
 ## User Scenarios & Testing *(mandatory)*
 
 ### Primary User Story
-After a job seeker has uploaded their resume and received an AI-optimized version tailored to a specific job description, they want to present their resume in a visually appealing format that stands out to recruiters. The system applies one recommended design by default, and users can browse all available templates to select their preferred option. Users can further customize the design through conversational AI chat (e.g., "make the headers blue", "use a more compact layout", "change the font to something more professional"), with changes applied immediately and an undo option available to revert the last change or reset to the original template.
+After a job seeker has uploaded their resume and received an AI-optimized version tailored to a specific job description, they want to present their resume in a visually appealing format that stands out to recruiters. The user is presented with 2-3 professionally designed resume templates, can preview how their content looks in each design, select their preferred option, and further customize the design through conversational AI chat (e.g., "make the headers blue", "use a more compact layout", "change the font to something more professional").
 
 ### Acceptance Scenarios
-1. **Given** a user has completed resume optimization, **When** they view their resume, **Then** they see their resume rendered with 1 AI-recommended design applied by default
-2. **Given** a user wants to explore other designs, **When** they access the design browser, **Then** they see all available design templates with previews using their actual content
-3. **Given** a user is browsing designs, **When** they click on a different design option, **Then** the system displays a full-page preview of their resume in that design
-4. **Given** a user has selected a design, **When** they open the AI chat interface and request design modifications (e.g., "change the color scheme to blue and gray"), **Then** the system applies the changes immediately to the resume preview
-5. **Given** a user doesn't like a recent design change, **When** they click the undo button, **Then** the system reverts to the previous design state
-6. **Given** a user wants to start over, **When** they select "revert to original template", **Then** the system resets the design to the initial AI-recommended template
-7. **Given** a user has finalized their design, **When** they export the resume, **Then** the exported PDF/DOCX reflects the selected design with all customizations
+1. **Given** a user has completed resume optimization, **When** they navigate to the design selection step, **Then** they see 2-3 resume design previews rendered with their actual content
+2. **Given** a user is viewing design previews, **When** they click on a design option, **Then** the system displays a full-page preview of their resume in that design
+3. **Given** a user has selected a design, **When** they open the AI chat interface, **Then** they can request design modifications in natural language (e.g., "change the color scheme to blue and gray")
+4. **Given** a user requests a design change via chat, **When** the AI processes the request, **Then** the system shows a preview of the proposed changes before applying them
+5. **Given** a user approves design changes, **When** they confirm the changes, **Then** the resume is updated with the new design and they can continue iterating or proceed to export
+6. **Given** a user has finalized their design, **When** they export the resume, **Then** the exported PDF/DOCX reflects the selected design with all customizations
 
 ### Edge Cases
-- What happens when a user requests a design change that conflicts with ATS-friendliness (e.g., "add images and graphics")? → System rejects and guides user to ATS-compatible alternatives
-- How does the system handle design change requests that are technically infeasible or unclear (e.g., "make it look cooler")? → AI provides clarifying questions or suggests specific design options
-- What if a user switches between designs after making customizations? → Customizations are reset to the new template's defaults
-- What happens if design rendering fails for a specific template? → System falls back to default minimal template
-- What if a user makes multiple changes and wants to undo more than the last one? → Only last change is undoable; user must revert to original template for full reset
-- Can users undo after saving their final design? → Undo only available during active design session, not after returning later
+- What happens when a user requests a design change that conflicts with ATS-friendliness (e.g., "add images and graphics")?
+- How does the system handle design change requests that are technically infeasible or unclear (e.g., "make it look cooler")?
+- What if a user switches between designs after making customizations - are customizations preserved or reset?
+- Can users revert to previous design versions if they don't like recent changes?
+- What happens if design rendering fails for a specific template?
+- How many design iteration messages are allowed per session [NEEDS CLARIFICATION: rate limits or quotas]?
 
 ---
 
@@ -72,45 +70,44 @@ After a job seeker has uploaded their resume and received an AI-optimized versio
 ### Functional Requirements
 
 **Design Selection**
-- **FR-001**: System MUST display resume with 1 AI-recommended design applied by default after resume optimization is complete
-- **FR-002**: System MUST provide access to browse and preview all available design templates in the library
-- **FR-003**: System MUST render each design preview with the user's actual optimized resume content
-- **FR-004**: System MUST allow users to select any design as their active template
+- **FR-001**: System MUST display 2-3 professionally designed resume template previews after resume optimization is complete
+- **FR-002**: System MUST render each design preview with the user's actual optimized resume content
+- **FR-003**: System MUST allow users to select one design as their active template
+- **FR-004**: System MUST [NEEDS CLARIFICATION: allow users to browse all available designs or restrict to initial 2-3 suggestions]
 
 **Design Preview**
 - **FR-005**: System MUST show a full-page preview of the selected design with user's content
 - **FR-006**: System MUST display design previews in a responsive format suitable for desktop and mobile viewing
-- **FR-007**: System MUST render previews within 5 seconds for optimal user experience
+- **FR-007**: System MUST render previews within [NEEDS CLARIFICATION: acceptable loading time - 3 seconds? 5 seconds?]
 
 **AI-Powered Design Iteration**
 - **FR-008**: System MUST provide a chat interface for users to request design modifications in natural language
-- **FR-009**: System MUST interpret user requests for design changes to layout structure, colors, and fonts
-- **FR-010**: System MUST apply design changes immediately upon AI processing
-- **FR-011**: System MUST provide an undo option to revert the last design change
+- **FR-009**: System MUST interpret user requests for common design changes (colors, fonts, spacing, layout variations)
+- **FR-010**: System MUST show a preview of proposed design changes before applying them
+- **FR-011**: System MUST require user confirmation before applying design changes
 - **FR-012**: System MUST reject or guide users away from design requests that would harm ATS compatibility
-- **FR-013**: System MUST allow unlimited design iteration requests (rate limits to be added in future development)
+- **FR-013**: System MUST [NEEDS CLARIFICATION: limit the number of design iterations per session or per user tier]
 
 **Design Persistence**
-- **FR-014**: System MUST save the user's selected design and all customizations as a single final version
-- **FR-015**: System MUST store only one active design version per resume (no multiple version history)
-- **FR-016**: System MUST preserve the final design selection when users return to their resume later
-- **FR-017**: System MUST allow users to undo the last design change
-- **FR-018**: System MUST allow users to revert to the original recommended template at any time
+- **FR-014**: System MUST save the user's selected design and all approved customizations
+- **FR-015**: System MUST [NEEDS CLARIFICATION: allow users to save multiple design versions or only one active design]
+- **FR-016**: System MUST preserve design selections when users return to their resume later
+- **FR-017**: System MUST allow users to reset design to default or revert to previous version [NEEDS CLARIFICATION: what revert capabilities are needed?]
 
 **Export Integration**
-- **FR-019**: System MUST apply the selected design when generating PDF exports
-- **FR-020**: System MUST apply the selected design when generating DOCX exports
-- **FR-021**: System MUST ensure exported resumes maintain ATS-friendly formatting regardless of visual design
+- **FR-018**: System MUST apply the selected design when generating PDF exports
+- **FR-019**: System MUST apply the selected design when generating DOCX exports
+- **FR-020**: System MUST ensure exported resumes maintain ATS-friendly formatting regardless of visual design
 
 **Design Template Library**
-- **FR-022**: System MUST support at least 4 distinct design templates (minimal, card-based, timeline, sidebar)
-- **FR-023**: System MUST make all design templates available to all users (free and premium tiers)
-- **FR-024**: System MUST categorize designs by style characteristics for easy browsing
+- **FR-021**: System MUST support at least 4 distinct design templates (minimal, card-based, timeline, sidebar)
+- **FR-022**: System MUST categorize designs by style characteristics (modern, traditional, creative, corporate) [NEEDS CLARIFICATION: how should designs be categorized?]
+- **FR-023**: System MUST [NEEDS CLARIFICATION: make certain designs premium-only or all available to all tiers]
 
 **Error Handling**
-- **FR-025**: System MUST handle design rendering failures gracefully with fallback to a default template
-- **FR-026**: System MUST provide clear feedback when AI cannot understand or fulfill a design change request
-- **FR-027**: System MUST validate that design changes do not break resume content or formatting
+- **FR-024**: System MUST handle design rendering failures gracefully with fallback to a default template
+- **FR-025**: System MUST provide clear feedback when AI cannot understand or fulfill a design change request
+- **FR-026**: System MUST validate that design changes do not break resume content or formatting
 
 ### Key Entities
 
@@ -134,8 +131,8 @@ After a job seeker has uploaded their resume and received an AI-optimized versio
 - [x] All mandatory sections completed
 
 ### Requirement Completeness
-- [x] No [NEEDS CLARIFICATION] markers remain - **All 8 clarifications resolved**
-- [x] Requirements are testable and unambiguous
+- [ ] No [NEEDS CLARIFICATION] markers remain - **6 clarification items identified**
+- [ ] Requirements are testable and unambiguous - **Pending clarifications**
 - [x] Success criteria are measurable
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
@@ -147,12 +144,11 @@ After a job seeker has uploaded their resume and received an AI-optimized versio
 
 - [x] User description parsed
 - [x] Key concepts extracted
-- [x] Ambiguities marked (8 items)
-- [x] Clarifications completed (Session 2025-10-08)
-- [x] User scenarios defined (7 acceptance scenarios)
-- [x] Requirements generated (27 functional requirements)
+- [x] Ambiguities marked (6 items)
+- [x] User scenarios defined
+- [x] Requirements generated (26 functional requirements)
 - [x] Entities identified (4 entities)
-- [x] Review checklist passed - **All requirements testable and unambiguous**
+- [ ] Review checklist passed - **Pending clarification resolution**
 
 ---
 
@@ -172,17 +168,22 @@ After a job seeker has uploaded their resume and received an AI-optimized versio
 
 ---
 
-## Clarifications
+## Clarification Questions for Stakeholders
 
-### Session 2025-10-08
+1. **Design Selection Scope**: Should users see only 2-3 AI-recommended designs initially, or have access to browse all available templates? If AI-recommended, what criteria should determine the suggestions (user industry, role, experience level)? - 
 
-- Q: Design Selection Scope - Should users see only 2-3 AI-recommended designs initially, or have access to browse all available templates? → A: Users see resume with 1 recommended design plus access to browse all available templates
-- Q: Design Browsing - Can users explore and preview all designs in the library, or are they limited to the initially presented options? → A: All designs in the library are accessible
-- Q: Customization Scope - What specific design aspects can be modified via AI chat? → A: Layout structure, colors, and fonts
-- Q: Change Application Flow - Should design changes apply immediately with an undo option, or require explicit confirmation? → A: Apply immediately with undo option
-- Q: Version Management - Can users save multiple design versions for comparison, or only one active design? → A: Store only 1 final version once user is done with design
-- Q: Tier Access - Is design selection available to all users (free tier), or premium-only? → A: Design selection available to all users (premium/tier access to be amended in later development stage)
-- Q: Iteration Limits - Are there rate limits or quotas on design change requests? → A: No limit for now (premium/tier limits to be amended in later development stage)
-- Q: Revert Capabilities - What level of version control is needed? → A: Undo last change and revert to original template
+2. **Design Browsing**: Can users explore and preview all designs in the library, or are they limited to the initially presented options? - 
+
+3. **Customization Scope**: What specific design aspects can be modified via AI chat? (Colors, fonts, spacing, section ordering, layout structure?) What is out of scope? - 
+
+4. **Change Application Flow**: Should design changes apply immediately with an undo option, or require explicit confirmation for each change? - 
+
+5. **Version Management**: Can users save multiple design versions for comparison, or only one active design per resume? If multiple versions, what are the storage limits? - 
+
+6. **Tier Access**: Is design selection available to all users (free tier), or is it a premium-only feature? Should some designs be premium-exclusive while others are available to all? - 
+
+7. **Iteration Limits**: Are there rate limits or quotas on design change requests (e.g., 10 iterations per session, unlimited for premium)? - 
+
+8. **Revert Capabilities**: What level of version control is needed? (Undo last change, revert to original template, view change history?) - 
 
 ---

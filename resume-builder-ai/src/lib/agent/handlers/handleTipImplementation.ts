@@ -1,7 +1,8 @@
 import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
-import { applySuggestions } from '../applySuggestions';
+import { applySuggestionsWithTracking } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ModificationOperation } from '../../resume/modification-applier';
 
 interface AgentContext {
   message: string;
@@ -71,7 +72,7 @@ export async function handleTipImplementation(
   console.log('💡 [handleTipImplementation] Fetching optimization:', optimizationId);
   const { data: optimization, error: fetchError } = await supabase
     .from('optimizations')
-    .select('rewrite_data, ats_score_optimized')
+    .select('rewrite_data, ats_score_optimized, ai_modification_count, user_id')
     .eq('id', optimizationId)
     .maybeSingle(); // Use maybeSingle() to avoid 406 errors when no rows found
 
@@ -87,14 +88,17 @@ export async function handleTipImplementation(
   const scoreBefore = optimization.ats_score_optimized || 0;
   console.log('💡 [handleTipImplementation] Current score:', scoreBefore);
 
-  // 5. Apply suggestions to resume
+  // 5. Apply suggestions to resume with modification tracking (Phase 3, T019)
   try {
     console.log('💡 [handleTipImplementation] Applying suggestions:', suggestions.map(s => s.text));
-    const updatedResume = await applySuggestions(
+    const suggestionResult = await applySuggestionsWithTracking(
       optimization.rewrite_data,
       suggestions
     );
+    const updatedResume = suggestionResult.resume;
+    const modifications = suggestionResult.modifications;
     console.log('💡 [handleTipImplementation] Resume updated successfully');
+    console.log(`💡 [handleTipImplementation] Tracked ${modifications.length} field modifications`);
 
     // 6. RE-SCORE using actual ATS engine (CRITICAL FIX)
     console.log('🔍 [handleTipImplementation] Re-scoring resume with ATS engine...');
@@ -112,9 +116,32 @@ export async function handleTipImplementation(
       const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
       const scoreAfter = Math.min(100, scoreBefore + Math.min(15, Math.round(rawGain * 0.7)));
 
+      // Log modifications even in fallback path (Phase 3, T019)
+      if (modifications.length > 0 && optimization.user_id) {
+        try {
+          for (const modification of modifications) {
+            await supabase
+              .from('content_modifications')
+              .insert({
+                user_id: optimization.user_id,
+                optimization_id: optimizationId,
+                operation_type: modification.operation,
+                field_path: modification.field_path,
+                old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
+                new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
+                ats_score_before: scoreBefore,
+                ats_score_after: scoreAfter,
+              });
+          }
+        } catch (logError) {
+          console.error('⚠️ Failed to log modifications:', logError);
+        }
+      }
+
       const updatePayload = {
         rewrite_data: updatedResume,
         ats_score_optimized: scoreAfter,
+        ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
         updated_at: new Date().toISOString(),
       };
 
@@ -155,9 +182,32 @@ export async function handleTipImplementation(
       const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
       const scoreAfter = Math.min(100, scoreBefore + Math.min(15, Math.round(rawGain * 0.7)));
 
+      // Log modifications even in fallback path (Phase 3, T019)
+      if (modifications.length > 0 && optimization.user_id) {
+        try {
+          for (const modification of modifications) {
+            await supabase
+              .from('content_modifications')
+              .insert({
+                user_id: optimization.user_id,
+                optimization_id: optimizationId,
+                operation_type: modification.operation,
+                field_path: modification.field_path,
+                old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
+                new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
+                ats_score_before: scoreBefore,
+                ats_score_after: scoreAfter,
+              });
+          }
+        } catch (logError) {
+          console.error('⚠️ Failed to log modifications:', logError);
+        }
+      }
+
       const updatePayload = {
         rewrite_data: updatedResume,
         ats_score_optimized: scoreAfter,
+        ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
         updated_at: new Date().toISOString(),
       };
 
@@ -204,16 +254,50 @@ export async function handleTipImplementation(
       subscores: atsResult.subscores,
     });
 
-    // 7. Update database with REAL scores
+    // 7. Log modifications to content_modifications table (Phase 3, T019)
+    if (modifications.length > 0 && optimization.user_id) {
+      console.log(`💡 [handleTipImplementation] Logging ${modifications.length} modifications to database...`);
+
+      try {
+        // Insert each modification into content_modifications table
+        for (const modification of modifications) {
+          const modificationRecord = {
+            user_id: optimization.user_id,
+            optimization_id: optimizationId,
+            operation_type: modification.operation,
+            field_path: modification.field_path,
+            old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
+            new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
+            ats_score_before: scoreBefore,
+            ats_score_after: scoreAfter,
+            suggestion_text: suggestions.find(s =>
+              modification.field_path.includes('achievements') && s.text.includes(String(modification.new_value))
+            )?.text || null,
+          };
+
+          await supabase
+            .from('content_modifications')
+            .insert(modificationRecord);
+        }
+
+        console.log(`✅ [handleTipImplementation] Successfully logged ${modifications.length} modifications`);
+      } catch (logError) {
+        console.error('⚠️ [handleTipImplementation] Failed to log modifications (non-critical):', logError);
+        // Continue execution - logging failure shouldn't block the tip implementation
+      }
+    }
+
+    // 8. Update database with REAL scores and modification count
     const updatePayload = {
       rewrite_data: updatedResume,
       ats_score_optimized: scoreAfter,
       ats_subscores: atsResult.subscores,
       ats_suggestions: atsResult.suggestions,
       ats_confidence: atsResult.confidence,
+      ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length, // Increment count (Phase 3)
       updated_at: new Date().toISOString(),
     };
-    console.log('💡 [handleTipImplementation] Updating optimization in database with real scores');
+    console.log('💡 [handleTipImplementation] Updating optimization in database with real scores and modification count');
 
     const { data: updateResult, error: updateError } = await supabase
       .from('optimizations')
@@ -263,6 +347,11 @@ export async function handleTipImplementation(
     };
   }
 }
+
+
+
+
+
 
 
 

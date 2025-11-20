@@ -13,7 +13,11 @@
     "test:contracts": "jest tests/contracts",
     "test:agent": "jest tests/agent",
     "test:api": "jest tests/api",
-    "bench:agent": "node scripts/bench-agent.mjs"
+    "bench:agent": "node scripts/bench-agent.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.3",

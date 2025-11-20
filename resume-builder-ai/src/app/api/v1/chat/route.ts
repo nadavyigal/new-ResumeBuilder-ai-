@@ -23,6 +23,8 @@ import { CHAT_CONFIG, TECHNICAL_KEYWORDS } from '@/lib/constants';
 import { detectIntentRegex } from '@/lib/agent/intents';
 import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
+import { ensureThread } from '@/lib/ai-assistant/thread-manager';
+import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
 
 /**
  * Apply amendments to resume content
@@ -272,6 +274,45 @@ export async function POST(request: NextRequest) {
       .from('chat_sessions')
       .update({ last_activity_at: new Date().toISOString() })
       .eq('id', chatSession.id);
+
+    // PHASE 2 - USER STORY 2: Ensure valid OpenAI thread exists (Fix undefined thread ID error)
+    let aiThread;
+    try {
+      aiThread = await ensureThread(optimization_id, user.id, supabase);
+      console.log(`[Thread Manager] Using thread: ${aiThread.openai_thread_id}`);
+
+      // Update chat_session with thread ID if not already set
+      if (!chatSession.openai_thread_id || chatSession.openai_thread_id !== aiThread.openai_thread_id) {
+        await supabase
+          .from('chat_sessions')
+          .update({ openai_thread_id: aiThread.openai_thread_id })
+          .eq('id', chatSession.id);
+      }
+    } catch (threadError) {
+      console.error('[Thread Manager] Failed to ensure thread:', threadError);
+
+      // Attempt recovery
+      const recovery = await recoverFromThreadError(threadError, optimization_id, user.id, supabase);
+
+      if (recovery.recovered && recovery.thread) {
+        aiThread = recovery.thread;
+        console.log(`[Thread Manager] Recovered with new thread: ${aiThread.openai_thread_id}`);
+      } else {
+        // Cannot recover, return error to user
+        const userMessage = recovery.error
+          ? recovery.error.userMessage
+          : sanitizeErrorForClient(threadError);
+
+        return NextResponse.json(
+          {
+            error: userMessage,
+            details: 'Failed to initialize conversation thread',
+            context: 'Please try again. If the issue persists, contact support.'
+          },
+          { status: 500 }
+        );
+      }
+    }
 
     // Get current resume content, ATS suggestions, and design configuration for processing
     const { data: optimization } = await supabase
@@ -551,12 +592,23 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error in POST /api/v1/chat:', error);
 
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    // PHASE 2 - USER STORY 2: Enhanced error logging with thread context
+    console.error('[Error Context]', {
+      optimization_id,
+      user_id: user?.id,
+      session_id: session_id,
+      error_type: error instanceof Error ? error.constructor.name : typeof error,
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
+    // Sanitize error message before returning to client
+    const userSafeMessage = sanitizeErrorForClient(error);
+    const errorDetails = error instanceof Error ? error.message : 'Unknown error occurred';
 
     return NextResponse.json(
       {
-        error: 'Failed to process chat message',
-        details: errorMessage,
+        error: userSafeMessage,
+        details: 'Failed to process chat message',
         context: 'An error occurred while processing your message. Please try again or contact support if the issue persists.'
       },
       { status: 500 }

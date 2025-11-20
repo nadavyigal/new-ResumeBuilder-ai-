@@ -3,42 +3,107 @@
  */
 
 const NAMED_COLORS: Record<string, string> = {
-  // Blues
+  // Blues (Professional & Resume-Friendly)
   blue: '#3b82f6',
   'light blue': '#bfdbfe',
   'dark blue': '#1e40af',
   navy: '#1e3a8a',
+  'navy blue': '#1e3a8a',
   sky: '#0ea5e9',
-  
-  // Greens
+  'sky blue': '#0ea5e9',
+  azure: '#0080ff',
+  cobalt: '#0047ab',
+  royal: '#4169e1',
+  'royal blue': '#4169e1',
+  midnight: '#191970',
+  'midnight blue': '#191970',
+  steel: '#4682b4',
+  'steel blue': '#4682b4',
+
+  // Greens (Professional)
   green: '#10b981',
   'light green': '#86efac',
   'dark green': '#065f46',
   emerald: '#10b981',
   lime: '#84cc16',
-  
-  // Reds
+  forest: '#228b22',
+  'forest green': '#228b22',
+  olive: '#6b8e23',
+  sage: '#9dc183',
+  mint: '#98ff98',
+  seafoam: '#93e9be',
+
+  // Reds (Professional - Use Sparingly)
   red: '#ef4444',
   'light red': '#fca5a5',
   'dark red': '#991b1b',
   rose: '#f43f5e',
-  
-  // Grays
+  crimson: '#dc143c',
+  burgundy: '#800020',
+  maroon: '#800000',
+
+  // Grays (Most Professional for Resumes)
   gray: '#6b7280',
+  grey: '#6b7280', // Alternative spelling
   'light gray': '#d1d5db',
+  'light grey': '#d1d5db',
   'dark gray': '#374151',
+  'dark grey': '#374151',
   slate: '#64748b',
+  charcoal: '#36454f',
+  silver: '#c0c0c0',
   black: '#000000',
   white: '#ffffff',
-  
-  // Others
-  yellow: '#fbbf24',
+  'off white': '#f8f9fa',
+  cream: '#fffdd0',
+  ivory: '#fffff0',
+
+  // Purples (Creative Fields)
   purple: '#a855f7',
-  pink: '#ec4899',
+  'light purple': '#e9d5ff',
+  'dark purple': '#6b21a8',
+  violet: '#8b00ff',
+  lavender: '#e6e6fa',
+  plum: '#dda0dd',
+
+  // Yellows & Oranges (Accent Colors)
+  yellow: '#fbbf24',
+  'light yellow': '#fef3c7',
+  gold: '#ffd700',
+  amber: '#ffbf00',
   orange: '#f97316',
+  'light orange': '#fed7aa',
+  'dark orange': '#c2410c',
+  coral: '#ff7f50',
+  peach: '#ffe5b4',
+
+  // Pinks (Creative/Modern)
+  pink: '#ec4899',
+  'light pink': '#fbcfe8',
+  'dark pink': '#be185d',
+  'hot pink': '#ff69b4',
+
+  // Teals & Cyans (Modern Professional)
   teal: '#14b8a6',
-  indigo: '#6366f1',
+  'light teal': '#99f6e4',
+  'dark teal': '#115e59',
+  cyan: '#06b6d4',
+  turquoise: '#40e0d0',
+  aqua: '#00ffff',
+
+  // Browns (Warm Professional)
   brown: '#92400e',
+  'light brown': '#d2691e',
+  'dark brown': '#654321',
+  tan: '#d2b48c',
+  beige: '#f5f5dc',
+  coffee: '#6f4e37',
+  chocolate: '#7b3f00',
+
+  // Indigos (Deep Professional)
+  indigo: '#6366f1',
+  'light indigo': '#c7d2fe',
+  'dark indigo': '#3730a3',
 };
 
 export interface ColorRequest {
@@ -186,6 +251,11 @@ export function getColorName(hex: string): string {
   }
   return hex;
 }
+
+
+
+
+
 
 
 

@@ -20,105 +20,250 @@ import {
   createDesignCustomization,
   getDesignCustomizationById
 } from '@/lib/supabase/design-customizations';
-import { AmendmentRequest } from '@/lib/chat-manager/processor';
+import { AmendmentRequest, detectFabrication } from '@/lib/chat-manager/processor';
+import { applyModification } from '@/lib/resume/modification-applier';
 
 /**
  * Apply amendments to resume content
  * Intelligently modifies resume structure based on amendment requests
  */
+function sanitizeAmendmentValue(value: string): string {
+  return value
+    .replace(/<[^>]*>/g, '')
+    .replace(/[•▪●■◆▼►]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isValidStructuredAmendment(amendment: AmendmentRequest): amendment is AmendmentRequest & { section: NonNullable<AmendmentRequest['section']> } {
+  return Boolean(amendment.section) && ['add', 'modify', 'remove'].includes(amendment.operation);
+}
+
+function parseSkillList(value: string): string[] {
+  return value
+    .split(/[,;\n]/)
+    .map((skill) => sanitizeAmendmentValue(skill))
+    .filter(Boolean);
+}
+
+function parseTargetField(targetField?: string): { field: string; itemIndex?: number } {
+  if (!targetField) {
+    return { field: 'achievements' };
+  }
+
+  const match = targetField.match(/^(\w+)(?:\[(\d+)\])?$/);
+  if (match) {
+    const [, field, index] = match;
+    return { field, itemIndex: index ? parseInt(index, 10) : undefined };
+  }
+
+  return { field: targetField };
+}
+
+function applySummaryAmendment(resume: Record<string, any>, amendment: AmendmentRequest) {
+  const updated = { ...resume };
+  if (typeof updated.summary !== 'string') {
+    updated.summary = '';
+  }
+
+  switch (amendment.operation) {
+    case 'add':
+      return applyModification(updated, {
+        operation: 'suffix',
+        field_path: 'summary',
+        new_value: updated.summary ? ` ${amendment.value}` : amendment.value,
+      });
+    case 'modify':
+      return applyModification(updated, {
+        operation: 'replace',
+        field_path: 'summary',
+        new_value: amendment.value,
+      });
+    case 'remove':
+      return applyModification(updated, {
+        operation: 'replace',
+        field_path: 'summary',
+        new_value: '',
+      });
+    default:
+      return updated;
+  }
+}
+
+function applySkillsAmendment(resume: Record<string, any>, amendment: AmendmentRequest) {
+  const updated = JSON.parse(JSON.stringify(resume));
+  const targetField = amendment.targetField === 'soft' ? 'soft' : 'technical';
+  const pathBase = `skills.${targetField}`;
+  const skillsList = parseSkillList(amendment.value);
+
+  updated.skills = updated.skills || {};
+  if (!Array.isArray(updated.skills[targetField])) {
+    updated.skills[targetField] = [];
+  }
+
+  switch (amendment.operation) {
+    case 'add': {
+      const existing = new Set((updated.skills[targetField] as string[]).map((s) => s.toLowerCase()));
+      let result = updated;
+
+      for (const skill of skillsList) {
+        if (!existing.has(skill.toLowerCase())) {
+          result = applyModification(result, {
+            operation: 'append',
+            field_path: pathBase,
+            new_value: skill,
+          });
+          existing.add(skill.toLowerCase());
+        }
+      }
+
+      return result;
+    }
+    case 'modify': {
+      const targetIndex = amendment.targetIndex ?? 0;
+      const replacement = skillsList[0] || amendment.value;
+      return applyModification(updated, {
+        operation: 'replace',
+        field_path: `${pathBase}[${targetIndex}]`,
+        new_value: replacement,
+      });
+    }
+    case 'remove': {
+      const skillsArray: string[] = updated.skills[targetField];
+      const targetIndex = amendment.targetIndex ?? skillsArray.findIndex((skill) => skill.toLowerCase() === amendment.value.toLowerCase());
+
+      if (targetIndex < 0 || targetIndex >= skillsArray.length) {
+        return updated;
+      }
+
+      return applyModification(updated, {
+        operation: 'remove',
+        field_path: `${pathBase}[${targetIndex}]`,
+      });
+    }
+    default:
+      return updated;
+  }
+}
+
+function applyExperienceAmendment(resume: Record<string, any>, amendment: AmendmentRequest) {
+  if (!Array.isArray(resume.experience)) {
+    return resume;
+  }
+
+  const experienceIndex = amendment.targetIndex ?? 0;
+  if (experienceIndex < 0 || experienceIndex >= resume.experience.length) {
+    return resume;
+  }
+
+  const { field, itemIndex } = parseTargetField(amendment.targetField);
+  const basePath = `experience[${experienceIndex}]`;
+  const experienceEntry = resume.experience[experienceIndex] || {};
+
+  const titleFields = ['title', 'role', 'position'];
+  const bulletFields = ['achievements', 'responsibilities', 'bullets'];
+
+  if (titleFields.includes(field)) {
+    if (amendment.operation === 'remove') {
+      return applyModification(resume, {
+        operation: 'replace',
+        field_path: `${basePath}.${field}`,
+        new_value: '',
+      });
+    }
+
+    return applyModification(resume, {
+      operation: 'replace',
+      field_path: `${basePath}.${field}`,
+      new_value: amendment.value,
+    });
+  }
+
+  if (bulletFields.includes(field)) {
+    const path = `${basePath}.${field}`;
+    const bullets = experienceEntry[field];
+
+    if (!Array.isArray(bullets)) {
+      if (amendment.operation !== 'add') {
+        return resume;
+      }
+    }
+
+    switch (amendment.operation) {
+      case 'add':
+        return applyModification(resume, {
+          operation: 'append',
+          field_path: path,
+          new_value: amendment.value,
+        });
+      case 'modify': {
+        const target = itemIndex ?? 0;
+        return applyModification(resume, {
+          operation: 'replace',
+          field_path: `${path}[${target}]`,
+          new_value: amendment.value,
+        });
+      }
+      case 'remove': {
+        const target = itemIndex ?? 0;
+        return applyModification(resume, {
+          operation: 'remove',
+          field_path: `${path}[${target}]`,
+        });
+      }
+      default:
+        return resume;
+    }
+  }
+
+  // Default to replacing the chosen field on the experience entry
+  return applyModification(resume, {
+    operation: 'replace',
+    field_path: `${basePath}.${field}`,
+    new_value: amendment.value,
+  });
+}
+
 function applyAmendmentsToResume(
   currentContent: Record<string, unknown>,
   amendments: AmendmentRequest[]
 ): Record<string, unknown> {
-  const updatedContent = JSON.parse(JSON.stringify(currentContent)); // Deep clone
+  let updatedContent = JSON.parse(JSON.stringify(currentContent)); // Deep clone
 
   for (const amendment of amendments) {
-    const section = amendment.targetSection || 'summary';
-    const description = amendment.description.toLowerCase();
+    if (!isValidStructuredAmendment(amendment)) {
+      continue;
+    }
+
+    if (detectFabrication(`${amendment.operation} ${amendment.value}`, currentContent)) {
+      console.warn('Skipping amendment due to fabrication detection', amendment);
+      continue;
+    }
+
+    const sanitizedValue = sanitizeAmendmentValue(amendment.value);
+    if (!sanitizedValue) {
+      console.warn('Skipping amendment with empty sanitized value', amendment);
+      continue;
+    }
+    const sanitizedAmendment = { ...amendment, value: sanitizedValue };
 
     try {
-      switch (amendment.type) {
-        case 'add':
-          if (section === 'skills') {
-            // Extract one or multiple comma-separated skills after "add" or "include"
-            const match = amendment.description.match(/(?:add|include)\s+([^\n]+?)(?:\s+(?:to|in)\s+skills?)?$/i);
-            if (match && match[1]) {
-              const blob = match[1]
-                .replace(/^(?:to|in)\s+skills?$/i, '')
-                .trim();
-              const candidates = blob
-                .split(/[,;]|\band\b|\bor\b/i)
-                .map(s => s.trim())
-                .filter(Boolean);
-
-              // Initialize skills structure if it doesn't exist
-              if (!updatedContent.skills) {
-                updatedContent.skills = { technical: [], soft: [] };
-              }
-
-              const skills = updatedContent.skills as { technical: string[], soft: string[] };
-
-              const technicalKeywords = ['python', 'javascript', 'java', 'react', 'node', 'sql', 'aws', 'docker', 'git', 'api', 'css', 'html', 'typescript', 'ai', 'automation'];
-
-              for (const candidate of candidates) {
-                const lower = candidate.toLowerCase();
-                const isTechnical = technicalKeywords.some(keyword => lower.includes(keyword));
-                if (isTechnical) {
-                  if (!skills.technical.includes(candidate)) {
-                    skills.technical.push(candidate);
-                  }
-                } else {
-                  if (!skills.soft.includes(candidate)) {
-                    skills.soft.push(candidate);
-                  }
-                }
-              }
-            }
-          } else if (section === 'summary') {
-            // Append to summary
-            if (typeof updatedContent[section] === 'string') {
-              const addition = amendment.description.replace(/^add\s+/i, '').trim();
-              updatedContent[section] = `${updatedContent[section]} ${addition}`.trim();
-            }
-          } else if (section === 'experience' && Array.isArray(updatedContent[section])) {
-            // Add achievement to most recent experience
-            const experiences = updatedContent[section] as any[];
-            if (experiences.length > 0 && experiences[0].achievements) {
-              const achievement = amendment.description.replace(/^add\s+/i, '').trim();
-              experiences[0].achievements.push(achievement);
-            }
-          }
+      switch (sanitizedAmendment.section) {
+        case 'summary':
+          updatedContent = applySummaryAmendment(updatedContent, sanitizedAmendment);
           break;
-
-        case 'modify':
-          if (section === 'summary' && typeof updatedContent[section] === 'string') {
-            // For now, just note the modification request
-            // A full implementation would use AI to rewrite the section
-            const modification = amendment.description.replace(/^(?:modify|change|update)\s+/i, '').trim();
-            updatedContent[section] = modification || updatedContent[section];
-          }
+        case 'skills':
+          updatedContent = applySkillsAmendment(updatedContent, sanitizedAmendment);
           break;
-
-        case 'remove':
-          if (section === 'skills') {
-            const skillToRemove = amendment.description.match(/remove\s+([^,.]+)/i)?.[1]?.trim();
-            if (skillToRemove && updatedContent.skills) {
-              const skills = updatedContent.skills as { technical: string[], soft: string[] };
-              skills.technical = skills.technical.filter(s => !s.toLowerCase().includes(skillToRemove.toLowerCase()));
-              skills.soft = skills.soft.filter(s => !s.toLowerCase().includes(skillToRemove.toLowerCase()));
-            }
-          } else if (section === 'experience' && Array.isArray(updatedContent[section])) {
-            // Remove specific achievement or experience entry
-            // This is simplified - would need better parsing
-          }
+        case 'experience':
+          updatedContent = applyExperienceAmendment(updatedContent, sanitizedAmendment);
           break;
-
         default:
+          console.warn(`Unsupported amendment section: ${sanitizedAmendment.section}`);
           break;
       }
     } catch (error) {
-      console.error(`Error applying amendment to ${section}:`, error);
-      // Continue with other amendments even if one fails
+      console.error(`Error applying amendment to ${sanitizedAmendment.section}:`, error);
     }
   }
 
@@ -472,8 +617,8 @@ export async function POST(request: NextRequest) {
           ai_model_version: 'gpt-4',
           processing_time_ms: processingTime,
           intent: processResult.intent,
-          amendment_type: processResult.contentAmendments?.[0]?.type,
-          section_affected: processResult.contentAmendments?.[0]?.targetSection || undefined,
+          amendment_type: processResult.contentAmendments?.[0]?.operation,
+          section_affected: processResult.contentAmendments?.[0]?.section || undefined,
         },
       })
       .select()
@@ -492,7 +637,7 @@ export async function POST(request: NextRequest) {
         // Handle content amendments
         if (processResult.intent === 'content' && processResult.contentAmendments && processResult.contentAmendments.length > 0) {
           console.log('[db] Applying content amendments to database...');
-          console.log('[amendments]:', processResult.contentAmendments.map(a => `${a.type} - ${a.targetSection}`));
+          console.log('[amendments]:', processResult.contentAmendments.map(a => `${a.operation} - ${a.section}`));
 
           // Apply amendments to current resume content
           const updatedContent = applyAmendmentsToResume(

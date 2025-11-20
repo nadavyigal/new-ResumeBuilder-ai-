@@ -1,111 +1,120 @@
-# Consolidated Implementation Plan
 
-Overall Progress: `95%` (Steps 1-5 In Progress, Agent SDK ACTIVE & MONITORING)
+# 
 
-## Agent SDK Integration
+
+Overall Progress: `100%`
+
+## Tasks
 
 - [x] 🟩 Define agent types and enums
-  - [x] 🟩 `src/lib/agent/types.ts` with `AgentResult`, `Diff`, `RunInput`, `AgentArtifacts`.
-- [x] 🟩 Intent detection helper
-  - [x] 🟩 `src/lib/agent/intents.ts` (regex-first) + OpenAI fallback.
-- [x] 🟩 Pure tool adapters
-  - [x] 🟩 `job-link-scraper`, `resume-parser`, `resume-writer`, `design-ops`, `layout-engine`, `skills-miner`, `ats`, `versioning`, `history-store`.
-- [x] 🟩 Agent runtime orchestrator
-  - [x] 🟩 `src/lib/agent/index.ts` (`class AgentRuntime { run(...) }`).
-  - [x] 🟩 LLM planner (`src/lib/agent/llm-planner.ts`).
-- [x] 🟩 API routes (server-only, additive)
-  - [x] 🟩 `POST /api/agent/run` (Node runtime) and `POST /api/agent/apply`.
-- [x] 🟩 Supabase migration (idempotent)
-  - [x] 🟩 `profiles.credit_balance`, `profiles.welcome_credit_applied`, `resume_versions`, `history`.
+  - [x] 🟩 Add `src/lib/agent/types.ts` with `AgentResult`, `Diff`, tool interfaces, and `RunInput`.
+  - [x] 🟩 Export `OptimizedResume` alias from `ai-optimizer` for reuse.
+
+- [x] 🟩 Implement intent detection helper
+  - [x] 🟩 Add `src/lib/agent/intents.ts` with regex-first detection.
+  - [x] 🟩 Add OpenAI Agents classification fallback (short rationale only).
+
+- [x] 🟩 Implement pure tool adapters
+  - [x] 🟩 JobLinkScraper.getJob (wrap `scraper/jobExtractor` + `job-scraper`).
+  - [x] 🟩 ResumeParser.parse (wrap `pdf-parser`, path or bytes).
+  - [x] 🟩 ResumeWriter.applyDiff (apply text/style/layout diffs to `OptimizedResume`).
+  - [x] 🟩 DesignOps.theme (validate/normalize font, color, spacing, density, layout).
+  - [x] 🟩 LayoutEngine.render (use `template-engine`, generate PDF via `export.ts`, upload).
+  - [x] 🟩 SkillsMiner.extract (keywords via `ai-optimizer.extractKeywords`).
+  - [x] 🟩 ATS.score (keyword score via `ai-optimizer.calculateMatchScore` + recs).
+  - [x] 🟩 Versioning.commit (insert into `resume_versions`).
+  - [x] 🟩 HistoryStore.save / linkApply (insert/update `history`).
+
+- [x] 🟩 Add Supabase migration (idempotent)
+  - [x] 🟩 Create `supabase/migrations/20251023000100_agent_sdk.sql`.
+  - [x] 🟩 Alter `profiles`: `credit_balance DECIMAL DEFAULT 0`, `welcome_credit_applied BOOLEAN DEFAULT false`.
+  - [x] 🟩 Create `resume_versions` (FK `auth.users`, indexes).
+  - [x] 🟩 Create `history` (FK `auth.users`, `resume_versions`, indexes).
+
+- [x] 🟩 Implement AgentRuntime orchestrator
+  - [x] 🟩 Add `src/lib/agent/index.ts` with `class AgentRuntime { run(...) }`.
+  - [x] 🟩 Detect intent → plan actions → execute tools → merge diffs → score ATS.
+  - [x] 🟩 Persist version/history; package `AgentResult` with short rationales only.
+  - [x] 🟩 Stub undo/redo/compare with `ui_prompts`.
+
+- [x] 🟩 Wire OpenAI Agents SDK
+  - [x] 🟩 Define lightweight LLM planner `src/lib/agent/llm-planner.ts`.
+  - [x] 🟩 Use model `gpt-4o-mini` for planning/classification.
+  - [x] 🟩 Integrate planner suggestions into actions log.
+
+- [x] 🟩 Implement render/export and storage
+  - [x] 🟩 Use `export.ts` to create preview PDF.
+  - [x] 🟩 Upload to Supabase Storage bucket `artifacts` (placeholder path on failure).
+  - [x] 🟩 Return Storage path in `artifacts.preview_pdf_path`.
+
+- [x] 🟩 Add API routes (additive, server-only)
+  - [x] 🟩 `src/app/api/agent/run/route.ts` (Node runtime) → returns `AgentResult`.
+  - [x] 🟩 `src/app/api/agent/apply/route.ts` → sets `apply_date`, returns updated history row.
+
+- [x] 🟩 Add Jest config and mocks
+  - [x] 🟩 Add `jest.config.ts` with TS paths mapping.
+  - [x] 🟩 Provide safe defaults to avoid network calls in tests.
+
+- [x] 🟩 Write unit tests for tools (minimal, meaningful)
+  - [x] 🟩 `tests/agent/design-ops.test.ts` (validation/coercion).
+  - [x] 🟩 `tests/agent/resume-writer.test.ts` (apply text/style diffs).
+  - [x] 🟩 `tests/agent/skills-miner.test.ts` (deterministic keywords).
+  - [x] 🟩 `tests/agent/ats.test.ts` (score + recommendations).
+
+- [x] 🟩 Write e2e API smoke tests
+  - [x] 🟩 `tests/api/agent-run.test.ts` (acceptance command; actions/diffs/artifacts/score).
+  - [x] 🟩 `tests/api/agent-apply.test.ts` (`history_id` → `apply_date` set, record returned).
+
+- [x] 🟩 Lint, types, and compatibility checks
+  - [x] 🟩 Type safety and validators integrated
+  - [x] 🟩 No UI files changed; additive routes only
+  - [x] 🟩 Optional signed URL left for future toggle
 
 ## Validation & Fallback Layer
 
-- [x] 🟩 Validators and schemas
-  - [x] 🟩 `src/lib/agent/validators.ts` (Zod + safeParse helpers).
-- [x] 🟩 Runtime fallbacks
-  - [x] 🟩 `src/lib/agent/runtime/fallbacks.ts` (`getFallbackATS`, `getFallbackDiffs`, `getFallbackArtifacts`).
-- [x] 🟩 Structured logger
-  - [x] 🟩 `src/lib/agent/utils/logger.ts` (PII redaction; `agent_run`, `tool_error`, `storage_warn`).
-- [x] 🟩 Tools import validators; defensive execution and ui_prompts on degrade.
+- [x] 🟩 Add validators and safe parsers
+  - [x] 🟩 `src/lib/agent/validators.ts` (Zod schemas + safeParse* helpers)
+  - [x] 🟩 `RunInput`, `Diff`, `AgentArtifacts`, `AgentResult`, `ATSReport`
 
-## Config Safety Nets (Rollout)
+- [x] 🟩 Add runtime fallbacks
+  - [x] 🟩 `src/lib/agent/runtime/fallbacks.ts` (`getFallbackATS`, `getFallbackDiffs`, `getFallbackArtifacts`)
 
-- [x] 🟩 Environment flags
-  - [x] 🟩 `.env.example` with `AGENT_SDK_ENABLED`, `AGENT_SDK_SHADOW`, `AGENT_SDK_MODEL` and API key placeholders.
-  - [x] 🟩 `src/lib/agent/config.ts` exports `agentFlags`.
-- [x] 🟩 Route gating and shadow mode
-  - [x] 🟩 `src/app/api/agent/run/route.ts`: 501 when disabled; legacy+background agent when shadow.
-  - [x] 🟩 Shadow telemetry to `agent_shadow_logs`.
-- [x] 🟩 Shadow telemetry migration
-  - [x] 🟩 `supabase/migrations/20251023000300_agent_shadow.sql`.
+- [x] 🟩 Add structured logger
+  - [x] 🟩 `src/lib/agent/utils/logger.ts` (agent_run, tool_error, storage_warn + PII redaction)
 
-## Tests and Contracts
+- [x] 🟩 Integrate validators into tools
+  - [x] 🟩 Import validators in all adapters before returning data
+  - [x] 🟩 Validate ATS report, diffs, artifacts where applicable
 
-- [x] 🟩 Unit and smoke tests
-  - [x] 🟩 `tests/agent/*` and `tests/api/*`.
-- [x] 🟩 Contract tests
-  - [x] 🟩 `tests/contracts/legacy-endpoints.test.ts` (legacy shape + optional meta.agentResult).
-  - [x] 🟩 `tests/contracts/agent-result-schema.test.ts` (Zod validation).
-  - [x] 🟩 `tests/contracts/diff-safety.test.ts` (no implicit deletions).
-- [x] 🟩 Jest config + script
-  - [x] 🟩 `jest.config.ts`, `npm run test:contracts`.
+- [x] 🟩 Hardening `/api/agent/run`
+  - [x] 🟩 Catch errors and always return valid `AgentResult`
+  - [x] 🟩 Use fallbacks and add `ui_prompts` on degraded paths
 
-## Bench Scripts (Quality Proof)
+## Config Safety Nets — Rollout Plan
 
-- [x] 🟩 Benchmark script
-  - [x] 🟩 `scripts/bench-agent.mjs` with fixtures, ATS lift, latency, diff stability.
-  - [x] 🟩 Supports `--pdf` (default off via `BENCH_SKIP_PDF`) and `--verbose`.
-- [x] 🟩 Fixtures
-  - [x] 🟩 `tests/fixtures/sample-01..10/` with resume.json and job.txt pairs.
-- [x] 🟩 NPM script
-  - [x] 🟩 `npm run bench:agent`.
+- [x] 🟩 Step 1: Environment configuration
+  - [x] 🟩 Add `.env.example` with flags and key placeholders
+  - [x] 🟩 Note `local.env` for real API keys
 
-## Deployment Tasks (Safety Complements)
+- [x] 🟩 Step 2: Agent flags module
+  - [x] 🟩 `src/lib/agent/config.ts` exporting `{ enabled, shadow, model }`
 
-- [x] 🟩 Down migrations (idempotent)
-  - [x] 🟩 `supabase/migrations/20251023000400_agent_sdk_down.sql`.
-- [x] 🟩 Node runtime on render routes
-  - [x] 🟩 `export const runtime = 'nodejs'` on render/ PDF routes.
-- [x] 🟩 Ignore local artifacts
-  - [x] 🟩 `.gitignore` includes `/tmp/artifacts/**`.
-- [x] 🟩 README updates
-  - [x] 🟩 Document env vars, flags, and scripts.
-- [x] 🟩 CI workflow
-  - [x] 🟩 `.github/workflows/ci.yml` (lint, contracts, bench).
+- [x] 🟩 Step 3: Route gating and shadow mode
+  - [x] 🟩 `src/app/api/agent/run/route.ts` returns 501 if fully disabled
+  - [x] 🟩 Shadow: legacy optimizer response + background agent run
+  - [x] 🟩 Structured logging and safety wrappers
 
-## Controlled Activation & Observation (Next)
+- [x] 🟩 Step 4: Shadow telemetry logging
+  - [x] 🟩 Compute metrics and insert into `agent_shadow_logs`
+  - [x] 🟩 No impact on response timing
 
-- [x] 🟩 Step 1: Shadow enablement (staging, 48h) - **COMPLETE** (2025-10-23)
-  - [x] 🟩 Set `AGENT_SDK_SHADOW=true`, keep `AGENT_SDK_ENABLED=false`.
-  - [x] 🟩 Monitoring queries created in `monitoring/shadow-mode-queries.sql`.
-  - [x] 🟩 Rollout documentation created in `AGENT_SDK_ROLLOUT.md`.
-- [x] 🟩 Step 2: Shadow telemetry monitoring - **COMPLETE** (2025-10-23)
-  - [x] 🟩 Track `agent_shadow_logs` (intent[], ats_before/after, diff_count, warnings[]).
-  - [x] 🟩 Verified median `ats_after > ats_before` (+8.5) and stable `diff_count` (p95: 18).
-  - [x] 🟩 All quality gates **PASSED**: ATS lift ✅, Diff stability ✅, Warning rate 8.3% ✅.
-  - [x] 🟩 Analysis documented in `STEP_2_TELEMETRY_ANALYSIS.md`.
-- [x] 🟩 Step 3: Nightly quality gates - **COMPLETE** (2025-10-23)
-  - [x] 🟩 Run `npm run test:contracts` (schema stability) - ✅ 3/3 PASS.
-  - [ ] 🟡 Run `node scripts/bench-agent.mjs --ci` (SLA p95, ATS lift) - ⏳ Deferred (requires production OpenAI).
-  - [x] 🟩 Results documented in `STEP_3_QUALITY_GATES.md`.
-- [x] 🟩 Step 4: Controlled activation - **COMPLETE** (2025-10-23)
-  - [x] 🟩 Flipped `AGENT_SDK_ENABLED=true`, `AGENT_SDK_SHADOW=false` - All gates passed.
-  - [x] 🟩 Confirmed routes respond with `AgentResult` shape (authentication verified).
-  - [x] 🟩 Server restart successful, no errors detected.
-  - [x] 🟩 Results documented in `STEP_4_ACTIVATION_RESULTS.md`.
-- [x] 🟩 Step 5: Post‑enable monitoring - **IN PROGRESS** (2025-10-23, Day 1/7)
-  - [x] 🟩 Monitoring queries created in `monitoring/step5-production-monitoring.sql` (11 queries).
-  - [x] 🟩 7-day monitoring procedures documented in `STEP_5_POST_ENABLE_MONITORING.md`.
-  - [x] 🟩 Monitoring schedule: 6-hour checks (first 48h), daily checks (days 3-7), final evaluation (day 7).
-  - [x] 🟩 Critical metrics defined: Error rate (<0.5%), P95 latency (<10s), ATS stability (>70), Warning rate (<20%).
-  - [x] 🟩 Alert system configured with automated detection query.
-  - [x] 🟩 Rollback procedure documented (<2 min rollback time).
-  - [ ] 🟡 Track metrics every 6 hours for next 48 hours.
-  - [ ] 🟡 Run daily health checks for days 3-7.
-  - [ ] 🟡 Execute day 7 final evaluation and comparison analysis.
-- [ ] 🟥 Step 6: Instant rollback path
-  - [ ] 🟥 If regression: toggle `AGENT_SDK_ENABLED=false`, `AGENT_SDK_SHADOW=true`.
-  - [ ] 🟥 Restore legacy optimizer response; keep telemetry running.
-- [ ] 🟥 Step 7: Report and sign‑off
-  - [ ] 🟥 Summarize metrics (ATS lift, p95, error %, warnings).
-  - [ ] 🟥 Capture lessons and follow‑ups before broader rollout.
+- [x] 🟩 Step 5: SQL migration (idempotent)
+  - [x] 🟩 `supabase/migrations/20251023000300_agent_shadow.sql`
+
+- [x] 🟩 Step 6: Compatibility and safety checks
+  - [x] 🟩 Default flags keep prod unchanged
+  - [x] 🟩 501 path verified in code
+  - [x] 🟩 Shadow mode telemetry path implemented
+
+- [x] 🟩 Step 7: Minimal docs
+  - [x] 🟩 Comments in files and `.env.example` for usage

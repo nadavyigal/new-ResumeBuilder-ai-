@@ -5,12 +5,6 @@
 **Status**: Draft
 **Input**: User description: "AI Resume Assistant - Interactive content editing, visual customization, job-aware optimization, and application history tracking"
 
-## Clarifications
-
-### Session 2025-10-15
-
-- **SCOPE CHANGE**: User Story 2 (Job-Aware Optimization and ATS Scoring) already exists and works well - removed from spec as it doesn't need implementation
-
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -43,11 +37,28 @@ A user uploads their resume and a job description, then interacts with an AI ass
 
 ---
 
-### User Story 2 - Visual Resume Customization with Real-Time Preview (Priority: P2)
+### User Story 2 - Job-Aware Optimization and ATS Scoring (Priority: P2)
+
+When a user provides a job posting URL or text, the AI extracts key information (job title, company name, required skills, keywords) and analyzes the resume against it. The system calculates an ATS match score and provides specific suggestions to improve alignment with the job requirements.
+
+**Why this priority**: This provides measurable, data-driven optimization that helps users understand how well their resume matches the target role. It's the second most critical feature because it transforms generic resume improvement into targeted, job-specific optimization.
+
+**Independent Test**: Can be tested by providing a job posting URL, verifying the system extracts job details correctly, displays an ATS score, and provides specific keyword/skill alignment suggestions. Delivers standalone value as a job-matching tool even without other features.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user provides a job posting URL, **When** the system analyzes it, **Then** it extracts and displays job title, company name, key skills, and required qualifications
+2. **Given** a resume and job description are loaded, **When** the ATS analysis runs, **Then** the system displays a match percentage (0-100%) and highlights missing keywords or skills
+3. **Given** a low ATS score, **When** the user views suggestions, **Then** the AI recommends specific sections to update with relevant keywords and explains why those changes improve matching
+4. **Given** a job posting without clear contact information, **When** extraction runs, **Then** the system marks contact person as "Not specified" and continues with other available data
+
+---
+
+### User Story 3 - Visual Resume Customization with Real-Time Preview (Priority: P3)
 
 Users can request design changes through natural language (e.g., "change the background color to navy blue" or "use a two-column layout"). The AI applies these changes instantly with a real-time preview, supporting modifications to colors, fonts, layouts, headers, and text boxes.
 
-**Why this priority**: Visual customization enhances the user experience and complements the content editing from P1. This allows users to not only improve content but also create visually appealing resumes that stand out.
+**Why this priority**: Visual customization enhances the user experience but is less critical than content optimization. Users can still create effective resumes without custom designs, making this a nice-to-have enhancement rather than core functionality.
 
 **Independent Test**: Can be tested by requesting design changes like "make the header blue" or "change font to Arial," verifying the preview updates immediately, and confirming changes persist. Delivers standalone value as a visual customization tool.
 
@@ -60,7 +71,7 @@ Users can request design changes through natural language (e.g., "change the bac
 
 ---
 
-### User Story 3 - Application History Tracking (Priority: P3)
+### User Story 4 - Application History Tracking (Priority: P4)
 
 When a user is satisfied with their optimized resume and clicks "Apply Resume," the system automatically saves a snapshot (PDF + JSON metadata) including the optimized version, job title, company name, application date, ATS score, and contact information. This creates a searchable history dashboard where users can view, compare, and re-download previous applications.
 
@@ -80,62 +91,9 @@ When a user is satisfied with their optimized resume and clicks "Apply Resume," 
 
 ### Edge Cases
 
-- How does the system handle ambiguous AI requests like "make it professional"?
-  - AI asks clarifying questions: "Which section should I focus on?" or "What aspect of professionalism—tone, format, or keywords?"
+- What happens when a job posting URL is inaccessible or returns a 404 error?
+  - System should display an error message and allow manual job description input
 
-- What if a user requests changes that contradict each other (e.g., "add more detail" then "make it shorter")?
-  - AI acknowledges the contradiction and asks the user to prioritize
+- How does the system handle ambiguous 
 
-- How does the system handle resume formats that don't parse correctly?
-  - Show partial parsing results and allow manual input/correction of missing sections
-
-- How does the system prevent users from saving duplicate applications to history?
-  - Check for matching job title + company + date and prompt user to confirm if duplicate detected
-
-- What if a user tries to apply design changes unsupported by the current template?
-  - AI explains the limitation and suggests alternative approaches or compatible templates
-
-## Requirements *(mandatory)*
-
-### Functional Requirements
-
-- **FR-001**: System MUST provide a conversational AI interface where users can submit natural language requests to modify resume content
-- **FR-002**: System MUST maintain truthfulness by only suggesting rephrasing of existing content, never fabricating achievements or experience
-- **FR-003**: System MUST apply visual design changes requested through natural language (colors, fonts, layouts) with real-time preview
-- **FR-004**: System MUST save optimized resume versions as both PDF and JSON metadata when user triggers "Apply Resume" action
-- **FR-005**: System MUST persist application history including job title, company, application date, ATS score, and contact info
-- **FR-006**: System MUST provide a History Dashboard where users can view, search, and download previous applications
-- **FR-007**: System MUST ask clarifying questions when user requests are ambiguous or lack sufficient context
-- **FR-008**: System MUST handle errors gracefully (e.g., parsing errors) and provide fallback options
-- **FR-009**: System MUST prevent fabrication of data by validating AI suggestions against existing resume content
-- **FR-010**: System MUST support multiple design templates and allow switching between them via AI commands
-
-### Key Entities
-
-- **AI Conversation Session**: Represents an active interaction between user and AI assistant, including message history, current resume state, and job context. Links to a specific resume and job description.
-
-- **Resume Snapshot**: A versioned copy of a resume at a specific point in time, stored as PDF (for display/download) and JSON (for metadata and future editing). Includes design settings, content, and timestamp.
-
-- **Job Application Record**: Represents a completed application tracked in history. Contains references to the resume snapshot, job metadata (title, company, contact), application date, and ATS score.
-
-- **Optimization Suggestion**: A discrete AI-generated recommendation for improving resume content or design. Includes the suggested change, reason/justification, and reference to the affected resume section.
-
-## Success Criteria *(mandatory)*
-
-### Measurable Outcomes
-
-- **SC-001**: Users can complete a full resume optimization session (upload → AI interaction → content changes → save) in under 10 minutes
-- **SC-002**: 90% of AI content suggestions must be accepted or partially accepted by users (measured through application of suggestions)
-- **SC-003**: Real-time design preview changes render within 2 seconds of user request
-- **SC-004**: AI asks clarifying questions in fewer than 20% of interactions (indicating clear, actionable user requests)
-- **SC-005**: Users can retrieve and download saved application history with 100% accuracy (no data loss)
-- **SC-006**: Zero instances of AI fabricating experience or achievements not present in original resume (validated through content audits)
-- **SC-007**: 85% of users successfully complete at least one "Apply Resume" action within their first session
-- **SC-008**: System handles errors (parsing issues) without crashing, providing helpful fallback options in 100% of edge cases
-
-### User Experience Goals
-
-- **UX-001**: AI responses feel conversational and supportive, using encouraging language like "Let's make this bullet pop for recruiters"
-- **UX-002**: Users report feeling like they're working with a professional career coach (measured via post-interaction survey)
-- **UX-003**: Design changes provide instant visual feedback, creating a smooth and responsive editing experience
 - **UX-004**: History Dashboard is intuitive and allows users to quickly find specific applications through search/filter
