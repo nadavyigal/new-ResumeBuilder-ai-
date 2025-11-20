@@ -401,11 +401,24 @@ const NON_SKILL_WORDS = new Set([
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
 
+const GENERIC_ACRONYMS = new Set(['api', 'apis', 'qa', 'sql']);
+
+const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
+  api: ['REST API', 'REST APIs', 'GraphQL API', 'GraphQL APIs', 'SOAP API', 'SOAP APIs', 'Web API', 'Web APIs'],
+  apis: ['REST API', 'REST APIs', 'GraphQL API', 'GraphQL APIs', 'SOAP API', 'SOAP APIs', 'Web API', 'Web APIs'],
+  sql: ['SQL databases', 'SQL queries', 'SQL reporting'],
+  qa: ['Quality Assurance', 'QA automation', 'QA testing'],
+};
+
 /**
  * Check if a term is likely a valid skill
  */
 function isValidSkill(term: string): boolean {
   const lower = term.toLowerCase().trim();
+
+  if (GENERIC_ACRONYMS.has(lower) && !lower.includes(' ')) {
+    return false;
+  }
 
   // Too short to be a meaningful skill
   if (lower.length < 3) return false;
@@ -439,6 +452,33 @@ function isValidSkill(term: string): boolean {
   }
 
   return false;
+}
+
+function findAcronymContext(acronym: string, text: string): string | null {
+  const escapedAcronym = acronym.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const beforePattern = new RegExp(`\\b([A-Za-z][\\w+#.]+\\s+${escapedAcronym}s?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
+  const afterPattern = new RegExp(`\\b(${escapedAcronym}s?\\s+[A-Za-z][\\w+#.]*?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
+
+  const beforeMatch = beforePattern.exec(text);
+  if (beforeMatch && isValidSkill(beforeMatch[1])) {
+    return beforeMatch[1];
+  }
+
+  const afterMatch = afterPattern.exec(text);
+  if (afterMatch && isValidSkill(afterMatch[1])) {
+    return afterMatch[1];
+  }
+
+  const enrichmentOptions = ACRONYM_ENRICHMENT_MAP[acronym.toLowerCase()] || [];
+  for (const phrase of enrichmentOptions) {
+    const escaped = phrase.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const phraseRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+    if (phraseRegex.test(text)) {
+      return phrase;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -483,13 +523,31 @@ function extractKeywordsFromText(text: string): string[] {
     }
   }
 
-  // 5. Look for capitalized technical terms (fallback for implicit skills)
-  // Only use this if we haven't found explicit skills
-  if (keywords.length === 0) {
-    const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
-    if (techTerms) {
-      const filtered = techTerms.filter(isValidSkill);
-      keywords.push(...filtered);
+  // 5. Prefer contextual, multi-word phrases around generic acronyms before falling back
+  const contextualAcronymPattern = /\b([A-Za-z][\w+#.]*\s+(?:API|APIs|SQL|QA)(?:\s+[A-Za-z][\w+#.]*)?)\b/gi;
+  while ((match = contextualAcronymPattern.exec(text)) !== null) {
+    const term = match[1].trim();
+    if (isValidSkill(term)) {
+      keywords.push(term);
+    }
+  }
+
+  // 6. Look for capitalized technical terms (fallback for implicit skills)
+  const techTerms = text.match(/\b([A-Z][a-z]*(?:[A-Z][a-z]*)*|\w+\+\+|[A-Z]#|\.NET)\b/g);
+  if (techTerms) {
+    for (const term of techTerms) {
+      const lowerTerm = term.toLowerCase();
+      if (GENERIC_ACRONYMS.has(lowerTerm)) {
+        const enriched = findAcronymContext(term, text);
+        if (enriched && isValidSkill(enriched)) {
+          keywords.push(enriched);
+        }
+        continue;
+      }
+
+      if (isValidSkill(term)) {
+        keywords.push(term);
+      }
     }
   }
 
