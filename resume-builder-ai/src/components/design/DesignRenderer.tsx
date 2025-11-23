@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
 import { ATSResumeTemplate } from '@/components/templates/ats-resume-template';
 import { useSectionSelection } from '@/hooks/useSectionSelection';
+import { useSectionHeaders } from '@/hooks/useSectionHeaders';
 
 interface DesignRendererProps {
   resumeData: OptimizedResume;
@@ -16,6 +17,35 @@ interface DesignRendererProps {
   customization?: any;
   pendingChanges?: any[]; // ATS tip pending changes for highlighting
   refreshKey?: number; // Force re-render when resume data changes
+  languagePreference?: 'auto' | 'hebrew' | 'english'; // Language preference for RTL support
+}
+
+/**
+ * Detect if text contains Hebrew characters
+ */
+function containsHebrew(text: string): boolean {
+  return /[\u0590-\u05FF]/.test(text);
+}
+
+/**
+ * Determine if resume should use RTL based on language preference and content
+ */
+function shouldUseRTL(resumeData: OptimizedResume, languagePreference?: 'auto' | 'hebrew' | 'english'): boolean {
+  // Explicit language preference overrides auto-detection
+  if (languagePreference === 'hebrew') return true;
+  if (languagePreference === 'english') return false;
+
+  // Auto-detect: check various fields for Hebrew content
+  const fieldsToCheck = [
+    resumeData.contact?.name || '',
+    resumeData.summary || '',
+    resumeData.skills?.technical?.join(' ') || '',
+    resumeData.skills?.soft?.join(' ') || '',
+    resumeData.experience?.[0]?.title || '',
+    resumeData.experience?.[0]?.company || ''
+  ];
+
+  return fieldsToCheck.some(field => containsHebrew(field));
 }
 
 /**
@@ -89,7 +119,8 @@ function ExternalTemplateRenderer({
   resumeData,
   templateSlug,
   customization,
-  refreshKey
+  refreshKey,
+  languagePreference
 }: DesignRendererProps) {
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +146,8 @@ function ExternalTemplateRenderer({
           body: JSON.stringify({
             templateId: templateSlug,
             resumeData: resumeData,
-            customization: customization || {}
+            customization: customization || {},
+            languagePreference: languagePreference || 'auto'
           })
         });
 
@@ -135,7 +167,7 @@ function ExternalTemplateRenderer({
     };
 
     fetchHtml();
-  }, [templateSlug, resumeData, customization, refreshKey]);
+  }, [templateSlug, resumeData, customization, refreshKey, languagePreference]);
 
   if (loading) {
     return (
@@ -176,7 +208,8 @@ function ExternalTemplateRenderer({
 function InternalTemplateRenderer({
   resumeData,
   templateSlug,
-  customization
+  customization,
+  languagePreference
 }: DesignRendererProps) {
   const [TemplateComponent, setTemplateComponent] = useState<React.ComponentType<any> | null>(
     null
@@ -186,6 +219,9 @@ function InternalTemplateRenderer({
   const [loading, setLoading] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
 	const { beginSelection } = useSectionSelection();
+
+  // Get section headers in appropriate language (must be called at top level)
+  const headers = useSectionHeaders(resumeData, languagePreference);
 
 	function handleMouseUp() {
 		try {
@@ -415,9 +451,19 @@ function InternalTemplateRenderer({
 
   // If no template component, render natural (plain) resume with clean, professional styling
   if (!TemplateComponent) {
+    // Determine if RTL layout should be used
+    const isRTL = shouldUseRTL(resumeData, languagePreference);
+    const directionClass = isRTL ? 'rtl' : 'ltr';
+    const textAlignClass = isRTL ? 'text-right' : 'text-left';
+    const listMarginClass = isRTL ? 'mr-5' : 'ml-5';
+
     return (
-      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden p-8 max-w-4xl mx-auto" style={{ isolation: 'isolate' }}>
-        <div className="resume-container" key={renderKey} onMouseUp={handleMouseUp}>
+      <div
+        className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden p-8 max-w-4xl mx-auto"
+        style={{ isolation: 'isolate' }}
+        dir={isRTL ? 'rtl' : 'ltr'}
+      >
+        <div className={`resume-container ${textAlignClass}`} key={renderKey} onMouseUp={handleMouseUp}>
           <header className="mb-6 pb-4 border-b border-gray-200">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{resumeData.contact?.name}</h1>
             <div className="text-gray-600 mb-1">{resumeData.contact?.location}</div>
@@ -430,22 +476,22 @@ function InternalTemplateRenderer({
 
           {resumeData.summary && (
             <section data-section-id="summary" className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Professional Summary</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.professionalSummary}</h2>
               <p data-field="summary" className="text-gray-700 leading-relaxed">{resumeData.summary}</p>
             </section>
           )}
 
           {resumeData.skills && (
             <section data-section-id="skills" className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Skills</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.skills}</h2>
               {resumeData.skills.technical && resumeData.skills.technical.length > 0 && (
                 <p data-field="skills" className="text-gray-700 mb-2">
-                  <span className="font-medium">Technical:</span> {resumeData.skills.technical.join(', ')}
+                  <span className="font-medium">{headers.technical}:</span> {resumeData.skills.technical.join(', ')}
                 </p>
               )}
               {resumeData.skills.soft && resumeData.skills.soft.length > 0 && (
                 <p data-field="skills" className="text-gray-700">
-                  <span className="font-medium">Professional:</span> {resumeData.skills.soft.join(', ')}
+                  <span className="font-medium">{headers.professional}:</span> {resumeData.skills.soft.join(', ')}
                 </p>
               )}
             </section>
@@ -453,7 +499,7 @@ function InternalTemplateRenderer({
 
           {Array.isArray(resumeData.experience) && resumeData.experience.length > 0 && (
             <section data-section-id="experience" className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Experience</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.experience}</h2>
               {resumeData.experience.map((exp, index) => (
                 <article key={index} data-section-id={`experience-${index}`} className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">{exp.title}</h3>
@@ -461,7 +507,7 @@ function InternalTemplateRenderer({
                     {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
                   </div>
                   {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
-                    <ul className="list-disc pl-5 space-y-1">
+                    <ul className={`list-disc ${listMarginClass} space-y-1`}>
                       {exp.achievements.map((achievement, i) => (
                         <li key={i} data-field="bullet" className="text-gray-700 leading-relaxed">{achievement}</li>
                       ))}
@@ -474,7 +520,7 @@ function InternalTemplateRenderer({
 
           {Array.isArray(resumeData.education) && resumeData.education.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Education</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.education}</h2>
               {resumeData.education.map((edu, index) => (
                 <article key={index} className="mb-3">
                   <h3 className="text-lg font-semibold text-gray-800">{edu.degree}</h3>
@@ -488,8 +534,8 @@ function InternalTemplateRenderer({
 
           {Array.isArray(resumeData.certifications) && resumeData.certifications.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Certifications</h2>
-              <ul className="list-disc pl-5 space-y-1">
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.certifications}</h2>
+              <ul className={`list-disc ${listMarginClass} space-y-1`}>
                 {resumeData.certifications.map((cert, index) => (
                   <li key={index} className="text-gray-700">{typeof cert === 'string' ? cert : cert.name}</li>
                 ))}
@@ -499,7 +545,7 @@ function InternalTemplateRenderer({
 
           {Array.isArray(resumeData.projects) && resumeData.projects.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">Projects</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-3 pb-1 border-b border-gray-300">{headers.projects}</h2>
               {resumeData.projects.map((project, index) => (
                 <article key={index} className="mb-3">
                   <h3 className="text-lg font-semibold text-gray-800">{project.name}</h3>
@@ -543,7 +589,8 @@ export function DesignRenderer({
   templateSlug,
   customization,
   pendingChanges = [],
-  refreshKey
+  refreshKey,
+  languagePreference = 'auto'
 }: DesignRendererProps) {
   // Check if this is an external template
   const isExternalTemplate = templateSlug && ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'].includes(templateSlug);
@@ -563,6 +610,7 @@ export function DesignRenderer({
       customization={customization}
       pendingChanges={pendingChanges}
       refreshKey={refreshKey}
+      languagePreference={languagePreference}
     />
   ) : (
     <InternalTemplateRenderer
@@ -570,6 +618,7 @@ export function DesignRenderer({
       templateSlug={templateSlug}
       customization={customization}
       pendingChanges={pendingChanges}
+      languagePreference={languagePreference}
     />
   );
 

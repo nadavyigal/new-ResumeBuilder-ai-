@@ -14,6 +14,13 @@ import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 
 // Disable static generation for this dynamic page
@@ -26,6 +33,7 @@ export default function OptimizationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
+  const [isDemoOptimization, setIsDemoOptimization] = useState(false);
 
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
@@ -41,6 +49,9 @@ export default function OptimizationPage() {
   const [designLoading, setDesignLoading] = useState(false);
   // Ephemeral customization from chat for instant preview
   const [ephemeralCustomization, setEphemeralCustomization] = useState<any>(null);
+
+  // Language preference state
+  const [languagePreference, setLanguagePreference] = useState<'auto' | 'hebrew' | 'english'>('auto');
 
   // Job description data for Apply functionality
   const [jobDescription, setJobDescription] = useState<any>(null);
@@ -112,6 +123,29 @@ export default function OptimizationPage() {
   const fetchOptimizationData = async () => {
     try {
       const idVal = String(params.id || "");
+
+      if (typeof window !== "undefined") {
+        const cached = window.sessionStorage.getItem(`demo-optimization:${idVal}`);
+        if (cached) {
+          try {
+            const demoPayload = JSON.parse(cached);
+            setResumeText(demoPayload.resumeText || "");
+            setJobDescriptionText(demoPayload.jobDescriptionText || "");
+            setOptimizedResume(demoPayload.optimizedResume || null);
+            setMatchScore(demoPayload.matchScore ?? null);
+            setJobDescription(demoPayload.jobDescription || null);
+            if (demoPayload.atsV2Data) {
+              setAtsV2Data(demoPayload.atsV2Data);
+            }
+            setAtsSuggestions(demoPayload.atsSuggestions || []);
+            setIsDemoOptimization(true);
+            setLoading(false);
+            return;
+          } catch (storageError) {
+            console.warn('Failed to parse cached demo optimization payload', storageError);
+          }
+        }
+      }
 
       // First get the optimization data including match_score and ATS v2 data
       // Use maybeSingle() instead of single() to avoid 406 errors
@@ -510,6 +544,10 @@ export default function OptimizationPage() {
   };
 
   const handleApply = async () => {
+    if (isDemoOptimization) {
+      alert('Demo optimizations are read-only because no backend is connected.');
+      return;
+    }
     if (!jobDescription) {
       alert('No job description found');
       return;
@@ -567,6 +605,11 @@ export default function OptimizationPage() {
   return (
     <CacheBustingErrorBoundary>
     <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+      {isDemoOptimization && (
+        <div className="mb-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 text-sm text-primary">
+          Demo mode is active because backend credentials or authentication are not configured. The content below is generated locally so you can experience the optimization workflow end-to-end.
+        </div>
+      )}
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
         <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
@@ -580,8 +623,8 @@ export default function OptimizationPage() {
       {/* Action Buttons */}
       <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
         {/* Apply Button - Primary Action */}
-        <Button onClick={handleApply} disabled={applying} className="bg-green-600 hover:bg-green-700">
-          {applying ? '⏳ Applying...' : '✓ Apply Now'}
+        <Button onClick={handleApply} disabled={applying || isDemoOptimization} className="bg-green-600 hover:bg-green-700">
+          {applying ? '⏳ Applying...' : isDemoOptimization ? 'Demo Preview' : '✓ Apply Now'}
         </Button>
 
         {/* Export Actions */}
@@ -601,7 +644,22 @@ export default function OptimizationPage() {
         </div>
 
         {/* Design Actions */}
-        <div className="flex gap-3 ml-auto">
+        <div className="flex gap-3 ml-auto items-center">
+          {/* Language Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Language:</span>
+            <Select value={languagePreference} onValueChange={(value: any) => setLanguagePreference(value)}>
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">🌐 Auto-detect</SelectItem>
+                <SelectItem value="hebrew">🇮🇱 Hebrew</SelectItem>
+                <SelectItem value="english">🇺🇸 English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={() => setShowDesignBrowser(true)} variant="outline">
             🎨 Change Design
           </Button>
@@ -685,6 +743,7 @@ export default function OptimizationPage() {
               customization={ephemeralCustomization || currentDesignAssignment?.customization}
               pendingChanges={pendingChanges}
               refreshKey={refreshKey}
+              languagePreference={languagePreference}
             />
           )}
         </div>

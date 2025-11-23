@@ -1,7 +1,14 @@
 
 import React from 'react';
 
-export default function Resume({ data, customization }) {
+export default function Resume({ data, customization, sectionHeaders }) {
+  // Default English headers if not provided
+  const headers = sectionHeaders || {
+    professionalSummary: 'Professional Summary',
+    experience: 'Professional Experience',
+    education: 'Education',
+    skills: 'Skills',
+  };
   const b = data.basics || {};
   const work = data.work || [];
   const education = data.education || [];
@@ -204,14 +211,14 @@ export default function Resume({ data, customization }) {
       
               {data.summary && (
                 <section>
-                  <h2>Professional Summary</h2>
+                  <h2>{headers.professionalSummary}</h2>
                   <div className="summary">{data.summary.trim()}</div>
                 </section>
               )}
-      
+
               {work.length > 0 && (
                 <section>
-                  <h2>Professional Experience</h2>
+                  <h2>{headers.experience}</h2>
                   {work.map((job, i) => (
                     <div className="job" key={i}>
                       <div className="job-header">
@@ -237,7 +244,7 @@ export default function Resume({ data, customization }) {
       
               {education.length > 0 && (
                 <section>
-                  <h2>Education</h2>
+                  <h2>{headers.education}</h2>
                   {education.map((edu, i) => (
                     <div className="edu" key={i}>
                       <div className="edu-header">
@@ -256,7 +263,7 @@ export default function Resume({ data, customization }) {
       
               {skills.length > 0 && (
                 <section>
-                  <h2>Skills</h2>
+                  <h2>{headers.skills}</h2>
                   <div className="skills-grid">
                     {skills.map((skill, i) => (
                       <div className="skill-category" key={i}>
