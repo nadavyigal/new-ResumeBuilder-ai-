@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateWCAG, type WCAGValidationResult } from '@/lib/agent/accessibilityValidator';
 import { normalizeFont, isProfessional, isATSSafe, getFontCategory } from '@/lib/agent/fontValidator';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 interface ValidationRequest {
   colors?: {
