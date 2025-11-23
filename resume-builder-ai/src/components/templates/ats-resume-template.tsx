@@ -1,8 +1,10 @@
 import React, { useMemo } from 'react';
 import { OptimizedResume } from '@/lib/ai-optimizer';
+import { useSectionHeaders } from '@/hooks/useSectionHeaders';
 
 interface ATSResumeTemplateProps {
   data: OptimizedResume;
+  languagePreference?: 'auto' | 'hebrew' | 'english';
 }
 
 // Hebrew character detection pattern (compiled once at module level)
@@ -15,7 +17,10 @@ const HEBREW_PATTERN = /[\u0590-\u05FF]/;
  * No tables, graphics, or complex formatting - just pure, parseable text.
  * Supports RTL (Right-to-Left) for Hebrew and other RTL languages.
  */
-export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
+export function ATSResumeTemplate({ data, languagePreference }: ATSResumeTemplateProps) {
+  // Get section headers based on language
+  const headers = useSectionHeaders(data, languagePreference);
+
   // Memoized RTL detection - only recalculates when data changes
   const isRTL = useMemo(() => {
     return HEBREW_PATTERN.test(data.summary || '') ||
@@ -58,7 +63,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.summary && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Professional Summary
+            {headers.professionalSummary}
           </h2>
           <p className="text-gray-800 leading-relaxed">{data.summary}</p>
         </section>
@@ -68,12 +73,12 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.skills && (data.skills.technical?.length > 0 || data.skills.soft?.length > 0) && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Skills
+            {headers.skills}
           </h2>
 
           {data.skills.technical?.length > 0 && (
             <div className="mb-3">
-              <h3 className="font-semibold text-gray-900 mb-1">Technical Skills</h3>
+              <h3 className="font-semibold text-gray-900 mb-1">{headers.technicalSkills}</h3>
               <p className="text-gray-800 leading-relaxed">
                 {data.skills.technical.join(' • ')}
               </p>
@@ -82,7 +87,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
 
           {data.skills.soft?.length > 0 && (
             <div>
-              <h3 className="font-semibold text-gray-900 mb-1">Professional Skills</h3>
+              <h3 className="font-semibold text-gray-900 mb-1">{headers.professionalSkills}</h3>
               <p className="text-gray-800 leading-relaxed">
                 {data.skills.soft.join(' • ')}
               </p>
@@ -95,7 +100,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.experience && data.experience.length > 0 && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Experience
+            {headers.experience}
           </h2>
 
           {data.experience.map((job, index) => (
@@ -128,7 +133,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.education && data.education.length > 0 && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Education
+            {headers.education}
           </h2>
 
           {data.education.map((edu, index) => (
@@ -153,7 +158,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.certifications && data.certifications.length > 0 && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Certifications
+            {headers.certifications}
           </h2>
           <ul className={`list-disc list-outside ${listMarginClass} space-y-1`}>
             {data.certifications.map((cert, index) => (
@@ -169,7 +174,7 @@ export function ATSResumeTemplate({ data }: ATSResumeTemplateProps) {
       {data.projects && data.projects.length > 0 && (
         <section className={`mb-6 ${textAlignClass}`}>
           <h2 className="text-xl font-bold text-gray-900 mb-3 border-b border-gray-300 pb-1">
-            Projects
+            {headers.projects}
           </h2>
 
           {data.projects.map((project, index) => (

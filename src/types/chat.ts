@@ -85,12 +85,20 @@ export interface AmendmentRequest {
   id: string;
   session_id: string;
   message_id: string;
-  type: AmendmentType;
-  target_section: string | null;
+  section: 'skills' | 'experience' | 'education' | 'summary' | 'certifications' | 'projects' | null;
+  operation: AmendmentType;
+  value: string;
+  target_index?: number | null;
+  target_field?: string | null;
+  reasoning?: string | null;
   status: AmendmentStatus;
   created_at: string;
   processed_at: string | null;
   rejection_reason: string | null;
+  // Legacy fields maintained for compatibility with earlier payloads
+  type?: AmendmentType;
+  target_section?: string | null;
+  description?: string | null;
 }
 
 // ========================================

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import React from 'react';
+import { getSectionHeaders } from '@/lib/i18n/section-headers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -49,6 +50,36 @@ interface ResumeData {
     description: string;
     technologies?: string[];
   }>;
+}
+
+/**
+ * Detect if text contains Hebrew characters
+ */
+function containsHebrew(text: string): boolean {
+  return /[\u0590-\u05FF]/.test(text);
+}
+
+/**
+ * Detect language from resume data
+ */
+function detectResumeLanguage(resumeData: any, languagePreference?: string): 'he' | 'en' {
+  // Handle explicit preference
+  if (languagePreference === 'hebrew') return 'he';
+  if (languagePreference === 'english') return 'en';
+
+  // Auto-detect from content
+  const data = resumeData.content || resumeData;
+  const fieldsToCheck = [
+    data.contact?.name || data.personalInfo?.fullName || '',
+    data.summary || '',
+    (data.skills?.technical || []).join(' '),
+    (data.skills?.soft || []).join(' '),
+    data.experience?.[0]?.title || '',
+    data.experience?.[0]?.company || '',
+  ];
+
+  const isHebrew = fieldsToCheck.some(field => containsHebrew(field));
+  return isHebrew ? 'he' : 'en';
 }
 
 /**
@@ -141,7 +172,7 @@ function transformToJsonResume(resumeData: any): any {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { templateId, resumeData, customization } = body;
+    const { templateId, resumeData, customization, languagePreference } = body;
 
     if (!templateId) {
       return NextResponse.json(
@@ -170,10 +201,15 @@ export async function POST(request: NextRequest) {
     // Transform data to JSON Resume format
     const jsonResume = transformToJsonResume(resumeData);
 
+    // Detect language and get section headers
+    const detectedLanguage = detectResumeLanguage(resumeData, languagePreference);
+    const sectionHeaders = getSectionHeaders(detectedLanguage);
+
     // Create props for template
     const props = {
       data: jsonResume,
-      customization: customization || {}
+      customization: customization || {},
+      sectionHeaders: sectionHeaders
     };
 
     // Server-side render the template

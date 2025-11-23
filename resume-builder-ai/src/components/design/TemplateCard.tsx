@@ -82,17 +82,22 @@ export function TemplateCard({
     }
   };
 
+  // Open preview modal when card is clicked
+  const handleCardClick = () => {
+    setShowPreview(true);
+  };
+
   return (
     <>
       <div
-        className={`relative group cursor-pointer rounded-lg border-2 transition-all duration-200 overflow-hidden ${
+        className={`relative group cursor-pointer rounded-lg border-2 transition-all duration-200 overflow-hidden hover:scale-[1.02] ${
           isSelected
             ? 'border-blue-600 shadow-lg ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-gray-900'
-            : 'border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-md'
+            : 'border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:shadow-xl'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        onClick={onSelect}
+        onClick={handleCardClick}
       >
         {/* Thumbnail/Preview */}
         <div className="relative aspect-[3/4] bg-gray-100 dark:bg-gray-800 overflow-hidden">
@@ -112,16 +117,13 @@ export function TemplateCard({
             </div>
           )}
 
-          {/* Hover Overlay */}
+          {/* Hover Overlay with Visual Feedback */}
           {isHovered && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center transition-opacity">
-              <button
-                onClick={handlePreview}
-                className="px-4 py-2 bg-white dark:bg-gray-900 text-gray-900 dark:text-white rounded-lg font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-              >
-                <Eye className="w-4 h-4" />
-                Full Preview
-              </button>
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity pointer-events-none">
+              <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-6 py-3 rounded-lg text-gray-900 dark:text-white font-medium flex items-center gap-2 shadow-lg">
+                <Eye className="w-5 h-5" />
+                Click to Preview
+              </div>
             </div>
           )}
 
