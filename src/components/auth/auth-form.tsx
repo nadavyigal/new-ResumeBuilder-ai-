@@ -68,23 +68,23 @@ export function AuthForm({ mode }: AuthFormProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10 sm:py-12">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
           <Link href={ROUTES.home} className="inline-block">
-            <span className="font-bold text-2xl text-foreground px-6 py-2 border-2 border-foreground rounded-full">
+            <span className="font-bold text-xl sm:text-2xl text-foreground px-5 py-2 border-2 border-foreground rounded-full">
               RESUMELY
             </span>
           </Link>
         </div>
 
-        <Card className="shadow-lg">
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-3xl font-bold text-center">
+        <Card className="shadow-lg border border-border/70">
+          <CardHeader className="space-y-3 text-center">
+            <CardTitle className="text-2xl sm:text-3xl font-bold">
               {mode === "signup" ? "Get Started" : "Welcome Back"}
             </CardTitle>
-            <CardDescription className="text-center text-base">
+            <CardDescription className="text-base text-foreground/70">
               {mode === "signup"
                 ? "Create your free account"
                 : "Sign in to your account"}
@@ -92,9 +92,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           </CardHeader>
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
-            {mode === "signup" && (
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+              {mode === "signup" && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
                 <Input
                   id="fullName"
                   type="text"

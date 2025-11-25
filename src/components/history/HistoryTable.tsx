@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useOptimizations } from '@/hooks/useOptimizations';
@@ -13,6 +14,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -431,6 +433,32 @@ export default function HistoryTable() {
     );
   };
 
+  const formatDate = (isoDate: string): string => {
+    const date = new Date(isoDate);
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+  };
+
+  const formatScore = (score: number): string => `${Math.round(score * 100)}%`;
+
+  const getStatusVariant = (
+    status: string
+  ): 'default' | 'secondary' | 'destructive' | 'outline' | 'success' => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'success';
+      case 'processing':
+        return 'secondary';
+      case 'failed':
+        return 'destructive';
+      default:
+        return 'default';
+    }
+  };
+
   // Calculate active filter count
   const activeFilterCount = countActiveFilters(filters);
 
@@ -548,28 +576,104 @@ export default function HistoryTable() {
           onChange={handleSearchChange}
           onClear={handleSearchClear}
         />
-        <HistoryFilters
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onClearFilters={handleClearFilters}
-          activeFilterCount={activeFilterCount}
-        />
-      </div>
+      <HistoryFilters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        onClearFilters={handleClearFilters}
+        activeFilterCount={activeFilterCount}
+      />
+    </div>
 
-      {/* Bulk Actions Toolbar (T033) */}
-      <BulkActions
+    {/* Bulk Actions Toolbar (T033) */}
+    <BulkActions
         selectedCount={selectedIds.size}
         totalCount={optimizations?.length || 0}
         onDeleteSelected={handleDeleteSelected}
         onExportSelected={handleExportSelected}
         onSelectAll={handleSelectAll}
-        onDeselectAll={handleDeselectAll}
-        isProcessing={isBulkProcessing}
-      />
+      onDeselectAll={handleDeselectAll}
+      isProcessing={isBulkProcessing}
+    />
 
-      {/* Table */}
-      <div className="rounded-md border">
-        <Table>
+    {/* Mobile cards */}
+    <div className="space-y-4 md:hidden">
+      {optimizations.map((optimization) => (
+        <div
+          key={optimization.id}
+          className={`rounded-2xl border bg-card p-5 shadow-sm ${
+            selectedIds.has(optimization.id) ? 'border-primary/60' : 'border-border'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">{formatDate(optimization.createdAt)}</p>
+              <h3 className="text-lg font-semibold leading-tight text-foreground">
+                {optimization.jobTitle || 'Untitled role'}
+              </h3>
+              <p className="text-sm text-foreground/70">{optimization.company || 'Company TBA'}</p>
+            </div>
+            <Checkbox
+              checked={selectedIds.has(optimization.id)}
+              onCheckedChange={(checked) =>
+                handleSelectionChange(optimization.id, checked as boolean)
+              }
+              aria-label={`Select optimization ${optimization.id}`}
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant={getStatusVariant(optimization.status)}>
+              {optimization.status}
+            </Badge>
+            {optimization.hasApplication && (
+              <Badge
+                variant="success"
+                className="cursor-help"
+                title={`Applied on ${
+                  optimization.applicationDate
+                    ? new Date(optimization.applicationDate).toLocaleDateString()
+                    : 'Unknown date'
+                }`}
+              >
+                Applied
+              </Badge>
+            )}
+            <span className="font-semibold text-foreground/80">{formatScore(optimization.matchScore)}</span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-2">
+            <Button asChild variant="outline" className="w-full">
+              <Link href={`/dashboard/optimizations/${optimization.id}`}>
+                View details
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.open(`/api/download/${optimization.id}`, '_blank')}
+            >
+              Download PDF
+            </Button>
+            <Button
+              variant={optimization.hasApplication ? 'secondary' : 'default'}
+              className="w-full"
+              onClick={() => handleApplyNow(optimization)}
+              disabled={applyingIds.has(optimization.id) || optimization.hasApplication}
+            >
+              {applyingIds.has(optimization.id)
+                ? 'Applying...'
+                : optimization.hasApplication
+                  ? 'Applied'
+                  : 'Apply Now'}
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Table */}
+    <div className="hidden rounded-md border md:block">
+      <Table>
           <TableHeader>
             <TableRow>
               {/* Checkbox Column Header (T034) */}

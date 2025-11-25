@@ -104,11 +104,11 @@ export default function ResumeUploadPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Upload Resume and Job Description</CardTitle>
-          <CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4 py-10">
+      <Card className="w-full max-w-3xl shadow-sm">
+        <CardHeader className="space-y-3">
+          <CardTitle className="text-2xl md:text-3xl">Upload Resume and Job Description</CardTitle>
+          <CardDescription className="text-base text-foreground/70">
             Upload your resume and paste the job description to get an optimized version.
           </CardDescription>
         </CardHeader>
@@ -130,7 +130,7 @@ export default function ResumeUploadPage() {
             </div>
             <div className="space-y-2">
               <Label>Job Description</Label>
-              <div className="flex gap-2 mb-3">
+              <div className="flex flex-col gap-2 mb-3 sm:flex-row">
                 <Button
                   type="button"
                   variant={inputMode === "text" ? "default" : "outline"}
@@ -167,7 +167,7 @@ export default function ResumeUploadPage() {
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
               {loading ? "Optimizing... (this may take 30-60 seconds)" : "Optimize My Resume"}
             </Button>
             {loading && (

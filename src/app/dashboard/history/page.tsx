@@ -14,14 +14,14 @@ import ErrorBoundary from '@/components/history/ErrorBoundary';
  */
 export default function HistoryPage() {
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4 sm:py-10">
       <div className="flex flex-col space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">
+        <div className="flex flex-col space-y-2 text-left">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             Optimization History
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-base">
             View and manage all your resume optimizations
           </p>
         </div>
