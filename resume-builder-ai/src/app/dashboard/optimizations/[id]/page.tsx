@@ -34,6 +34,7 @@ export default function OptimizationPage() {
   const [error, setError] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [isDemoOptimization, setIsDemoOptimization] = useState(false);
+  const [showChat, setShowChat] = useState(false);
 
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
@@ -729,11 +730,11 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* Main Layout: Resume Preview (Left) | AI Assistant (Right) */}
+      {/* Main Layout: Resume Preview (Full Width) */}
       <SectionSelectionProvider>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Left Column: Resume Preview (2/3 width) - Below Current Design */}
-        <div className="lg:col-span-2">
+      <div className="mb-8">
+        {/* Resume Preview - Full Width */}
+        <div className="w-full">
           {/* Optimized Resume - DesignRenderer handles its own loading and transitions */}
           {optimizedResume && (
             <DesignRenderer
@@ -747,23 +748,76 @@ export default function OptimizationPage() {
             />
           )}
         </div>
-
-        {/* Right Column: AI Chat (1/3 width) - Below ATS Score */}
-        <div className="print:hidden">
-          {optimizedResume && (
-            <div className="sticky top-4 h-[calc(100vh-220px)]">
-              <ChatSidebar
-                optimizationId={params.id as string}
-                onMessageSent={handleChatMessageSent}
-                onDesignPreview={(c) => setEphemeralCustomization(c)}
-                atsSuggestions={atsSuggestions}
-                onPendingChanges={setPendingChanges}
-              />
-            </div>
-          )}
-        </div>
       </div>
       </SectionSelectionProvider>
+
+      {/* Floating AI Assistant Button */}
+      {optimizedResume && (
+        <>
+          <button
+            onClick={() => setShowChat(!showChat)}
+            className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-50 print:hidden group"
+            title="AI Assistant"
+          >
+            <svg
+              className="w-7 h-7 md:w-8 md:h-8 group-hover:scale-110 transition-transform"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
+            </svg>
+            {atsSuggestions.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                {atsSuggestions.length}
+              </span>
+            )}
+          </button>
+
+          {/* Chat Modal Overlay */}
+          {showChat && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40 print:hidden"
+              onClick={() => setShowChat(false)}
+            >
+              <div
+                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="h-full flex flex-col">
+                  {/* Chat Header */}
+                  <div className="flex items-center justify-between p-4 border-b-2 border-border bg-muted/50">
+                    <h3 className="font-bold text-lg">AI Assistant</h3>
+                    <button
+                      onClick={() => setShowChat(false)}
+                      className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {/* Chat Content */}
+                  <div className="flex-1 overflow-hidden">
+                    <ChatSidebar
+                      optimizationId={params.id as string}
+                      onMessageSent={handleChatMessageSent}
+                      onDesignPreview={(c) => setEphemeralCustomization(c)}
+                      atsSuggestions={atsSuggestions}
+                      onPendingChanges={setPendingChanges}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Original Data (Collapsible) - Below Everything */}
       <div className="grid gap-4 md:grid-cols-2 print:hidden">

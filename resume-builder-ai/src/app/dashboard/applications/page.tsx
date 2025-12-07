@@ -106,7 +106,7 @@ export default function ApplicationsPage() {
         </div>
 
         {/* Mobile Search Bar */}
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-3 space-y-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -116,6 +116,23 @@ export default function ApplicationsPage() {
               onKeyDown={(e) => e.key === 'Enter' && load()}
               className="pl-10 h-11 bg-muted/50"
             />
+          </div>
+          {/* Add Job URL Input */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Paste LinkedIn job URL..."
+              value={createUrl}
+              onChange={(e) => setCreateUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
+              className="h-11 bg-muted/50"
+            />
+            <Button
+              onClick={createFromUrl}
+              disabled={!createUrl}
+              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+            >
+              Add
+            </Button>
           </div>
         </div>
       </div>
@@ -136,6 +153,18 @@ export default function ApplicationsPage() {
             <div className="flex items-center gap-2 mb-4">
               <Input placeholder="Search job title or company" value={q} onChange={(e) => setQ(e.target.value)} />
               <Button onClick={load} disabled={loading}>Search</Button>
+            </div>
+            {/* Add Job URL Input */}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Paste LinkedIn job URL to add..."
+                value={createUrl}
+                onChange={(e) => setCreateUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
+              />
+              <Button onClick={createFromUrl} disabled={!createUrl}>
+                Add Job
+              </Button>
             </div>
           </CardContent>
         </Card>

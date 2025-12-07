@@ -59,12 +59,12 @@ export default function DashboardPage() {
                     <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-mobile-cta flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                       <Upload className="w-6 h-6 md:w-8 md:h-8 text-white" />
                     </div>
-                    <CardTitle className="text-lg md:text-3xl mb-2">Upload Resume</CardTitle>
-                    <CardDescription className="text-xs md:text-base">
+                    <CardTitle className="text-lg md:text-3xl mb-2 text-foreground">Upload Resume</CardTitle>
+                    <CardDescription className="text-xs md:text-base text-foreground/70">
                       Start by uploading your current resume to get AI-powered optimizations
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover">
+                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white">
                     Get Started
                   </Button>
                 </CardHeader>

@@ -109,12 +109,12 @@ export function TemplateCard({
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600">
-              <div className="text-center p-4">
-                <div className="text-4xl mb-2">📄</div>
-                <p className="text-sm">Preview unavailable</p>
-              </div>
-            </div>
+            <iframe
+              src={`/api/v1/design/templates/${template.id}/preview`}
+              className="w-full h-full border-none pointer-events-none"
+              title={`${template.name} preview`}
+              loading="lazy"
+            />
           )}
 
           {/* Hover Overlay with Visual Feedback */}
