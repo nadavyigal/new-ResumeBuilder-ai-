@@ -90,8 +90,8 @@ export default function ApplicationsPage() {
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-4">
+    <div className="px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-6">
         <Link href="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
           ← Back to Dashboard
         </Link>
@@ -102,9 +102,16 @@ export default function ApplicationsPage() {
           <CardDescription>Browse jobs you applied to and open the matching optimized resume.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 mb-4">
-            <Input placeholder="Search job title or company" value={q} onChange={(e) => setQ(e.target.value)} />
-            <Button onClick={load} disabled={loading}>Search</Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2 mb-2 sm:mb-4">
+            <Input
+              placeholder="Search job title or company"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="w-full"
+            />
+            <Button onClick={load} disabled={loading} className="w-full sm:w-auto">
+              Search
+            </Button>
           </div>
           {/* Removed Create from URL per request */}
         </CardContent>
@@ -113,61 +120,144 @@ export default function ApplicationsPage() {
       {loading ? (
         <div>Loading...</div>
       ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-3">Resume</th>
-                    <th className="py-3">Company name</th>
-                    <th className="py-3">Job title</th>
-                    <th className="py-3">Application date</th>
-                    <th className="py-3">ATS score</th>
-                    <th className="py-3">Easy Apply</th>
-                    <th className="py-3">Job URL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it) => (
-                    <tr key={it.id} className="border-b">
-                      <td className="py-3">
+        <>
+          <div className="space-y-4 md:hidden">
+            {items.length === 0 && (
+              <Card>
+                <CardContent className="py-6 text-center text-muted-foreground">
+                  No applications yet.
+                </CardContent>
+              </Card>
+            )}
+
+            {items.map((it) => {
+              const applicationDate = it.apply_clicked_at
+                ? new Date(it.apply_clicked_at).toLocaleDateString()
+                : new Date(it.applied_date).toLocaleDateString();
+
+              return (
+                <Card key={it.id} className="border border-border/70 shadow-sm">
+                  <CardContent className="p-5 space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground">{applicationDate}</p>
+                      <h3 className="text-lg font-semibold leading-tight">
+                        {cleanJobTitle(it.job_extraction?.job_title || it.job_title) || "Untitled role"}
+                      </h3>
+                      <p className="text-sm text-foreground/70">
+                        {it.job_extraction?.company_name || it.company_name || "Company TBA"}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <Badge variant="secondary">ATS {it.ats_score != null ? Math.round(it.ats_score) : "-"}%</Badge>
+                      {hasEasyApply(it.source_url, it.job_extraction?.application_instructions) && (
+                        <Badge variant="outline">Easy Apply</Badge>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      <div className="flex flex-wrap gap-2">
                         {it.optimization_id ? (
-                          <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">resume</Link>
-                        ) : (it.optimized_resume_url ? <a href={it.optimized_resume_url} target="_blank" className="underline">Open optimized</a> : '-')}
-                      </td>
-                      <td className="py-3">{it.job_extraction?.company_name || it.company_name || '-'}</td>
-                      <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
-                      <td className="py-3">
-                        {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
-                        <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
-                      </td>
-                      <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
-                      <td className="py-3">
-                        {it.source_url ? (
+                          <Button asChild variant="outline" className="flex-1 min-w-[140px]">
+                            <Link href={`/dashboard/optimizations/${it.optimization_id}`}>
+                              View resume
+                            </Link>
+                          </Button>
+                        ) : it.optimized_resume_url ? (
+                          <Button asChild variant="outline" className="flex-1 min-w-[140px]">
+                            <a href={it.optimized_resume_url} target="_blank" rel="noreferrer">
+                              Open optimized
+                            </a>
+                          </Button>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No resume available</span>
+                        )}
+
+                        {it.source_url && (
                           <a
                             href={it.source_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-block px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors"
+                            className="flex-1 min-w-[120px] rounded-full bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white transition-colors hover:bg-blue-700"
                           >
                             Apply
                           </a>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3">{it.source_url ? <a href={it.source_url} target="_blank" className="underline">Job URL</a> : '-'}</td>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <MarkAppliedButton id={it.id} onDone={load} className="flex-1 min-w-[140px]" />
+                        {it.source_url && (
+                          <Button asChild variant="ghost" className="flex-1 min-w-[140px]">
+                            <a href={it.source_url} target="_blank" rel="noreferrer">
+                              Job posting
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Card className="hidden md:block">
+            <CardContent className="pt-6">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b">
+                      <th className="py-3">Resume</th>
+                      <th className="py-3">Company name</th>
+                      <th className="py-3">Job title</th>
+                      <th className="py-3">Application date</th>
+                      <th className="py-3">ATS score</th>
+                      <th className="py-3">Easy Apply</th>
+                      <th className="py-3">Job URL</th>
                     </tr>
-                  ))}
-                  {items.length === 0 && (
-                    <tr>
-                      <td className="py-6 text-muted-foreground" colSpan={8}>No applications yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody>
+                    {items.map((it) => (
+                      <tr key={it.id} className="border-b">
+                        <td className="py-3">
+                          {it.optimization_id ? (
+                            <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">resume</Link>
+                          ) : (it.optimized_resume_url ? <a href={it.optimized_resume_url} target="_blank" className="underline">Open optimized</a> : '-')}
+                        </td>
+                        <td className="py-3">{it.job_extraction?.company_name || it.company_name || '-'}</td>
+                        <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
+                        <td className="py-3">
+                          {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
+                          <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
+                        </td>
+                        <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
+                        <td className="py-3">
+                          {it.source_url ? (
+                            <a
+                              href={it.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors"
+                            >
+                              Apply
+                            </a>
+                          ) : '-'}
+                        </td>
+                        <td className="py-3">{it.source_url ? <a href={it.source_url} target="_blank" className="underline">Job URL</a> : '-'}</td>
+                      </tr>
+                    ))}
+                    {items.length === 0 && (
+                      <tr>
+                        <td className="py-6 text-muted-foreground" colSpan={8}>No applications yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   );
@@ -260,7 +350,7 @@ function OpenOptimizedCircle({ id, optimizationId }: { id: string; optimizationI
   );
 }
 
-function MarkAppliedButton({ id, onDone }: { id: string; onDone: () => void }) {
+function MarkAppliedButton({ id, onDone, className }: { id: string; onDone: () => void; className?: string }) {
   const [loading, setLoading] = useState(false);
   const onClick = async () => {
     setLoading(true);
@@ -272,7 +362,7 @@ function MarkAppliedButton({ id, onDone }: { id: string; onDone: () => void }) {
     }
   };
   return (
-    <Button size="sm" variant="outline" onClick={onClick} disabled={loading}>
+    <Button size="sm" variant="outline" onClick={onClick} disabled={loading} className={className}>
       {loading ? 'Marking…' : 'Mark Applied'}
     </Button>
   );
