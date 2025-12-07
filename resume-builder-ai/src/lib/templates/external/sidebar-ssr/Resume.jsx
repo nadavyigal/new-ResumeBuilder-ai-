@@ -1,14 +1,7 @@
 
 import React from 'react';
 
-export default function Resume({ data, customization, sectionHeaders }) {
-  // Default English headers if not provided
-  const headers = sectionHeaders || {
-    professionalSummary: 'Professional Summary',
-    experience: 'Professional Experience',
-    education: 'Education',
-    skills: 'Skills',
-  };
+export default function Resume({ data, customization }) {
   const b = data.basics || {};
   const work = data.work || [];
   const education = data.education || [];
@@ -322,7 +315,7 @@ export default function Resume({ data, customization, sectionHeaders }) {
       
                 {skills.length > 0 && (
                   <div className="sidebar-skills">
-                    <h3>{headers.skills}</h3>
+                    <h3>Skills</h3>
                     {skills.map((skill, i) => (
                       <div className="skill-item" key={i}>
                         <div className="skill-item-name">{skill.name || skill.category}</div>
@@ -338,14 +331,14 @@ export default function Resume({ data, customization, sectionHeaders }) {
               <main>
                 {data.summary && (
                   <section>
-                    <h2>{headers.professionalSummary}</h2>
+                    <h2>Professional Summary</h2>
                     <div className="summary">{data.summary.trim()}</div>
                   </section>
                 )}
-
+      
                 {work.length > 0 && (
                   <section className="experience-section">
-                    <h2>{headers.experience}</h2>
+                    <h2>Professional Experience</h2>
                     {work.map((job, i) => (
                       <div className="job" key={i}>
                         <div className="job-header">
@@ -373,7 +366,7 @@ export default function Resume({ data, customization, sectionHeaders }) {
       
                 {education.length > 0 && (
                   <section className="education-section">
-                    <h2>{headers.education}</h2>
+                    <h2>Education</h2>
                     {education.map((edu, i) => (
                       <div className="edu" key={i}>
                         <div className="edu-header">
