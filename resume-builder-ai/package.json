@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "sync-templates": "tsx scripts/sync-external-templates.ts",
-    "prebuild": "npm run sync-templates",
+    "prebuild": "echo 'Skipping template sync - templates have Html import issues'",
     "test": "jest",
     "test:contracts": "jest tests/contracts",
     "test:agent": "jest tests/agent",

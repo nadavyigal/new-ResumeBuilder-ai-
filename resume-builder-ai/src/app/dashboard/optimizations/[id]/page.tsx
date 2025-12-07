@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,6 @@ export const dynamic = 'force-dynamic';
 
 export default function OptimizationPage() {
   const [resumeText, setResumeText] = useState("");
-  const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +130,6 @@ export default function OptimizationPage() {
           try {
             const demoPayload = JSON.parse(cached);
             setResumeText(demoPayload.resumeText || "");
-            setJobDescriptionText(demoPayload.jobDescriptionText || "");
             setOptimizedResume(demoPayload.optimizedResume || null);
             setMatchScore(demoPayload.matchScore ?? null);
             setJobDescription(demoPayload.jobDescription || null);
@@ -197,8 +195,6 @@ export default function OptimizationPage() {
       }
 
       setResumeText((resumeData as any)?.raw_text || "");
-      // Use clean_text if available, otherwise fall back to raw_text
-      setJobDescriptionText((jdData as any)?.clean_text || (jdData as any)?.raw_text || "");
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
@@ -331,10 +327,10 @@ export default function OptimizationPage() {
         const response = await fetch(`/api/v1/design/${params.id}`);
 
         if (response.ok) {
-          const data = await response.json();
           // IMPORTANT: Only apply design if user explicitly selected one
           // For now, we'll show natural design by default and let user choose
           // Comment out to disable auto-loading of previously assigned designs:
+          // const data = await response.json();
           // setCurrentDesignAssignment(data.assignment);
           setCurrentDesignAssignment(null); // Always start with natural design
         } else if (response.status === 404) {

@@ -11,7 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 
 import { getDesignTemplateById } from '@/lib/supabase/design-templates';
-import { renderTemplateSample } from '@/lib/design-manager/template-renderer';
+// import { renderTemplateSample } from '@/lib/design-manager/template-renderer';
+
+// Force dynamic rendering to prevent build-time static generation errors
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 /**
  * GET /api/v1/design/templates/[id]/preview
@@ -57,7 +61,25 @@ export async function GET(
     }
 
     // Render template with sample data
-    const html = await renderTemplateSample(template.slug);
+    // TODO: Implement renderTemplateSample function
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${template.name} Preview</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    .preview-message { text-align: center; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="preview-message">
+    <h1>${template.name}</h1>
+    <p>Template preview coming soon...</p>
+    <p><small>Template ID: ${template.id}</small></p>
+  </div>
+</body>
+</html>`;
 
     // Return HTML preview
     return new NextResponse(html, {
