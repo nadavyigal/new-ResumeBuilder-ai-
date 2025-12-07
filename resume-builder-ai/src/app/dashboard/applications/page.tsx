@@ -79,15 +79,27 @@ export default function ApplicationsPage() {
   }, []);
 
   const createFromUrl = async () => {
-    if (!createUrl) return;
-    const res = await fetch('/api/v1/applications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: createUrl })
-    });
-    if (res.ok) {
-      setCreateUrl("");
-      await load();
+    if (!createUrl.trim()) return;
+
+    try {
+      const res = await fetch('/api/v1/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: createUrl.trim() })
+      });
+
+      if (res.ok) {
+        setCreateUrl("");
+        await load();
+        // Show success feedback
+        alert('Job application added successfully!');
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Failed to add job' }));
+        alert(`Error: ${errorData.error || 'Failed to add job. Please try again.'}`);
+      }
+    } catch (error) {
+      console.error('Error adding job from URL:', error);
+      alert('Failed to add job. Please check your internet connection and try again.');
     }
   };
 
@@ -120,16 +132,17 @@ export default function ApplicationsPage() {
           {/* Add Job URL Input */}
           <div className="flex gap-2">
             <Input
+              type="url"
               placeholder="Paste LinkedIn job URL..."
               value={createUrl}
               onChange={(e) => setCreateUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
-              className="h-11 bg-muted/50"
+              className="h-11 bg-background border-2 border-border focus:border-mobile-cta transition-colors"
             />
             <Button
               onClick={createFromUrl}
-              disabled={!createUrl}
-              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+              disabled={!createUrl.trim()}
+              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white disabled:opacity-50"
             >
               Add
             </Button>
@@ -157,12 +170,18 @@ export default function ApplicationsPage() {
             {/* Add Job URL Input */}
             <div className="flex items-center gap-2">
               <Input
+                type="url"
                 placeholder="Paste LinkedIn job URL to add..."
                 value={createUrl}
                 onChange={(e) => setCreateUrl(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
+                className="border-2 border-border focus:border-mobile-cta transition-colors"
               />
-              <Button onClick={createFromUrl} disabled={!createUrl}>
+              <Button
+                onClick={createFromUrl}
+                disabled={!createUrl.trim()}
+                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+              >
                 Add Job
               </Button>
             </div>

@@ -37,7 +37,7 @@ export function HeroSection() {
           </h1>
 
           {/* Subtitle */}
-          <p className="text-center text-lg md:text-xl text-foreground/70 max-w-2xl mx-auto mb-8 leading-relaxed animate-slideUp delay-100">
+          <p className="text-center text-lg md:text-xl text-foreground/90 max-w-2xl mx-auto mb-8 leading-relaxed animate-slideUp delay-100">
             Get ATS-optimized resumes tailored to any job description. Increase your interview rate by up to 3x with professional AI assistance.
           </p>
 
@@ -67,7 +67,7 @@ export function HeroSection() {
           </div>
 
           {/* Social Proof */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground animate-slideUp delay-300">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-foreground/75 animate-slideUp delay-300">
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {[1, 2, 3, 4].map((i) => (

@@ -752,7 +752,7 @@ export default function OptimizationPage() {
         <>
           <button
             onClick={() => setShowChat(!showChat)}
-            className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-50 print:hidden group"
+            className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
             title="AI Assistant"
           >
             <svg
