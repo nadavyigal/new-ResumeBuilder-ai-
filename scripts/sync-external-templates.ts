@@ -147,7 +147,7 @@ async function transformAndCopyTemplate(
   targetFile: string,
   slug: string
 ): Promise<void> {
-  let content = await fs.readFile(sourceFile, 'utf-8');
+  const content = await fs.readFile(sourceFile, 'utf-8');
 
   // Check if already transformed (has customization prop)
   if (content.includes('customization')) {

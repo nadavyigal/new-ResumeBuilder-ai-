@@ -540,7 +540,7 @@ export async function POST(request: NextRequest) {
         currentResumeContent,
         currentDesignConfig,
         currentTemplateId: currentTemplateId || undefined,
-        threadId: (chatSession as any).openai_thread_id || undefined,
+        threadId: chatSession.thread_id || undefined,
         resumeContext: chatSession.resume_context || undefined,
       });
     } catch (e) {
@@ -563,7 +563,7 @@ export async function POST(request: NextRequest) {
             shouldApply: false,
             requiresClarification: true,
             updatedContext: chatSession.resume_context || undefined,
-            threadId: (chatSession as any).openai_thread_id || undefined,
+            threadId: chatSession.thread_id || undefined,
           };
         } else {
           const custom = result as any;
@@ -575,7 +575,7 @@ export async function POST(request: NextRequest) {
             shouldApply: true,
             requiresClarification: false,
             updatedContext: chatSession.resume_context || undefined,
-            threadId: (chatSession as any).openai_thread_id || undefined,
+            threadId: chatSession.thread_id || undefined,
           };
         }
       } catch (innerErr) {
@@ -586,7 +586,7 @@ export async function POST(request: NextRequest) {
           shouldApply: false,
           requiresClarification: true,
           updatedContext: chatSession.resume_context || undefined,
-          threadId: (chatSession as any).openai_thread_id || undefined,
+          threadId: chatSession.thread_id || undefined,
         };
       }
     }
