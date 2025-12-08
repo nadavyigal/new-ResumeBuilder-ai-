@@ -589,7 +589,7 @@ export default function OptimizationPage() {
         throw new Error(j.error || 'Failed to save application snapshot');
       }
 
-      // Navigate to History table after apply
+      // Navigate to applications list after apply
       window.location.href = `/dashboard/applications`;
 
     } catch (error) {
@@ -601,7 +601,8 @@ export default function OptimizationPage() {
 
   return (
     <CacheBustingErrorBoundary>
-    <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+      <SectionSelectionProvider>
+        <div className="min-h-screen bg-muted/50 p-4 md:p-10">
       {isDemoOptimization && (
         <div className="mb-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 text-sm text-primary">
           Demo mode is active because backend credentials or authentication are not configured. The content below is generated locally so you can experience the optimization workflow end-to-end.
@@ -610,7 +611,7 @@ export default function OptimizationPage() {
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
         <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-          ← Back to History
+          Back to Applications
         </Link>
         <div className="text-sm text-muted-foreground">
           {jobDescription?.title && `${jobDescription.title} at ${jobDescription.company}`}
@@ -743,7 +744,6 @@ export default function OptimizationPage() {
       </div>
 
       {/* Main Layout: Resume Preview (Full Width) */}
-      <SectionSelectionProvider>
       <div className="mb-8">
         {/* Resume Preview - Full Width */}
         <div className="w-full">
@@ -761,19 +761,18 @@ export default function OptimizationPage() {
           )}
         </div>
       </div>
-      </SectionSelectionProvider>
 
       {/* Floating AI Assistant Button - Mobile Optimized */}
       {optimizedResume && (
         <>
           <button
             onClick={() => setShowChat(!showChat)}
-            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
+            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 md:w-18 md:h-18 bg-foreground text-background rounded-full shadow-2xl shadow-mobile-cta/40 ring-4 ring-white/40 hover:ring-white/60 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
             title="AI Assistant"
             aria-label="Open AI Assistant"
           >
             <svg
-              className="w-6 h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform"
+              className="w-7 h-7 md:w-9 md:h-9 group-hover:scale-110 transition-transform drop-shadow"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -898,7 +897,8 @@ export default function OptimizationPage() {
         optimizationId={params.id as string}
         onTemplateSelect={handleTemplateSelect}
       />
-    </div>
+        </div>
+      </SectionSelectionProvider>
     </CacheBustingErrorBoundary>
   );
 }

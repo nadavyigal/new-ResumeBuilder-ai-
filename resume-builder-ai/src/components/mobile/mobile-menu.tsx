@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Home, Upload, History, Briefcase, Palette, Settings, HelpCircle, LogOut, Sparkles } from "lucide-react";
+import { Menu, X, Home, Upload, Briefcase, Palette, Settings, HelpCircle, LogOut, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,7 +21,6 @@ interface MobileMenuProps {
 const menuItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard" },
   { href: "/dashboard/resume", icon: Upload, label: "Upload Resume" },
-  { href: "/dashboard/history", icon: History, label: "History" },
   { href: "/dashboard/applications", icon: Briefcase, label: "Applications" },
   { href: "/templates", icon: Palette, label: "Templates" },
 ];

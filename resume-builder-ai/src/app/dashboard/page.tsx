@@ -5,9 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Upload, Palette, Briefcase, History, TrendingUp, Sparkles } from "lucide-react";
+import { Upload, Palette, Briefcase, TrendingUp, Sparkles } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
@@ -56,15 +55,15 @@ export default function DashboardPage() {
               <Link href={ROUTES.upload} className="block h-full">
                 <CardHeader className="h-full flex flex-col justify-between">
                   <div>
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-mobile-cta flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                      <Upload className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-white border-2 border-border flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6 md:w-8 md:h-8 text-foreground" />
                     </div>
                     <CardTitle className="text-lg md:text-3xl mb-2 text-foreground">Upload Resume</CardTitle>
                     <CardDescription className="text-xs md:text-base text-foreground/70">
                       Start by uploading your current resume to get AI-powered optimizations
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta-hover hover:bg-[hsl(142_76%_24%)] text-white">
+                  <Button className="w-full md:w-auto mt-4 bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
                     Get Started
                   </Button>
                 </CardHeader>
@@ -99,34 +98,14 @@ export default function DashboardPage() {
                     <CardTitle className="text-base md:text-xl">Applications</CardTitle>
                   </div>
                   <CardDescription className="text-xs md:text-sm mt-2">
-                    Track your jobs
+                    Track your jobs and past optimizations
                   </CardDescription>
                 </CardHeader>
               </Link>
             </Card>
 
-            {/* History */}
-            <Card className="col-span-1 md:col-span-2 hover:shadow-lg transition-all duration-300 border-2 hover:border-purple-500/50">
-              <Link href={ROUTES.dashboard + "/history"} className="block h-full">
-                <CardHeader className="h-full flex flex-row md:flex-col justify-between items-center md:items-start p-4 md:p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                      <History className="w-5 h-5 md:w-6 md:h-6 text-purple-500" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base md:text-xl truncate">Optimization History</CardTitle>
-                      <CardDescription className="text-xs md:text-sm hidden md:block mt-1 line-clamp-2">
-                        View all your past optimizations
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <TrendingUp className="w-5 h-5 text-muted-foreground md:hidden" />
-                </CardHeader>
-              </Link>
-            </Card>
-
             {/* Stats Card - Placeholder */}
-            <Card className="col-span-1 md:col-span-2 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-900/10 border-2">
+            <Card className="col-span-2 md:col-span-2 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-900/10 border-2">
               <CardHeader className="p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>

@@ -46,7 +46,7 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-mobile-cta-hover hover:bg-[hsl(142_76%_24%)] text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
+              className="w-full sm:w-auto bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
                 Get Started Free

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ROUTES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export default function ResumeUploadPage() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -176,7 +177,11 @@ export default function ResumeUploadPage() {
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className={cn("w-full", loading && "whitespace-normal text-center leading-snug")}
+              disabled={loading}
+            >
               {loading ? "Optimizing... (this may take 30-60 seconds)" : "Optimize My Resume"}
             </Button>
             {loading && (

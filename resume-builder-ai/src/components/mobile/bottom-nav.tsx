@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, History, Upload, User } from "lucide-react";
+import { Home, Upload, User, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -12,9 +12,9 @@ const navItems = [
     label: "Home",
   },
   {
-    href: "/dashboard/history",
-    icon: History,
-    label: "History",
+    href: "/dashboard/applications",
+    icon: Briefcase,
+    label: "Applications",
   },
   {
     href: "/dashboard/resume",
@@ -23,7 +23,7 @@ const navItems = [
     primary: true, // Highlighted action
   },
   {
-    href: "/dashboard/applications",
+    href: "/dashboard/profile",
     icon: User,
     label: "Profile",
   },

@@ -160,7 +160,7 @@ export default function ApplicationsPage() {
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Applications</CardTitle>
-            <CardDescription>Browse jobs you applied to and open the matching optimized resume.</CardDescription>
+            <CardDescription>Track your job applications and revisit past optimizations in one place.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 mb-4">
@@ -213,7 +213,7 @@ export default function ApplicationsPage() {
             </div>
             <h3 className="text-lg font-semibold mb-2">No Applications Yet</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-              Start applying to jobs and track your applications here
+              Start applying to jobs, track your applications, and reopen past optimizations here.
             </p>
             <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover">
               <Link href="/dashboard/resume">Upload Resume</Link>
