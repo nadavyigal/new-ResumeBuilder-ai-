@@ -566,6 +566,8 @@ export default function OptimizationPage() {
       // Prepare metadata
       const contact = optimizedResume?.contact || null;
       const atsScore = matchScore ?? null;
+      const fallbackTitle = jobDescription.title || optimizedResume?.contact?.title || 'Job Position';
+      const fallbackCompany = jobDescription.company || optimizedResume?.contact?.company || 'Company Name';
 
       // Call API to persist snapshot
       const res = await fetch('/api/v1/applications', {
@@ -575,8 +577,8 @@ export default function OptimizationPage() {
           html,
           url: jobDescription.source_url || null, // Trigger job extraction to get real company name
           optimizationId: String(params.id || ''),
-          jobTitle: jobDescription.title,
-          company: jobDescription.company,
+          jobTitle: fallbackTitle,
+          company: fallbackCompany,
           atsScore,
           contact,
           jobUrl: jobDescription.source_url || null,

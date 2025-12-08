@@ -126,7 +126,7 @@ export default function ApplicationsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && load()}
-              className="pl-10 h-11 bg-muted/50"
+              className="pl-10 h-11 bg-muted/80 border-2 border-border/70"
             />
           </div>
           {/* Add Job URL Input */}
@@ -137,7 +137,7 @@ export default function ApplicationsPage() {
               value={createUrl}
               onChange={(e) => setCreateUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
-              className="h-11 bg-background border-2 border-border focus:border-mobile-cta transition-colors"
+              className="h-11 bg-muted/80 border-2 border-border/70 focus:border-mobile-cta transition-colors"
             />
             <Button
               onClick={createFromUrl}
@@ -164,7 +164,12 @@ export default function ApplicationsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2 mb-4">
-              <Input placeholder="Search job title or company" value={q} onChange={(e) => setQ(e.target.value)} />
+              <Input
+                placeholder="Search job title or company"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="bg-muted/80 border-2 border-border/70"
+              />
               <Button onClick={load} disabled={loading}>Search</Button>
             </div>
             {/* Add Job URL Input */}
@@ -175,7 +180,7 @@ export default function ApplicationsPage() {
                 value={createUrl}
                 onChange={(e) => setCreateUrl(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
-                className="border-2 border-border focus:border-mobile-cta transition-colors"
+                className="border-2 border-border/70 bg-muted/80 focus:border-mobile-cta transition-colors"
               />
               <Button
                 onClick={createFromUrl}

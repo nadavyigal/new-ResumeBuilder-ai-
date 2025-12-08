@@ -48,9 +48,10 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       padding: 20px;
       color: #0f172a;
       line-height: ${lineHeight};
+      font-size: 13px;
     }
     .resume {
-      max-width: 900px;
+      max-width: 860px;
       margin: 0 auto;
       background: #ffffff;
       padding: ${compact ? '28px' : '40px'};
@@ -65,14 +66,14 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
     }
     .name {
       font-family: var(--font-heading);
-      font-size: 32px;
+      font-size: 26px;
       font-weight: 800;
       color: var(--color-primary);
       letter-spacing: -0.02em;
     }
     .title {
       font-family: var(--font-heading);
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--color-secondary);
       margin-top: 6px;
@@ -82,7 +83,7 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       flex-wrap: wrap;
       gap: 8px 14px;
       margin-top: 10px;
-      font-size: 13px;
+      font-size: 12px;
       color: #475569;
     }
     .contact span::before {
@@ -94,7 +95,7 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
     section { margin-top: 18px; }
     h2 {
       font-family: var(--font-heading);
-      font-size: 18px;
+      font-size: 15px;
       color: var(--color-primary);
       margin-bottom: 10px;
       display: inline-flex;
@@ -110,7 +111,7 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       background: var(--color-accent);
       box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
     }
-    p { color: #1f2937; font-size: 14px; }
+    p { color: #1f2937; font-size: 13px; }
     .pill-row, .pill-col {
       display: flex;
       flex-wrap: wrap;
@@ -135,26 +136,26 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
     .job-title {
       font-weight: 700;
       color: #0f172a;
-      font-size: 15px;
+      font-size: 13.5px;
     }
     .job-company {
       color: #475569;
-      font-size: 13px;
+      font-size: 12px;
       margin-top: 4px;
     }
     .job-dates {
       color: var(--color-secondary);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
     }
     ul { margin-top: 8px; margin-left: 18px; color: #1f2937; }
     li { margin-bottom: 6px; }
     li::marker { color: var(--color-accent); }
-    .degree { font-weight: 700; color: #0f172a; }
-    .school { color: #475569; }
+    .degree { font-weight: 700; color: #0f172a; font-size: 13px; }
+    .school { color: #475569; font-size: 12px; }
 
     /* Two-column layouts */
-    .two-col { display: grid; grid-template-columns: 32% 68%; gap: 18px; }
+    .two-col { display: grid; grid-template-columns: 32% 68%; gap: 14px; }
     .sidebar {
       background: linear-gradient(180deg, rgba(26,115,232,0.08), rgba(26,115,232,0.03));
       border: 1px solid rgba(15,23,42,0.05);
