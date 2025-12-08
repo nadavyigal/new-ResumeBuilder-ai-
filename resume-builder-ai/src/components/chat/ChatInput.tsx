@@ -65,7 +65,7 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-gray-200 bg-white p-4">
+    <form onSubmit={handleSubmit} className="border-t border-gray-200 bg-white px-4 pt-4 pb-8 md:pb-4">
       <div className="relative">
         {/* Textarea */}
         <textarea
@@ -90,7 +90,7 @@ export function ChatInput({
           type="submit"
           disabled={!isValid || isSubmitting || disabled}
           className={`
-            absolute right-2 bottom-2
+            absolute right-2 bottom-3
             flex items-center justify-center
             w-8 h-8 rounded-full
             transition-colors
