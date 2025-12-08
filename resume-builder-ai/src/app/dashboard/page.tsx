@@ -64,7 +64,7 @@ export default function DashboardPage() {
                       Start by uploading your current resume to get AI-powered optimizations
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white">
+                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta-hover hover:bg-[hsl(142_76%_24%)] text-white">
                     Get Started
                   </Button>
                 </CardHeader>
@@ -113,9 +113,9 @@ export default function DashboardPage() {
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
                       <History className="w-5 h-5 md:w-6 md:h-6 text-purple-500" />
                     </div>
-                    <div>
-                      <CardTitle className="text-base md:text-xl">Optimization History</CardTitle>
-                      <CardDescription className="text-xs md:text-sm hidden md:block mt-1">
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base md:text-xl truncate">Optimization History</CardTitle>
+                      <CardDescription className="text-xs md:text-sm hidden md:block mt-1 line-clamp-2">
                         View all your past optimizations
                       </CardDescription>
                     </div>

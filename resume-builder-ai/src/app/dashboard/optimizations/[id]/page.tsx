@@ -617,36 +617,48 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
-        {/* Apply Button - Primary Action */}
-        <Button onClick={handleApply} disabled={applying || isDemoOptimization} className="bg-green-600 hover:bg-green-700">
+      {/* Action Buttons - Mobile Optimized */}
+      <div className="mb-6 space-y-3 print:hidden">
+        {/* Apply Button - Primary Action - Full Width on Mobile */}
+        <Button 
+          onClick={handleApply} 
+          disabled={applying || isDemoOptimization} 
+          className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold h-11"
+        >
           {applying ? '⏳ Applying...' : isDemoOptimization ? 'Demo Preview' : '✓ Apply Now'}
         </Button>
 
-        {/* Export Actions */}
-        <div className="flex gap-3">
-          <Button onClick={handleCopyText} variant="outline">
-            📋 Copy as Text
+        {/* Export Actions - Grid Layout for Mobile */}
+        <div className="grid grid-cols-3 md:flex gap-2 md:gap-3">
+          <Button 
+            onClick={handleCopyText} 
+            variant="outline"
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
+          >
+            <span className="hidden md:inline">📋 </span>Copy
           </Button>
-          <Button onClick={handlePrint} variant="outline">
-            🖨️ Print
+          <Button 
+            onClick={handlePrint} 
+            variant="outline"
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
+          >
+            <span className="hidden md:inline">🖨️ </span>Print
           </Button>
-          <Button onClick={handleDownloadPDF}>
-            📄 Download PDF
-          </Button>
-          <Button onClick={handleDownloadDOCX} variant="outline">
-            📝 Download DOCX
+          <Button 
+            onClick={handleDownloadPDF}
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9 bg-gray-900 hover:bg-gray-800 text-white"
+          >
+            <span className="hidden md:inline">📄 </span>Download
           </Button>
         </div>
 
-        {/* Design Actions */}
-        <div className="flex gap-3 ml-auto items-center">
+        {/* Design Actions - Row Layout */}
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
           {/* Language Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Language:</span>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">🌐 Language:</span>
             <Select value={languagePreference} onValueChange={(value: any) => setLanguagePreference(value)}>
-              <SelectTrigger className="w-[140px] h-9">
+              <SelectTrigger className="flex-1 sm:w-[140px] h-10 md:h-9 text-xs md:text-sm">
                 <SelectValue placeholder="Select language" />
               </SelectTrigger>
               <SelectContent>
@@ -657,7 +669,11 @@ export default function OptimizationPage() {
             </Select>
           </div>
 
-          <Button onClick={() => setShowDesignBrowser(true)} variant="outline">
+          <Button 
+            onClick={() => setShowDesignBrowser(true)} 
+            variant="outline"
+            className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
+          >
             🎨 Change Design
           </Button>
         </div>
@@ -747,16 +763,17 @@ export default function OptimizationPage() {
       </div>
       </SectionSelectionProvider>
 
-      {/* Floating AI Assistant Button */}
+      {/* Floating AI Assistant Button - Mobile Optimized */}
       {optimizedResume && (
         <>
           <button
             onClick={() => setShowChat(!showChat)}
-            className="fixed bottom-6 right-6 md:bottom-8 md:right-8 w-14 h-14 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
+            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white rounded-full shadow-2xl hover:shadow-mobile-cta/50 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
             title="AI Assistant"
+            aria-label="Open AI Assistant"
           >
             <svg
-              className="w-7 h-7 md:w-8 md:h-8 group-hover:scale-110 transition-transform"
+              className="w-6 h-6 md:w-8 md:h-8 group-hover:scale-110 transition-transform"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -769,7 +786,7 @@ export default function OptimizationPage() {
               />
             </svg>
             {atsSuggestions.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+              <span className="absolute -top-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-red-500 text-white text-[10px] md:text-xs rounded-full flex items-center justify-center font-bold">
                 {atsSuggestions.length}
               </span>
             )}

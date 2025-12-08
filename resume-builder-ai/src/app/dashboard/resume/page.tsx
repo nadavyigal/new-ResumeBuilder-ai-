@@ -60,6 +60,15 @@ export default function ResumeUploadPage() {
       return;
     }
 
+    // Normalize URL: add https:// if protocol is missing
+    let normalizedUrl = jobDescriptionUrl.trim();
+    if (inputMode === "url" && normalizedUrl) {
+      // If it doesn't start with http:// or https://, add https://
+      if (!normalizedUrl.match(/^https?:\/\//i)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -67,7 +76,7 @@ export default function ResumeUploadPage() {
     formData.append("resume", resumeFile);
 
     if (inputMode === "url") {
-      formData.append("jobDescriptionUrl", jobDescriptionUrl);
+      formData.append("jobDescriptionUrl", normalizedUrl);
     } else {
       formData.append("jobDescription", jobDescription);
     }
@@ -159,8 +168,8 @@ export default function ResumeUploadPage() {
               ) : (
                 <Input
                   id="job-description-url"
-                  type="url"
-                  placeholder="https://example.com/job-posting"
+                  type="text"
+                  placeholder="Paste job URL here (e.g., https://linkedin.com/jobs/view/123456)"
                   value={jobDescriptionUrl}
                   onChange={(e) => setJobDescriptionUrl(e.target.value)}
                 />

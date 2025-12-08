@@ -46,7 +46,7 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-gradient-to-r from-mobile-cta to-mobile-cta-hover hover:from-mobile-cta-hover hover:to-mobile-cta text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
+              className="w-full sm:w-auto bg-mobile-cta-hover hover:bg-[hsl(142_76%_24%)] text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
                 Get Started Free
@@ -102,19 +102,6 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Sticky Mobile CTA */}
-      <div className="fixed bottom-20 md:bottom-4 left-0 right-0 md:hidden z-40 px-4 animate-slideUp delay-500">
-        <Button
-          asChild
-          size="lg"
-          className="w-full bg-gradient-to-r from-mobile-cta to-mobile-cta-hover text-white shadow-2xl shadow-mobile-cta/50 border-0 h-14 text-base font-semibold backdrop-blur-sm"
-        >
-          <Link href={ROUTES.auth.signUp} className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5" />
-            Get Started Free
-          </Link>
-        </Button>
-      </div>
 
       <style jsx>{`
         @keyframes fadeIn {
