@@ -45,35 +45,36 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
     body {
       font-family: var(--font-body);
       background: #f5f7fb;
-      padding: 20px;
+      padding: 16px;
       color: #0f172a;
       line-height: ${lineHeight};
-      font-size: 13px;
+      font-size: 12.5px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
     }
     .resume {
-      max-width: 860px;
+      max-width: 760px;
       margin: 0 auto;
       background: #ffffff;
-      padding: ${compact ? '28px' : '40px'};
-      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+      padding: ${compact ? '24px' : '32px'};
+      box-shadow: 0 10px 32px rgba(15, 23, 42, 0.07);
       border-radius: 18px;
       border: 1px solid rgba(15, 23, 42, 0.06);
     }
     .header {
-      border-bottom: 3px solid var(--color-primary);
-      padding-bottom: 16px;
-      margin-bottom: 20px;
+      border-bottom: 2px solid rgba(15,23,42,0.08);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
     }
     .name {
       font-family: var(--font-heading);
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 800;
       color: var(--color-primary);
       letter-spacing: -0.02em;
     }
     .title {
       font-family: var(--font-heading);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--color-secondary);
       margin-top: 6px;
@@ -82,8 +83,8 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       display: flex;
       flex-wrap: wrap;
       gap: 8px 14px;
-      margin-top: 10px;
-      font-size: 12px;
+      margin-top: 8px;
+      font-size: 11.5px;
       color: #475569;
     }
     .contact span::before {
@@ -92,12 +93,12 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       color: var(--color-accent);
       font-weight: 700;
     }
-    section { margin-top: 18px; }
+    section { margin-top: 14px; }
     h2 {
       font-family: var(--font-heading);
-      font-size: 15px;
+      font-size: 14px;
       color: var(--color-primary);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -111,22 +112,22 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
       background: var(--color-accent);
       box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
     }
-    p { color: #1f2937; font-size: 13px; }
+    p { color: #1f2937; font-size: 12.5px; }
     .pill-row, .pill-col {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
       margin-top: 6px;
     }
     .pill-row span, .pill-col span {
       background: rgba(26, 115, 232, 0.08);
       color: var(--color-primary);
-      padding: 6px 10px;
+      padding: 5px 9px;
       border-radius: 12px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
     }
-    .experience .job { margin-top: 14px; }
+    .experience .job { margin-top: 12px; padding: 10px; border: 1px solid rgba(15,23,42,0.05); border-radius: 10px; background: #fafbff; }
     .job-header {
       display: flex;
       justify-content: space-between;
@@ -136,40 +137,40 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
     .job-title {
       font-weight: 700;
       color: #0f172a;
-      font-size: 13.5px;
+      font-size: 12.5px;
     }
     .job-company {
       color: #475569;
-      font-size: 12px;
+      font-size: 11.5px;
       margin-top: 4px;
     }
     .job-dates {
       color: var(--color-secondary);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
     }
-    ul { margin-top: 8px; margin-left: 18px; color: #1f2937; }
-    li { margin-bottom: 6px; }
+    ul { margin-top: 6px; margin-left: 16px; color: #1f2937; }
+    li { margin-bottom: 5px; }
     li::marker { color: var(--color-accent); }
-    .degree { font-weight: 700; color: #0f172a; font-size: 13px; }
-    .school { color: #475569; font-size: 12px; }
+    .degree { font-weight: 700; color: #0f172a; font-size: 12.5px; }
+    .school { color: #475569; font-size: 11.5px; }
 
     /* Two-column layouts */
-    .two-col { display: grid; grid-template-columns: 32% 68%; gap: 14px; }
+    .two-col { display: grid; grid-template-columns: 32% 68%; gap: 12px; }
     .sidebar {
       background: linear-gradient(180deg, rgba(26,115,232,0.08), rgba(26,115,232,0.03));
       border: 1px solid rgba(15,23,42,0.05);
       border-radius: 14px;
-      padding: 14px;
+      padding: 12px;
     }
-    .sidebar section { margin-top: 14px; }
+    .sidebar section { margin-top: 12px; }
     .sidebar h3 {
       font-family: var(--font-heading);
-      font-size: 14px;
+      font-size: 13px;
       color: var(--color-primary);
       margin-bottom: 8px;
     }
-    .content section { margin-top: 12px; }
+    .content section { margin-top: 10px; }
 
     /* Corporate tweaks */
     .corporate .sidebar {

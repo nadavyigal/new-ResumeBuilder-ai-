@@ -34,6 +34,9 @@ export default function OptimizationPage() {
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [isDemoOptimization, setIsDemoOptimization] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [fabPosition, setFabPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
@@ -63,6 +66,32 @@ export default function OptimizationPage() {
 
   const params = useParams();
   const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Set initial FAB position after mount (bottom-right)
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    setFabPosition({ x: vw - 84, y: vh - 180 });
+  }, []);
+
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      setFabPosition(prev => ({
+        x: Math.min(Math.max(12, e.clientX - dragOffset.current.x), window.innerWidth - 72),
+        y: Math.min(Math.max(12, e.clientY - dragOffset.current.y), window.innerHeight - 72),
+      }));
+    };
+    const handleUp = () => setDragging(false);
+    if (dragging) {
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
+    }
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [dragging]);
 
   const generateJobDescriptionSummary = (jdData: any) => {
     try {
@@ -769,7 +798,15 @@ export default function OptimizationPage() {
         <>
           <button
             onClick={() => setShowChat(!showChat)}
-            className="fixed bottom-20 md:bottom-8 right-4 md:right-8 w-14 h-14 md:w-18 md:h-18 bg-foreground text-background rounded-full shadow-2xl shadow-mobile-cta/40 ring-4 ring-white/40 hover:ring-white/60 transition-all duration-300 flex items-center justify-center z-[60] print:hidden group"
+            onPointerDown={(e) => {
+              setDragging(true);
+              dragOffset.current = {
+                x: e.clientX - fabPosition.x,
+                y: e.clientY - fabPosition.y,
+              };
+            }}
+            className="fixed w-14 h-14 md:w-18 md:h-18 bg-foreground text-background rounded-full shadow-2xl shadow-mobile-cta/40 ring-4 ring-white/40 hover:ring-white/60 transition-all duration-300 flex items-center justify-center z-[70] print:hidden group touch-none"
+            style={{ left: fabPosition.x, top: fabPosition.y }}
             title="AI Assistant"
             aria-label="Open AI Assistant"
           >
