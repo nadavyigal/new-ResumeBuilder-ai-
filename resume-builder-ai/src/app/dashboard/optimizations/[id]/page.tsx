@@ -356,12 +356,8 @@ export default function OptimizationPage() {
         const response = await fetch(`/api/v1/design/${params.id}`);
 
         if (response.ok) {
-          // IMPORTANT: Only apply design if user explicitly selected one
-          // For now, we'll show natural design by default and let user choose
-          // Comment out to disable auto-loading of previously assigned designs:
-          // const data = await response.json();
-          // setCurrentDesignAssignment(data.assignment);
-          setCurrentDesignAssignment(null); // Always start with natural design
+          const data = await response.json();
+          setCurrentDesignAssignment(data.assignment || null);
         } else if (response.status === 404) {
           // No design assigned yet - show natural design
           setCurrentDesignAssignment(null);
