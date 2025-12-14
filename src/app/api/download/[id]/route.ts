@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { generatePdf, generateDocx, generatePdfWithDesign, generateDocxWithDesign } from "@/lib/export";
 import { hasDesignAssignment } from "@/lib/template-engine";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { downloadRateLimiter, createRateLimitResponse } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,14 +16,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const supabase = await createRouteHandlerClient();
 
+  // Verify user authentication
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Apply rate limiting for PDF/DOCX downloads
+  const rateLimitResult = await downloadRateLimiter.check(user.id);
+  if (!rateLimitResult.allowed) {
+    return createRateLimitResponse(rateLimitResult);
+  }
+
+  // Verify optimization belongs to user (CRITICAL SECURITY FIX)
   const { data: optimizationData, error } = await supabase
     .from("optimizations")
     .select("rewrite_data")
     .eq("id", id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   if (error || !optimizationData) {
-    return NextResponse.json({ error: error?.message || "Optimization not found" }, { status: 500 });
+    return NextResponse.json({ error: error?.message || "Optimization not found" }, { status: 404 });
   }
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;

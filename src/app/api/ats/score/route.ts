@@ -5,12 +5,36 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { generalRateLimiter, createRateLimitResponse } from '@/lib/rate-limit';
 import { scoreResume } from '@/lib/ats';
 import type { ATSScoreInput } from '@/lib/ats/types';
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify user authentication
+    const supabase = await createRouteHandlerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Apply rate limiting (ATS scoring is an expensive operation)
+    const rateLimitResult = await generalRateLimiter.check(user.id);
+    if (!rateLimitResult.allowed) {
+      return createRateLimitResponse(rateLimitResult);
+    }
+
     const body = await request.json();
+
+    // Validate payload size (prevent abuse)
+    if (JSON.stringify(body).length > 500000) {
+      return NextResponse.json(
+        { error: 'Request payload too large. Maximum size is 500KB.' },
+        { status: 413 }
+      );
+    }
 
     const { resume_original, resume_optimized, job_description, job_data } = body;
 

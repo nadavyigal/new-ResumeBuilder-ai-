@@ -108,3 +108,8 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Script completed!" -ForegroundColor Green
 Write-Host "Latest commit: $commitHash" -ForegroundColor Yellow
 Write-Host "========================================" -ForegroundColor Cyan
+
+
+
+
+

@@ -50,6 +50,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
     }
 
+    // Validate file size (max 10MB)
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    if (resumeFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json({
+        error: "File too large. Maximum size is 10MB.",
+        maxSize: "10MB",
+        actualSize: `${(resumeFile.size / (1024 * 1024)).toFixed(2)}MB`
+      }, { status: 413 });
+    }
+
+    // Validate file type (only PDF and DOCX)
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(resumeFile.type)) {
+      return NextResponse.json({
+        error: "Invalid file type. Only PDF and DOCX files are allowed.",
+        allowedTypes: ['PDF', 'DOCX'],
+        receivedType: resumeFile.type
+      }, { status: 400 });
+    }
+
     // Get job description from either direct input or URL (with structured extraction)
     let jobDescriptionText = "";
     let extractedTitle: string | null = null;

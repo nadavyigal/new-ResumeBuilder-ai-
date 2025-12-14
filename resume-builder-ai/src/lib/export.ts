@@ -1,4 +1,5 @@
-import puppeteer from "puppeteer";
+// TEMPORARY FIX: Commenting out puppeteer to isolate build issue
+// import puppeteer from "puppeteer";
 import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from "docx";
 import { OptimizedResume } from "./ai-optimizer";
 import { renderTemplate, TemplateType, renderWithDesign } from "./template-engine";
@@ -22,29 +23,31 @@ export async function generatePdfWithTemplate(
 
 /**
  * Generate PDF from HTML string
+ * TEMPORARY FIX: Disabled puppeteer to isolate build issue
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  // const browser = await puppeteer.launch({
+  //   headless: true,
+  //   args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  // });
 
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  // const page = await browser.newPage();
+  // await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: '20mm',
-      right: '15mm',
-      bottom: '20mm',
-      left: '15mm',
-    },
-  });
+  // const pdfBuffer = await page.pdf({
+  //   format: "A4",
+  //   printBackground: true,
+  //   margin: {
+  //     top: '20mm',
+  //     right: '15mm',
+  //     bottom: '20mm',
+  //     left: '15mm',
+  //   },
+  // });
 
-  await browser.close();
-  return pdfBuffer;
+  // await browser.close();
+  // return pdfBuffer;
+  throw new Error('PDF generation temporarily disabled during build fix');
 }
 
 /**

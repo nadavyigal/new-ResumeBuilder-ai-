@@ -11,7 +11,8 @@
  */
 
 import { OptimizedResume } from '../ai-optimizer';
-import { renderTemplatePreview, transformToJsonResume } from '../design-manager/template-renderer';
+// DISABLED: Circular import causing build failure
+// import { renderTemplatePreview, transformToJsonResume } from '../design-manager/template-renderer';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -637,8 +638,10 @@ export async function renderWithDesign(
       }))
     };
 
-    // Render with design template and customizations
-    const html = renderTemplatePreview(templateSlug, resumeData, customization);
+    // TEMPORARY FIX: Use built-in templates instead of external renderer
+    // TODO: Implement proper design template rendering when template-renderer is fixed
+    const templateType: TemplateType = templateSlug as TemplateType || 'ats-safe';
+    const html = renderTemplate(resume, templateType);
 
     return html;
   } catch (error) {

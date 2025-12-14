@@ -25,6 +25,7 @@ import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplement
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
 import { ensureThread } from '@/lib/ai-assistant/thread-manager';
 import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
 
 /**
  * Apply amendments to resume content
@@ -152,6 +153,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Unauthorized. Please sign in to use chat.' },
         { status: 401 }
+      );
+    }
+
+    // Rate limit chat requests to protect OpenAI usage
+    const rateKey = `chat:${user.id}`;
+    const rateResult = checkRateLimit(rateKey, RATE_LIMITS.ai);
+    if (!rateResult.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((rateResult.resetTime - Date.now()) / 1000));
+      return NextResponse.json(
+        { error: 'Rate limit exceeded. Please slow down and try again shortly.' },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateResult),
+            'Retry-After': retryAfter.toString(),
+            'X-RateLimit-Limit': RATE_LIMITS.ai.maxRequests.toString(),
+          },
+        }
       );
     }
 

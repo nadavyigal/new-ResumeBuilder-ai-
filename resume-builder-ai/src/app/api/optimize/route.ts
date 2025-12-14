@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { cookies } from "next/headers";
 import { optimizeResume } from "@/lib/openai";
 import { scoreOptimization } from "@/lib/ats/integration";
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -13,6 +13,24 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const rateKey = `optimize:${user.id}`;
+    const rateResult = checkRateLimit(rateKey, RATE_LIMITS.ai);
+
+    if (!rateResult.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((rateResult.resetTime - Date.now()) / 1000));
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Please wait before optimizing again." },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateResult),
+            "Retry-After": retryAfter.toString(),
+            "X-RateLimit-Limit": RATE_LIMITS.ai.maxRequests.toString(),
+          },
+        },
+      );
+    }
+
     const { resumeId, jobDescriptionId } = await req.json();
 
     if (!resumeId || !jobDescriptionId) {

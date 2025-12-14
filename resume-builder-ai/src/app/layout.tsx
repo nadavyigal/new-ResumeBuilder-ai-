@@ -4,6 +4,12 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
+// Force dynamic rendering to fix build error
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

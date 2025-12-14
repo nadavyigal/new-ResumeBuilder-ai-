@@ -28,6 +28,25 @@ const createMockSupabase = () => {
   return mockSupabase;
 };
 
+const createOpenAIMock = (options?: {
+  createResultId?: string;
+  retrieveError?: Error | null;
+}) => {
+  const createResult = { id: options?.createResultId ?? 'thread_new123' };
+  const openaiClient = {
+    beta: {
+      threads: {
+        create: jest.fn().mockResolvedValue(createResult),
+        retrieve: options?.retrieveError
+          ? jest.fn().mockRejectedValue(options.retrieveError)
+          : jest.fn().mockResolvedValue({ id: 'thread_existing123' }),
+      },
+    },
+  };
+
+  return openaiClient;
+};
+
 // Mock OpenAI client
 jest.mock('openai', () => ({
   OpenAI: jest.fn().mockImplementation(() => ({
@@ -285,7 +304,13 @@ describe('Thread Manager - ensureThread', () => {
 
       (mockSupabase.from as jest.Mock) = mockFrom;
 
-      const result = await ensureThread('opt-123', 'test-user-id', mockSupabase);
+      const openaiClient = createOpenAIMock({
+        retrieveError: new Error('No thread found with id thread_invalid999'),
+      });
+
+      const result = await ensureThread('opt-123', 'test-user-id', mockSupabase, {
+        openaiClient: openaiClient as any,
+      });
 
       // Should create new thread after marking old one as error
       expect(result.openai_thread_id).toBe('thread_new123');
@@ -336,14 +361,14 @@ describe('Thread Manager - ensureThread', () => {
       (mockSupabase.from as jest.Mock) = mockFrom;
 
       // Mock OpenAI to fail validation
-      const { OpenAI } = require('openai');
-      const mockOpenAI = new OpenAI();
-      mockOpenAI.beta.threads.retrieve = jest.fn().mockRejectedValue(
-        new Error('Thread validation failed')
-      );
+      const openaiClient = createOpenAIMock({
+        retrieveError: new Error('Thread validation failed'),
+      });
 
       try {
-        await ensureThread('opt-123', 'test-user-id', mockSupabase);
+        await ensureThread('opt-123', 'test-user-id', mockSupabase, {
+          openaiClient: openaiClient as any,
+        });
       } catch (error) {
         // Error should be caught and thread marked as error
       }
