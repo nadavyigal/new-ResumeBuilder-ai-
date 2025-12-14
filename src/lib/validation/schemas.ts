@@ -19,25 +19,29 @@ export const OptimizedResumeSchema = z.object({
   summary: z.string().default(""),
   contact: z.object({
     name: z.string().default(""),
-    email: z.string().default(""),
+    email: z.string().email("Invalid email format").default(""),
     phone: z.string().default(""),
     location: z.string().default(""),
-    linkedin: z.string().optional(),
-    portfolio: z.string().optional(),
+    linkedin: z.string().url().optional().or(z.literal("")),
+    github: z.string().url().optional().or(z.literal("")),
+    portfolio: z.string().url().optional().or(z.literal("")),
   }),
   skills: z.object({
     technical: z.array(z.string()).default([]),
     soft: z.array(z.string()).default([]),
+    certifications: z.array(z.string()).optional().default([]),
   }),
   experience: z
     .array(
       z.object({
-        title: z.string().default(""),
+        position: z.string().default(""),
         company: z.string().default(""),
-        location: z.string().default(""),
+        location: z.string().optional().default(""),
         startDate: z.string().default(""),
-        endDate: z.string().default(""),
-        achievements: z.array(z.string()).default([]),
+        endDate: z.string().optional().default(""),
+        description: z.string().optional().default(""),
+        highlights: z.array(z.string()).optional().default([]),
+        achievements: z.array(z.string()).optional().default([]),
       }),
     )
     .optional()
@@ -47,8 +51,10 @@ export const OptimizedResumeSchema = z.object({
       z.object({
         degree: z.string().default(""),
         institution: z.string().default(""),
-        location: z.string().default(""),
-        graduationDate: z.string().default(""),
+        location: z.string().optional().default(""),
+        startDate: z.string().default(""),
+        endDate: z.string().optional().default(""),
+        graduationDate: z.string().optional().default(""),
         gpa: z.string().optional(),
       }),
     )
@@ -61,6 +67,7 @@ export const OptimizedResumeSchema = z.object({
         name: z.string().default(""),
         description: z.string().default(""),
         technologies: z.array(z.string()).default([]),
+        url: z.string().url().optional().or(z.literal("")),
       }),
     )
     .optional()
@@ -75,8 +82,10 @@ export const OptimizedResumeSchema = z.object({
       return Number.isFinite(parsed) ? parsed : 0;
     })
     .pipe(z.number().min(0).max(100)),
-  keyImprovements: z.array(z.string()).default([]),
-  missingKeywords: z.array(z.string()).default([]),
+  improvements: z.array(z.string()).default([]),
+  keyImprovements: z.array(z.string()).optional().default([]),
+  keywords: z.array(z.string()).default([]),
+  missingKeywords: z.array(z.string()).optional().default([]),
 });
 
 export type OptimizedResume = z.infer<typeof OptimizedResumeSchema>;
@@ -121,16 +130,64 @@ export const DownloadRequestSchema = z.object({
 // ==================== DATABASE SCHEMAS ====================
 
 /**
- * Schema for resume data from database
+ * Schema for resume data (used in tests and API validation)
+ * Flexible schema that matches both test fixtures and database records
  */
 export const ResumeDataSchema = z.object({
-  id: z.string().uuid(),
-  user_id: z.string().uuid(),
-  filename: z.string(),
-  storage_path: z.string(),
-  raw_text: z.string(),
-  canonical_data: z.record(z.any()),
-  created_at: z.string(),
+  id: z.string().uuid().optional(),
+  user_id: z.string().uuid().optional(),
+  summary: z.string().optional(),
+  contact: z.object({
+    name: z.string(),
+    email: z.string().email("Invalid email format"),
+    phone: z.string(),
+    location: z.string(),
+    linkedin: z.string().optional(),
+    github: z.string().optional(),
+    portfolio: z.string().optional(),
+  }).optional(),
+  experience: z.array(z.object({
+    company: z.string(),
+    position: z.string(),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    description: z.string().optional(),
+    highlights: z.array(z.string()).optional(),
+  })).optional(),
+  education: z.array(z.object({
+    institution: z.string(),
+    degree: z.string(),
+    startDate: z.string(),
+    endDate: z.string(),
+    gpa: z.string().optional(),
+  })).optional(),
+  skills: z.object({
+    technical: z.array(z.string()),
+    soft: z.array(z.string()),
+  }).optional(),
+  filename: z.string().optional(),
+  storage_path: z.string().optional(),
+  raw_text: z.string().optional(),
+  canonical_data: z.record(z.any()).optional(),
+  created_at: z.string().optional(),
+});
+
+/**
+ * Schema for job description (used in tests and API validation)
+ * Flexible schema that matches both test fixtures and database records
+ */
+export const JobDescriptionSchema = z.object({
+  title: z.string().min(4, "Title must be at least 4 characters"),
+  company: z.string().optional(),
+  location: z.string().optional(),
+  description: z.string(),
+  requirements: z.array(z.string()).optional(),
+  niceToHave: z.array(z.string()).optional(),
+  salary: z.object({
+    min: z.number().optional(),
+    max: z.number().optional(),
+    currency: z.string().optional(),
+  }).optional(),
 });
 
 /**
@@ -190,9 +247,25 @@ export function parseAndValidate<T>(
       throw new Error(`Invalid data structure${contextMsg}:\n${issues}`);
     }
     if (error instanceof SyntaxError) {
-      throw new Error(`Invalid JSON format: ${error.message}`);
+      const contextMsg = context ? ` (${context})` : "";
+      throw new Error(`Invalid JSON format${contextMsg}: ${error.message}`);
     }
     throw error;
+  }
+}
+
+/**
+ * Safely parse JSON string without throwing
+ * Returns parsed object or null on failure
+ */
+export function safeParseJson(jsonString: string): unknown | null {
+  try {
+    if (!jsonString || jsonString.trim() === '') {
+      return null;
+    }
+    return JSON.parse(jsonString);
+  } catch {
+    return null;
   }
 }
 
