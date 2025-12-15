@@ -46,7 +46,6 @@ import {
   buildURLSearchParams,
   buildQueryParams,
   createDefaultFilters,
-  createDefaultSort,
   countActiveFilters,
 } from '@/lib/history-utils';
 
@@ -196,7 +195,7 @@ export default function HistoryTable() {
 
     try {
       // Step 1: Download PDF
-      window.open(`/api/download/${optimization.id}`, '_blank');
+      window.open(`/api/download/${optimization.id}?fmt=pdf`, '_blank');
 
       // Step 2: Open job URL if available
       if (optimization.jobUrl) {

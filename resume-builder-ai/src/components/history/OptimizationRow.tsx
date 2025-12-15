@@ -71,7 +71,7 @@ function OptimizationRow({
   // Handle PDF download
   const handleDownloadPDF = () => {
     // Open download endpoint in new window to trigger download
-    window.open(`/api/download/${optimization.id}`, '_blank');
+    window.open(`/api/download/${optimization.id}?fmt=pdf`, '_blank');
   };
 
   return (

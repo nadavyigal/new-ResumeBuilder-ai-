@@ -1,7 +1,7 @@
-// TEMPORARY FIX: Commenting out puppeteer to isolate build issue
-// import puppeteer from "puppeteer";
 import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from "docx";
+import jsPDF from "jspdf";
 import { OptimizedResume } from "./ai-optimizer";
+import { generateResumePDF } from "./pdf-generator";
 import { renderTemplate, TemplateType, renderWithDesign } from "./template-engine";
 
 /**
@@ -18,36 +18,61 @@ export async function generatePdfWithTemplate(
   templateId: TemplateType = 'ats-safe'
 ): Promise<Buffer> {
   const htmlContent = renderTemplate(resumeData, templateId);
-  return generatePdfFromHTML(htmlContent);
+
+  try {
+    return await generatePdfFromHTML(htmlContent);
+  } catch (error) {
+    console.error("Puppeteer PDF generation failed, falling back to text PDF:", error);
+    return generatePdfFallback(resumeData);
+  }
 }
 
 /**
  * Generate PDF from HTML string
- * TEMPORARY FIX: Disabled puppeteer to isolate build issue
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  // const browser = await puppeteer.launch({
-  //   headless: true,
-  //   args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  // });
+  const puppeteer = (await import("puppeteer")).default;
 
-  // const page = await browser.newPage();
-  // await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
+  try {
+    const executablePath =
+      process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_EXECUTABLE_PATH;
 
-  // const pdfBuffer = await page.pdf({
-  //   format: "A4",
-  //   printBackground: true,
-  //   margin: {
-  //     top: '20mm',
-  //     right: '15mm',
-  //     bottom: '20mm',
-  //     left: '15mm',
-  //   },
-  // });
+    browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath: executablePath || undefined,
+      timeout: 30_000,
+    });
 
-  // await browser.close();
-  // return pdfBuffer;
-  throw new Error('PDF generation temporarily disabled during build fix');
+    const page = await browser.newPage();
+    page.setDefaultTimeout(30_000);
+
+    await page.setContent(htmlContent, {
+      waitUntil: "networkidle0",
+      timeout: 15_000,
+    });
+
+    await page.emulateMediaType("screen");
+
+    return await page.pdf({
+      format: "A4",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "20mm",
+        right: "15mm",
+        bottom: "20mm",
+        left: "15mm",
+      },
+    });
+  } finally {
+    if (browser) {
+      await browser.close().catch((err) => {
+        console.error("Failed to close Puppeteer browser:", err);
+      });
+    }
+  }
 }
 
 /**
@@ -61,7 +86,102 @@ export async function generatePdf(resumeData: OptimizedResume | string): Promise
     ? resumeData
     : renderTemplate(resumeData, 'ats-safe');
 
-  return generatePdfFromHTML(htmlContent);
+  try {
+    return await generatePdfFromHTML(htmlContent);
+  } catch (error) {
+    console.error("Puppeteer PDF generation failed, falling back to text PDF:", error);
+
+    if (typeof resumeData === "string") {
+      return generateTextPdf(stripHtml(htmlContent));
+    }
+
+    return generatePdfFallback(resumeData);
+  }
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function generateTextPdf(text: string): Promise<Buffer> {
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "in",
+    format: "letter",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 0.75;
+  const maxWidth = pageWidth - 2 * margin;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+
+  const lines = doc.splitTextToSize(text, maxWidth);
+  const lineHeight = (10 / 72) * 1.2;
+
+  let yPos = margin;
+  for (const line of lines) {
+    if (yPos > pageHeight - margin) {
+      doc.addPage();
+      yPos = margin;
+    }
+    doc.text(line, margin, yPos);
+    yPos += lineHeight;
+  }
+
+  const pdfOutput = doc.output("arraybuffer");
+  return Buffer.from(pdfOutput);
+}
+
+async function generatePdfFallback(resumeData: OptimizedResume): Promise<Buffer> {
+  return generateResumePDF(
+    {
+      personalInfo: {
+        name: resumeData.contact?.name,
+        email: resumeData.contact?.email,
+        phone: resumeData.contact?.phone,
+        location: resumeData.contact?.location,
+        linkedin: resumeData.contact?.linkedin,
+        website: resumeData.contact?.portfolio,
+      },
+      summary: resumeData.summary,
+      experience: resumeData.experience?.map((exp) => ({
+        title: exp.title,
+        company: exp.company,
+        location: exp.location,
+        startDate: exp.startDate,
+        endDate: exp.endDate,
+        achievements: exp.achievements,
+      })),
+      education: resumeData.education?.map((edu) => ({
+        degree: edu.degree,
+        institution: edu.institution,
+        location: edu.location,
+        graduationDate: edu.graduationDate,
+        gpa: edu.gpa,
+      })),
+      skills: [
+        { category: "Technical Skills", items: resumeData.skills?.technical || [] },
+        { category: "Soft Skills", items: resumeData.skills?.soft || [] },
+      ].filter((c) => c.items.length > 0),
+      certifications: (resumeData.certifications || []).map((cert) => ({
+        name: cert,
+      })),
+      projects: resumeData.projects?.map((project) => ({
+        name: project.name,
+        description: project.description,
+        technologies: project.technologies,
+      })),
+    },
+    "default"
+  );
 }
 
 /**
@@ -217,11 +337,16 @@ export async function generatePdfWithDesign(
   resumeData: OptimizedResume,
   optimizationId: string
 ): Promise<Buffer> {
-  // Render HTML with design assignment
-  const htmlContent = await renderWithDesign(resumeData, optimizationId);
+  try {
+    // Render HTML with design assignment
+    const htmlContent = await renderWithDesign(resumeData, optimizationId);
 
-  // Generate PDF from rendered HTML
-  return generatePdfFromHTML(htmlContent);
+    // Generate PDF from rendered HTML
+    return await generatePdfFromHTML(htmlContent);
+  } catch (error) {
+    console.error("Design PDF generation failed, falling back to text PDF:", error);
+    return generatePdfFallback(resumeData);
+  }
 }
 
 /**
@@ -238,8 +363,9 @@ export async function generatePdfWithDesign(
  */
 export async function generateDocxWithDesign(
   resumeData: OptimizedResume,
-  optimizationId: string
+  _optimizationId: string
 ): Promise<Buffer> {
+  void _optimizationId;
   // For DOCX, we use the base DOCX generator
   // Design customizations are limited in DOCX format
   // Could enhance in the future to apply color schemes and font families
