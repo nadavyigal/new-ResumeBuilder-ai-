@@ -5,12 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createRouteHandlerClient();
 
     // Get current user
     const {

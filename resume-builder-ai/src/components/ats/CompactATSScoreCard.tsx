@@ -29,7 +29,7 @@ export function CompactATSScoreCard({
 
   return (
     <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex-1">
           <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">
             ATS Match Score
@@ -63,8 +63,8 @@ export function CompactATSScoreCard({
         </div>
 
         {/* Right side: Main score and details link */}
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xl rounded-full font-bold">
+        <div className="flex items-center gap-3 flex-wrap justify-end w-full sm:w-auto">
+          <span className="px-3 py-1.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xl rounded-full font-bold shrink-0">
             {atsScoreOptimized}%
           </span>
 
@@ -75,7 +75,7 @@ export function CompactATSScoreCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-auto py-1 px-2 text-xs hover:bg-green-100 dark:hover:bg-green-900/50"
+                  className="h-auto py-1 px-2 text-xs hover:bg-green-100 dark:hover:bg-green-900/50 shrink-0"
                 >
                   <span className="text-green-700 dark:text-green-300">Details</span>
                   <ChevronRight className="w-3 h-3 ml-1" />

@@ -24,27 +24,40 @@ export async function generatePdfWithTemplate(
  * Generate PDF from HTML string
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      timeout: 30000,
+    });
 
-  const page = await browser.newPage();
-  await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, {
+      waitUntil: 'networkidle0',
+      timeout: 15000,
+    });
 
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    printBackground: true,
-    margin: {
-      top: '20mm',
-      right: '15mm',
-      bottom: '20mm',
-      left: '15mm',
-    },
-  });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm',
+      },
+    });
 
-  await browser.close();
-  return pdfBuffer;
+    return pdfBuffer;
+  } finally {
+    // Always close browser to prevent memory leaks
+    if (browser) {
+      await browser.close().catch(err =>
+        console.error('Failed to close browser:', err)
+      );
+    }
+  }
 }
 
 /**

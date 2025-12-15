@@ -44,7 +44,7 @@ export interface ValidationResult {
  */
 export function parseFieldPath(path: string): PathSegment[] {
   if (!path || path.trim() === '') {
-    throw new Error('Field path cannot be empty');
+    throw new Error('Empty path cannot be processed');
   }
 
   const trimmedPath = path.trim();
@@ -144,7 +144,7 @@ export function getFieldValue(data: any, path: string): any {
  */
 export function setFieldValue(data: any, path: string, value: any): any {
   if (!path || path.trim() === '') {
-    throw new Error('Field path cannot be empty');
+    throw new Error('Empty path cannot be processed');
   }
 
   const segments = parseFieldPath(path);
@@ -173,8 +173,11 @@ export function setFieldValue(data: any, path: string, value: any): any {
       if (!Array.isArray(current)) {
         throw new Error(`Cannot access array index on non-array field`);
       }
-      if (segment.index >= current.length) {
+      if (segment.index >= 100) {
         throw new Error(`Array index out of bounds: ${segment.index}`);
+      }
+      while (segment.index >= current.length) {
+        current.push({});
       }
       current = current[segment.index];
     }
@@ -188,8 +191,11 @@ export function setFieldValue(data: any, path: string, value: any): any {
     if (!Array.isArray(current)) {
       throw new Error(`Cannot set array index on non-array field`);
     }
-    if (lastSegment.index >= current.length) {
+    if (lastSegment.index >= 100) {
       throw new Error(`Array index out of bounds: ${lastSegment.index}`);
+    }
+    while (lastSegment.index >= current.length) {
+      current.push(null);
     }
     current[lastSegment.index] = value;
   }
@@ -225,6 +231,13 @@ export function validateFieldPath(path: string, schema: any): ValidationResult {
           return {
             valid: false,
             error: `Cannot access property '${segment.key}' on non-object`,
+          };
+        }
+
+        if (Array.isArray(currentSchema)) {
+          return {
+            valid: false,
+            error: 'Array access requires index',
           };
         }
 

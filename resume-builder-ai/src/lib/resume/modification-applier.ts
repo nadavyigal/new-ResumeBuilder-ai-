@@ -136,8 +136,9 @@ function applyPrefix(data: any, path: string, prefix: string): any {
   const currentValue = getFieldValue(data, path);
 
   if (typeof currentValue !== 'string') {
+    const typeLabel = Array.isArray(currentValue) ? 'array' : typeof currentValue;
     throw new Error(
-      `Cannot prefix non-string field. Current value type: ${typeof currentValue}`
+      `Cannot prefix non-string field. Current value type: ${typeLabel}`
     );
   }
 
@@ -156,8 +157,9 @@ function applySuffix(data: any, path: string, suffix: string): any {
   const currentValue = getFieldValue(data, path);
 
   if (typeof currentValue !== 'string') {
+    const typeLabel = Array.isArray(currentValue) ? 'array' : typeof currentValue;
     throw new Error(
-      `Cannot suffix non-string field. Current value type: ${typeof currentValue}`
+      `Cannot suffix non-string field. Current value type: ${typeLabel}`
     );
   }
 

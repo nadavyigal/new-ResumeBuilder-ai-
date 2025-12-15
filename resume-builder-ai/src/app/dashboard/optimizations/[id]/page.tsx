@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,12 +28,15 @@ export const dynamic = 'force-dynamic';
 
 export default function OptimizationPage() {
   const [resumeText, setResumeText] = useState("");
-  const [jobDescriptionText, setJobDescriptionText] = useState("");
   const [optimizedResume, setOptimizedResume] = useState<OptimizedResume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [matchScore, setMatchScore] = useState<number | null>(null);
   const [isDemoOptimization, setIsDemoOptimization] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [fabPosition, setFabPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<any>(null);
@@ -63,6 +66,32 @@ export default function OptimizationPage() {
 
   const params = useParams();
   const supabase = createClientComponentClient();
+
+  useEffect(() => {
+    // Set initial FAB position after mount (bottom-right)
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    setFabPosition({ x: vw - 84, y: vh - 180 });
+  }, []);
+
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      if (!dragging) return;
+      setFabPosition(prev => ({
+        x: Math.min(Math.max(12, e.clientX - dragOffset.current.x), window.innerWidth - 72),
+        y: Math.min(Math.max(12, e.clientY - dragOffset.current.y), window.innerHeight - 72),
+      }));
+    };
+    const handleUp = () => setDragging(false);
+    if (dragging) {
+      window.addEventListener('pointermove', handleMove);
+      window.addEventListener('pointerup', handleUp);
+    }
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [dragging]);
 
   const generateJobDescriptionSummary = (jdData: any) => {
     try {
@@ -130,7 +159,6 @@ export default function OptimizationPage() {
           try {
             const demoPayload = JSON.parse(cached);
             setResumeText(demoPayload.resumeText || "");
-            setJobDescriptionText(demoPayload.jobDescriptionText || "");
             setOptimizedResume(demoPayload.optimizedResume || null);
             setMatchScore(demoPayload.matchScore ?? null);
             setJobDescription(demoPayload.jobDescription || null);
@@ -196,8 +224,6 @@ export default function OptimizationPage() {
       }
 
       setResumeText((resumeData as any)?.raw_text || "");
-      // Use clean_text if available, otherwise fall back to raw_text
-      setJobDescriptionText((jdData as any)?.clean_text || (jdData as any)?.raw_text || "");
       setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
@@ -331,11 +357,7 @@ export default function OptimizationPage() {
 
         if (response.ok) {
           const data = await response.json();
-          // IMPORTANT: Only apply design if user explicitly selected one
-          // For now, we'll show natural design by default and let user choose
-          // Comment out to disable auto-loading of previously assigned designs:
-          // setCurrentDesignAssignment(data.assignment);
-          setCurrentDesignAssignment(null); // Always start with natural design
+          setCurrentDesignAssignment(data.assignment || null);
         } else if (response.status === 404) {
           // No design assigned yet - show natural design
           setCurrentDesignAssignment(null);
@@ -569,6 +591,8 @@ export default function OptimizationPage() {
       // Prepare metadata
       const contact = optimizedResume?.contact || null;
       const atsScore = matchScore ?? null;
+      const fallbackTitle = jobDescription.title || optimizedResume?.contact?.title || 'Job Position';
+      const fallbackCompany = jobDescription.company || optimizedResume?.contact?.company || 'Company Name';
 
       // Call API to persist snapshot
       const res = await fetch('/api/v1/applications', {
@@ -578,8 +602,8 @@ export default function OptimizationPage() {
           html,
           url: jobDescription.source_url || null, // Trigger job extraction to get real company name
           optimizationId: String(params.id || ''),
-          jobTitle: jobDescription.title,
-          company: jobDescription.company,
+          jobTitle: fallbackTitle,
+          company: fallbackCompany,
           atsScore,
           contact,
           jobUrl: jobDescription.source_url || null,
@@ -592,7 +616,7 @@ export default function OptimizationPage() {
         throw new Error(j.error || 'Failed to save application snapshot');
       }
 
-      // Navigate to History table after apply
+      // Navigate to applications list after apply
       window.location.href = `/dashboard/applications`;
 
     } catch (error) {
@@ -604,7 +628,8 @@ export default function OptimizationPage() {
 
   return (
     <CacheBustingErrorBoundary>
-    <div className="min-h-screen bg-muted/50 p-4 md:p-10">
+      <SectionSelectionProvider>
+        <div className="min-h-screen bg-muted/50 p-4 md:p-10">
       {isDemoOptimization && (
         <div className="mb-4 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 text-sm text-primary">
           Demo mode is active because backend credentials or authentication are not configured. The content below is generated locally so you can experience the optimization workflow end-to-end.
@@ -613,43 +638,55 @@ export default function OptimizationPage() {
       {/* Page Header with Navigation */}
       <div className="mb-4 flex justify-between items-center print:hidden">
         <Link href="/dashboard/applications" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-          ← Back to History
+          Back to Applications
         </Link>
         <div className="text-sm text-muted-foreground">
           {jobDescription?.title && `${jobDescription.title} at ${jobDescription.company}`}
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="mb-6 flex flex-wrap gap-3 items-center print:hidden">
-        {/* Apply Button - Primary Action */}
-        <Button onClick={handleApply} disabled={applying || isDemoOptimization} className="bg-green-600 hover:bg-green-700">
+      {/* Action Buttons - Mobile Optimized */}
+      <div className="mb-6 space-y-3 print:hidden">
+        {/* Apply Button - Primary Action - Full Width on Mobile */}
+        <Button 
+          onClick={handleApply} 
+          disabled={applying || isDemoOptimization} 
+          className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold h-11"
+        >
           {applying ? '⏳ Applying...' : isDemoOptimization ? 'Demo Preview' : '✓ Apply Now'}
         </Button>
 
-        {/* Export Actions */}
-        <div className="flex gap-3">
-          <Button onClick={handleCopyText} variant="outline">
-            📋 Copy as Text
+        {/* Export Actions - Grid Layout for Mobile */}
+        <div className="grid grid-cols-3 md:flex gap-2 md:gap-3">
+          <Button 
+            onClick={handleCopyText} 
+            variant="outline"
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
+          >
+            <span className="hidden md:inline">📋 </span>Copy
           </Button>
-          <Button onClick={handlePrint} variant="outline">
-            🖨️ Print
+          <Button 
+            onClick={handlePrint} 
+            variant="outline"
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
+          >
+            <span className="hidden md:inline">🖨️ </span>Print
           </Button>
-          <Button onClick={handleDownloadPDF}>
-            📄 Download PDF
-          </Button>
-          <Button onClick={handleDownloadDOCX} variant="outline">
-            📝 Download DOCX
+          <Button 
+            onClick={handleDownloadPDF}
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9 bg-gray-900 hover:bg-gray-800 text-white"
+          >
+            <span className="hidden md:inline">📄 </span>Download
           </Button>
         </div>
 
-        {/* Design Actions */}
-        <div className="flex gap-3 ml-auto items-center">
+        {/* Design Actions - Row Layout */}
+        <div className="flex flex-col sm:flex-row gap-2 md:gap-3">
           {/* Language Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Language:</span>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">🌐 Language:</span>
             <Select value={languagePreference} onValueChange={(value: any) => setLanguagePreference(value)}>
-              <SelectTrigger className="w-[140px] h-9">
+              <SelectTrigger className="flex-1 sm:w-[140px] h-10 md:h-9 text-xs md:text-sm">
                 <SelectValue placeholder="Select language" />
               </SelectTrigger>
               <SelectContent>
@@ -660,7 +697,11 @@ export default function OptimizationPage() {
             </Select>
           </div>
 
-          <Button onClick={() => setShowDesignBrowser(true)} variant="outline">
+          <Button 
+            onClick={() => setShowDesignBrowser(true)} 
+            variant="outline"
+            className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
+          >
             🎨 Change Design
           </Button>
         </div>
@@ -729,11 +770,10 @@ export default function OptimizationPage() {
         </div>
       </div>
 
-      {/* Main Layout: Resume Preview (Left) | AI Assistant (Right) */}
-      <SectionSelectionProvider>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Left Column: Resume Preview (2/3 width) - Below Current Design */}
-        <div className="lg:col-span-2">
+      {/* Main Layout: Resume Preview (Full Width) */}
+      <div className="mb-8">
+        {/* Resume Preview - Full Width */}
+        <div className="w-full">
           {/* Optimized Resume - DesignRenderer handles its own loading and transitions */}
           {optimizedResume && (
             <DesignRenderer
@@ -747,23 +787,84 @@ export default function OptimizationPage() {
             />
           )}
         </div>
+      </div>
 
-        {/* Right Column: AI Chat (1/3 width) - Below ATS Score */}
-        <div className="print:hidden">
-          {optimizedResume && (
-            <div className="sticky top-4 h-[calc(100vh-220px)]">
-              <ChatSidebar
-                optimizationId={params.id as string}
-                onMessageSent={handleChatMessageSent}
-                onDesignPreview={(c) => setEphemeralCustomization(c)}
-                atsSuggestions={atsSuggestions}
-                onPendingChanges={setPendingChanges}
+      {/* Floating AI Assistant Button - Mobile Optimized */}
+      {optimizedResume && (
+        <>
+          <button
+            onClick={() => setShowChat(!showChat)}
+            onPointerDown={(e) => {
+              setDragging(true);
+              dragOffset.current = {
+                x: e.clientX - fabPosition.x,
+                y: e.clientY - fabPosition.y,
+              };
+            }}
+            className="fixed w-14 h-14 md:w-18 md:h-18 bg-foreground text-background rounded-full shadow-2xl shadow-mobile-cta/40 ring-4 ring-white/40 hover:ring-white/60 transition-all duration-300 flex items-center justify-center z-[70] print:hidden group touch-none"
+            style={{ left: fabPosition.x, top: fabPosition.y }}
+            title="AI Assistant"
+            aria-label="Open AI Assistant"
+          >
+            <svg
+              className="w-7 h-7 md:w-9 md:h-9 group-hover:scale-110 transition-transform drop-shadow"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
               />
+            </svg>
+            {atsSuggestions.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 md:w-6 md:h-6 bg-red-500 text-white text-[10px] md:text-xs rounded-full flex items-center justify-center font-bold">
+                {atsSuggestions.length}
+              </span>
+            )}
+          </button>
+
+          {/* Chat Modal Overlay */}
+          {showChat && (
+            <div
+              className="fixed inset-0 bg-black/50 z-40 print:hidden"
+              onClick={() => setShowChat(false)}
+            >
+              <div
+                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="h-full flex flex-col">
+                  {/* Chat Header */}
+                  <div className="flex items-center justify-between p-4 border-b-2 border-border bg-muted/50">
+                    <h3 className="font-bold text-lg">AI Assistant</h3>
+                    <button
+                      onClick={() => setShowChat(false)}
+                      className="w-8 h-8 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  {/* Chat Content */}
+                  <div className="flex-1 overflow-hidden">
+                    <ChatSidebar
+                      optimizationId={params.id as string}
+                      onMessageSent={handleChatMessageSent}
+                      onDesignPreview={(c) => setEphemeralCustomization(c)}
+                      atsSuggestions={atsSuggestions}
+                      onPendingChanges={setPendingChanges}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </div>
-      </SectionSelectionProvider>
+        </>
+      )}
 
       {/* Original Data (Collapsible) - Below Everything */}
       <div className="grid gap-4 md:grid-cols-2 print:hidden">
@@ -831,7 +932,8 @@ export default function OptimizationPage() {
         optimizationId={params.id as string}
         onTemplateSelect={handleTemplateSelect}
       />
-    </div>
+        </div>
+      </SectionSelectionProvider>
     </CacheBustingErrorBoundary>
   );
 }

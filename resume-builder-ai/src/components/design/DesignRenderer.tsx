@@ -592,8 +592,9 @@ export function DesignRenderer({
   refreshKey,
   languagePreference = 'auto'
 }: DesignRendererProps) {
-  // Check if this is an external template
-  const isExternalTemplate = templateSlug && ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'].includes(templateSlug);
+  // Check if this is an external template (anything that isn't explicit internal)
+  const internalSlugs = ['ats-safe', 'default'];
+  const isExternalTemplate = templateSlug ? !internalSlugs.includes(templateSlug) : false;
 
   // Calculate total affected sections
   const affectedSections = new Set(

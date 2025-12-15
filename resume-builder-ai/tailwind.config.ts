@@ -16,6 +16,14 @@ const config: Config = {
         "2xl": "1400px",
       },
     },
+    screens: {
+      xs: "375px",   // Small phones
+      sm: "640px",   // Large phones
+      md: "768px",   // Tablets - PRIMARY MOBILE/DESKTOP SPLIT
+      lg: "1024px",  // Desktop
+      xl: "1280px",  // Large desktop
+      "2xl": "1400px",
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -51,6 +59,16 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Mobile-specific colors for high conversion
+        "mobile-primary": "hsl(20 20% 10%)",
+        "mobile-primary-hover": "hsl(20 30% 20%)",
+        "mobile-cta": "hsl(142 76% 36%)",      // Green for CTAs
+        "mobile-cta-hover": "hsl(142 76% 30%)",
+      },
+      spacing: {
+        "safe-top": "env(safe-area-inset-top)",
+        "safe-bottom": "env(safe-area-inset-bottom)",
+        "mobile-nav": "60px",  // Bottom nav height
       },
       borderColor: {
         DEFAULT: "hsl(var(--border))",

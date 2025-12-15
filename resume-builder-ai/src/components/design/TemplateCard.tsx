@@ -109,11 +109,19 @@ export function TemplateCard({
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-600">
-              <div className="text-center p-4">
-                <div className="text-4xl mb-2">📄</div>
-                <p className="text-sm">Preview unavailable</p>
-              </div>
+            <div className="w-full h-full overflow-hidden">
+              <iframe
+                src={`/api/v1/design/templates/${template.id}/preview`}
+                className="border-none pointer-events-none"
+                title={`${template.name} preview`}
+                loading="lazy"
+                style={{
+                  width: "120%",
+                  height: "120%",
+                  transform: "scale(0.8)",
+                  transformOrigin: "top left",
+                }}
+              />
             </div>
           )}
 
@@ -210,16 +218,31 @@ export function TemplateCard({
             className="relative w-full max-w-4xl max-h-[90vh] bg-white dark:bg-gray-900 rounded-lg shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                {template.name} - Full Preview
-              </h3>
-              <button
-                onClick={() => setShowPreview(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-              >
-                ×
-              </button>
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 gap-3">
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Template</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {template.name}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    onSelect();
+                    setShowPreview(false);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                  aria-label="Close preview"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
             <div className="relative h-[calc(90vh-120px)] overflow-auto">

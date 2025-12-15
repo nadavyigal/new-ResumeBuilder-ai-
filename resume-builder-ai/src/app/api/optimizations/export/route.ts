@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import JSZip from 'jszip';
 import type { BulkExportRequest } from '@/types/history';
+import { generateResumePDF } from '@/lib/pdf-generator';
 
 /**
  * POST /api/optimizations/export
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch optimization details with job descriptions
-    const { data: optimizations, error: fetchError } = await supabase
+    const { data: optimizations, error: fetchError} = await supabase
       .from('optimizations')
       .select(`
         id,
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
         match_score,
         status,
         template_key,
-        optimized_resume,
+        optimization_data,
         job_descriptions!jd_id (
           id,
           title,
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
     // Add each optimization to ZIP
     for (const opt of optimizations) {
       try {
-        const jd = opt.job_descriptions as any;
+        const jd = opt.job_descriptions as { id?: string; title?: string; company?: string } | null;
         const jobTitle = jd?.title || 'Unknown Position';
         const company = jd?.company || 'Unknown Company';
         const date = new Date(opt.created_at).toISOString().split('T')[0];
@@ -150,30 +151,53 @@ export async function POST(req: NextRequest) {
           .replace(/_+/g, '_')
           .substring(0, 200); // Limit filename length
 
-        // Check if optimized_resume exists (PDF data)
-        if (opt.optimized_resume) {
-          // Assuming optimized_resume contains PDF data (adjust based on actual structure)
-          // For now, we'll create a placeholder or fetch from storage
-          // TODO: Replace with actual PDF fetching logic
+        // Check if optimization_data exists (resume JSON data)
+        if (opt.optimization_data) {
+          try {
+            // Generate PDF from optimization_data
+            const pdfBuffer = await generateResumePDF(
+              opt.optimization_data,
+              opt.template_key || 'default'
+            );
 
-          // If PDF is stored as base64 or buffer
-          zip.file(filename, opt.optimized_resume, { binary: true });
+            // Add PDF to ZIP
+            zip.file(filename, pdfBuffer, { binary: true });
 
-          manifest.push(`✅ ${filename}`);
-          manifest.push(`   ID: ${opt.id}`);
-          manifest.push(`   Company: ${company}`);
-          manifest.push(`   Position: ${jobTitle}`);
-          manifest.push(`   ATS Match: ${score}%`);
-          manifest.push(`   Created: ${date}`);
-          manifest.push('');
+            manifest.push(`✅ ${filename}`);
+            manifest.push(`   ID: ${opt.id}`);
+            manifest.push(`   Company: ${company}`);
+            manifest.push(`   Position: ${jobTitle}`);
+            manifest.push(`   ATS Match: ${score}%`);
+            manifest.push(`   Created: ${date}`);
+            manifest.push('');
+          } catch (pdfError) {
+            console.error(`Error generating PDF for optimization ${opt.id}:`, pdfError);
+
+            // Fallback: Export JSON if PDF generation fails
+            const jsonContent = JSON.stringify(opt.optimization_data, null, 2);
+            const jsonFilename = filename.replace('.pdf', '.json');
+            zip.file(jsonFilename, jsonContent);
+
+            failed.push({
+              id: opt.id,
+              error: 'PDF generation failed, exported as JSON',
+            });
+
+            manifest.push(`⚠️  ${jsonFilename} (PDF generation failed)`);
+            manifest.push(`   ID: ${opt.id}`);
+            manifest.push(`   Company: ${company}`);
+            manifest.push(`   Position: ${jobTitle}`);
+            manifest.push(`   Error: ${pdfError instanceof Error ? pdfError.message : 'Unknown error'}`);
+            manifest.push('');
+          }
         } else {
-          // PDF not available
+          // Resume data not available
           failed.push({
             id: opt.id,
-            error: 'PDF not available',
+            error: 'Resume data not available',
           });
 
-          manifest.push(`❌ ${filename} - PDF not available`);
+          manifest.push(`❌ ${filename} - Resume data not available`);
           manifest.push(`   ID: ${opt.id}`);
           manifest.push(`   Company: ${company}`);
           manifest.push(`   Position: ${jobTitle}`);

@@ -34,4 +34,43 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
   }
+
+  /* Mobile-first typography scale */
+  h1 {
+    @apply text-3xl md:text-5xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+  h3 {
+    @apply text-xl md:text-2xl font-semibold;
+  }
+
+  /* Touch target utilities - minimum 44x44px for WCAG 2.1 AAA */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Ensure inputs don't zoom on iOS */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  textarea,
+  select {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+
+  /* Safe area handling for notched devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
 }

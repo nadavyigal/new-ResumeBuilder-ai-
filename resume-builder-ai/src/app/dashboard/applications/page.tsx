@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Search, ArrowLeft, Briefcase, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ApplicationCard } from "@/components/mobile/application-card";
 
 // Helper function to clean job titles (remove company name and LinkedIn suffix)
 function cleanJobTitle(title: string): string {
@@ -77,98 +79,224 @@ export default function ApplicationsPage() {
   }, []);
 
   const createFromUrl = async () => {
-    if (!createUrl) return;
-    const res = await fetch('/api/v1/applications', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: createUrl })
-    });
-    if (res.ok) {
-      setCreateUrl("");
-      await load();
+    if (!createUrl.trim()) return;
+
+    try {
+      const res = await fetch('/api/v1/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: createUrl.trim() })
+      });
+
+      if (res.ok) {
+        setCreateUrl("");
+        await load();
+        // Show success feedback
+        alert('Job application added successfully!');
+      } else {
+        const errorData = await res.json().catch(() => ({ error: 'Failed to add job' }));
+        alert(`Error: ${errorData.error || 'Failed to add job. Please try again.'}`);
+      }
+    } catch (error) {
+      console.error('Error adding job from URL:', error);
+      alert('Failed to add job. Please check your internet connection and try again.');
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-4">
-        <Link href="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
-          ← Back to Dashboard
-        </Link>
-      </div>
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Applications</CardTitle>
-          <CardDescription>Browse jobs you applied to and open the matching optimized resume.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 mb-4">
-            <Input placeholder="Search job title or company" value={q} onChange={(e) => setQ(e.target.value)} />
-            <Button onClick={load} disabled={loading}>Search</Button>
+    <div className="min-h-screen bg-background">
+      {/* Mobile Sticky Header */}
+      <div className="md:hidden sticky top-0 z-40 bg-background/95 backdrop-blur-xl border-b-2 border-border">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Link href="/dashboard" className="touch-target">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold">Applications</h1>
+            <p className="text-xs text-muted-foreground">{items.length} total</p>
           </div>
-          {/* Removed Create from URL per request */}
-        </CardContent>
-      </Card>
+        </div>
 
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="w-full overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-3">Resume</th>
-                    <th className="py-3">Company name</th>
-                    <th className="py-3">Job title</th>
-                    <th className="py-3">Application date</th>
-                    <th className="py-3">ATS score</th>
-                    <th className="py-3">Easy Apply</th>
-                    <th className="py-3">Job URL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((it) => (
-                    <tr key={it.id} className="border-b">
-                      <td className="py-3">
-                        {it.optimization_id ? (
-                          <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">resume</Link>
-                        ) : (it.optimized_resume_url ? <a href={it.optimized_resume_url} target="_blank" className="underline">Open optimized</a> : '-')}
-                      </td>
-                      <td className="py-3">{it.job_extraction?.company_name || it.company_name || '-'}</td>
-                      <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
-                      <td className="py-3">
-                        {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
-                        <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
-                      </td>
-                      <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
-                      <td className="py-3">
-                        {it.source_url ? (
-                          <a
-                            href={it.source_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors"
-                          >
-                            Apply
-                          </a>
-                        ) : '-'}
-                      </td>
-                      <td className="py-3">{it.source_url ? <a href={it.source_url} target="_blank" className="underline">Job URL</a> : '-'}</td>
-                    </tr>
-                  ))}
-                  {items.length === 0 && (
-                    <tr>
-                      <td className="py-6 text-muted-foreground" colSpan={8}>No applications yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+        {/* Mobile Search Bar */}
+        <div className="px-4 pb-3 space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search jobs..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && load()}
+              className="pl-10 h-11 bg-muted/80 border-2 border-border/70"
+            />
+          </div>
+          {/* Add Job URL Input */}
+          <div className="flex gap-2">
+            <Input
+              type="url"
+              placeholder="Paste LinkedIn job URL..."
+              value={createUrl}
+              onChange={(e) => setCreateUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
+              className="h-11 bg-muted/80 border-2 border-border/70 focus:border-mobile-cta transition-colors"
+            />
+            <Button
+              onClick={createFromUrl}
+              disabled={!createUrl.trim()}
+              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white disabled:opacity-50"
+            >
+              Add
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Header */}
+      <div className="hidden md:block p-6">
+        <div className="mb-4">
+          <Link href="/dashboard" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+            ← Back to Dashboard
+          </Link>
+        </div>
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Applications</CardTitle>
+            <CardDescription>Track your job applications and revisit past optimizations in one place.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 mb-4">
+              <Input
+                placeholder="Search job title or company"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="bg-muted/80 border-2 border-border/70"
+              />
+              <Button onClick={load} disabled={loading}>Search</Button>
+            </div>
+            {/* Add Job URL Input */}
+            <div className="flex items-center gap-2">
+              <Input
+                type="url"
+                placeholder="Paste LinkedIn job URL to add..."
+                value={createUrl}
+                onChange={(e) => setCreateUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && createFromUrl()}
+                className="border-2 border-border/70 bg-muted/80 focus:border-mobile-cta transition-colors"
+              />
+              <Button
+                onClick={createFromUrl}
+                disabled={!createUrl.trim()}
+                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+              >
+                Add Job
+              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
+
+      {/* Mobile Card Layout */}
+      <div className="md:hidden px-4 pb-24">
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="p-4 animate-pulse">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-full" />
+                  </div>
+                  <div className="w-16 h-16 bg-muted rounded-xl" />
+                </div>
+                <div className="mt-3 h-8 bg-muted rounded" />
+              </Card>
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+              <Briefcase className="w-10 h-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No Applications Yet</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-xs">
+              Start applying to jobs, track your applications, and reopen past optimizations here.
+            </p>
+            <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover">
+              <Link href="/dashboard/resume">Upload Resume</Link>
+            </Button>
+          </div>
+        ) : (
+          items.map((application) => (
+            <ApplicationCard
+              key={application.id}
+              application={application}
+              onMarkApplied={load}
+            />
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block px-6 pb-6">
+        {loading ? (
+          <div>Loading...</div>
+        ) : (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left border-b">
+                      <th className="py-3">Resume</th>
+                      <th className="py-3">Company name</th>
+                      <th className="py-3">Job title</th>
+                      <th className="py-3">Application date</th>
+                      <th className="py-3">ATS score</th>
+                      <th className="py-3">Easy Apply</th>
+                      <th className="py-3">Job URL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it) => (
+                      <tr key={it.id} className="border-b">
+                        <td className="py-3">
+                          {it.optimization_id ? (
+                            <Link href={`/dashboard/optimizations/${it.optimization_id}`} className="underline">resume</Link>
+                          ) : (it.optimized_resume_url ? <a href={it.optimized_resume_url} target="_blank" className="underline">Open optimized</a> : '-')}
+                        </td>
+                        <td className="py-3">{it.job_extraction?.company_name || it.company_name || '-'}</td>
+                        <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
+                        <td className="py-3">
+                          {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
+                          <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
+                        </td>
+                        <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
+                        <td className="py-3">
+                          {it.source_url ? (
+                            <a
+                              href={it.source_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-full transition-colors"
+                            >
+                              Apply
+                            </a>
+                          ) : '-'}
+                        </td>
+                        <td className="py-3">{it.source_url ? <a href={it.source_url} target="_blank" className="underline">Job URL</a> : '-'}</td>
+                      </tr>
+                    ))}
+                    {items.length === 0 && (
+                      <tr>
+                        <td className="py-6 text-muted-foreground" colSpan={8}>No applications yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

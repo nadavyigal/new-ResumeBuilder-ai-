@@ -7,6 +7,13 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^server-only$': '<rootDir>/tests/__mocks__/server-only.ts',
   },
+  // Skip heavy suites requiring live services (e2e/contract/integration) for unit runs
+  testPathIgnorePatterns: [
+    '<rootDir>/tests/e2e/',
+    '<rootDir>/tests/contract/',
+    '<rootDir>/tests/integration/',
+    '<rootDir>/tests/performance/',
+  ],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.json' }],
   },
@@ -15,4 +22,3 @@ const config: Config = {
 };
 
 export default config;
-

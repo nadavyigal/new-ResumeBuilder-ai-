@@ -82,7 +82,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       error: errorMessage,
-      details: error instanceof Error ? error.stack : undefined
+      // Only include stack traces in development (security fix)
+      ...(process.env.NODE_ENV === 'development' && {
+        details: error instanceof Error ? error.stack : undefined
+      })
     }, { status: statusCode });
   }
 }

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ROUTES } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export default function ResumeUploadPage() {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -60,6 +61,15 @@ export default function ResumeUploadPage() {
       return;
     }
 
+    // Normalize URL: add https:// if protocol is missing
+    let normalizedUrl = jobDescriptionUrl.trim();
+    if (inputMode === "url" && normalizedUrl) {
+      // If it doesn't start with http:// or https://, add https://
+      if (!normalizedUrl.match(/^https?:\/\//i)) {
+        normalizedUrl = `https://${normalizedUrl}`;
+      }
+    }
+
     setLoading(true);
     setError(null);
 
@@ -67,7 +77,7 @@ export default function ResumeUploadPage() {
     formData.append("resume", resumeFile);
 
     if (inputMode === "url") {
-      formData.append("jobDescriptionUrl", jobDescriptionUrl);
+      formData.append("jobDescriptionUrl", normalizedUrl);
     } else {
       formData.append("jobDescription", jobDescription);
     }
@@ -159,15 +169,19 @@ export default function ResumeUploadPage() {
               ) : (
                 <Input
                   id="job-description-url"
-                  type="url"
-                  placeholder="https://example.com/job-posting"
+                  type="text"
+                  placeholder="Paste job URL here (e.g., https://linkedin.com/jobs/view/123456)"
                   value={jobDescriptionUrl}
                   onChange={(e) => setJobDescriptionUrl(e.target.value)}
                 />
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className={cn("w-full", loading && "whitespace-normal text-center leading-snug")}
+              disabled={loading}
+            >
               {loading ? "Optimizing... (this may take 30-60 seconds)" : "Optimize My Resume"}
             </Button>
             {loading && (

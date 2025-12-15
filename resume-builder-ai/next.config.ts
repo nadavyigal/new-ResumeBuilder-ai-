@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Prefer server rendering to avoid static export prerender issues during build
+  output: "standalone",
+  distDir: '.next',
+  outputFileTracingRoot: path.resolve(__dirname),
   eslint: {
     // Disable ESLint during builds to allow deployment
     ignoreDuringBuilds: true,
@@ -17,9 +21,11 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Exclude pdf-parse from webpack bundling to avoid test code execution
+      // Exclude pdf-parse and puppeteer from webpack bundling
       config.externals = config.externals || [];
       config.externals.push('pdf-parse');
+      config.externals.push('puppeteer');
+      config.externals.push('puppeteer-core');
     }
     return config;
   },
