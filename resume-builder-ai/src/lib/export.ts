@@ -3,6 +3,9 @@ import jsPDF from "jspdf";
 import { OptimizedResume } from "./ai-optimizer";
 import { generateResumePDF } from "./pdf-generator";
 import { renderTemplate, TemplateType, renderWithDesign } from "./template-engine";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { ResumePDF } from "./pdf-renderer";
+import React from "react";
 
 /**
  * Generate PDF from optimized resume data with template support
@@ -10,88 +13,69 @@ import { renderTemplate, TemplateType, renderWithDesign } from "./template-engin
  * FR-018: Preserve formatting consistency
  * FR-019: Ensure ATS compatibility
  *
- * @param resumeData - Optimized resume or HTML string
- * @param templateId - Template type to use (default: 'ats-safe')
+ * @param resumeData - Optimized resume data
+ * @param templateId - Template type to use (default: 'ats-safe') - currently unused as we use React PDF
  */
 export async function generatePdfWithTemplate(
   resumeData: OptimizedResume,
   templateId: TemplateType = 'ats-safe'
 ): Promise<Buffer> {
-  console.log(`[PDF] Generating PDF with template: ${templateId}`);
-  const htmlContent = renderTemplate(resumeData, templateId);
-  console.log('[PDF] HTML template rendered, length:', htmlContent.length);
+  void templateId; // React PDF uses its own styling
+  console.log(`[PDF] Generating PDF with React PDF renderer`);
 
   try {
-    const pdfBuffer = await generatePdfFromHTML(htmlContent);
-    console.log('[PDF] PDF generated successfully with styled template');
+    const pdfBuffer = await generatePdfFromReact(resumeData);
+    console.log('[PDF] PDF generated successfully with React PDF');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] Puppeteer PDF generation failed, falling back to plain text PDF:", error);
+    console.error("[PDF] React PDF generation failed, falling back:", error);
     const fallbackBuffer = await generatePdfFallback(resumeData);
-    console.log('[PDF] Fallback PDF generated (plain text)');
+    console.log('[PDF] Fallback PDF generated with jsPDF');
     return fallbackBuffer;
   }
 }
 
 /**
- * Generate PDF from HTML string using Puppeteer
- * Falls back gracefully if Puppeteer is not available
+ * Clean resume data by removing internal annotations and metadata
+ * Removes patterns like "[Tip applied: ...]" from achievements
  */
-async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
+function cleanResumeData(resumeData: OptimizedResume): OptimizedResume {
+  const cleaned = { ...resumeData };
+
+  // Clean achievements in experience
+  if (cleaned.experience) {
+    cleaned.experience = cleaned.experience.map(exp => ({
+      ...exp,
+      achievements: exp.achievements?.map(achievement =>
+        achievement.replace(/\[Tip applied:.*?\]/gi, '').trim()
+      ) || []
+    }));
+  }
+
+  return cleaned;
+}
+
+/**
+ * Generate PDF using React PDF renderer (serverless-compatible)
+ * This works in Vercel without requiring Chrome/Puppeteer
+ */
+async function generatePdfFromReact(resumeData: OptimizedResume): Promise<Buffer> {
   try {
-    console.log('[PDF] Attempting to use Puppeteer for PDF generation...');
+    console.log('[PDF] Using @react-pdf/renderer for serverless PDF generation...');
 
-    // Check if running in Node.js environment with file system access
-    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
-    console.log(`[PDF] Environment: ${isServerless ? 'serverless' : 'standard Node.js'}`);
+    // Clean resume data before rendering
+    const cleanedData = cleanResumeData(resumeData);
 
-    const puppeteer = (await import("puppeteer")).default;
+    // Create React PDF document
+    const pdfDocument = React.createElement(ResumePDF, { resume: cleanedData });
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu'
-      ],
-    });
+    // Render to buffer
+    const pdfBuffer = await renderToBuffer(pdfDocument);
 
-    console.log('[PDF] Puppeteer browser launched');
-
-    const page = await browser.newPage();
-
-    console.log('[PDF] Setting HTML content...');
-    await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0',
-      timeout: 10000,
-    });
-
-    await page.emulateMediaType('screen');
-
-    console.log('[PDF] Generating PDF...');
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm',
-      },
-    });
-
-    await browser.close();
-
-    console.log('[PDF] PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
+    console.log('[PDF] React PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     return pdfBuffer;
   } catch (error) {
-    console.error('[PDF] Puppeteer PDF generation failed:', error);
+    console.error('[PDF] React PDF generation failed:', error);
     console.error('[PDF] Error details:', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
@@ -102,31 +86,25 @@ async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
 
 /**
  * Generate PDF from optimized resume data
- * Uses default ATS-safe template for backward compatibility
+ * Uses React PDF renderer for serverless compatibility
  * For template selection, use generatePdfWithTemplate()
  */
 export async function generatePdf(resumeData: OptimizedResume | string): Promise<Buffer> {
   console.log('[PDF] generatePdf called, input type:', typeof resumeData);
 
-  // Handle legacy string input or use template engine
-  const htmlContent = typeof resumeData === 'string'
-    ? resumeData
-    : renderTemplate(resumeData, 'ats-safe');
-
-  console.log('[PDF] HTML content prepared, length:', htmlContent.length);
+  // Handle legacy string input
+  if (typeof resumeData === 'string') {
+    console.log('[PDF] Legacy string input detected, using text-only PDF');
+    return generateTextPdf(stripHtml(resumeData));
+  }
 
   try {
-    const pdfBuffer = await generatePdfFromHTML(htmlContent);
-    console.log('[PDF] PDF generated successfully with design');
+    // Use React PDF renderer (works in Vercel)
+    const pdfBuffer = await generatePdfFromReact(resumeData);
+    console.log('[PDF] PDF generated successfully with React PDF');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] Puppeteer PDF generation failed, falling back:", error);
-
-    if (typeof resumeData === "string") {
-      console.log('[PDF] Generating text-only PDF from string input');
-      return generateTextPdf(stripHtml(htmlContent));
-    }
-
+    console.error("[PDF] React PDF generation failed, falling back to jsPDF:", error);
     console.log('[PDF] Generating fallback PDF with jsPDF');
     return generatePdfFallback(resumeData);
   }
@@ -174,18 +152,21 @@ async function generateTextPdf(text: string): Promise<Buffer> {
 }
 
 async function generatePdfFallback(resumeData: OptimizedResume): Promise<Buffer> {
+  // Clean data before fallback generation
+  const cleanedData = cleanResumeData(resumeData);
+
   return generateResumePDF(
     {
       personalInfo: {
-        name: resumeData.contact?.name,
-        email: resumeData.contact?.email,
-        phone: resumeData.contact?.phone,
-        location: resumeData.contact?.location,
-        linkedin: resumeData.contact?.linkedin,
-        website: resumeData.contact?.portfolio,
+        name: cleanedData.contact?.name,
+        email: cleanedData.contact?.email,
+        phone: cleanedData.contact?.phone,
+        location: cleanedData.contact?.location,
+        linkedin: cleanedData.contact?.linkedin,
+        website: cleanedData.contact?.portfolio,
       },
-      summary: resumeData.summary,
-      experience: resumeData.experience?.map((exp) => ({
+      summary: cleanedData.summary,
+      experience: cleanedData.experience?.map((exp) => ({
         title: exp.title,
         company: exp.company,
         location: exp.location,
@@ -193,7 +174,7 @@ async function generatePdfFallback(resumeData: OptimizedResume): Promise<Buffer>
         endDate: exp.endDate,
         achievements: exp.achievements,
       })),
-      education: resumeData.education?.map((edu) => ({
+      education: cleanedData.education?.map((edu) => ({
         degree: edu.degree,
         institution: edu.institution,
         location: edu.location,
@@ -201,13 +182,13 @@ async function generatePdfFallback(resumeData: OptimizedResume): Promise<Buffer>
         gpa: edu.gpa,
       })),
       skills: [
-        { category: "Technical Skills", items: resumeData.skills?.technical || [] },
-        { category: "Soft Skills", items: resumeData.skills?.soft || [] },
+        { category: "Technical Skills", items: cleanedData.skills?.technical || [] },
+        { category: "Soft Skills", items: cleanedData.skills?.soft || [] },
       ].filter((c) => c.items.length > 0),
-      certifications: (resumeData.certifications || []).map((cert) => ({
+      certifications: (cleanedData.certifications || []).map((cert) => ({
         name: cert,
       })),
-      projects: resumeData.projects?.map((project) => ({
+      projects: cleanedData.projects?.map((project) => ({
         name: project.name,
         description: project.description,
         technologies: project.technologies,
@@ -363,29 +344,26 @@ export async function generateDocx(resumeData: OptimizedResume): Promise<Buffer>
  * Task: T041
  *
  * @param resumeData - Optimized resume data
- * @param optimizationId - Optimization UUID to fetch design assignment
+ * @param optimizationId - Optimization UUID to fetch design assignment (currently unused)
  * @returns PDF buffer with applied design and customizations
  */
 export async function generatePdfWithDesign(
   resumeData: OptimizedResume,
   optimizationId: string
 ): Promise<Buffer> {
-  console.log('[PDF] generatePdfWithDesign called for optimization:', optimizationId);
+  void optimizationId; // TODO: Fetch and apply design customizations to React PDF
+  console.log('[PDF] generatePdfWithDesign called, using React PDF renderer');
 
   try {
-    // Render HTML with design assignment
-    console.log('[PDF] Fetching and rendering design assignment...');
-    const htmlContent = await renderWithDesign(resumeData, optimizationId);
-    console.log('[PDF] Design HTML rendered, length:', htmlContent.length);
-
-    // Generate PDF from rendered HTML
-    const pdfBuffer = await generatePdfFromHTML(htmlContent);
-    console.log('[PDF] PDF with custom design generated successfully');
+    // Use React PDF renderer with default styling
+    // TODO: Enhance ResumePDF component to accept design customizations
+    const pdfBuffer = await generatePdfFromReact(resumeData);
+    console.log('[PDF] PDF with design generated successfully');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] Design PDF generation failed, falling back:", error);
+    console.error("[PDF] React PDF generation failed, falling back:", error);
     const fallbackBuffer = await generatePdfFallback(resumeData);
-    console.log('[PDF] Fallback PDF generated (plain text)');
+    console.log('[PDF] Fallback PDF generated with jsPDF');
     return fallbackBuffer;
   }
 }
