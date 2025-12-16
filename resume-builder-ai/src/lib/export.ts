@@ -17,37 +17,66 @@ export async function generatePdfWithTemplate(
   resumeData: OptimizedResume,
   templateId: TemplateType = 'ats-safe'
 ): Promise<Buffer> {
+  console.log(`[PDF] Generating PDF with template: ${templateId}`);
   const htmlContent = renderTemplate(resumeData, templateId);
+  console.log('[PDF] HTML template rendered, length:', htmlContent.length);
 
   try {
-    return await generatePdfFromHTML(htmlContent);
+    const pdfBuffer = await generatePdfFromHTML(htmlContent);
+    console.log('[PDF] PDF generated successfully with styled template');
+    return pdfBuffer;
   } catch (error) {
-    console.error("Puppeteer PDF generation failed, falling back to text PDF:", error);
-    return generatePdfFallback(resumeData);
+    console.error("[PDF] Puppeteer PDF generation failed, falling back to plain text PDF:", error);
+    const fallbackBuffer = await generatePdfFallback(resumeData);
+    console.log('[PDF] Fallback PDF generated (plain text)');
+    return fallbackBuffer;
   }
 }
 
 /**
- * Generate PDF from HTML string
+ * Generate PDF from HTML string using Puppeteer
+ * Uses serverless-compatible Chromium in production
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  const puppeteer = (await import("puppeteer")).default;
+  let browser: any;
 
-  let browser: Awaited<ReturnType<typeof puppeteer.launch>> | undefined;
   try {
-    const executablePath =
-      process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_EXECUTABLE_PATH;
+    // Try serverless Chromium first (for production/Vercel)
+    try {
+      console.log('[PDF] Attempting to use serverless Chromium...');
+      const chromium = (await import("@sparticuz/chromium")).default;
+      const puppeteerCore = (await import("puppeteer-core")).default;
 
-    browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      executablePath: executablePath || undefined,
-      timeout: 30_000,
-    });
+      // Get Chromium executable path for serverless
+      const executablePath = await chromium.executablePath();
+      console.log('[PDF] Chromium executable path:', executablePath);
+
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: executablePath,
+        headless: chromium.headless,
+      });
+
+      console.log('[PDF] Serverless Chromium launched successfully');
+    } catch (chromiumError) {
+      // Fallback to local Puppeteer for development
+      console.log('[PDF] Serverless Chromium failed, using local Puppeteer:', chromiumError);
+      const puppeteer = (await import("puppeteer")).default;
+
+      browser = await puppeteer.launch({
+        headless: "new",
+        args: ["--no-sandbox", "--disable-setuid-sandbox"],
+        timeout: 30_000,
+      });
+
+      console.log('[PDF] Local Puppeteer launched successfully');
+    }
 
     const page = await browser.newPage();
     page.setDefaultTimeout(30_000);
 
+    console.log('[PDF] Setting page content...');
     await page.setContent(htmlContent, {
       waitUntil: "networkidle0",
       timeout: 15_000,
@@ -55,7 +84,8 @@ async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
 
     await page.emulateMediaType("screen");
 
-    return await page.pdf({
+    console.log('[PDF] Generating PDF...');
+    const pdfBuffer = await page.pdf({
       format: "A4",
       printBackground: true,
       preferCSSPageSize: true,
@@ -66,10 +96,20 @@ async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
         left: "15mm",
       },
     });
+
+    console.log('[PDF] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    return pdfBuffer;
+  } catch (error) {
+    console.error('[PDF] Error generating PDF from HTML:', error);
+    console.error('[PDF] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
   } finally {
     if (browser) {
-      await browser.close().catch((err) => {
-        console.error("Failed to close Puppeteer browser:", err);
+      await browser.close().catch((err: Error) => {
+        console.error('[PDF] Failed to close browser:', err);
       });
     }
   }
@@ -81,20 +121,28 @@ async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
  * For template selection, use generatePdfWithTemplate()
  */
 export async function generatePdf(resumeData: OptimizedResume | string): Promise<Buffer> {
+  console.log('[PDF] generatePdf called, input type:', typeof resumeData);
+
   // Handle legacy string input or use template engine
   const htmlContent = typeof resumeData === 'string'
     ? resumeData
     : renderTemplate(resumeData, 'ats-safe');
 
+  console.log('[PDF] HTML content prepared, length:', htmlContent.length);
+
   try {
-    return await generatePdfFromHTML(htmlContent);
+    const pdfBuffer = await generatePdfFromHTML(htmlContent);
+    console.log('[PDF] PDF generated successfully with design');
+    return pdfBuffer;
   } catch (error) {
-    console.error("Puppeteer PDF generation failed, falling back to text PDF:", error);
+    console.error("[PDF] Puppeteer PDF generation failed, falling back:", error);
 
     if (typeof resumeData === "string") {
+      console.log('[PDF] Generating text-only PDF from string input');
       return generateTextPdf(stripHtml(htmlContent));
     }
 
+    console.log('[PDF] Generating fallback PDF with jsPDF');
     return generatePdfFallback(resumeData);
   }
 }
@@ -337,15 +385,23 @@ export async function generatePdfWithDesign(
   resumeData: OptimizedResume,
   optimizationId: string
 ): Promise<Buffer> {
+  console.log('[PDF] generatePdfWithDesign called for optimization:', optimizationId);
+
   try {
     // Render HTML with design assignment
+    console.log('[PDF] Fetching and rendering design assignment...');
     const htmlContent = await renderWithDesign(resumeData, optimizationId);
+    console.log('[PDF] Design HTML rendered, length:', htmlContent.length);
 
     // Generate PDF from rendered HTML
-    return await generatePdfFromHTML(htmlContent);
+    const pdfBuffer = await generatePdfFromHTML(htmlContent);
+    console.log('[PDF] PDF with custom design generated successfully');
+    return pdfBuffer;
   } catch (error) {
-    console.error("Design PDF generation failed, falling back to text PDF:", error);
-    return generatePdfFallback(resumeData);
+    console.error("[PDF] Design PDF generation failed, falling back:", error);
+    const fallbackBuffer = await generatePdfFallback(resumeData);
+    console.log('[PDF] Fallback PDF generated (plain text)');
+    return fallbackBuffer;
   }
 }
 
