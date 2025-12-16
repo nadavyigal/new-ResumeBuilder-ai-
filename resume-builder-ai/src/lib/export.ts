@@ -35,83 +35,68 @@ export async function generatePdfWithTemplate(
 
 /**
  * Generate PDF from HTML string using Puppeteer
- * Uses serverless-compatible Chromium in production
+ * Falls back gracefully if Puppeteer is not available
  */
 async function generatePdfFromHTML(htmlContent: string): Promise<Buffer> {
-  let browser: any;
-
   try {
-    // Try serverless Chromium first (for production/Vercel)
-    try {
-      console.log('[PDF] Attempting to use serverless Chromium...');
-      const chromium = (await import("@sparticuz/chromium")).default;
-      const puppeteerCore = (await import("puppeteer-core")).default;
+    console.log('[PDF] Attempting to use Puppeteer for PDF generation...');
 
-      // Get Chromium executable path for serverless
-      const executablePath = await chromium.executablePath();
-      console.log('[PDF] Chromium executable path:', executablePath);
+    // Check if running in Node.js environment with file system access
+    const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+    console.log(`[PDF] Environment: ${isServerless ? 'serverless' : 'standard Node.js'}`);
 
-      browser = await puppeteerCore.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: executablePath,
-        headless: chromium.headless,
-      });
+    const puppeteer = (await import("puppeteer")).default;
 
-      console.log('[PDF] Serverless Chromium launched successfully');
-    } catch (chromiumError) {
-      // Fallback to local Puppeteer for development
-      console.log('[PDF] Serverless Chromium failed, using local Puppeteer:', chromiumError);
-      const puppeteer = (await import("puppeteer")).default;
-
-      browser = await puppeteer.launch({
-        headless: "new",
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-        timeout: 30_000,
-      });
-
-      console.log('[PDF] Local Puppeteer launched successfully');
-    }
-
-    const page = await browser.newPage();
-    page.setDefaultTimeout(30_000);
-
-    console.log('[PDF] Setting page content...');
-    await page.setContent(htmlContent, {
-      waitUntil: "networkidle0",
-      timeout: 15_000,
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ],
     });
 
-    await page.emulateMediaType("screen");
+    console.log('[PDF] Puppeteer browser launched');
+
+    const page = await browser.newPage();
+
+    console.log('[PDF] Setting HTML content...');
+    await page.setContent(htmlContent, {
+      waitUntil: 'networkidle0',
+      timeout: 10000,
+    });
+
+    await page.emulateMediaType('screen');
 
     console.log('[PDF] Generating PDF...');
     const pdfBuffer = await page.pdf({
-      format: "A4",
+      format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
       margin: {
-        top: "20mm",
-        right: "15mm",
-        bottom: "20mm",
-        left: "15mm",
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm',
       },
     });
 
-    console.log('[PDF] PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    await browser.close();
+
+    console.log('[PDF] PDF generated successfully with Puppeteer, size:', pdfBuffer.length, 'bytes');
     return pdfBuffer;
   } catch (error) {
-    console.error('[PDF] Error generating PDF from HTML:', error);
+    console.error('[PDF] Puppeteer PDF generation failed:', error);
     console.error('[PDF] Error details:', {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    throw error;
-  } finally {
-    if (browser) {
-      await browser.close().catch((err: Error) => {
-        console.error('[PDF] Failed to close browser:', err);
-      });
-    }
+    throw error; // Let the calling function handle the fallback
   }
 }
 

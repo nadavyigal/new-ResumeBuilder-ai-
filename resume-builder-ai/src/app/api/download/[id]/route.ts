@@ -11,6 +11,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { searchParams } = new URL(req.url);
   const format = (searchParams.get("fmt") ?? "pdf").toLowerCase();
 
+  console.log(`[DOWNLOAD] Starting download for optimization ${id}, format: ${format}`);
+
   if (format !== "pdf" && format !== "docx") {
     return NextResponse.json({ error: "Invalid format specified. Use 'pdf' or 'docx'." }, { status: 400 });
   }
@@ -20,8 +22,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Verify user authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    console.log('[DOWNLOAD] User not authenticated');
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  console.log(`[DOWNLOAD] User authenticated: ${user.id}`);
 
   const { data: optimizationData, error } = await supabase
     .from("optimizations")
@@ -31,37 +36,61 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .maybeSingle();
 
   if (error) {
+    console.error('[DOWNLOAD] Database error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   if (!optimizationData) {
+    console.error('[DOWNLOAD] Optimization not found');
     return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
   }
+
+  console.log('[DOWNLOAD] Optimization data fetched successfully');
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;
 
   // Check if optimization has a design assignment
+  console.log('[DOWNLOAD] Checking for design assignment...');
   const hasDesign = await hasDesignAssignment(id);
+  console.log(`[DOWNLOAD] Design assignment exists: ${hasDesign}`);
 
   let fileBuffer: Buffer;
   let contentType: string;
   let filename: string;
   const safeName = resumeData?.contact?.name?.trim() || "Resume";
 
-  if (format === "pdf") {
-    // Use design-aware PDF generation if design exists
-    fileBuffer = hasDesign
-      ? await generatePdfWithDesign(resumeData, id)
-      : await generatePdf(resumeData);
-    contentType = "application/pdf";
-    filename = `${safeName.replace(/\s+/g, '_')}_Resume.pdf`;
-  } else {
-    // Use design-aware DOCX generation if design exists
-    fileBuffer = hasDesign
-      ? await generateDocxWithDesign(resumeData, id)
-      : await generateDocx(resumeData);
-    contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    filename = `${safeName.replace(/\s+/g, '_')}_Resume.docx`;
+  try {
+    if (format === "pdf") {
+      console.log(`[DOWNLOAD] Generating PDF ${hasDesign ? 'with' : 'without'} design`);
+
+      // ALWAYS use styled PDF generation - even without design assignment
+      fileBuffer = hasDesign
+        ? await generatePdfWithDesign(resumeData, id)
+        : await generatePdf(resumeData);
+
+      contentType = "application/pdf";
+      filename = `${safeName.replace(/\s+/g, '_')}_Resume.pdf`;
+
+      console.log(`[DOWNLOAD] PDF generated successfully, size: ${fileBuffer.length} bytes`);
+    } else {
+      console.log(`[DOWNLOAD] Generating DOCX ${hasDesign ? 'with' : 'without'} design`);
+
+      fileBuffer = hasDesign
+        ? await generateDocxWithDesign(resumeData, id)
+        : await generateDocx(resumeData);
+
+      contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      filename = `${safeName.replace(/\s+/g, '_')}_Resume.docx`;
+
+      console.log(`[DOWNLOAD] DOCX generated successfully, size: ${fileBuffer.length} bytes`);
+    }
+  } catch (error) {
+    console.error('[DOWNLOAD] Error generating file:', error);
+    console.error('[DOWNLOAD] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
   }
 
   const headers = new Headers();
@@ -69,5 +98,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   headers.set("Content-Disposition", `attachment; filename="${filename}"`);
   headers.set("Cache-Control", "no-store");
 
+  console.log(`[DOWNLOAD] Sending file: ${filename}`);
   return new NextResponse(fileBuffer, { headers });
 }
