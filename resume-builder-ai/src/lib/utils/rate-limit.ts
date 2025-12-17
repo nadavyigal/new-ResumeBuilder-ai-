@@ -19,15 +19,25 @@ interface RateLimitEntry {
 // For production: use Redis, Upstash, or Vercel KV
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries every 5 minutes
-setInterval(() => {
+/**
+ * Lazy cleanup of expired entries
+ * Called during checkRateLimit to avoid using setInterval (not supported in Edge Runtime)
+ */
+function cleanupExpiredEntries() {
   const now = Date.now();
+  const keysToDelete: string[] = [];
+
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetTime < now) {
-      rateLimitStore.delete(key);
+      keysToDelete.push(key);
     }
   }
-}, 5 * 60 * 1000);
+
+  // Delete in separate loop to avoid modification during iteration
+  for (const key of keysToDelete) {
+    rateLimitStore.delete(key);
+  }
+}
 
 /**
  * Check if a request should be rate limited
@@ -44,6 +54,12 @@ export function checkRateLimit(
   remaining: number;
   resetTime: number;
 } {
+  // Lazy cleanup - only run occasionally to avoid performance impact
+  // Clean up roughly every 100 requests (1% chance per request)
+  if (Math.random() < 0.01) {
+    cleanupExpiredEntries();
+  }
+
   const now = Date.now();
   const entry = rateLimitStore.get(identifier);
 
