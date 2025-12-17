@@ -1,7 +1,4 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm run build --workspace=resume-builder-ai",
-  "devCommand": "npm run dev --workspace=resume-builder-ai",
-  "outputDirectory": "resume-builder-ai/.next"
+  "$schema": "https://openapi.vercel.sh/vercel.json"
 }
 

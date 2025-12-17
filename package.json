@@ -1,8 +1,0 @@
-{
-  "name": "resume-builder-ai-monorepo",
-  "version": "1.0.0",
-  "private": true,
-  "workspaces": [
-    "resume-builder-ai"
-  ]
-}
