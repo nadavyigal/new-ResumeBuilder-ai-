@@ -1,10 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import {
-  checkRateLimit,
-  getRateLimitConfig,
-  getRateLimitHeaders,
-} from './src/lib/utils/rate-limit';
+
+// Explicitly declare Edge Runtime
+export const runtime = 'edge';
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -93,47 +91,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
-  // Apply rate limiting to API routes
-  if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Use user ID if authenticated; otherwise derive an IP-like identifier from headers
-    const forwardedForHeader = request.headers.get('x-forwarded-for');
-    const forwardedFor = forwardedForHeader ? forwardedForHeader.split(',')[0].trim() : undefined;
-    const realIp = request.headers.get('x-real-ip') ?? undefined;
-    const cfConnectingIp = request.headers.get('cf-connecting-ip') ?? undefined;
-
-    const identifier =
-      user?.id ?? forwardedFor ?? realIp ?? cfConnectingIp ?? 'anonymous';
-
-    const config = getRateLimitConfig(request.nextUrl.pathname);
-    const rateLimitResult = checkRateLimit(identifier, config);
-
-    // Add rate limit headers to response
-    const headers = getRateLimitHeaders(rateLimitResult);
-    Object.entries(headers).forEach(([key, value]) => {
-      response.headers.set(key, value);
-    });
-
-    // If rate limit exceeded, return 429 Too Many Requests
-    if (!rateLimitResult.allowed) {
-      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000);
-
-      return new NextResponse(
-        JSON.stringify({
-          error: 'Too many requests',
-          message: `Rate limit exceeded. Please try again in ${retryAfter} seconds.`,
-          retryAfter,
-        }),
-        {
-          status: 429,
-          headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': retryAfter.toString(),
-            ...headers,
-          },
-        }
-      );
-    }
-  }
+  // Rate limiting disabled in middleware - moved to API route handlers
+  // Edge Runtime doesn't support stateful Map across distributed invocations
+  // Individual API routes implement their own rate limiting using Vercel KV or Upstash
 
   // Add cache-busting headers to prevent stale query issues
   response.headers.set('X-App-Version', '3.0.0'); // Incremented to force cache invalidation
