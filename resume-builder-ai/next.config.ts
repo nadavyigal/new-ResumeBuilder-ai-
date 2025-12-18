@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
   // Prefer server rendering to avoid static export prerender issues during build
   output: "standalone",
   distDir: '.next',
-  outputFileTracingRoot: path.resolve(__dirname),
+  // outputFileTracingRoot removed - __dirname not available in ESM/Edge Runtime
+  // Vercel automatically handles file tracing for standalone builds
   eslint: {
     // Disable ESLint during builds to allow deployment
     ignoreDuringBuilds: true,
