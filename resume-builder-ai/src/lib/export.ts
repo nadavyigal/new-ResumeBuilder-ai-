@@ -2,16 +2,21 @@ import { Document, Packer, Paragraph, HeadingLevel, AlignmentType } from "docx";
 import jsPDF from "jspdf";
 import { OptimizedResume } from "./ai-optimizer";
 import { generateResumePDF } from "./pdf-generator";
-import { renderTemplate, TemplateType, renderWithDesign } from "./template-engine";
+import { renderTemplate, TemplateType } from "./template-engine";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { ResumePDF } from "./pdf-renderer";
 import React from "react";
+import { createRouteHandlerClient } from "./supabase-server";
+import { getDesignAssignment } from "./supabase/resume-designs";
+import { getDesignTemplateById } from "./supabase/design-templates";
+import { renderDesignPreviewHtml, type DesignCustomizationLike } from "./design-manager/render-preview-html";
 
 async function generatePdfFromHtml(html: string): Promise<Buffer> {
   // Dynamic import so Next server bundling stays lean and still works with externals.
   const puppeteerModule = await import("puppeteer");
   const puppeteer = puppeteerModule.default ?? puppeteerModule;
 
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   const browser = await puppeteer.launch({
     headless: true,
     args: [
@@ -19,7 +24,9 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
       "--disable-gpu",
+      "--no-zygote",
     ],
+    ...(executablePath ? { executablePath } : {}),
   });
 
   try {
@@ -42,6 +49,14 @@ async function generatePdfFromHtml(html: string): Promise<Buffer> {
   } finally {
     await browser.close();
   }
+}
+
+export type PdfRenderer = "html" | "react-pdf" | "jspdf";
+export interface PdfWithDesignResult {
+  buffer: Buffer;
+  renderer: PdfRenderer;
+  templateSlug: string | null;
+  usedDesignAssignment: boolean;
 }
 
 /**
@@ -406,29 +421,95 @@ export async function generateDocx(resumeData: OptimizedResume): Promise<Buffer>
 export async function generatePdfWithDesign(
   resumeData: OptimizedResume,
   optimizationId: string
-): Promise<Buffer> {
-  console.log('[PDF] generatePdfWithDesign called, rendering HTML with design assignment');
+): Promise<PdfWithDesignResult> {
+  console.log('[PDF] generatePdfWithDesign called, using v1 design assignment if available');
 
   try {
     const cleanedData = cleanResumeData(resumeData);
-    const html = await renderWithDesign(cleanedData, optimizationId);
-    const pdfBuffer = await generatePdfFromHtml(html);
+
+    const supabase = await createRouteHandlerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
+
+    const assignment = await getDesignAssignment(supabase, optimizationId, user.id);
+    if (!assignment) {
+      // No design assignment; return the stable serverless renderer.
+      const buffer = await generatePdfFromReact(cleanedData);
+      return {
+        buffer,
+        renderer: "react-pdf",
+        templateSlug: null,
+        usedDesignAssignment: false,
+      };
+    }
+
+    const template = await getDesignTemplateById(supabase, assignment.template_id);
+    const templateSlug = template?.slug || null;
+
+    if (!templateSlug || templateSlug === "ats-safe" || templateSlug === "default") {
+      const buffer = await generatePdfFromReact(cleanedData);
+      return {
+        buffer,
+        renderer: "react-pdf",
+        templateSlug,
+        usedDesignAssignment: true,
+      };
+    }
+
+    let customization: DesignCustomizationLike | null = null;
+    if (assignment.customization_id) {
+      const { data: customizationData } = await supabase
+        .from("design_customizations")
+        .select("*")
+        .eq("id", assignment.customization_id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      customization = customizationData;
+    }
+
+    const html = renderDesignPreviewHtml({
+      templateId: templateSlug,
+      resumeData: cleanedData,
+      customization,
+      mode: "pdf",
+      languagePreference: "auto",
+    });
+
+    const buffer = await generatePdfFromHtml(html);
     console.log('[PDF] PDF with design generated successfully from HTML');
-    return pdfBuffer;
+    return {
+      buffer,
+      renderer: "html",
+      templateSlug,
+      usedDesignAssignment: true,
+    };
   } catch (error) {
     console.error("[PDF] HTML-to-PDF generation failed, falling back:", error);
 
     try {
-      const pdfBuffer = await generatePdfFromReact(resumeData);
+      const buffer = await generatePdfFromReact(resumeData);
       console.log('[PDF] PDF generated successfully with React PDF fallback');
-      return pdfBuffer;
+      return {
+        buffer,
+        renderer: "react-pdf",
+        templateSlug: null,
+        usedDesignAssignment: false,
+      };
     } catch (reactError) {
       console.error("[PDF] React PDF generation failed, falling back to jsPDF:", reactError);
     }
 
-    const fallbackBuffer = await generatePdfFallback(resumeData);
+    const buffer = await generatePdfFallback(resumeData);
     console.log('[PDF] Fallback PDF generated with jsPDF');
-    return fallbackBuffer;
+    return {
+      buffer,
+      renderer: "jspdf",
+      templateSlug: null,
+      usedDesignAssignment: false,
+    };
   }
 }
 

@@ -52,11 +52,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   let contentType: string;
   let filename: string;
   const safeName = resumeData?.contact?.name?.trim() || "Resume";
+  let pdfResult: Awaited<ReturnType<typeof generatePdfWithDesign>> | null = null;
 
   try {
     if (format === "pdf") {
       console.log('[DOWNLOAD] Generating PDF with HTML template/design (fallbacks enabled)');
-      fileBuffer = await generatePdfWithDesign(resumeData, id);
+      pdfResult = await generatePdfWithDesign(resumeData, id);
+      fileBuffer = pdfResult.buffer;
 
       contentType = "application/pdf";
       filename = `${safeName.replace(/\s+/g, '_')}_Resume.pdf`;
@@ -84,6 +86,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   headers.set("Content-Type", contentType);
   headers.set("Content-Disposition", `attachment; filename="${filename}"`);
   headers.set("Cache-Control", "no-store");
+  if (format === "pdf" && pdfResult) {
+    // Helpful for debugging production issues via DevTools/Network.
+    headers.set("X-Resume-Pdf-Renderer", pdfResult.renderer);
+    if (pdfResult.templateSlug) {
+      headers.set("X-Resume-Template", pdfResult.templateSlug);
+    }
+    headers.set("X-Resume-Design-Assigned", pdfResult.usedDesignAssignment ? "1" : "0");
+  }
 
   console.log(`[DOWNLOAD] Sending file: ${filename}`);
   return new NextResponse(fileBuffer, { headers });

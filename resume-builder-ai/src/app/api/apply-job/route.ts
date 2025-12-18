@@ -49,7 +49,8 @@ export async function POST(req: NextRequest) {
     const jobDescription = optimizationData.job_descriptions as { source_url: string | null; title: string; company: string };
 
     // Generate PDF resume
-    const pdfBuffer = await generatePdfWithDesign(resumeData, optimizationId);
+    const pdfResult = await generatePdfWithDesign(resumeData, optimizationId);
+    const pdfBuffer = pdfResult.buffer;
     const pdfBase64 = pdfBuffer.toString('base64');
 
     // Log the application event
