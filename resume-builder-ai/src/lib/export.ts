@@ -7,6 +7,43 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { ResumePDF } from "./pdf-renderer";
 import React from "react";
 
+async function generatePdfFromHtml(html: string): Promise<Buffer> {
+  // Dynamic import so Next server bundling stays lean and still works with externals.
+  const puppeteerModule = await import("puppeteer");
+  const puppeteer = puppeteerModule.default ?? puppeteerModule;
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+    ],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: ["domcontentloaded", "networkidle0"] });
+
+    const pdfBuffer = await page.pdf({
+      format: "letter",
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: "0in",
+        right: "0in",
+        bottom: "0in",
+        left: "0in",
+      },
+    });
+
+    return Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
+}
+
 /**
  * Generate PDF from optimized resume data with template support
  * FR-017: Export in PDF format
@@ -20,15 +57,25 @@ export async function generatePdfWithTemplate(
   resumeData: OptimizedResume,
   templateId: TemplateType = 'ats-safe'
 ): Promise<Buffer> {
-  void templateId; // React PDF uses its own styling
-  console.log(`[PDF] Generating PDF with React PDF renderer`);
+  console.log(`[PDF] Generating PDF with template: ${templateId}`);
 
   try {
-    const pdfBuffer = await generatePdfFromReact(resumeData);
-    console.log('[PDF] PDF generated successfully with React PDF');
+    const cleanedData = cleanResumeData(resumeData);
+    const html = renderTemplate(cleanedData, templateId);
+    const pdfBuffer = await generatePdfFromHtml(html);
+    console.log('[PDF] PDF generated successfully from HTML template');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] React PDF generation failed, falling back:", error);
+    console.error("[PDF] HTML-to-PDF generation failed, falling back:", error);
+
+    try {
+      const pdfBuffer = await generatePdfFromReact(resumeData);
+      console.log('[PDF] PDF generated successfully with React PDF fallback');
+      return pdfBuffer;
+    } catch (reactError) {
+      console.error("[PDF] React PDF generation failed, falling back to jsPDF:", reactError);
+    }
+
     const fallbackBuffer = await generatePdfFallback(resumeData);
     console.log('[PDF] Fallback PDF generated with jsPDF');
     return fallbackBuffer;
@@ -99,13 +146,22 @@ export async function generatePdf(resumeData: OptimizedResume | string): Promise
   }
 
   try {
-    // Use React PDF renderer (works in Vercel)
-    const pdfBuffer = await generatePdfFromReact(resumeData);
-    console.log('[PDF] PDF generated successfully with React PDF');
+    const cleanedData = cleanResumeData(resumeData);
+    const html = renderTemplate(cleanedData, 'ats-safe');
+    const pdfBuffer = await generatePdfFromHtml(html);
+    console.log('[PDF] PDF generated successfully from HTML template');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] React PDF generation failed, falling back to jsPDF:", error);
-    console.log('[PDF] Generating fallback PDF with jsPDF');
+    console.error("[PDF] HTML-to-PDF generation failed, falling back:", error);
+
+    try {
+      const pdfBuffer = await generatePdfFromReact(resumeData);
+      console.log('[PDF] PDF generated successfully with React PDF fallback');
+      return pdfBuffer;
+    } catch (reactError) {
+      console.error("[PDF] React PDF generation failed, falling back to jsPDF:", reactError);
+    }
+
     return generatePdfFallback(resumeData);
   }
 }
@@ -351,17 +407,25 @@ export async function generatePdfWithDesign(
   resumeData: OptimizedResume,
   optimizationId: string
 ): Promise<Buffer> {
-  void optimizationId; // TODO: Fetch and apply design customizations to React PDF
-  console.log('[PDF] generatePdfWithDesign called, using React PDF renderer');
+  console.log('[PDF] generatePdfWithDesign called, rendering HTML with design assignment');
 
   try {
-    // Use React PDF renderer with default styling
-    // TODO: Enhance ResumePDF component to accept design customizations
-    const pdfBuffer = await generatePdfFromReact(resumeData);
-    console.log('[PDF] PDF with design generated successfully');
+    const cleanedData = cleanResumeData(resumeData);
+    const html = await renderWithDesign(cleanedData, optimizationId);
+    const pdfBuffer = await generatePdfFromHtml(html);
+    console.log('[PDF] PDF with design generated successfully from HTML');
     return pdfBuffer;
   } catch (error) {
-    console.error("[PDF] React PDF generation failed, falling back:", error);
+    console.error("[PDF] HTML-to-PDF generation failed, falling back:", error);
+
+    try {
+      const pdfBuffer = await generatePdfFromReact(resumeData);
+      console.log('[PDF] PDF generated successfully with React PDF fallback');
+      return pdfBuffer;
+    } catch (reactError) {
+      console.error("[PDF] React PDF generation failed, falling back to jsPDF:", reactError);
+    }
+
     const fallbackBuffer = await generatePdfFallback(resumeData);
     console.log('[PDF] Fallback PDF generated with jsPDF');
     return fallbackBuffer;

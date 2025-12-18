@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { generatePdf, generateDocx, generatePdfWithDesign, generateDocxWithDesign } from "@/lib/export";
-import { hasDesignAssignment } from "@/lib/template-engine";
+import { generatePdfWithDesign, generateDocxWithDesign } from "@/lib/export";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 
 export const runtime = "nodejs";
@@ -49,11 +48,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;
 
-  // Check if optimization has a design assignment
-  console.log('[DOWNLOAD] Checking for design assignment...');
-  const hasDesign = await hasDesignAssignment(id);
-  console.log(`[DOWNLOAD] Design assignment exists: ${hasDesign}`);
-
   let fileBuffer: Buffer;
   let contentType: string;
   let filename: string;
@@ -61,23 +55,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     if (format === "pdf") {
-      console.log(`[DOWNLOAD] Generating PDF ${hasDesign ? 'with' : 'without'} design`);
-
-      // ALWAYS use styled PDF generation - even without design assignment
-      fileBuffer = hasDesign
-        ? await generatePdfWithDesign(resumeData, id)
-        : await generatePdf(resumeData);
+      console.log('[DOWNLOAD] Generating PDF with HTML template/design (fallbacks enabled)');
+      fileBuffer = await generatePdfWithDesign(resumeData, id);
 
       contentType = "application/pdf";
       filename = `${safeName.replace(/\s+/g, '_')}_Resume.pdf`;
 
       console.log(`[DOWNLOAD] PDF generated successfully, size: ${fileBuffer.length} bytes`);
     } else {
-      console.log(`[DOWNLOAD] Generating DOCX ${hasDesign ? 'with' : 'without'} design`);
-
-      fileBuffer = hasDesign
-        ? await generateDocxWithDesign(resumeData, id)
-        : await generateDocx(resumeData);
+      console.log('[DOWNLOAD] Generating DOCX (design support is limited)');
+      fileBuffer = await generateDocxWithDesign(resumeData, id);
 
       contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       filename = `${safeName.replace(/\s+/g, '_')}_Resume.docx`;

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { generatePdf } from "@/lib/export";
+import { generatePdfWithDesign } from "@/lib/export";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+
+export const runtime = "nodejs";
 
 /**
  * Apply to a job with the optimized resume
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     const jobDescription = optimizationData.job_descriptions as { source_url: string | null; title: string; company: string };
 
     // Generate PDF resume
-    const pdfBuffer = await generatePdf(resumeData);
+    const pdfBuffer = await generatePdfWithDesign(resumeData, optimizationId);
     const pdfBase64 = pdfBuffer.toString('base64');
 
     // Log the application event
