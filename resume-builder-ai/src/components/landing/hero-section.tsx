@@ -28,18 +28,40 @@ export function HeroSection() {
 
           {/* Hero Title */}
           <h1 className="text-center mb-6 animate-slideUp">
-            <span className="block text-foreground leading-tight mb-2">
-              Land Your Dream Job
+            <span className="block text-4xl md:text-5xl lg:text-6xl text-foreground font-bold leading-tight mb-2">
+              Get 3X More Interviews
             </span>
-            <span className="block bg-gradient-to-r from-mobile-cta via-primary to-secondary bg-clip-text text-transparent font-bold leading-tight">
+            <span className="block text-3xl md:text-4xl lg:text-5xl bg-gradient-to-r from-mobile-cta via-primary to-secondary bg-clip-text text-transparent font-bold leading-tight">
               With AI-Optimized Resumes
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-center text-lg md:text-xl text-foreground/90 max-w-2xl mx-auto mb-8 leading-relaxed animate-slideUp delay-100">
-            Get ATS-optimized resumes tailored to any job description. Increase your interview rate by up to 3x with professional AI assistance.
+          <p className="text-center text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-4 leading-relaxed animate-slideUp delay-100">
+            Beat ATS filters in minutes. Our AI tailors your resume for every job, tracks your applications, and helps you land interviews faster.
           </p>
+
+          {/* Key Benefits */}
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8 text-sm md:text-base animate-slideUp delay-150">
+            <div className="flex items-center gap-2 text-foreground/70">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Beat the ATS Black Hole</span>
+            </div>
+            <div className="flex items-center gap-2 text-foreground/70">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>92% Average Match Score</span>
+            </div>
+            <div className="flex items-center gap-2 text-foreground/70">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Optimize in 30 Seconds</span>
+            </div>
+          </div>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12 animate-slideUp delay-200">
@@ -49,7 +71,7 @@ export function HeroSection() {
               className="w-full sm:w-auto bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
-                Get Started Free
+                Start Free Optimization
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
@@ -67,7 +89,7 @@ export function HeroSection() {
           </div>
 
           {/* Social Proof */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-foreground/75 animate-slideUp delay-300">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-foreground/75 animate-slideUp delay-300">
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
                 {[1, 2, 3, 4].map((i) => (
@@ -80,7 +102,7 @@ export function HeroSection() {
                 ))}
               </div>
               <span>
-                <strong className="text-foreground">2,847</strong> resumes optimized this week
+                <strong className="text-foreground">10,000+</strong> resumes optimized
               </span>
             </div>
 
@@ -96,6 +118,15 @@ export function HeroSection() {
               ))}
               <span className="ml-2">
                 <strong className="text-foreground">4.9</strong> (1,234 reviews)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700">
+              <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-green-700 dark:text-green-300 font-semibold">
+                ATS-Approved
               </span>
             </div>
           </div>
