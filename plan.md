@@ -118,3 +118,22 @@ Overall Progress: `100%`
 
 - [x] 🟩 Step 7: Minimal docs
   - [x] 🟩 Comments in files and `.env.example` for usage
+
+## Auth Email Confirmation Fix (2025-12-21)
+
+- [x] ✅ **Issue**: New users not receiving email confirmation links
+- [x] ✅ **Root Cause**: Missing `/auth/confirm` route to handle email token verification
+- [x] ✅ **Supabase Logs**: Confirmed emails ARE being sent (mail.send events logged)
+- [x] ✅ **SMTP Limitation**: Default Supabase SMTP only delivers to team member emails
+
+### Fixes Applied:
+- [x] ✅ Created `src/app/auth/confirm/route.ts` - Handles email token verification (PKCE flow)
+- [x] ✅ Created `src/app/auth/callback/route.ts` - Handles OAuth/magic link callbacks
+- [x] ✅ Updated `src/components/auth/auth-form.tsx` - Added proper `emailRedirectTo` URL
+- [x] ✅ Manually confirmed pending users: `michal@slonim.co.il`, `yaelsherion@gmail.com`
+
+### Production SMTP Required:
+⚠️ **Important**: Supabase default SMTP only sends to pre-authorized team emails.
+For production, configure custom SMTP in Supabase Dashboard > Settings > Auth:
+- Recommended providers: Resend, AWS SES, Postmark, SendGrid, Brevo
+- See: https://supabase.com/docs/guides/auth/auth-smtp

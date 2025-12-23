@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -50,10 +51,12 @@ export default function RootLayout({
           `}
         </Script>
 
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
+        <PostHogProvider>
+          <AuthProvider>
+            {children}
+            <Toaster />
+          </AuthProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

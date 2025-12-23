@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClientComponentClient } from "@/lib/supabase";
+import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,7 +24,17 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [message, setMessage] = useState<string | null>(null);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
+
+  // Check for error/success messages in URL params
+  useEffect(() => {
+    const urlError = searchParams.get('error');
+    const urlMessage = searchParams.get('message');
+    if (urlError || urlMessage) {
+      setError(urlMessage || 'An error occurred during authentication');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +44,15 @@ export function AuthForm({ mode }: AuthFormProps) {
 
     try {
       if (mode === "signup") {
+        // Track signup started
+        posthog.capture('signup_started', {
+          method: 'email',
+          source: 'auth_form',
+        });
+
+        // Get the current origin for the redirect URL
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -40,6 +60,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             data: {
               full_name: fullName,
             },
+            emailRedirectTo: `${origin}/auth/confirm`,
           },
         });
 
@@ -47,7 +68,31 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         if (data.user && !data.user.email_confirmed_at) {
           setMessage("Check your email for the confirmation link!");
-        } else {
+        } else if (data.user) {
+          // User is immediately confirmed - complete signup flow
+          const utmParams = typeof window !== 'undefined' 
+            ? JSON.parse(localStorage.getItem('ph_utm_params') || '{}') 
+            : {};
+
+          // Alias anonymous ID to user ID
+          posthog.alias(data.user.id);
+
+          // Identify user with properties
+          posthog.identify(data.user.id, {
+            email: data.user.email,
+            full_name: fullName,
+            created_at: data.user.created_at,
+            ...utmParams,
+          });
+
+          // Track signup completed
+          posthog.capture('signup_completed', {
+            method: 'email',
+            source: 'auth_form',
+            user_id: data.user.id,
+            ...utmParams,
+          });
+
           router.push(ROUTES.dashboard);
         }
       } else {
@@ -57,6 +102,13 @@ export function AuthForm({ mode }: AuthFormProps) {
         });
 
         if (error) throw error;
+
+        // Identify returning user
+        if (data.user) {
+          posthog.identify(data.user.id, {
+            email: data.user.email,
+          });
+        }
 
         router.push(ROUTES.dashboard);
       }

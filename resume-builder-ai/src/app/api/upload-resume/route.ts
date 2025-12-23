@@ -4,6 +4,7 @@ import { parsePdf } from "@/lib/pdf-parser";
 import { cookies } from "next/headers";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
@@ -226,6 +227,20 @@ export async function POST(req: NextRequest) {
       })
       .select()
       .maybeSingle();
+
+    // Track optimization completed (server-side)
+    if (!optimizationError && optimizationData) {
+      await captureServerEvent(user.id, 'optimization_completed', {
+        optimization_id: optimizationData.id,
+        ats_score_original: atsResult?.ats_score_original || null,
+        ats_score_optimized: atsResult?.ats_score_optimized || matchScore,
+        improvement: (atsResult?.ats_score_optimized || matchScore) - (atsResult?.ats_score_original || 0),
+        has_job_url: !!jobDescriptionUrl,
+        job_title: extractedTitle || null,
+        company: extractedCompany || null,
+        source: 'upload_resume_api',
+      });
+    }
 
     if (optimizationError) {
       console.error("Failed to save optimization:", optimizationError);

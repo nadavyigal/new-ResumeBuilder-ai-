@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,13 @@ export default function ResumeUploadPage() {
       setError(null);
       setResumeFile(file);
       console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+      // Track resume upload
+      posthog.capture('resume_uploaded', {
+        file_type: file.type,
+        file_size_kb: Math.round(file.size / 1024),
+        source: 'resume_upload_page',
+      });
     }
   };
 
@@ -72,6 +80,20 @@ export default function ResumeUploadPage() {
 
     setLoading(true);
     setError(null);
+
+    // Track job description added
+    posthog.capture('job_description_added', {
+      input_mode: inputMode,
+      has_url: inputMode === 'url',
+      description_length: inputMode === 'text' ? jobDescription.length : 0,
+      source: 'resume_upload_page',
+    });
+
+    // Track optimization started
+    posthog.capture('optimization_started', {
+      input_mode: inputMode,
+      source: 'resume_upload_page',
+    });
 
     const formData = new FormData();
     formData.append("resume", resumeFile);

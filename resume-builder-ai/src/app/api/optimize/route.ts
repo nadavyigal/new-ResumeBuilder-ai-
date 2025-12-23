@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { optimizeResume } from "@/lib/openai";
 import { scoreOptimization } from "@/lib/ats/integration";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -159,6 +160,15 @@ export async function POST(req: NextRequest) {
     if (optimizationError || !optimizationData) {
       throw new Error(optimizationError?.message || "Failed to create optimization");
     }
+
+    // Track optimization completed (server-side)
+    await captureServerEvent(user.id, 'optimization_completed', {
+      optimization_id: (optimizationData as any).id,
+      ats_score_original: atsResult?.ats_score_original || null,
+      ats_score_optimized: atsResult?.ats_score_optimized || 85,
+      improvement: (atsResult?.ats_score_optimized || 85) - (atsResult?.ats_score_original || 0),
+      source: 'optimize_api',
+    });
 
     return NextResponse.json({ optimizationId: (optimizationData as any).id });
 
