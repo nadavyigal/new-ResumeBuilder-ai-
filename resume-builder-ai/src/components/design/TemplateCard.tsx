@@ -50,13 +50,17 @@ interface TemplateCardProps {
   isSelected: boolean;
   onSelect: () => void;
   optimizationId: string;
+  isApplying?: boolean;
+  isApplyingThis?: boolean;
 }
 
 export function TemplateCard({
   template,
   isSelected,
   onSelect,
-  optimizationId
+  optimizationId,
+  isApplying = false,
+  isApplyingThis = false
 }: TemplateCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -84,6 +88,7 @@ export function TemplateCard({
 
   // Open preview modal when card is clicked
   const handleCardClick = () => {
+    if (isApplying) return;
     setShowPreview(true);
   };
 
@@ -229,9 +234,10 @@ export function TemplateCard({
                     onSelect();
                     setShowPreview(false);
                   }}
+                  disabled={isApplying}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
-                  Apply
+                  {isApplyingThis ? 'Applying...' : 'Apply'}
                 </button>
                 <button
                   onClick={() => setShowPreview(false)}
@@ -269,9 +275,10 @@ export function TemplateCard({
                   onSelect();
                   setShowPreview(false);
                 }}
+                disabled={isApplying}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                Apply This Template
+                {isApplyingThis ? 'Applying...' : 'Apply This Template'}
               </button>
             </div>
           </div>

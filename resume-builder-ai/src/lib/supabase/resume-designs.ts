@@ -63,7 +63,8 @@ export async function upsertDesignAssignment(
   supabase: SupabaseClient,
   optimizationId: string,
   templateId: string,
-  userId: string
+  userId: string,
+  customizationId: string | null = null
 ): Promise<ResumeDesignAssignment> {
   const { data, error} = await supabase
     .from('resume_design_assignments')
@@ -73,7 +74,7 @@ export async function upsertDesignAssignment(
         optimization_id: optimizationId,
         template_id: templateId,
         original_template_id: templateId,
-        customization_id: null, // Reset customization when changing template
+        customization_id: customizationId, // Reset or set customization when changing template
         previous_customization_id: null,
         is_active: true
       },

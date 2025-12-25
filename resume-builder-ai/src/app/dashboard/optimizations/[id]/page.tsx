@@ -14,6 +14,7 @@ import { UndoControls } from "@/components/design/UndoControls";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
+import { useToast } from "@/hooks/useToast";
 import {
   Select,
   SelectContent,
@@ -50,6 +51,7 @@ export default function OptimizationPage() {
   const [showDesignBrowser, setShowDesignBrowser] = useState(false);
   const [currentDesignAssignment, setCurrentDesignAssignment] = useState<any>(null);
   const [designLoading, setDesignLoading] = useState(false);
+  const [pendingTemplateId, setPendingTemplateId] = useState<string | null>(null);
   // Ephemeral customization from chat for instant preview
   const [ephemeralCustomization, setEphemeralCustomization] = useState<any>(null);
 
@@ -66,6 +68,7 @@ export default function OptimizationPage() {
 
   const params = useParams();
   const supabase = createClientComponentClient();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Set initial FAB position after mount (bottom-right)
@@ -380,12 +383,12 @@ export default function OptimizationPage() {
     }
 
     console.log('Starting design change to template:', templateId);
-    setShowDesignBrowser(false);
     setDesignLoading(true);
+    setPendingTemplateId(templateId);
 
     try {
       const response = await fetch(`/api/v1/design/${params.id}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -393,7 +396,8 @@ export default function OptimizationPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to apply template');
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || 'Failed to apply template');
       }
 
       const data = await response.json();
@@ -401,18 +405,28 @@ export default function OptimizationPage() {
 
       // Update design assignment - this will trigger DesignRenderer's useEffect
       setCurrentDesignAssignment(data.assignment || null);
+      setShowDesignBrowser(false);
+      toast({
+        title: 'Template applied',
+        description: data.assignment?.template?.name || 'Your design has been updated.'
+      });
 
       // Remove the 500ms delay - let React handle the state update naturally
       // The DesignRenderer component will manage the transition smoothly
 
     } catch (error) {
       console.error('Failed to apply template:', error);
-      alert('Failed to apply template. Please try again.');
+      toast({
+        title: 'Failed to apply template',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setDesignLoading(false);
+      setPendingTemplateId(null);
       console.log('Design change complete');
     }
-  }, [params.id, designLoading]);
+  }, [params.id, designLoading, toast]);
 
   const handleDesignUpdate = async () => {
     // Refresh design assignment after customization
@@ -928,9 +942,11 @@ export default function OptimizationPage() {
       <DesignBrowser
         isOpen={showDesignBrowser}
         onClose={() => setShowDesignBrowser(false)}
-        currentTemplateId={currentDesignAssignment?.template?.id}
+        currentTemplateId={pendingTemplateId ?? currentDesignAssignment?.template?.id}
         optimizationId={params.id as string}
         onTemplateSelect={handleTemplateSelect}
+        isApplying={designLoading}
+        applyingTemplateId={pendingTemplateId}
       />
         </div>
       </SectionSelectionProvider>

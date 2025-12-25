@@ -8,8 +8,9 @@ import { ResumePDF } from "./pdf-renderer";
 import React from "react";
 import { createRouteHandlerClient } from "./supabase-server";
 import { getDesignAssignment } from "./supabase/resume-designs";
-import { getDesignTemplateById } from "./supabase/design-templates";
-import { renderDesignPreviewHtml, type DesignCustomizationLike } from "./design-manager/render-preview-html";
+import { getDesignTemplateById, getDesignTemplateBySlug } from "./supabase/design-templates";
+import { renderTemplatePreview, type ResumeData } from "./design-manager/template-renderer";
+import { type DesignCustomizationLike } from "./design-manager/render-preview-html";
 
 async function generatePdfFromHtml(html: string): Promise<Buffer> {
   // Dynamic import so Next server bundling stays lean and still works with externals.
@@ -115,6 +116,64 @@ function cleanResumeData(resumeData: OptimizedResume): OptimizedResume {
   }
 
   return cleaned;
+}
+
+function mapOptimizedResumeToTemplateData(resumeData: OptimizedResume): ResumeData {
+  const technical = resumeData.skills?.technical || [];
+  const soft = resumeData.skills?.soft || [];
+  const combinedSkills = [...technical, ...soft].filter(Boolean);
+
+  return {
+    personalInfo: {
+      fullName: resumeData.contact?.name || '',
+      email: resumeData.contact?.email || '',
+      phone: resumeData.contact?.phone || '',
+      location: resumeData.contact?.location || '',
+      linkedin: resumeData.contact?.linkedin || '',
+      website: resumeData.contact?.portfolio || ''
+    },
+    summary: resumeData.summary || '',
+    experience: (resumeData.experience || []).map((exp) => ({
+      company: exp.company || '',
+      position: exp.title || '',
+      startDate: exp.startDate || '',
+      endDate: exp.endDate || '',
+      description: '',
+      achievements: exp.achievements || []
+    })),
+    education: (resumeData.education || []).map((edu) => ({
+      institution: edu.institution || '',
+      degree: edu.degree || '',
+      graduationDate: edu.graduationDate || '',
+      gpa: edu.gpa || ''
+    })),
+    skills: combinedSkills,
+    certifications: (resumeData.certifications || []).map((cert) => ({
+      name: cert,
+      issuer: '',
+      date: ''
+    })),
+    projects: (resumeData.projects || []).map((project) => ({
+      name: project.name || '',
+      description: project.description || '',
+      technologies: project.technologies || []
+    }))
+  };
+}
+
+async function generatePdfFromExternalTemplate(
+  templateSlug: string,
+  resumeData: OptimizedResume,
+  customization?: DesignCustomizationLike | null
+): Promise<Buffer> {
+  const templateData = mapOptimizedResumeToTemplateData(resumeData);
+  const html = await renderTemplatePreview(templateSlug, templateData, customization || undefined);
+
+  if (html.includes('Resume Preview Error')) {
+    throw new Error(`Template render failed for ${templateSlug}`);
+  }
+
+  return generatePdfFromHtml(html);
 }
 
 /**
@@ -426,6 +485,7 @@ export async function generatePdfWithDesign(
 
   try {
     const cleanedData = cleanResumeData(resumeData);
+    const defaultTemplateSlug = 'minimal-ssr';
 
     const supabase = await createRouteHandlerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -436,14 +496,30 @@ export async function generatePdfWithDesign(
 
     const assignment = await getDesignAssignment(supabase, optimizationId, user.id);
     if (!assignment) {
-      // No design assignment; return the stable serverless renderer.
-      const buffer = await generatePdfFromReact(cleanedData);
-      return {
-        buffer,
-        renderer: "react-pdf",
-        templateSlug: null,
-        usedDesignAssignment: false,
-      };
+      try {
+        const defaultTemplate = await getDesignTemplateBySlug(supabase, defaultTemplateSlug);
+        const templateSlug = defaultTemplate?.slug || defaultTemplateSlug;
+        const buffer = await generatePdfFromExternalTemplate(
+          templateSlug,
+          cleanedData,
+          null
+        );
+        return {
+          buffer,
+          renderer: "html",
+          templateSlug,
+          usedDesignAssignment: false,
+        };
+      } catch (error) {
+        console.warn('[PDF] Default template render failed, falling back to React PDF:', error);
+        const buffer = await generatePdfFromReact(cleanedData);
+        return {
+          buffer,
+          renderer: "react-pdf",
+          templateSlug: null,
+          usedDesignAssignment: false,
+        };
+      }
     }
 
     const template = await getDesignTemplateById(supabase, assignment.template_id);
@@ -470,22 +546,29 @@ export async function generatePdfWithDesign(
       customization = customizationData;
     }
 
-    const html = renderDesignPreviewHtml({
-      templateId: templateSlug,
-      resumeData: cleanedData,
-      customization,
-      mode: "pdf",
-      languagePreference: "auto",
-    });
-
-    const buffer = await generatePdfFromHtml(html);
-    console.log('[PDF] PDF with design generated successfully from HTML');
-    return {
-      buffer,
-      renderer: "html",
-      templateSlug,
-      usedDesignAssignment: true,
-    };
+    try {
+      const buffer = await generatePdfFromExternalTemplate(
+        templateSlug,
+        cleanedData,
+        customization
+      );
+      console.log('[PDF] PDF with design generated successfully from HTML');
+      return {
+        buffer,
+        renderer: "html",
+        templateSlug,
+        usedDesignAssignment: true,
+      };
+    } catch (error) {
+      console.error('[PDF] Template HTML render failed, falling back to React PDF:', error);
+      const buffer = await generatePdfFromReact(cleanedData);
+      return {
+        buffer,
+        renderer: "react-pdf",
+        templateSlug,
+        usedDesignAssignment: true,
+      };
+    }
   } catch (error) {
     console.error("[PDF] HTML-to-PDF generation failed, falling back:", error);
 
