@@ -1,23 +1,33 @@
 import OpenAI from "openai";
 
-// Validate API key exists
-const apiKey = process.env.OPENAI_API_KEY;
-if (!apiKey) {
-  console.error('OPENAI_API_KEY is not set in environment variables');
+// Lazy initialization to prevent build-time errors
+let openaiInstance: OpenAI | null = null;
+
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error('OPENAI_API_KEY is not set in environment variables');
+    }
+    openaiInstance = new OpenAI({
+      apiKey: apiKey || 'invalid-key-placeholder',
+    });
+  }
+  return openaiInstance;
 }
 
-const openai = new OpenAI({
-  apiKey: apiKey || 'invalid-key-placeholder',
-});
+// Export for use in other files
+export { getOpenAI };
 
 export async function optimizeResume(resumeText: string, jobDescriptionText: string) {
   // Validate API key before making request
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey || apiKey === 'invalid-key-placeholder') {
     throw new Error('OPENAI_API_KEY is not configured. Please add your OpenAI API key to the .env.local file.');
   }
 
   try {
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         {

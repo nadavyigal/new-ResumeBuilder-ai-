@@ -52,7 +52,7 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         // Get the current origin for the redirect URL
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -60,7 +60,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             data: {
               full_name: fullName,
             },
-            emailRedirectTo: `${origin}/auth/confirm`,
+            emailRedirectTo: `${origin}/auth/callback`,
           },
         });
 

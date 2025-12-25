@@ -1,7 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "github": {
-    "silent": true
-  }
+  "buildCommand": "cd resume-builder-ai && npm run build",
+  "devCommand": "cd resume-builder-ai && npm run dev",
+  "installCommand": "cd resume-builder-ai && npm install",
+  "framework": "nextjs",
+  "outputDirectory": "resume-builder-ai/.next"
 }
-

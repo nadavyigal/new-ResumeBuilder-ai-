@@ -10,9 +10,16 @@ import type { Suggestion } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { AffectedField } from '@/types/chat';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to prevent build-time errors
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openaiInstance;
+}
 
 /**
  * Amendment generation result
@@ -124,7 +131,7 @@ ${JSON.stringify(resumeContent, null, 2)}
 
 Analyze this suggestion and return the JSON array of affected fields with specific changes.`;
 
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },

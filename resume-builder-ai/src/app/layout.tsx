@@ -23,8 +23,66 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Resume Optimizer",
-  description: "Optimize your resume for any job with AI-powered insights",
+  metadataBase: new URL('https://resumelybuilderai.com'),
+  title: {
+    default: 'Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews',
+    template: '%s | Resumely',
+  },
+  description: 'Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds. Join 10,000+ professionals landing more interviews.',
+  keywords: [
+    'resume optimizer',
+    'ATS resume checker',
+    'AI resume builder',
+    'resume scanner',
+    'applicant tracking system',
+    'resume optimization',
+    'job application',
+    'career tools',
+    'ATS score',
+    'resume tips',
+  ],
+  authors: [{ name: 'Resumely Team' }],
+  creator: 'Resumely',
+  publisher: 'Resumely',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    url: 'https://resumelybuilderai.com',
+    siteName: 'Resumely',
+    title: 'Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews',
+    description: 'Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds.',
+    images: [
+      {
+        url: '/images/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Resumely - AI Resume Optimizer',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews',
+    description: 'Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds.',
+    images: ['/images/og-image.jpg'],
+    creator: '@resumelyai',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({

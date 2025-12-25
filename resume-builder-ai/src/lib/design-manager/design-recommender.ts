@@ -8,9 +8,16 @@
 
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+// Lazy initialization to avoid build-time errors
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+  return openaiInstance;
+}
 
 export interface RecommendationResult {
   templateId: string;
@@ -31,7 +38,7 @@ export async function recommendTemplate(
   try {
     const prompt = buildRecommendationPrompt(resumeData, jobDescription);
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4',
       messages: [
         {

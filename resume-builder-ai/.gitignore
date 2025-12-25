@@ -42,3 +42,4 @@ next-env.d.ts
 
 # Windows reserved filenames
 nul
+.env*.local

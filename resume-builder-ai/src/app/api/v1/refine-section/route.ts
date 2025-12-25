@@ -5,7 +5,14 @@ import type { RefineSectionRequest, RefineSectionResponse } from '@/types/refine
 import { buildRefineSectionPrompt } from '@/lib/ai/prompt-builders/refineSectionPrompt';
 import { coerceModelJson, validateRefineSuggestion } from '@/lib/ai/validators/refineSection';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Lazy initialization to prevent build-time errors
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openaiInstance;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const { system, user: userMsg } = buildRefineSectionPrompt({ req: body });
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: 'gpt-4o-mini',
       temperature,
       response_format: { type: 'json_object' },

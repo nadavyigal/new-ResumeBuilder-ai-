@@ -10,9 +10,16 @@
 import { OpenAI } from 'openai';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialization to avoid build-time errors
+let openaiInstance: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiInstance) {
+    openaiInstance = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openaiInstance;
+}
 
 /**
  * AI Thread record from database
@@ -70,7 +77,7 @@ export async function ensureThread(
     throw new Error('supabase client is required');
   }
 
-  const openaiClient = deps.openaiClient ?? openai;
+  const openaiClient = deps.openaiClient ?? getOpenAI();
   const threadsTable = supabase.from('ai_threads') as any;
 
   try {

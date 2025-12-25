@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { captureServerEvent } from '@/lib/posthog-server';
 
-// This route handles the OAuth and magic link callbacks
+// This route handles the OAuth, magic link, and email confirmation callbacks
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error');
   const error_description = searchParams.get('error_description');
 
-  // Handle errors from OAuth providers
+  // Handle errors from OAuth providers or email confirmation
   if (error) {
     const redirectTo = request.nextUrl.clone();
     redirectTo.pathname = '/auth/signin';
@@ -40,9 +41,17 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
+    if (!error && data.user) {
+      // Track successful authentication
+      await captureServerEvent(data.user.id, 'signup_completed', {
+        method: 'email',
+        source: 'email_confirmation',
+        user_id: data.user.id,
+        email: data.user.email,
+      });
+
       const redirectTo = request.nextUrl.clone();
       redirectTo.pathname = next;
       redirectTo.searchParams.delete('code');
@@ -51,11 +60,21 @@ export async function GET(request: NextRequest) {
     }
 
     console.error('Auth callback error:', error);
+
+    // If there was an error, redirect to signin with error message
+    if (error) {
+      const redirectTo = request.nextUrl.clone();
+      redirectTo.pathname = '/auth/signin';
+      redirectTo.searchParams.set('error', 'confirmation_failed');
+      redirectTo.searchParams.set('message', error.message || 'Email confirmation failed. Please try again.');
+      return NextResponse.redirect(redirectTo);
+    }
   }
 
   // Fallback redirect to signin
   const redirectTo = request.nextUrl.clone();
   redirectTo.pathname = '/auth/signin';
+  redirectTo.searchParams.set('message', 'Please sign in to continue');
   return NextResponse.redirect(redirectTo);
 }
 
