@@ -109,17 +109,15 @@ export function TemplateCard({
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full overflow-hidden">
+            <div className="w-full h-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
               <iframe
                 src={`/api/v1/design/templates/${template.id}/preview`}
-                className="border-none pointer-events-none"
+                className="border-none pointer-events-none w-[200%] h-[200%]"
                 title={`${template.name} preview`}
                 loading="lazy"
                 style={{
-                  width: "120%",
-                  height: "120%",
-                  transform: "scale(0.8)",
-                  transformOrigin: "top left",
+                  transform: "scale(0.5)",
+                  transformOrigin: "center center",
                 }}
               />
             </div>
