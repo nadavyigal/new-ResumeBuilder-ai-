@@ -170,6 +170,7 @@ export async function scoreResume(input: ATSScoreInput): Promise<ATSScoreOutput>
       subscores: optimizedAggregate.subscores,
       analyzerResults: optimizedResults,
       targetScore: 85,
+      jobData: preparedInput.job_data,
     });
 
     // Collect warnings

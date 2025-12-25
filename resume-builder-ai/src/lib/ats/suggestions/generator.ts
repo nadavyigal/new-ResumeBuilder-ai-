@@ -4,7 +4,14 @@
  * Generates actionable suggestions based on sub-score gaps
  */
 
-import type { Suggestion, SubScores, SubScoreKey, AnalyzerResult } from '../types';
+import type {
+  Suggestion,
+  SubScores,
+  SubScoreKey,
+  AnalyzerResult,
+  SuggestionAction,
+  JobExtraction,
+} from '../types';
 import { getTemplatesForSubScore, fillTemplate } from './templates';
 import { SUGGESTION_THRESHOLDS } from '../config/thresholds';
 import { estimateImpact } from './impact-estimator';
@@ -17,8 +24,9 @@ export function generateSuggestions(params: {
   subscores: SubScores;
   analyzerResults: Map<SubScoreKey, AnalyzerResult>;
   targetScore?: number; // Target score to reach (default: 85)
+  jobData?: JobExtraction;
 }): Suggestion[] {
-  const { subscores, analyzerResults, targetScore = 85 } = params;
+  const { subscores, analyzerResults, targetScore = 85, jobData } = params;
 
   const suggestions: Suggestion[] = [];
 
@@ -46,7 +54,8 @@ export function generateSuggestions(params: {
         gap.subscore,
         template,
         evidence,
-        gap.score
+        gap.score,
+        jobData
       );
 
       if (suggestion && suggestion.estimated_gain >= SUGGESTION_THRESHOLDS.min_gain) {
@@ -102,11 +111,12 @@ function createSuggestion(
   subscore: SubScoreKey,
   template: any,
   evidence: any,
-  currentScore: number
+  currentScore: number,
+  jobData?: JobExtraction
 ): Suggestion | null {
   try {
     // Extract data for template filling
-    const templateData = extractTemplateData(subscore, evidence);
+    const templateData = extractTemplateData(subscore, evidence, jobData);
 
     // Fill template
     const text = fillTemplate(template, templateData);
@@ -117,6 +127,8 @@ function createSuggestion(
     // Generate unique ID
     const id = generateSuggestionId(subscore, text);
 
+    const action = buildSuggestionAction(subscore, evidence, jobData);
+
     return {
       id,
       text,
@@ -124,6 +136,7 @@ function createSuggestion(
       targets: [subscore],
       quick_win: template.quickWin && estimatedGain >= SUGGESTION_THRESHOLDS.quick_win_effort_threshold,
       category: template.category,
+      action,
     };
   } catch (error) {
     console.error('Failed to create suggestion:', error);
@@ -134,24 +147,32 @@ function createSuggestion(
 /**
  * Extract data from evidence for template filling
  */
-function extractTemplateData(subscore: SubScoreKey, evidence: any): Record<string, any> {
+function extractTemplateData(
+  subscore: SubScoreKey,
+  evidence: any,
+  jobData?: JobExtraction
+): Record<string, any> {
   const data: Record<string, any> = {};
 
   switch (subscore) {
-    case 'keyword_exact':
-      if (evidence.missing) {
-        data.keyword = evidence.missing[0];
-        data.keywords = evidence.missing.slice(0, 5);
-        data.count = evidence.missing.length;
+    case 'keyword_exact': {
+      const keywordData = selectKeywordCandidates(evidence, jobData);
+      if (keywordData.keywords.length > 0) {
+        data.keyword = keywordData.keywords[0];
+        data.keywords = keywordData.keywords;
+        data.count = keywordData.keywords.length;
       }
       break;
+    }
 
-    case 'keyword_phrase':
-      if (evidence.missing) {
-        data.phrase = evidence.missing[0];
-        data.phrases = evidence.missing.slice(0, 3);
+    case 'keyword_phrase': {
+      const phrases = selectPhraseCandidates(evidence, jobData);
+      if (phrases.length > 0) {
+        data.phrase = phrases[0];
+        data.phrases = phrases;
       }
       break;
+    }
 
     case 'title_alignment':
       if (evidence.targetTitle) {
@@ -161,7 +182,7 @@ function extractTemplateData(subscore: SubScoreKey, evidence: any): Record<strin
       break;
 
     case 'metrics_presence':
-      data.count = 3; // Suggest adding 3 metrics
+      data.count = deriveMetricCount(evidence);
       break;
 
     case 'section_completeness':
@@ -201,4 +222,162 @@ function rankSuggestions(suggestions: Suggestion[], targetScore: number): Sugges
     // Then by estimated gain
     return b.estimated_gain - a.estimated_gain;
   });
+}
+
+const JOB_POSTING_PATTERNS: RegExp[] = [
+  /\bjob description\b/i,
+  /\bresponsibilit(y|ies)\b/i,
+  /\bqualifications\b/i,
+  /\brequirements\b/i,
+  /\bmust\s+have\b/i,
+  /\bnice\s+to\s+have\b/i,
+  /\byou will\b/i,
+  /\bwe are\b/i,
+  /\bapply\b/i,
+  /\bequal opportunity\b/i,
+  /\bbenefits?\b/i,
+];
+
+function normalizePhrase(phrase: string): string {
+  return phrase
+    .replace(/^[\W_]+|[\W_]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(responsible for|experience with|experience in|knowledge of|ability to)\s+/i, '')
+    .trim();
+}
+
+function isBoilerplatePhrase(phrase: string): boolean {
+  return JOB_POSTING_PATTERNS.some((pattern) => pattern.test(phrase));
+}
+
+function dedupePreserveOrder(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+}
+
+function selectPhraseCandidates(evidence: any, jobData?: JobExtraction): string[] {
+  const rawPhrases: string[] = Array.isArray(evidence?.missing)
+    ? evidence.missing
+    : Array.isArray(jobData?.responsibilities)
+    ? jobData.responsibilities
+    : [];
+
+  const cleaned = rawPhrases
+    .map((phrase) => normalizePhrase(String(phrase)))
+    .filter((phrase) => phrase.length > 0)
+    .filter((phrase) => !isBoilerplatePhrase(phrase))
+    .filter((phrase) => {
+      const wordCount = phrase.split(' ').length;
+      return wordCount >= 2 && wordCount <= 8;
+    });
+
+  return dedupePreserveOrder(cleaned).slice(0, 3);
+}
+
+function selectKeywordCandidates(evidence: any, jobData?: JobExtraction): {
+  keywords: string[];
+  source: 'must_have' | 'nice_to_have' | 'keywords';
+} {
+  const missingTokens = Array.isArray(evidence?.missing)
+    ? evidence.missing.map((token: string) => token.toLowerCase())
+    : [];
+
+  const mustHave = Array.isArray(jobData?.must_have) ? jobData.must_have : [];
+  const niceToHave = Array.isArray(jobData?.nice_to_have) ? jobData.nice_to_have : [];
+
+  const skillCandidates = [...mustHave, ...niceToHave];
+  const matchedSkills = skillCandidates.filter((skill) => {
+    const lower = String(skill).toLowerCase();
+    return missingTokens.some((token: string) => lower.includes(token));
+  });
+
+  const fallbackTokens = missingTokens.filter((token: string) => token.length >= 3);
+  const rawKeywords = matchedSkills.length > 0 ? matchedSkills : fallbackTokens;
+
+  const keywords = dedupePreserveOrder(
+    rawKeywords
+      .map((keyword) => String(keyword).trim())
+      .filter((keyword) => keyword.length >= 3)
+  ).slice(0, 5);
+
+  const missingMustHave = Math.max(
+    0,
+    Number(evidence?.mustHaveTotal || 0) - Number(evidence?.mustHaveMatched || 0)
+  );
+  const source: 'must_have' | 'nice_to_have' | 'keywords' =
+    missingMustHave > 0 ? 'must_have' : niceToHave.length > 0 ? 'nice_to_have' : 'keywords';
+
+  return { keywords, source };
+}
+
+function deriveMetricCount(evidence: any): number {
+  const idealMetrics = Number(evidence?.idealMetrics || 0);
+  if (idealMetrics > 0) {
+    return Math.min(3, idealMetrics);
+  }
+  return 3;
+}
+
+function buildSuggestionAction(
+  subscore: SubScoreKey,
+  evidence: any,
+  jobData?: JobExtraction
+): SuggestionAction | undefined {
+  switch (subscore) {
+    case 'keyword_exact': {
+      const { keywords, source } = selectKeywordCandidates(evidence, jobData);
+      if (keywords.length === 0) return undefined;
+      return {
+        type: 'add_keyword',
+        params: {
+          keywords,
+          target: 'skills',
+          source,
+        },
+      };
+    }
+    case 'keyword_phrase': {
+      const phrases = selectPhraseCandidates(evidence, jobData);
+      if (phrases.length === 0) return undefined;
+      return {
+        type: 'add_phrase',
+        params: {
+          phrases,
+          target: 'experience',
+          source: 'responsibilities',
+        },
+      };
+    }
+    case 'title_alignment': {
+      if (!evidence?.targetTitle) return undefined;
+      return {
+        type: 'align_title',
+        params: {
+          targetTitle: String(evidence.targetTitle),
+          targetSeniority: evidence.targetSeniority || 'mid',
+          currentTitle: evidence?.bestMatch?.title,
+          placement: 'summary',
+        },
+      };
+    }
+    case 'metrics_presence': {
+      return {
+        type: 'add_metric',
+        params: {
+          targetRoleIndex: 0,
+          targetCount: deriveMetricCount(evidence),
+          metricHint: 'impact',
+        },
+      };
+    }
+    default:
+      return undefined;
+  }
 }

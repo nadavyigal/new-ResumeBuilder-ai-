@@ -29,21 +29,21 @@ export interface SuggestionTemplate {
 export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
   keyword_exact: [
     {
-      text: "Add exact term '{keyword}' to Skills section and latest role achievements",
+      text: "Add the missing skill '{keyword}' to Skills, and reference it in a recent achievement if accurate",
       estimatedGain: 8,
       quickWin: true,
       category: 'keywords',
       condition: (evidence) => evidence.missing && evidence.missing.length > 0,
     },
     {
-      text: "Include {count} missing must-have keywords: {keywords}",
+      text: "Prioritize {count} must-have skills in Skills and experience bullets: {keywords}",
       estimatedGain: 12,
       quickWin: false,
       category: 'keywords',
       condition: (evidence) => evidence.mustHaveTotal - evidence.mustHaveMatched >= 3,
     },
     {
-      text: "Add nice-to-have skills to strengthen match: {keywords}",
+      text: "If accurate, add these nice-to-have skills to Skills or tools list: {keywords}",
       estimatedGain: 5,
       quickWin: true,
       category: 'keywords',
@@ -52,13 +52,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   keyword_phrase: [
     {
-      text: "Mirror JD phrase '{phrase}' in your experience bullets",
+      text: "Weave the concept '{phrase}' into an existing achievement using your own wording",
       estimatedGain: 6,
       quickWin: true,
       category: 'content',
     },
     {
-      text: "Use exact phrases from job responsibilities: {phrases}",
+      text: "Add 1-2 JD-relevant phrases to achievements or summary (use your own wording): {phrases}",
       estimatedGain: 8,
       quickWin: false,
       category: 'content',
@@ -82,13 +82,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   title_alignment: [
     {
-      text: "Include '{targetTitle}' in your professional summary or headline",
+      text: "Align your headline/summary with the target title '{targetTitle}' if it reflects your experience",
       estimatedGain: 8,
       quickWin: true,
       category: 'content',
     },
     {
-      text: "Adjust latest role title to match seniority level ({seniority})",
+      text: "Clarify seniority level ({seniority}) in your headline or summary without changing official titles",
       estimatedGain: 5,
       quickWin: false,
       category: 'content',
@@ -97,13 +97,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   metrics_presence: [
     {
-      text: "Quantify {count} achievements with percentages, dollar amounts, or numbers",
+      text: "Quantify {count} achievements with outcomes (%, $, time, scale)",
       estimatedGain: 10,
       quickWin: false,
       category: 'metrics',
     },
     {
-      text: "Add metrics to latest role (e.g., '% improvement', '$ saved', '# users')",
+      text: "Add at least one metric to your most recent role (time saved, revenue, users, efficiency)",
       estimatedGain: 7,
       quickWin: true,
       category: 'metrics',

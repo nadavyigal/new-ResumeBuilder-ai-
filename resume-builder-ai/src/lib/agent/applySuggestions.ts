@@ -4,8 +4,9 @@
  * Updated: 2025-11-18 - Integrated field-based modification system (Phase 3, T018)
  */
 import type { OptimizedResume } from '@/lib/ai-optimizer';
-import type { Suggestion } from '@/lib/ats/types';
-import { applyModification, type ModificationOperation } from '../resume/modification-applier';
+import type { JobExtraction, Suggestion } from '@/lib/ats/types';
+import type { AffectedField } from '@/types/chat';
+import { applyModification, applyModifications, type ModificationOperation } from '../resume/modification-applier';
 
 export interface ApplySuggestionsResult {
   resume: OptimizedResume;
@@ -14,13 +15,20 @@ export interface ApplySuggestionsResult {
   modifications: ModificationOperation[]; // Track all modifications for audit trail (Phase 3)
 }
 
+export interface ApplySuggestionsContext {
+  jobDescriptionText?: string;
+  jobData?: JobExtraction;
+  resumeOriginalText?: string;
+}
+
 /**
  * Apply multiple ATS suggestions to resume content
  * Returns the updated resume along with metadata about what changed
  */
 export async function applySuggestions(
   resume: OptimizedResume,
-  suggestions: Suggestion[]
+  suggestions: Suggestion[],
+  context?: ApplySuggestionsContext
 ): Promise<OptimizedResume> {
   console.log(`🔄 Starting to apply ${suggestions.length} suggestions...`);
   console.log(`📝 Suggestions to apply:`, suggestions.map((s, i) => `#${i + 1}: ${s.category} - ${s.text.substring(0, 60)}...`));
@@ -36,7 +44,7 @@ export async function applySuggestions(
       text: suggestion.text.substring(0, 100),
     });
 
-    const result = await applySingleSuggestion(updated, suggestion);
+    const result = await applySingleSuggestion(updated, suggestion, context);
 
     console.log(`📊 Suggestion #${i + 1} result:`, {
       changed: result.changed,
@@ -65,7 +73,8 @@ export async function applySuggestions(
  */
 export async function applySuggestionsWithTracking(
   resume: OptimizedResume,
-  suggestions: Suggestion[]
+  suggestions: Suggestion[],
+  context?: ApplySuggestionsContext
 ): Promise<ApplySuggestionsResult> {
   let updated = JSON.parse(JSON.stringify(resume)); // Deep clone
   let changesApplied = 0;
@@ -73,15 +82,15 @@ export async function applySuggestionsWithTracking(
   const modifications: ModificationOperation[] = [];
 
   for (const suggestion of suggestions) {
-    const result = await applySingleSuggestion(updated, suggestion);
+    const result = await applySingleSuggestion(updated, suggestion, context);
     if (result.changed) {
       updated = result.resume;
       changesApplied++;
       changeLog.push(result.changeDescription);
 
       // Track modification operations for database logging (Phase 3)
-      if (result.modification) {
-        modifications.push(result.modification);
+      if (result.modifications && result.modifications.length > 0) {
+        modifications.push(...result.modifications);
       }
     }
   }
@@ -101,24 +110,25 @@ interface SuggestionResult {
   resume: OptimizedResume;
   changed: boolean;
   changeDescription: string;
-  modification?: ModificationOperation; // Optional: Only set if using field-based modification (Phase 3)
+  modifications?: ModificationOperation[]; // Optional: Field-based modifications for audit trail
 }
 
 async function applySingleSuggestion(
   resume: OptimizedResume,
-  suggestion: Suggestion
+  suggestion: Suggestion,
+  context?: ApplySuggestionsContext
 ): Promise<SuggestionResult> {
   const updated = JSON.parse(JSON.stringify(resume)); // Deep clone
 
   switch (suggestion.category) {
     case 'keywords':
-      return applyKeywordSuggestion(updated, suggestion);
+      return applyKeywordSuggestion(updated, suggestion, context);
 
     case 'metrics':
       return applyMetricsSuggestion(updated, suggestion);
 
     case 'content':
-      return applyContentSuggestion(updated, suggestion);
+      return applyContentSuggestion(updated, suggestion, context);
 
     case 'formatting':
     case 'structure':
@@ -144,16 +154,22 @@ async function applySingleSuggestion(
  */
 function applyKeywordSuggestion(
   resume: OptimizedResume,
-  suggestion: Suggestion
+  suggestion: Suggestion,
+  context?: ApplySuggestionsContext
 ): SuggestionResult {
-  // Extract keywords from suggestion text
-  const keywords = extractKeywordsFromText(suggestion.text);
+  const actionKeywords =
+    suggestion.action?.type === 'add_keyword'
+      ? suggestion.action.params.keywords
+      : [];
+  const keywordCandidates =
+    actionKeywords.length > 0 ? actionKeywords : extractKeywordsFromText(suggestion.text);
+  const keywords = normalizeKeywords(keywordCandidates, context?.jobData);
 
   if (keywords.length === 0) {
     return {
       resume,
       changed: false,
-      changeDescription: `No keywords extracted from: "${suggestion.text.substring(0, 50)}..."`,
+      changeDescription: `No valid keywords found for: "${suggestion.text.substring(0, 50)}..."`,
     };
   }
 
@@ -201,7 +217,7 @@ function applyKeywordSuggestion(
       resume: updated,
       changed: true,
       changeDescription: `Added keywords: ${newKeywords.join(', ')}`,
-      modification: modifications[0], // Return first modification for tracking (rest are similar)
+      modifications,
     };
   } catch (error) {
     console.error('Failed to apply keyword modifications:', error);
@@ -222,8 +238,8 @@ function applyMetricsSuggestion(
   resume: OptimizedResume,
   suggestion: Suggestion
 ): SuggestionResult {
-  const action: any = (suggestion as any).action;
-  if (!action || action.type !== 'add_metric' || !action.params) {
+  const action = suggestion.action;
+  if (!action || action.type !== 'add_metric') {
     return {
       resume,
       changed: false,
@@ -231,15 +247,16 @@ function applyMetricsSuggestion(
     };
   }
 
-  const params = action.params as Record<string, unknown>;
-  const metric = String(params.metric || '').trim();
-  const value = String(params.value || '').trim();
+  const metric = typeof action.params.metric === 'string' ? action.params.metric.trim() : '';
+  const value = typeof action.params.value === 'string' ? action.params.value.trim() : '';
+  const targetRoleIndex =
+    typeof action.params.targetRoleIndex === 'number' ? action.params.targetRoleIndex : 0;
 
   if (!metric || !value) {
     return {
       resume,
       changed: false,
-      changeDescription: 'Missing metric or value parameters',
+      changeDescription: 'Metric action requires concrete metric and value',
     };
   }
 
@@ -251,137 +268,255 @@ function applyMetricsSuggestion(
     };
   }
 
-  const updated = JSON.parse(JSON.stringify(resume)) as OptimizedResume;
-  const latestExp = updated.experience[0] as any;
+  let updated = JSON.parse(JSON.stringify(resume)) as OptimizedResume;
+  const roleIndex = Math.min(targetRoleIndex, updated.experience.length - 1);
+  const latestExp = updated.experience[roleIndex] as any;
   latestExp.achievements = Array.isArray(latestExp.achievements) ? latestExp.achievements : [];
 
   const hasQuant = (s: string) => /\d|%|\$|#/.test(s);
   let applied = false;
+  const modifications: ModificationOperation[] = [];
+
   for (let i = 0; i < latestExp.achievements.length; i++) {
     const a = latestExp.achievements[i];
     if (typeof a === 'string' && !hasQuant(a)) {
-      latestExp.achievements[i] = `${a.replace(/[\s.]+$/, '')}. Increased ${metric} by ${value}.`;
+      const newValue = `${a.replace(/[\s.]+$/, '')}. Increased ${metric} by ${value}.`;
+      const modification: ModificationOperation = {
+        operation: 'replace',
+        field_path: `experience[${roleIndex}].achievements[${i}]`,
+        new_value: newValue,
+        old_value: a,
+      };
+      updated = applyModification(updated, modification);
+      modifications.push(modification);
       applied = true;
       break;
     }
   }
 
   if (!applied) {
-    latestExp.achievements.push(`Increased ${metric} by ${value}.`);
+    const modification: ModificationOperation = {
+      operation: 'append',
+      field_path: `experience[${roleIndex}].achievements`,
+      new_value: `Increased ${metric} by ${value}.`,
+      old_value: undefined,
+    };
+    updated = applyModification(updated, modification);
+    modifications.push(modification);
   }
-
-  updated.experience[0] = latestExp;
 
   return {
     resume: updated,
     changed: true,
     changeDescription: `Added metric: ${metric} by ${value} to ${latestExp.title || 'latest experience'}`,
+    modifications,
   };
 }
 
 /**
- * Apply content suggestions using field-based modifications (Phase 3)
+ * Apply content suggestions using structured amendments
  *
- * Uses smart modification system to append to achievements array
- * instead of directly mutating resume structure.
+ * Uses amendment generation to avoid direct JD phrase insertion.
  */
-function applyContentSuggestion(
+async function applyContentSuggestion(
   resume: OptimizedResume,
-  suggestion: Suggestion
-): SuggestionResult {
-  const phrases = extractQuotedPhrases(suggestion.text);
-  if (phrases.length === 0) {
+  suggestion: Suggestion,
+  context?: ApplySuggestionsContext
+): Promise<SuggestionResult> {
+  return applySuggestionViaAmendments(resume, suggestion, context);
+}
+
+async function applySuggestionViaAmendments(
+  resume: OptimizedResume,
+  suggestion: Suggestion,
+  context?: ApplySuggestionsContext
+): Promise<SuggestionResult> {
+  try {
+    const { generateAmendments } = await import('@/lib/ats/amendment-generator');
+    const result = await generateAmendments(suggestion, resume, {
+      jobDescriptionText: context?.jobDescriptionText,
+      jobData: context?.jobData,
+    });
+
+    if (!result.success || result.affectedFields.length === 0) {
+      return {
+        resume,
+        changed: false,
+        changeDescription: 'No structured amendments generated for suggestion',
+      };
+    }
+
+    const modifications = buildModificationsFromAffectedFields(result.affectedFields);
+    if (modifications.length === 0) {
+      return {
+        resume,
+        changed: false,
+        changeDescription: 'No applicable amendments after filtering',
+      };
+    }
+
+    const updated = applyModifications(resume, modifications);
+    return {
+      resume: updated,
+      changed: true,
+      changeDescription: `Applied ${modifications.length} amendment(s)`,
+      modifications,
+    };
+  } catch (error) {
+    console.error('Failed to apply amendments:', error);
     return {
       resume,
       changed: false,
-      changeDescription: 'No quoted phrases found in suggestion',
+      changeDescription: `Failed to apply amendments: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
   }
+}
 
-  const phrase = phrases[0];
+function buildModificationsFromAffectedFields(
+  affectedFields: AffectedField[]
+): ModificationOperation[] {
+  const modifications: ModificationOperation[] = [];
 
-  if (Array.isArray(resume.experience) && resume.experience.length > 0) {
-    const latestExp = resume.experience[0] as any;
-    const achievements = Array.isArray(latestExp.achievements) ? latestExp.achievements : [];
+  for (const field of affectedFields) {
+    const fieldMods = buildModificationsFromAffectedField(field);
+    if (fieldMods.length > 0) {
+      modifications.push(...fieldMods);
+    }
+  }
 
-    const alreadyPresent = achievements.some(
-      (a: unknown) => typeof a === 'string' && a.toLowerCase().includes(phrase.toLowerCase())
-    );
+  return modifications;
+}
 
-    if (!alreadyPresent) {
-      // USE FIELD-BASED MODIFICATION (Phase 3) instead of direct mutation
-      const modification: ModificationOperation = {
+function buildModificationsFromAffectedField(
+  field: AffectedField
+): ModificationOperation[] {
+  const path = mapSectionFieldToPath(field.sectionId, field.field);
+  if (!path) return [];
+
+  const originalValue = field.originalValue;
+  const newValue = field.newValue;
+
+  if (field.changeType === 'remove') {
+    return [
+      {
+        operation: 'remove',
+        field_path: path,
+        old_value: originalValue,
+      },
+    ];
+  }
+
+  if (areValuesEqual(originalValue, newValue)) {
+    return [];
+  }
+
+  const originalArray = Array.isArray(originalValue) ? originalValue : null;
+  const newArray = Array.isArray(newValue) ? newValue : null;
+
+  if (originalArray || newArray) {
+    const baseArray = originalArray || [];
+    const incoming = newArray || [newValue];
+
+    if (field.changeType === 'add') {
+      const additions = incoming.filter((item) => !arrayContainsValue(baseArray, item));
+      return additions.map((item) => ({
         operation: 'append',
-        field_path: 'experience[0].achievements',
-        new_value: phrase,
-        old_value: undefined, // Append doesn't have old_value
-      };
+        field_path: path,
+        new_value: item,
+        old_value: undefined,
+      }));
+    }
 
-      try {
-        const updated = applyModification(resume, modification);
-        return {
-          resume: updated,
-          changed: true,
-          changeDescription: `Added content: "${phrase.substring(0, 50)}${phrase.length > 50 ? '...' : ''}" to ${latestExp.title || 'latest experience'}`,
-          modification, // Track for audit trail
-        };
-      } catch (error) {
-        console.error('Failed to apply content modification:', error);
-        return {
-          resume,
-          changed: false,
-          changeDescription: `Failed to add content: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        };
+    return [
+      {
+        operation: 'replace',
+        field_path: path,
+        new_value: incoming,
+        old_value: originalValue,
+      },
+    ];
+  }
+
+  if (typeof originalValue === 'string' && typeof newValue === 'string' && field.changeType === 'add') {
+    if (newValue.startsWith(originalValue)) {
+      const suffix = newValue.slice(originalValue.length);
+      if (suffix.trim().length > 0) {
+        return [
+          {
+            operation: 'suffix',
+            field_path: path,
+            new_value: suffix,
+            old_value: originalValue,
+          },
+        ];
       }
-    } else {
-      return {
-        resume,
-        changed: false,
-        changeDescription: `Content already present: "${phrase.substring(0, 30)}..."`,
-      };
     }
   }
 
-  // Fallback: ensure the phrase appears in the summary using suffix operation
-  if (typeof resume.summary === 'string') {
-    if (!resume.summary.toLowerCase().includes(phrase.toLowerCase())) {
-      const modification: ModificationOperation = {
-        operation: 'suffix',
-        field_path: 'summary',
-        new_value: ` ${phrase}`,
-        old_value: resume.summary,
-      };
+  if (newValue === undefined) return [];
 
-      try {
-        const updated = applyModification(resume, modification);
-        return {
-          resume: updated,
-          changed: true,
-          changeDescription: `Added content: "${phrase.substring(0, 50)}..." to summary`,
-          modification,
-        };
-      } catch (error) {
-        console.error('Failed to apply summary modification:', error);
-        return {
-          resume,
-          changed: false,
-          changeDescription: `Failed to add to summary: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        };
-      }
-    } else {
-      return {
-        resume,
-        changed: false,
-        changeDescription: 'Content already in summary',
-      };
-    }
+  return [
+    {
+      operation: 'replace',
+      field_path: path,
+      new_value: newValue,
+      old_value: originalValue,
+    },
+  ];
+}
+
+function mapSectionFieldToPath(sectionId: string, field: string): string | null {
+  if (!sectionId || !field) return null;
+
+  if (sectionId === 'summary') {
+    return field === 'text' || field === 'summary' ? 'summary' : null;
   }
 
-  return {
-    resume,
-    changed: false,
-    changeDescription: 'No experience or summary section to add content to',
-  };
+  if (sectionId === 'skills') {
+    if (field === 'technical' || field === 'soft') {
+      return `skills.${field}`;
+    }
+    return null;
+  }
+
+  if (sectionId === 'certifications') {
+    return 'certifications';
+  }
+
+  const sectionMatch = sectionId.match(/^(experience|education|projects)-(\d+)$/);
+  if (sectionMatch) {
+    const [, section, indexStr] = sectionMatch;
+    const index = Number(indexStr);
+    if (Number.isNaN(index)) return null;
+    return `${section}[${index}].${field}`;
+  }
+
+  return null;
+}
+
+function areValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
+}
+
+function arrayContainsValue(array: unknown[], value: unknown): boolean {
+  const normalizedValue = normalizeArrayValue(value);
+  return array.some((item) => normalizeArrayValue(item) === normalizedValue);
+}
+
+function normalizeArrayValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value.trim().toLowerCase();
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 /**
@@ -397,6 +532,10 @@ const NON_SKILL_WORDS = new Set([
   // Generic terms
   'job', 'title', 'position', 'role', 'work', 'company', 'skills', 'skill',
   'section', 'resume', 'more', 'other', 'also', 'plus',
+  'responsibility', 'responsibilities', 'requirement', 'requirements',
+  'qualification', 'qualifications', 'candidate', 'applicant', 'posted',
+  'description', 'preferred', 'benefit', 'benefits', 'salary', 'location',
+  'remote', 'hybrid',
   // Numbers
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
@@ -481,6 +620,51 @@ function findAcronymContext(acronym: string, text: string): string | null {
   return null;
 }
 
+function normalizeKeywords(rawKeywords: string[], jobData?: JobExtraction): string[] {
+  const cleaned = dedupePreserveOrder(
+    rawKeywords
+      .map((keyword) => String(keyword).trim())
+      .filter((keyword) => keyword.length > 0)
+  );
+
+  const expanded = expandKeywordsFromJobData(cleaned, jobData);
+  return dedupePreserveOrder(expanded.filter((keyword) => isValidSkill(keyword)));
+}
+
+function expandKeywordsFromJobData(keywords: string[], jobData?: JobExtraction): string[] {
+  if (!jobData) return keywords;
+
+  const jobSkills = [
+    ...(Array.isArray(jobData.must_have) ? jobData.must_have : []),
+    ...(Array.isArray(jobData.nice_to_have) ? jobData.nice_to_have : []),
+  ]
+    .map((skill) => String(skill).trim())
+    .filter((skill) => skill.length > 0);
+
+  if (jobSkills.length === 0) return keywords;
+
+  const loweredKeywords = keywords.map((keyword) => keyword.toLowerCase());
+  const expanded = jobSkills.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return loweredKeywords.some((token) => lower.includes(token));
+  });
+
+  const filteredExpanded = expanded.filter((skill) => isValidSkill(skill));
+  return filteredExpanded.length > 0 ? filteredExpanded : keywords;
+}
+
+function dedupePreserveOrder(items: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of items) {
+    const key = item.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
+}
+
 /**
  * Extract keywords from suggestion text
  * Enhanced with context awareness to avoid extracting non-skills
@@ -554,16 +738,3 @@ function extractKeywordsFromText(text: string): string[] {
   // Deduplicate and return
   return Array.from(new Set(keywords.map(k => k.trim()).filter(k => k.length > 0)));
 }
-
-/**
- * Extract phrases in single or double quotes
- */
-function extractQuotedPhrases(text: string): string[] {
-  const results: string[] = [];
-  const dq = text.match(/"([^"]+)"/g) || [];
-  const sq = text.match(/'([^']+)'/g) || [];
-  for (const m of dq) results.push(m.replace(/"/g, ''));
-  for (const m of sq) results.push(m.replace(/'/g, ''));
-  return results;
-}
-

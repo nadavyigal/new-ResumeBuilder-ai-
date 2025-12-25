@@ -1,6 +1,7 @@
 import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
 import { applySuggestionsWithTracking } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
+import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ModificationOperation } from '../../resume/modification-applier';
 
@@ -72,7 +73,7 @@ export async function handleTipImplementation(
   console.log('💡 [handleTipImplementation] Fetching optimization:', optimizationId);
   const { data: optimization, error: fetchError } = await supabase
     .from('optimizations')
-    .select('rewrite_data, ats_score_optimized, ai_modification_count, user_id')
+    .select('rewrite_data, ats_score_optimized, ai_modification_count, user_id, jd_id, resume_id, ats_score_original, ats_subscores_original')
     .eq('id', optimizationId)
     .maybeSingle(); // Use maybeSingle() to avoid 406 errors when no rows found
 
@@ -88,12 +89,54 @@ export async function handleTipImplementation(
   const scoreBefore = optimization.ats_score_optimized || 0;
   console.log('💡 [handleTipImplementation] Current score:', scoreBefore);
 
+  const jobId = optimization.jd_id;
+  const resumeId = optimization.resume_id;
+  let jobDesc: any = null;
+  let resumeData: any = null;
+  let jobText = '';
+  let jobData: any = null;
+
+  if (jobId) {
+    const { data, error } = await supabase
+      .from('job_descriptions')
+      .select('clean_text, raw_text, title')
+      .eq('id', jobId)
+      .maybeSingle();
+    if (error) {
+      console.error('WARN [handleTipImplementation] Failed to fetch job description:', error);
+    } else {
+      jobDesc = data;
+      jobText = (jobDesc?.clean_text || jobDesc?.raw_text || '').trim();
+      if (jobText) {
+        jobData = extractJobData(jobText);
+      }
+    }
+  }
+
+  if (resumeId) {
+    const { data, error } = await supabase
+      .from('resumes')
+      .select('raw_text')
+      .eq('id', resumeId)
+      .maybeSingle();
+    if (error) {
+      console.error('WARN [handleTipImplementation] Failed to fetch original resume:', error);
+    } else {
+      resumeData = data;
+    }
+  }
+
   // 5. Apply suggestions to resume with modification tracking (Phase 3, T019)
   try {
     console.log('💡 [handleTipImplementation] Applying suggestions:', suggestions.map(s => s.text));
     const suggestionResult = await applySuggestionsWithTracking(
       optimization.rewrite_data,
-      suggestions
+      suggestions,
+      {
+        jobDescriptionText: jobText || undefined,
+        jobData: jobData || undefined,
+        resumeOriginalText: resumeData?.raw_text,
+      }
     );
     const updatedResume = suggestionResult.resume;
     const modifications = suggestionResult.modifications;
@@ -103,80 +146,7 @@ export async function handleTipImplementation(
     // 6. RE-SCORE using actual ATS engine (CRITICAL FIX)
     console.log('🔍 [handleTipImplementation] Re-scoring resume with ATS engine...');
 
-    // Fetch job description and original resume for re-scoring
-    const { data: jdData, error: jdError } = await supabase
-      .from('optimizations')
-      .select('jd_id, resume_id, ats_score_original, ats_subscores_original')
-      .eq('id', optimizationId)
-      .maybeSingle();
-
-    if (jdError || !jdData) {
-      console.error('❌ [handleTipImplementation] Failed to fetch optimization data for re-scoring:', jdError);
-      // Fall back to estimated scoring if re-scoring fails
-      const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
-      const scoreAfter = Math.min(100, scoreBefore + Math.min(15, Math.round(rawGain * 0.7)));
-
-      // Log modifications even in fallback path (Phase 3, T019)
-      if (modifications.length > 0 && optimization.user_id) {
-        try {
-          for (const modification of modifications) {
-            await supabase
-              .from('content_modifications')
-              .insert({
-                user_id: optimization.user_id,
-                optimization_id: optimizationId,
-                operation_type: modification.operation,
-                field_path: modification.field_path,
-                old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
-                new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
-                ats_score_before: scoreBefore,
-                ats_score_after: scoreAfter,
-              });
-          }
-        } catch (logError) {
-          console.error('⚠️ Failed to log modifications:', logError);
-        }
-      }
-
-      const updatePayload = {
-        rewrite_data: updatedResume,
-        ats_score_optimized: scoreAfter,
-        ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
-        updated_at: new Date().toISOString(),
-      };
-
-      await supabase
-        .from('optimizations')
-        .update(updatePayload)
-        .eq('id', optimizationId);
-
-      return {
-        intent: 'tip_implementation',
-        success: true,
-        tips_applied: {
-          tip_numbers: tipNumbers,
-          score_change: scoreAfter - scoreBefore,
-          new_ats_score: scoreAfter,
-        },
-        message: `✅ Applied tips! Score updated to ${scoreAfter}% (estimated, re-scoring unavailable).`,
-      };
-    }
-
-    // Fetch job description text AND title
-    const { data: jobDesc, error: jobDescError } = await supabase
-      .from('job_descriptions')
-      .select('clean_text, raw_text, title')
-      .eq('id', jdData.jd_id)
-      .maybeSingle();
-
-    // Fetch original resume text
-    const { data: resumeData, error: resumeError } = await supabase
-      .from('resumes')
-      .select('raw_text')
-      .eq('id', jdData.resume_id)
-      .maybeSingle();
-
-    if (jobDescError || resumeError || !jobDesc || !resumeData) {
+    if (!optimization.jd_id || !optimization.resume_id || !jobDesc || !resumeData || !jobText) {
       console.error('❌ [handleTipImplementation] Failed to fetch JD/resume for re-scoring');
       // Fall back to estimated scoring
       const rawGain = suggestions.reduce((sum, s) => sum + s.estimated_gain, 0);
@@ -232,16 +202,16 @@ export async function handleTipImplementation(
     const { rescoreAfterTipImplementation } = await import('@/lib/ats/integration');
 
     // Run real ATS scoring with correct job title
-    const jobTitle = (jobDesc as any).title || 'Position';
+    const jobTitle = jobDesc?.title || 'Position';
     console.log('💡 [handleTipImplementation] Re-scoring with job title:', jobTitle);
 
     const atsResult = await rescoreAfterTipImplementation({
       resumeOriginalText: resumeData.raw_text,
       resumeOptimizedJson: updatedResume,
-      jobDescriptionText: jobDesc.clean_text || jobDesc.raw_text,
+      jobDescriptionText: jobText || jobDesc.clean_text || jobDesc.raw_text,
       jobTitle: jobTitle,
-      previousOriginalScore: jdData.ats_score_original,
-      previousSubscoresOriginal: jdData.ats_subscores_original,
+      previousOriginalScore: optimization.ats_score_original,
+      previousSubscoresOriginal: optimization.ats_subscores_original,
     });
 
     const scoreAfter = atsResult.ats_score_optimized;
