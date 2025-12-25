@@ -270,6 +270,76 @@ export interface Database {
           updated_at?: string;
         };
       };
+      anonymous_ats_scores: {
+        Row: {
+          id: number;
+          session_id: string;
+          ip_address: string;
+          ats_score: number;
+          ats_subscores: any;
+          ats_suggestions: any;
+          resume_hash: string;
+          job_description_hash: string;
+          user_id: string | null;
+          optimization_id: number | null;
+          converted_at: string | null;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: number;
+          session_id: string;
+          ip_address: string;
+          ats_score: number;
+          ats_subscores: any;
+          ats_suggestions: any;
+          resume_hash: string;
+          job_description_hash: string;
+          user_id?: string | null;
+          optimization_id?: number | null;
+          converted_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Update: {
+          id?: number;
+          session_id?: string;
+          ip_address?: string;
+          ats_score?: number;
+          ats_subscores?: any;
+          ats_suggestions?: any;
+          resume_hash?: string;
+          job_description_hash?: string;
+          user_id?: string | null;
+          optimization_id?: number | null;
+          converted_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+      };
+      rate_limits: {
+        Row: {
+          id: number;
+          identifier: string;
+          endpoint: string;
+          requests_count: number;
+          window_start: string;
+        };
+        Insert: {
+          id?: number;
+          identifier: string;
+          endpoint: string;
+          requests_count?: number;
+          window_start?: string;
+        };
+        Update: {
+          id?: number;
+          identifier?: string;
+          endpoint?: string;
+          requests_count?: number;
+          window_start?: string;
+        };
+      };
     };
   };
 }

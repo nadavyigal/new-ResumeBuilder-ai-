@@ -2,12 +2,14 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { captureServerEvent } from '@/lib/posthog-server';
+import { createServiceRoleClient } from '@/lib/supabase-server';
 
 // This route handles the OAuth, magic link, and email confirmation callbacks
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/dashboard';
+  const sessionId = searchParams.get('session_id');
   const error = searchParams.get('error');
   const error_description = searchParams.get('error_description');
 
@@ -52,10 +54,43 @@ export async function GET(request: NextRequest) {
         email: data.user.email,
       });
 
+      if (sessionId) {
+        try {
+          const serviceRole = createServiceRoleClient();
+          const { data: anonScore } = await serviceRole
+            .from('anonymous_ats_scores')
+            .select('id, ats_score, created_at')
+            .eq('session_id', sessionId)
+            .is('user_id', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (anonScore) {
+            await serviceRole
+              .from('anonymous_ats_scores')
+              .update({
+                user_id: data.user.id,
+                converted_at: new Date().toISOString(),
+              })
+              .eq('id', anonScore.id);
+
+            await captureServerEvent(data.user.id, 'ats_checker_session_converted', {
+              sessionId,
+              score: anonScore.ats_score,
+              convertedAt: new Date().toISOString(),
+            });
+          }
+        } catch (conversionError) {
+          console.error('Session conversion error:', conversionError);
+        }
+      }
+
       const redirectTo = request.nextUrl.clone();
       redirectTo.pathname = next;
       redirectTo.searchParams.delete('code');
       redirectTo.searchParams.delete('next');
+      redirectTo.searchParams.delete('session_id');
       return NextResponse.redirect(redirectTo);
     }
 
