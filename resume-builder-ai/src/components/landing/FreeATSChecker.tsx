@@ -84,9 +84,14 @@ export function FreeATSChecker() {
     });
   };
 
-  const handleSubmit = async (file: File, jobDescription: string) => {
+  const handleSubmit = async (
+    file: File,
+    input: { inputMode: "text" | "url"; jobDescription: string; jobDescriptionUrl: string }
+  ) => {
     setErrorMessage(null);
     setStep("processing");
+
+    const { inputMode, jobDescription, jobDescriptionUrl } = input;
 
     const activeSessionId = sessionId ?? crypto.randomUUID();
     if (!sessionId) {
@@ -94,14 +99,25 @@ export function FreeATSChecker() {
       localStorage.setItem(SESSION_KEY, activeSessionId);
     }
 
+    let normalizedUrl = jobDescriptionUrl.trim();
+    if (inputMode === "url" && normalizedUrl && !normalizedUrl.match(/^https?:\/\//i)) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+
     posthog.capture("ats_checker_submitted", {
       sessionId: activeSessionId,
-      jobDescriptionLength: jobDescription.length,
+      input_mode: inputMode,
+      jobDescriptionLength: inputMode === "text" ? jobDescription.length : 0,
+      jobDescriptionUrlLength: inputMode === "url" ? normalizedUrl.length : 0,
     });
 
     const formData = new FormData();
     formData.append("resume", file);
-    formData.append("jobDescription", jobDescription);
+    if (inputMode === "url") {
+      formData.append("jobDescriptionUrl", normalizedUrl);
+    } else {
+      formData.append("jobDescription", jobDescription);
+    }
 
     try {
       const response = await fetch("/api/public/ats-check", {
@@ -185,7 +201,7 @@ export function FreeATSChecker() {
                   See if your resume survives ATS filters
                 </h1>
                 <p className="text-lg text-foreground/80 leading-relaxed">
-                  Upload your resume, paste the job description, and get an instant ATS compatibility score. No signup needed.
+                  Upload your resume, paste the job description or add the URL, and get an instant ATS compatibility score. No signup needed.
                 </p>
               </div>
 

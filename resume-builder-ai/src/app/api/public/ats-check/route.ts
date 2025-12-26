@@ -6,6 +6,9 @@ import { createServiceRoleClient } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limiting/check-rate-limit';
 import { getClientIP } from '@/lib/rate-limiting/get-client-ip';
 import { hashContent } from '@/lib/utils/hash-content';
+import { scrapeJobDescription } from '@/lib/job-scraper';
+import { extractJob } from '@/lib/scraper/jobExtractor';
+import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +67,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const resumeFile = formData.get('resume');
   const jobDescriptionRaw = formData.get('jobDescription');
+  const jobDescriptionUrlRaw = formData.get('jobDescriptionUrl');
 
   if (!(resumeFile instanceof File)) {
     return NextResponse.json({ error: 'Resume file is required.' }, { status: 400 });
@@ -78,12 +82,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
   }
 
-  const jobDescription = typeof jobDescriptionRaw === 'string' ? jobDescriptionRaw.trim() : '';
+  let jobDescription = typeof jobDescriptionRaw === 'string' ? jobDescriptionRaw.trim() : '';
+  const jobDescriptionUrl = typeof jobDescriptionUrlRaw === 'string' ? jobDescriptionUrlRaw.trim() : '';
+
+  if (!jobDescription && jobDescriptionUrl) {
+    try {
+      jobDescription = await resolveJobDescriptionFromUrl(jobDescriptionUrl);
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error?.message || 'Unable to fetch job description from URL.' },
+        { status: 400 }
+      );
+    }
+  }
+
   if (!jobDescription) {
     return NextResponse.json({ error: 'Job description is required.' }, { status: 400 });
   }
 
-  const wordCount = jobDescription.split(/\s+/).filter(Boolean).length;
+  const wordCount = countWords(jobDescription);
   if (wordCount < 100) {
     return NextResponse.json(
       { error: 'Please paste the full job description (at least 100 words).' },
@@ -175,4 +192,64 @@ function formatResponse(score: any, sessionId: string, remaining: number) {
     },
     checksRemaining: remaining,
   };
+}
+
+function countWords(text: string) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function normalizeJobUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) {
+    throw new Error('Job description URL is required.');
+  }
+  const withProtocol = trimmed.match(/^https?:\/\//i) ? trimmed : `https://${trimmed}`;
+  return new URL(withProtocol).toString();
+}
+
+function buildJobDescriptionFromExtracted(extracted: ExtractedJobData) {
+  const parts: string[] = [];
+  if (extracted.job_title) parts.push(`Job Title: ${extracted.job_title}`);
+  if (extracted.company_name) parts.push(`Company: ${extracted.company_name}`);
+  if (extracted.location) parts.push(`Location: ${extracted.location}`);
+  if (extracted.about_this_job) parts.push(`About: ${extracted.about_this_job}`);
+  if (extracted.requirements?.length) parts.push(`Requirements: ${extracted.requirements.join('; ')}`);
+  if (extracted.responsibilities?.length) {
+    parts.push(`Responsibilities: ${extracted.responsibilities.join('; ')}`);
+  }
+  if (extracted.qualifications?.length) {
+    parts.push(`Qualifications: ${extracted.qualifications.join('; ')}`);
+  }
+  return parts.join('\n').trim();
+}
+
+async function resolveJobDescriptionFromUrl(rawUrl: string) {
+  const normalizedUrl = normalizeJobUrl(rawUrl);
+
+  let extractedText = '';
+  try {
+    const extracted = await extractJob(normalizedUrl);
+    extractedText = buildJobDescriptionFromExtracted(extracted);
+  } catch (error) {
+    extractedText = '';
+  }
+
+  if (countWords(extractedText) >= 100) {
+    return extractedText;
+  }
+
+  try {
+    const scraped = await scrapeJobDescription(normalizedUrl);
+    if (scraped && scraped.trim().length > 0) {
+      return scraped.trim();
+    }
+  } catch (error) {
+    // Fall through to error below.
+  }
+
+  if (extractedText) {
+    return extractedText;
+  }
+
+  throw new Error('Unable to extract a full job description from that URL. Please paste it instead.');
 }

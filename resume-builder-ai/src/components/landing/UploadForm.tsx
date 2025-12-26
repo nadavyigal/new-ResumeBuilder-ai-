@@ -7,7 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 interface UploadFormProps {
-  onSubmit: (file: File, jobDescription: string) => Promise<void>;
+  onSubmit: (
+    file: File,
+    input: { inputMode: "text" | "url"; jobDescription: string; jobDescriptionUrl: string }
+  ) => Promise<void>;
   onFileSelected?: (file: File) => void;
   errorMessage?: string | null;
 }
@@ -15,11 +18,19 @@ interface UploadFormProps {
 export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFormProps) {
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState("");
+  const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
+  const [inputMode, setInputMode] = useState<"text" | "url">("text");
   const [submitting, setSubmitting] = useState(false);
 
   const wordCount = useMemo(() => {
+    if (inputMode !== "text") return 0;
     return jobDescription.trim().split(/\s+/).filter(Boolean).length;
-  }, [jobDescription]);
+  }, [jobDescription, inputMode]);
+
+  const canSubmit = Boolean(
+    resumeFile
+    && (inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim())
+  );
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -31,11 +42,15 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!resumeFile) return;
+    if (!resumeFile || !canSubmit) return;
 
     setSubmitting(true);
     try {
-      await onSubmit(resumeFile, jobDescription);
+      await onSubmit(resumeFile, {
+        inputMode,
+        jobDescription,
+        jobDescriptionUrl,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -59,20 +74,57 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="jobDescription">Paste job description</Label>
-        <Textarea
-          id="jobDescription"
-          data-testid="job-description-input"
-          placeholder="Paste the full job description here..."
-          value={jobDescription}
-          onChange={(event) => setJobDescription(event.target.value)}
-          rows={6}
-          required
-        />
-        <div className="flex items-center justify-between text-xs text-foreground/60">
-          <span>Minimum 100 words for accurate scoring.</span>
-          <span>{wordCount} words</span>
+        <Label>Job Description</Label>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant={inputMode === "text" ? "default" : "outline"}
+            onClick={() => setInputMode("text")}
+            className="flex-1"
+          >
+            Paste Text
+          </Button>
+          <Button
+            type="button"
+            variant={inputMode === "url" ? "default" : "outline"}
+            onClick={() => setInputMode("url")}
+            className="flex-1"
+          >
+            Enter URL
+          </Button>
         </div>
+        {inputMode === "text" ? (
+          <>
+            <Textarea
+              id="jobDescription"
+              data-testid="job-description-input"
+              placeholder="Paste the full job description here..."
+              value={jobDescription}
+              onChange={(event) => setJobDescription(event.target.value)}
+              rows={6}
+              required
+            />
+            <div className="flex items-center justify-between text-xs text-foreground/60">
+              <span>Minimum 100 words for accurate scoring.</span>
+              <span>{wordCount} words</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <Input
+              id="jobDescriptionUrl"
+              data-testid="job-description-url-input"
+              type="text"
+              placeholder="Paste job URL here (e.g., https://linkedin.com/jobs/view/123456)"
+              value={jobDescriptionUrl}
+              onChange={(event) => setJobDescriptionUrl(event.target.value)}
+              required
+            />
+            <p className="text-xs text-foreground/60">
+              We will fetch the job description from the URL.
+            </p>
+          </>
+        )}
       </div>
 
       {errorMessage && (
@@ -85,7 +137,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
         type="submit"
         data-testid="analyze-button"
         className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
-        disabled={!resumeFile || submitting}
+        disabled={!canSubmit || submitting}
       >
         {submitting ? "Checking..." : "Check My ATS Score"}
       </Button>
