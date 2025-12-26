@@ -1,15 +1,44 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Upload, Palette, Briefcase, TrendingUp, Sparkles } from "lucide-react";
+import { Upload, Palette, Briefcase, TrendingUp, Sparkles, CheckCircle } from "lucide-react";
 import { ROUTES } from "@/lib/constants";
+import { createClientComponentClient } from "@/lib/supabase";
 
 export default function DashboardPage() {
   const { user, loading } = useAuth();
+  const [convertedScore, setConvertedScore] = useState<any | null>(null);
+  const suggestionsCount = useMemo(() => {
+    if (!convertedScore || !Array.isArray(convertedScore.ats_suggestions)) return 0;
+    return convertedScore.ats_suggestions.length;
+  }, [convertedScore]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const supabase = createClientComponentClient();
+    const loadConvertedScore = async () => {
+      const { data } = await supabase
+        .from("anonymous_ats_scores")
+        .select("ats_score, ats_suggestions, converted_at")
+        .eq("user_id", user.id)
+        .not("converted_at", "is", null)
+        .order("converted_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setConvertedScore(data);
+      }
+    };
+
+    loadConvertedScore();
+  }, [user]);
 
   if (loading) {
     return (
@@ -47,6 +76,33 @@ export default function DashboardPage() {
               Ready to create your next winning resume?
             </p>
           </div>
+
+          {convertedScore && (
+            <Card className="border-2 border-mobile-cta/40 bg-mobile-cta/5">
+              <CardHeader className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white border-2 border-border flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-mobile-cta" />
+                  </div>
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg md:text-2xl">
+                      Welcome! Your ATS score: {convertedScore.ats_score}/100
+                    </CardTitle>
+                    <CardDescription className="text-sm md:text-base">
+                      Now let&apos;s create a full optimization to unlock all {suggestionsCount} improvements.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Button asChild className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
+                  <Link href={ROUTES.upload}>
+                    Upload Resume for Full Optimization
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Bento Grid - Quick Actions */}
           <div className="grid gap-3 md:gap-6 grid-cols-2 md:grid-cols-4 auto-rows-[minmax(140px,auto)] md:auto-rows-[minmax(200px,auto)]">

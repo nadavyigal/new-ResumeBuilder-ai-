@@ -52,6 +52,12 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         // Get the current origin for the redirect URL
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const storedSessionId = typeof window !== 'undefined'
+          ? localStorage.getItem('ats_session_id')
+          : null;
+        const redirectPath = storedSessionId
+          ? `/auth/callback?session_id=${encodeURIComponent(storedSessionId)}`
+          : '/auth/callback';
 
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -60,7 +66,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             data: {
               full_name: fullName,
             },
-            emailRedirectTo: `${origin}/auth/callback`,
+            emailRedirectTo: `${origin}${redirectPath}`,
           },
         });
 
