@@ -10,7 +10,7 @@ create table public.anonymous_ats_scores (
   resume_hash text not null,
   job_description_hash text not null,
   user_id uuid references auth.users (id) on delete set null,
-  optimization_id bigint references public.optimizations (id) on delete set null,
+  optimization_id uuid references public.optimizations (id) on delete set null,
   converted_at timestamptz,
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '7 days')
