@@ -16,21 +16,28 @@ import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000';
+
+const getRandomIp = () =>
+  `10.10.${Math.floor(Math.random() * 200) + 1}.${Math.floor(Math.random() * 200) + 1}`;
+
+let createdTestPdf = false;
 
 // Helper to create a dummy PDF for testing
 function createTestResumePDF(): string {
   const testPdfPath = path.join(__dirname, '..', 'fixtures', 'test-resume.pdf');
 
-  // Ensure fixtures directory exists
-  const fixturesDir = path.dirname(testPdfPath);
-  if (!fs.existsSync(fixturesDir)) {
-    fs.mkdirSync(fixturesDir, { recursive: true });
-  }
+  if (!fs.existsSync(testPdfPath)) {
+    const fixturesDir = path.dirname(testPdfPath);
+    if (!fs.existsSync(fixturesDir)) {
+      fs.mkdirSync(fixturesDir, { recursive: true });
+    }
 
-  // Simple PDF header for testing (not a real PDF, but enough for upload testing)
-  const pdfContent = '%PDF-1.4\nTest Resume Content\n%%EOF';
-  fs.writeFileSync(testPdfPath, pdfContent);
+    const pdfBase64 =
+      'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAzMDAgMjAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0MyA+PgpzdHJlYW0KQlQKL0YxIDEyIFRmCjcyIDEyMCBUZAooVGVzdCBSZXN1bWUpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzMzIDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDAzCiUlRU9GCg==';
+    fs.writeFileSync(testPdfPath, Buffer.from(pdfBase64, 'base64'));
+    createdTestPdf = true;
+  }
 
   return testPdfPath;
 }
@@ -65,6 +72,7 @@ Nice to have:
 test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
 
   test.beforeEach(async ({ page }) => {
+    await page.setExtraHTTPHeaders({ 'x-forwarded-for': getRandomIp() });
     // Clear localStorage and cookies before each test
     await page.goto(BASE_URL);
     await page.evaluate(() => {
@@ -86,12 +94,12 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     });
 
     // Verify Free ATS Checker is visible (should replace old hero section)
-    await expect(page.locator('text=Free ATS Score Checker')).toBeVisible();
-    await expect(page.locator('text=Check Your Resume')).toBeVisible();
+    await expect(page.locator('[data-testid="ats-checker-badge"]')).toBeVisible();
+    await expect(page.locator('[data-testid="ats-checker-heading"]')).toBeVisible();
 
     // Verify upload form is present
-    await expect(page.locator('input[type="file"]')).toBeVisible();
-    await expect(page.locator('textarea')).toBeVisible();
+    await expect(page.locator('[data-testid="resume-upload"]')).toBeVisible();
+    await expect(page.locator('[data-testid="job-description-input"]')).toBeVisible();
 
     console.log('✅ Landing page displays Free ATS Checker correctly');
   });
@@ -101,16 +109,18 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     await page.waitForLoadState('networkidle');
 
     // Try uploading a non-PDF file
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('[data-testid="resume-upload"]');
 
     // Create a test text file
     const testTxtPath = path.join(__dirname, '..', 'fixtures', 'test.txt');
     fs.writeFileSync(testTxtPath, 'This is a text file');
 
     await fileInput.setInputFiles(testTxtPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Verify error message appears
-    await expect(page.locator('text=/Only PDF files are accepted/i')).toBeVisible({
+    await expect(page.locator('text=/Only PDF resumes are supported/i')).toBeVisible({
       timeout: 3000
     });
 
@@ -128,16 +138,18 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     const testPdfPath = createTestResumePDF();
 
     // Upload PDF
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
 
     // Enter short job description (< 100 words)
-    await page.locator('textarea').fill('This is a short job description.');
+    await page.locator('[data-testid="job-description-input"]').fill('This is a short job description.');
 
     // Try to submit
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Verify validation message
-    await expect(page.locator('text=/at least 100 words/i')).toBeVisible({
+    await expect(
+      page.locator('text=/at least 100 words/i')
+    ).toBeVisible({
       timeout: 3000
     });
 
@@ -145,6 +157,7 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should complete full ATS check flow and display score', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
@@ -152,11 +165,11 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     const testPdfPath = createTestResumePDF();
 
     // Step 1: Upload resume
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
     console.log('📄 Resume uploaded');
 
     // Step 2: Enter job description
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
     console.log('📝 Job description entered');
 
     // Take screenshot before submission
@@ -165,11 +178,11 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     });
 
     // Step 3: Submit form
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="analyze-button"]').click();
     console.log('🚀 Form submitted');
 
     // Step 4: Wait for processing state
-    await expect(page.locator('text=/Processing/i')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=/Scoring your resume/i')).toBeVisible({ timeout: 5000 });
     console.log('⏳ Processing state displayed');
 
     // Take screenshot of processing state
@@ -178,8 +191,8 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     });
 
     // Step 5: Wait for score to display (may take 5-10 seconds for real API)
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({
-      timeout: 30000
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
     });
     console.log('📊 Score displayed');
 
@@ -199,19 +212,21 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     console.log(`✅ Score: ${score}/100`);
 
     // Step 7: Verify top 3 issues are visible
-    const visibleIssues = page.locator('[data-testid="issue-card"]:visible');
+    const visibleIssues = page.locator(
+      '[data-testid="ats-issues-list"] [data-testid="issue-card"]'
+    );
     const visibleCount = await visibleIssues.count();
     expect(visibleCount).toBeGreaterThanOrEqual(3);
     console.log(`✅ ${visibleCount} issues visible`);
 
     // Step 8: Verify locked issues overlay exists
-    await expect(page.locator('text=/more issues/i')).toBeVisible();
-    await expect(page.locator('text=/Sign Up Free/i')).toBeVisible();
+    await expect(page.locator('[data-testid="locked-issues-blur"]')).toBeVisible();
+    await expect(page.locator('[data-testid="signup-cta"]')).toBeVisible();
     console.log('✅ Locked issues overlay displayed');
 
     // Step 9: Verify social share buttons
-    await expect(page.locator('button:has-text("LinkedIn")')).toBeVisible();
-    await expect(page.locator('button:has-text("Twitter")')).toBeVisible();
+    await expect(page.locator('[data-testid="share-linkedin"]')).toBeVisible();
+    await expect(page.locator('[data-testid="share-twitter"]')).toBeVisible();
     console.log('✅ Social share buttons present');
 
     // Step 10: Verify "checks remaining" label
@@ -226,24 +241,24 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should show locked issues with blur effect', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     // Complete ATS check (simplified version)
     const testPdfPath = createTestResumePDF();
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Wait for results
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
+    });
 
     // Verify locked overlay
-    const lockedOverlay = page.locator('[data-testid="locked-overlay"]');
-    await expect(lockedOverlay).toBeVisible();
-
-    // Verify blur effect on hidden issues
-    const blurredSection = page.locator('[data-testid="blurred-issues"]');
+    const blurredSection = page.locator('[data-testid="locked-issues-blur"]');
+    await expect(blurredSection).toBeVisible();
     await expect(blurredSection).toHaveCSS('filter', /blur/);
 
     // Verify lock icon
@@ -253,6 +268,7 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should track PostHog analytics events', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
@@ -271,12 +287,14 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
 
     // Complete ATS check flow
     const testPdfPath = createTestResumePDF();
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Wait for results
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
+    });
 
     // Get captured events
     const events = await page.evaluate(() => (window as any).__capturedEvents || []);
@@ -291,23 +309,26 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should handle social share button clicks', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     // Complete ATS check
     const testPdfPath = createTestResumePDF();
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Wait for results
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
+    });
 
     // Listen for popup window
     const popupPromise = page.waitForEvent('popup', { timeout: 5000 });
 
     // Click LinkedIn share button
-    await page.locator('button:has-text("LinkedIn")').click();
+    await page.locator('[data-testid="share-linkedin"]').click();
 
     try {
       const popup = await popupPromise;
@@ -326,6 +347,8 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should enforce rate limiting after 5 checks', async ({ page }) => {
+    test.setTimeout(120000);
+    await page.setExtraHTTPHeaders({ 'x-forwarded-for': '10.10.200.200' });
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
@@ -334,12 +357,14 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     // Perform 5 checks
     for (let i = 1; i <= 5; i++) {
       // Upload and submit
-      await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-      await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-      await page.locator('button:has-text("Check My ATS Score")').click();
+      await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+      await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+      await page.locator('[data-testid="analyze-button"]').click();
 
       // Wait for results
-      await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+      await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+        timeout: 60000
+      });
 
       console.log(`✅ Check ${i}/5 completed`);
 
@@ -349,13 +374,15 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     }
 
     // Try 6th check - should be rate limited
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Verify rate limit message appears
-    await expect(page.locator('text=/rate limit/i')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=/Sign Up Free/i')).toBeVisible();
+    await expect(page.locator('[data-testid="rate-limit-message"]')).toBeVisible({
+      timeout: 10000
+    });
+    await expect(page.locator('text=/used your 5 free checks/i')).toBeVisible();
 
     // Take screenshot of rate limit state
     await page.screenshot({
@@ -366,24 +393,27 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should navigate to signup from CTA button', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     // Complete ATS check
     const testPdfPath = createTestResumePDF();
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Wait for results
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
+    });
 
     // Get session ID before navigating
     const sessionId = await page.evaluate(() => localStorage.getItem('ats_session_id'));
     expect(sessionId).toBeTruthy();
 
     // Click "Sign Up Free" button
-    await page.locator('button:has-text("Sign Up Free")').first().click();
+    await page.locator('[data-testid="signup-cta"]').click();
 
     // Verify navigation to signup page
     await expect(page).toHaveURL(/\/auth\/signup/);
@@ -420,12 +450,14 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     const testTxtPath = path.join(__dirname, '..', 'fixtures', 'invalid.txt');
     fs.writeFileSync(testTxtPath, 'Invalid file');
 
-    await page.locator('input[type="file"]').setInputFiles(testTxtPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testTxtPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Verify error message appears
-    await expect(page.locator('text=/error/i')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=/Only PDF resumes are supported/i')).toBeVisible({
+      timeout: 10000
+    });
 
     // Clean up
     fs.unlinkSync(testTxtPath);
@@ -441,9 +473,9 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify key elements are visible on mobile
-    await expect(page.locator('text=Free ATS Score Checker')).toBeVisible();
-    await expect(page.locator('input[type="file"]')).toBeVisible();
-    await expect(page.locator('textarea')).toBeVisible();
+    await expect(page.locator('[data-testid="ats-checker-badge"]')).toBeVisible();
+    await expect(page.locator('[data-testid="resume-upload"]')).toBeVisible();
+    await expect(page.locator('[data-testid="job-description-input"]')).toBeVisible();
 
     // Take mobile screenshot
     await page.screenshot({
@@ -455,17 +487,20 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
   });
 
   test('should display correct score animation', async ({ page }) => {
+    test.setTimeout(90000);
     await page.goto(BASE_URL);
     await page.waitForLoadState('networkidle');
 
     // Complete ATS check
     const testPdfPath = createTestResumePDF();
-    await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-    await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-    await page.locator('button:has-text("Check My ATS Score")').click();
+    await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+    await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+    await page.locator('[data-testid="analyze-button"]').click();
 
     // Wait for score to appear
-    await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+    await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+      timeout: 60000
+    });
 
     // Check if CountUp animation exists (score should animate from 0 to actual value)
     const scoreElement = page.locator('[data-testid="ats-score"]');
@@ -519,6 +554,7 @@ test.describe('Viral Growth Engine - Performance', () => {
   });
 
   test('should handle concurrent ATS checks', async ({ browser }) => {
+    test.setTimeout(120000);
     // Create 3 concurrent checks
     const contexts = await Promise.all([
       browser.newContext(),
@@ -533,14 +569,16 @@ test.describe('Viral Growth Engine - Performance', () => {
     await Promise.all(pages.map(async (page) => {
       await page.goto(BASE_URL);
       await page.waitForLoadState('networkidle');
-      await page.locator('input[type="file"]').setInputFiles(testPdfPath);
-      await page.locator('textarea').fill(SAMPLE_JOB_DESCRIPTION);
-      await page.locator('button:has-text("Check My ATS Score")').click();
+      await page.locator('[data-testid="resume-upload"]').setInputFiles(testPdfPath);
+      await page.locator('[data-testid="job-description-input"]').fill(SAMPLE_JOB_DESCRIPTION);
+      await page.locator('[data-testid="analyze-button"]').click();
     }));
 
     // Verify all 3 got results
     await Promise.all(pages.map(async (page) => {
-      await expect(page.locator('text=/Your ATS Score/i')).toBeVisible({ timeout: 30000 });
+      await expect(page.locator('[data-testid="ats-score-display"]')).toBeVisible({
+        timeout: 60000
+      });
     }));
 
     console.log('✅ Handles concurrent checks correctly');
@@ -557,7 +595,7 @@ test.describe('Viral Growth Engine - Accessibility', () => {
     await page.waitForLoadState('networkidle');
 
     // Tab through interactive elements
-    await page.keyboard.press('Tab'); // File input
+    await page.locator('[data-testid="resume-upload"]').focus();
     await page.keyboard.press('Tab'); // Textarea
     await page.keyboard.press('Tab'); // Submit button
 
@@ -573,8 +611,8 @@ test.describe('Viral Growth Engine - Accessibility', () => {
     await page.waitForLoadState('networkidle');
 
     // Check for ARIA labels on key elements
-    const fileInput = page.locator('input[type="file"]');
-    const textarea = page.locator('textarea');
+    const fileInput = page.locator('[data-testid="resume-upload"]');
+    const textarea = page.locator('[data-testid="job-description-input"]');
 
     const fileInputLabel = await fileInput.getAttribute('aria-label');
     const textareaLabel = await textarea.getAttribute('aria-label');
@@ -590,7 +628,7 @@ test.describe('Viral Growth Engine - Accessibility', () => {
 test.afterAll(async () => {
   // Clean up test PDF
   const testPdfPath = path.join(__dirname, '..', 'fixtures', 'test-resume.pdf');
-  if (fs.existsSync(testPdfPath)) {
+  if (createdTestPdf && fs.existsSync(testPdfPath)) {
     fs.unlinkSync(testPdfPath);
   }
 

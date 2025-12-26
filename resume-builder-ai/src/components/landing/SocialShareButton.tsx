@@ -17,6 +17,8 @@ const platformLabels: Record<SharePlatform, string> = {
 };
 
 export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
+  const testId = platform === "linkedin" ? "share-linkedin" : "share-twitter";
+
   const handleShare = () => {
     if (typeof window === "undefined") return;
 
@@ -40,7 +42,7 @@ export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
   };
 
   return (
-    <Button variant="outline" size="sm" onClick={handleShare}>
+    <Button variant="outline" size="sm" data-testid={testId} onClick={handleShare}>
       {platform === "linkedin" ? (
         <Linkedin className="w-4 h-4 mr-2" />
       ) : (

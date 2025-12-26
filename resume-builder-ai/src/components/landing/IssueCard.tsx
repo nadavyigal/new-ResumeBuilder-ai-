@@ -8,7 +8,10 @@ interface IssueCardProps {
 
 export function IssueCard({ issue, rank }: IssueCardProps) {
   return (
-    <div className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm">
+    <div
+      data-testid="issue-card"
+      className="rounded-2xl border border-border bg-background px-4 py-3 shadow-sm"
+    >
       <div className="flex items-start gap-3">
         <div className="h-8 w-8 rounded-full bg-mobile-cta/10 text-mobile-cta flex items-center justify-center font-semibold">
           {rank}

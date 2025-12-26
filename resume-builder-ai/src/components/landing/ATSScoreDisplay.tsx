@@ -19,9 +19,9 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
   const { preview } = data;
 
   return (
-    <div className="space-y-6">
+    <div data-testid="ats-score-display" className="space-y-6">
       <div className="text-center space-y-2">
-        <div className="text-5xl font-bold text-foreground">
+        <div data-testid="ats-score" className="text-5xl font-bold text-foreground">
           <CountUp end={score} duration={2} />
           <span className="text-2xl text-foreground/60">/100</span>
         </div>
@@ -34,7 +34,7 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
         )}
       </div>
 
-      <div className="space-y-3">
+      <div data-testid="ats-issues-list" className="space-y-3">
         <h3 className="text-base font-semibold text-foreground">Top critical issues</h3>
         {preview.topIssues.map((issue, index) => (
           <IssueCard key={issue.id || index} issue={issue} rank={index + 1} />
@@ -43,7 +43,10 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
 
       {preview.lockedCount > 0 && (
         <div className="relative">
-          <div className="space-y-2 blur-sm opacity-60 pointer-events-none">
+          <div
+            data-testid="locked-issues-blur"
+            className="space-y-2 blur-sm opacity-60 pointer-events-none"
+          >
             {Array.from({ length: Math.max(3, preview.lockedCount) }).map((_, index) => (
               <div key={index} className="h-16 rounded-2xl border border-border bg-muted" />
             ))}
@@ -58,7 +61,7 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
               <p className="text-sm text-foreground/70 mb-4">
                 Sign up free to unlock every issue and get AI-powered fixes.
               </p>
-              <Button className="w-full" onClick={onSignup}>
+              <Button className="w-full" data-testid="signup-cta" onClick={onSignup}>
                 Sign Up Free
               </Button>
             </Card>

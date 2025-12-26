@@ -154,7 +154,10 @@ export function FreeATSChecker() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32">
+    <section
+      data-testid="free-ats-checker"
+      className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32"
+    >
       <div className="absolute inset-0 -z-10">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-mobile-cta/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
@@ -164,7 +167,10 @@ export function FreeATSChecker() {
         <div className="max-w-6xl mx-auto">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start">
             <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-mobile-cta/20 to-secondary/20 border-2 border-mobile-cta/30 backdrop-blur-sm">
+              <div
+                data-testid="ats-checker-badge"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-mobile-cta/20 to-secondary/20 border-2 border-mobile-cta/30 backdrop-blur-sm"
+              >
                 <Sparkles className="w-4 h-4 text-mobile-cta" />
                 <span className="text-sm font-semibold text-foreground">
                   Free ATS Score Checker
@@ -172,7 +178,10 @@ export function FreeATSChecker() {
               </div>
 
               <div className="space-y-4">
-                <h1 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
+                <h1
+                  data-testid="ats-checker-heading"
+                  className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
+                >
                   See if your resume survives ATS filters
                 </h1>
                 <p className="text-lg text-foreground/80 leading-relaxed">

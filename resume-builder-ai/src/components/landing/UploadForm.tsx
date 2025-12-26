@@ -48,6 +48,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
         <Input
           id="resume"
           type="file"
+          data-testid="resume-upload"
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           required
@@ -61,6 +62,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
         <Label htmlFor="jobDescription">Paste job description</Label>
         <Textarea
           id="jobDescription"
+          data-testid="job-description-input"
           placeholder="Paste the full job description here..."
           value={jobDescription}
           onChange={(event) => setJobDescription(event.target.value)}
@@ -81,6 +83,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
 
       <Button
         type="submit"
+        data-testid="analyze-button"
         className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
         disabled={!resumeFile || submitting}
       >

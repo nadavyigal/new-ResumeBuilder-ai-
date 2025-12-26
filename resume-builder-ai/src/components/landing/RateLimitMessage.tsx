@@ -14,7 +14,7 @@ export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
   const timeUntilReset = formatDistance(resetAt, new Date());
 
   return (
-    <div className="space-y-4 text-center">
+    <div data-testid="rate-limit-message" className="space-y-4 text-center">
       <div className="flex items-center justify-center">
         <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8" />
