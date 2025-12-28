@@ -42,49 +42,29 @@
 
 ---
 
-### 2. Newsletter Database Table ⏱️ 3 mins
+### 2. Newsletter Database Table ⏱️ OPTIONAL
 
-**Status:** ✅ MIGRATION CREATED (needs to be applied)
+**Status:** ✅ NOT NEEDED - App uses Buttondown API
 
-**What's Done:**
-- SQL migration file created at `supabase/migrations/create_newsletter_subscribers.sql`
+**UPDATE (Dec 2025):** This step is **OPTIONAL**. The application uses Buttondown API for newsletter management, which is simpler and recommended for solo founders.
 
-**What You Need to Do:**
+**Current Implementation:**
+- Newsletter signups go directly to Buttondown
+- No Supabase table needed
+- Buttondown handles email delivery, unsubscribes, and sequences
 
-1. **Apply the migration to Supabase:**
+**If you want local data redundancy (optional):**
+1. Create the `newsletter_subscribers` table in Supabase
+2. Add webhook from Buttondown to sync data
+3. This is NOT required for basic functionality
 
-   **Option A: Using Supabase Dashboard (Recommended for beginners)**
-   - Go to https://supabase.com/dashboard
-   - Select your project: `brtdyamysfmctrhuankn`
-   - Navigate to: SQL Editor
-   - Click "New Query"
-   - Copy-paste the contents of `supabase/migrations/create_newsletter_subscribers.sql`
-   - Click "Run"
-   - Verify in Table Editor that `newsletter_subscribers` table now exists
+**To verify newsletter works:**
+1. Test signup at http://localhost:3000 (footer form)
+2. Check Buttondown dashboard at https://buttondown.com
+3. Verify subscriber appears
+4. Check for welcome email delivery
 
-   **Option B: Using Supabase CLI (Advanced)**
-   ```bash
-   cd resume-builder-ai
-   npx supabase db push
-   ```
-
-2. **Verify the table was created:**
-   - Go to Supabase Dashboard → Table Editor
-   - Look for `newsletter_subscribers` table
-   - Should have columns: id, email, name, subscribed_at, status, created_at, updated_at
-
-3. **Test email signup:**
-   ```bash
-   npm run dev
-   ```
-   - Open http://localhost:3000
-   - Scroll to footer
-   - Enter test email in newsletter form
-   - Submit
-   - Check Supabase Table Editor for new row
-   - Check your email for welcome message
-
-**Expected Result:** Newsletter signups work end-to-end (form → database → welcome email).
+**Expected Result:** Newsletter signups work via Buttondown (no Supabase table needed).
 
 ---
 
