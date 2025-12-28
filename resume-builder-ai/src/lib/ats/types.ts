@@ -103,6 +103,38 @@ export interface FormatReport {
 // ============================================================================
 
 /**
+ * Quick win suggestion with before/after text comparison
+ */
+export interface QuickWinSuggestion {
+  /** Unique identifier */
+  id: string;
+
+  /** Original text snippet from resume */
+  original_text: string;
+
+  /** AI-optimized version */
+  optimized_text: string;
+
+  /** Improvement category */
+  improvement_type: 'keyword_optimization' | 'quantified_achievement' | 'action_verb' | 'relevance_enhancement';
+
+  /** Estimated ATS score impact (1-15 points) */
+  estimated_impact: number;
+
+  /** Location in resume where this appears */
+  location: {
+    section: 'summary' | 'experience' | 'skills' | 'education';
+    subsection?: string;
+  };
+
+  /** Explanation of why this change improves score */
+  rationale: string;
+
+  /** Keywords/phrases added or emphasized */
+  keywords_added: string[];
+}
+
+/**
  * Complete ATS scoring output
  */
 export interface ATSScoreOutput {
@@ -120,6 +152,9 @@ export interface ATSScoreOutput {
 
   /** Actionable suggestions ranked by impact */
   suggestions: Suggestion[];
+
+  /** 3 quick win suggestions with before/after text (only if requested) */
+  quick_wins?: QuickWinSuggestion[];
 
   /** Confidence in the scoring (0.0-1.0) */
   confidence: number;

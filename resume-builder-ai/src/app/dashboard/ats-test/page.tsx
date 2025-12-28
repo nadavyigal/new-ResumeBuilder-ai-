@@ -75,6 +75,46 @@ const sampleScoreData: ATSScoreOutput = {
       targets: ['summary', 'experience'],
     },
   ],
+  quick_wins: [
+    {
+      id: 'qw_1',
+      original_text: 'Managed team projects and delivered results',
+      optimized_text: 'Led cross-functional team of 8 engineers to deliver 3 major product releases, increasing user engagement by 45% and reducing deployment time by 30%',
+      improvement_type: 'quantified_achievement',
+      estimated_impact: 12,
+      location: {
+        section: 'experience',
+        subsection: 'Senior Software Engineer at Tech Corp'
+      },
+      rationale: 'Added specific metrics (team size, deliverables, impact percentages) and action verb "Led" to demonstrate quantifiable leadership impact',
+      keywords_added: ['cross-functional', 'product releases', 'user engagement']
+    },
+    {
+      id: 'qw_2',
+      original_text: 'Worked with React and TypeScript',
+      optimized_text: 'Architected and implemented scalable React/TypeScript applications using GraphQL and Node.js microservices',
+      improvement_type: 'keyword_optimization',
+      estimated_impact: 8,
+      location: {
+        section: 'experience',
+        subsection: 'Full Stack Developer'
+      },
+      rationale: 'Added missing must-have keywords (GraphQL, Node.js) and strengthened action verb from "Worked with" to "Architected and implemented"',
+      keywords_added: ['GraphQL', 'Node.js', 'microservices']
+    },
+    {
+      id: 'qw_3',
+      original_text: 'Helped improve system performance',
+      optimized_text: 'Optimized database queries and caching strategies, reducing API response time by 60% and improving system throughput by 3x',
+      improvement_type: 'relevance_enhancement',
+      estimated_impact: 10,
+      location: {
+        section: 'experience'
+      },
+      rationale: 'Replaced weak verb "Helped" with strong action verb "Optimized" and added specific performance metrics to demonstrate technical impact',
+      keywords_added: ['database', 'caching', 'API']
+    }
+  ],
   confidence: 0.85,
   metadata: {
     version: 2,

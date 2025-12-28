@@ -9,6 +9,7 @@ import type { ATSScoreOutput } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, TrendingUp } from 'lucide-react';
+import { QuickWinsSection } from './QuickWinsSection';
 
 interface ATSScoreCardProps {
   scoreData: ATSScoreOutput;
@@ -75,6 +76,13 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Quick Wins Section */}
+        {scoreData.quick_wins && scoreData.quick_wins.length > 0 && (
+          <div className="mt-6 pt-6 border-t">
+            <QuickWinsSection quickWins={scoreData.quick_wins} />
           </div>
         )}
 

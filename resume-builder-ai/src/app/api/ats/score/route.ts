@@ -12,7 +12,13 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    const { resume_original, resume_optimized, job_description, job_data } = body;
+    const {
+      resume_original,
+      resume_optimized,
+      job_description,
+      job_data,
+      generate_quick_wins // NEW: optional flag
+    } = body;
 
     // Validate required fields
     if (!resume_original || !resume_optimized || !job_description) {
@@ -38,8 +44,10 @@ export async function POST(request: NextRequest) {
       resume_optimized_json: typeof resume_optimized === 'object' ? resume_optimized : undefined,
     };
 
-    // Score the resume
-    const result = await scoreResume(input);
+    // Score the resume with optional quick wins
+    const result = await scoreResume(input, {
+      generateQuickWins: generate_quick_wins === true,
+    });
 
     return NextResponse.json(result);
   } catch (error: unknown) {
