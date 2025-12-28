@@ -150,7 +150,9 @@ export async function POST(request: NextRequest) {
     format_report: DEFAULT_FORMAT_REPORT,
   };
 
-  const scoreResult = await scoreResume(atsInput);
+  const scoreResult = await scoreResume(atsInput, {
+    generateQuickWins: true, // Enable Quick Wins for free ATS checker
+  });
 
   const { data: insertedScore, error: insertError } = await supabase
     .from('anonymous_ats_scores')
@@ -160,6 +162,7 @@ export async function POST(request: NextRequest) {
       ats_score: scoreResult.ats_score_optimized,
       ats_subscores: scoreResult.subscores,
       ats_suggestions: scoreResult.suggestions,
+      ats_quick_wins: scoreResult.quick_wins || [], // Save quick wins
       resume_hash: resumeHash,
       job_description_hash: jobHash,
     })
@@ -177,6 +180,7 @@ export async function POST(request: NextRequest) {
 function formatResponse(score: any, sessionId: string, remaining: number) {
   const suggestions = Array.isArray(score.ats_suggestions) ? score.ats_suggestions : [];
   const topIssues = suggestions.slice(0, 3);
+  const quickWins = Array.isArray(score.ats_quick_wins) ? score.ats_quick_wins : [];
 
   return {
     success: true,
@@ -190,6 +194,7 @@ function formatResponse(score: any, sessionId: string, remaining: number) {
       totalIssues: suggestions.length,
       lockedCount: Math.max(0, suggestions.length - 3),
     },
+    quickWins, // Include quick wins in response
     checksRemaining: remaining,
   };
 }

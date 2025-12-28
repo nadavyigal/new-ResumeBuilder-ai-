@@ -35,6 +35,16 @@ export interface ATSCheckerResponse {
     totalIssues: number;
     lockedCount: number;
   };
+  quickWins?: Array<{
+    id: string;
+    original_text: string;
+    optimized_text: string;
+    improvement_type: string;
+    estimated_impact: number;
+    location: { section: string; subsection?: string };
+    rationale: string;
+    keywords_added: string[];
+  }>;
   checksRemaining: number;
 }
 

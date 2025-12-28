@@ -6,7 +6,9 @@ import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/CountUp";
 import { IssueCard } from "@/components/landing/IssueCard";
 import { SocialShareButton } from "@/components/landing/SocialShareButton";
+import { QuickWinsSection } from "@/components/ats/QuickWinsSection";
 import type { ATSCheckerResponse } from "@/components/landing/FreeATSChecker";
+import type { QuickWinSuggestion } from "@/lib/ats/types";
 
 interface ATSScoreDisplayProps {
   data: ATSCheckerResponse;
@@ -40,6 +42,13 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
           <IssueCard key={issue.id || index} issue={issue} rank={index + 1} />
         ))}
       </div>
+
+      {/* Quick Wins Section */}
+      {data.quickWins && data.quickWins.length > 0 && (
+        <div className="mt-6 pt-6 border-t">
+          <QuickWinsSection quickWins={data.quickWins as QuickWinSuggestion[]} />
+        </div>
+      )}
 
       {preview.lockedCount > 0 && (
         <div className="relative">
