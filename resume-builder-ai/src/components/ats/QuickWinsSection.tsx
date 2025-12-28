@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Quick Wins Section Component
  *
