@@ -50,13 +50,17 @@ interface TemplateCardProps {
   isSelected: boolean;
   onSelect: () => void;
   optimizationId: string;
+  isApplying?: boolean;
+  isApplyingThis?: boolean;
 }
 
 export function TemplateCard({
   template,
   isSelected,
   onSelect,
-  optimizationId
+  optimizationId,
+  isApplying = false,
+  isApplyingThis = false
 }: TemplateCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -84,6 +88,7 @@ export function TemplateCard({
 
   // Open preview modal when card is clicked
   const handleCardClick = () => {
+    if (isApplying) return;
     setShowPreview(true);
   };
 
@@ -109,17 +114,15 @@ export function TemplateCard({
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full overflow-hidden">
+            <div className="w-full h-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">
               <iframe
                 src={`/api/v1/design/templates/${template.id}/preview`}
-                className="border-none pointer-events-none"
+                className="border-none pointer-events-none w-[200%] h-[200%]"
                 title={`${template.name} preview`}
                 loading="lazy"
                 style={{
-                  width: "120%",
-                  height: "120%",
-                  transform: "scale(0.8)",
-                  transformOrigin: "top left",
+                  transform: "scale(0.5)",
+                  transformOrigin: "center center",
                 }}
               />
             </div>
@@ -231,9 +234,10 @@ export function TemplateCard({
                     onSelect();
                     setShowPreview(false);
                   }}
+                  disabled={isApplying}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
-                  Apply
+                  {isApplyingThis ? 'Applying...' : 'Apply'}
                 </button>
                 <button
                   onClick={() => setShowPreview(false)}
@@ -271,9 +275,10 @@ export function TemplateCard({
                   onSelect();
                   setShowPreview(false);
                 }}
+                disabled={isApplying}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                Apply This Template
+                {isApplyingThis ? 'Applying...' : 'Apply This Template'}
               </button>
             </div>
           </div>

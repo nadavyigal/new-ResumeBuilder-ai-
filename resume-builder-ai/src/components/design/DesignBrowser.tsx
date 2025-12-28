@@ -52,6 +52,8 @@ interface DesignBrowserProps {
   currentTemplateId?: string | null;
   optimizationId: string;
   onTemplateSelect: (templateId: string) => void;
+  isApplying?: boolean;
+  applyingTemplateId?: string | null;
 }
 
 export function DesignBrowser({
@@ -59,7 +61,9 @@ export function DesignBrowser({
   onClose,
   currentTemplateId,
   optimizationId,
-  onTemplateSelect
+  onTemplateSelect,
+  isApplying = false,
+  applyingTemplateId = null
 }: DesignBrowserProps) {
   const [templates, setTemplates] = useState<DesignTemplate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -197,6 +201,8 @@ export function DesignBrowser({
                   isSelected={template.id === currentTemplateId}
                   onSelect={() => onTemplateSelect(template.id)}
                   optimizationId={optimizationId}
+                  isApplying={isApplying}
+                  isApplyingThis={isApplying && applyingTemplateId === template.id}
                 />
               ))}
             </div>

@@ -15,6 +15,113 @@ import {
 } from '@/lib/supabase/resume-designs';
 import { getDesignTemplateById } from '@/lib/supabase/design-templates';
 
+type AssignmentParams = { params: Promise<{ optimizationId: string }> };
+
+async function handleTemplateAssignment(
+  request: NextRequest,
+  { params }: AssignmentParams
+) {
+  // Authentication check
+  const supabase = await createRouteHandlerClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { optimizationId } = await params;
+
+  // Parse request body
+  const body = await request.json();
+  const { templateId, customizationId } = body ?? {};
+
+  if (!templateId || typeof templateId !== 'string') {
+    return NextResponse.json(
+      { error: 'templateId is required' },
+      { status: 400 }
+    );
+  }
+
+  if (customizationId && typeof customizationId !== 'string') {
+    return NextResponse.json(
+      { error: 'customizationId must be a string' },
+      { status: 400 }
+    );
+  }
+
+  // Verify optimization belongs to user
+  const { data: optimization, error: optimizationError } = await supabase
+    .from('optimizations')
+    .select('id')
+    .eq('id', optimizationId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (optimizationError) {
+    return NextResponse.json(
+      { error: 'Error fetching optimization: ' + optimizationError.message },
+      { status: 500 }
+    );
+  }
+
+  if (!optimization) {
+    return NextResponse.json(
+      { error: 'Optimization not found' },
+      { status: 404 }
+    );
+  }
+
+  // Verify template exists
+  const template = await getDesignTemplateById(supabase, templateId);
+
+  if (!template) {
+    return NextResponse.json(
+      { error: 'Invalid templateId' },
+      { status: 400 }
+    );
+  }
+
+  // Check premium access if template is premium
+  if (template.is_premium) {
+    // TODO: Implement subscription check when premium feature is ready
+    // For now, allow all users to assign premium templates
+  }
+
+  // Upsert design assignment (creates if doesn't exist, updates if exists)
+  await upsertDesignAssignment(
+    supabase,
+    optimizationId,
+    templateId,
+    user.id,
+    customizationId ?? null
+  );
+
+  // Fetch full assignment details for response
+  const updatedAssignment = await getDesignAssignment(supabase, optimizationId, user.id);
+
+  if (!updatedAssignment) {
+    return NextResponse.json(
+      { error: 'Failed to retrieve updated assignment' },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(
+    {
+      assignment: {
+        id: updatedAssignment.id,
+        optimization_id: updatedAssignment.optimization_id,
+        template,
+        customization: null, // Reset when changing template
+        previous_customization_id: null
+      }
+    },
+    { status: 200 }
+  );
+}
+
 /**
  * GET /api/v1/design/[optimizationId]
  * Returns current design assignment with template and customization details
@@ -32,7 +139,7 @@ import { getDesignTemplateById } from '@/lib/supabase/design-templates';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ optimizationId: string }> }
+  { params }: AssignmentParams
 ) {
   try {
     // Authentication check
@@ -138,102 +245,31 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ optimizationId: string }> }
+  { params }: AssignmentParams
 ) {
   try {
-    // Authentication check
-    const supabase = await createRouteHandlerClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { optimizationId } = await params;
-
-    // Parse request body
-    const body = await request.json();
-    const { templateId } = body;
-
-    if (!templateId) {
-      return NextResponse.json(
-        { error: 'templateId is required' },
-        { status: 400 }
-      );
-    }
-
-    // Verify optimization belongs to user
-    const { data: optimization, error: optimizationError } = await supabase
-      .from('optimizations')
-      .select('id')
-      .eq('id', optimizationId)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (optimizationError) {
-      return NextResponse.json(
-        { error: 'Error fetching optimization: ' + optimizationError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!optimization) {
-      return NextResponse.json(
-        { error: 'Optimization not found' },
-        { status: 404 }
-      );
-    }
-
-    // Verify template exists
-    const template = await getDesignTemplateById(supabase, templateId);
-
-    if (!template) {
-      return NextResponse.json(
-        { error: 'Template not found' },
-        { status: 404 }
-      );
-    }
-
-    // Check premium access if template is premium
-    if (template.is_premium) {
-      // TODO: Implement subscription check when premium feature is ready
-      // For now, allow all users to assign premium templates
-    }
-
-    // Upsert design assignment (creates if doesn't exist, updates if exists)
-    const assignment = await upsertDesignAssignment(
-      supabase,
-      optimizationId,
-      templateId,
-      user.id
-    );
-
-    // Fetch full assignment details for response
-    const updatedAssignment = await getDesignAssignment(supabase, optimizationId, user.id);
-
-    if (!updatedAssignment) {
-      return NextResponse.json(
-        { error: 'Failed to retrieve updated assignment' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      {
-        assignment: {
-          id: updatedAssignment.id,
-          optimization_id: updatedAssignment.optimization_id,
-          template,
-          customization: null, // Reset when changing template
-          previous_customization_id: null
-        }
-      },
-      { status: 200 }
-    );
+    return handleTemplateAssignment(request, { params });
   } catch (error) {
     console.error('Error updating design assignment:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/v1/design/[optimizationId]
+ * Create or update design assignment (alias for PUT)
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: AssignmentParams
+) {
+  try {
+    return handleTemplateAssignment(request, { params });
+  } catch (error) {
+    console.error('Error creating design assignment:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

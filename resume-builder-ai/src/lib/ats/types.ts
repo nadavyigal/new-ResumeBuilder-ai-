@@ -239,13 +239,67 @@ export type SuggestionCategory =
 /**
  * Actionable fix that can be auto-applied
  */
-export interface SuggestionAction {
-  /** Type of action */
-  type: 'add_keyword' | 'switch_template' | 'add_metric' | 'add_section' | 'reorder';
-
-  /** Parameters for the action */
-  params: Record<string, unknown>;
-}
+export type SuggestionAction =
+  | {
+      /** Add missing keywords or skills */
+      type: 'add_keyword';
+      params: {
+        keywords: string[];
+        target?: 'skills' | 'summary' | 'experience';
+        source?: 'must_have' | 'nice_to_have' | 'keywords';
+      };
+    }
+  | {
+      /** Add or align JD-relevant phrases in content */
+      type: 'add_phrase';
+      params: {
+        phrases: string[];
+        target?: 'experience' | 'summary';
+        source?: 'responsibilities' | 'jd_phrases';
+      };
+    }
+  | {
+      /** Align headline/summary with target title */
+      type: 'align_title';
+      params: {
+        targetTitle: string;
+        targetSeniority?: string;
+        currentTitle?: string;
+        placement?: 'summary' | 'headline' | 'experience';
+      };
+    }
+  | {
+      /** Add quantified impact (only when concrete data is available) */
+      type: 'add_metric';
+      params: {
+        metric?: string;
+        value?: string;
+        targetRoleIndex?: number;
+        metricHint?: string;
+        targetCount?: number;
+      };
+    }
+  | {
+      /** Add a missing section */
+      type: 'add_section';
+      params: {
+        section: string;
+      };
+    }
+  | {
+      /** Switch to a different template */
+      type: 'switch_template';
+      params: {
+        template?: string;
+      };
+    }
+  | {
+      /** Reorder sections */
+      type: 'reorder';
+      params: {
+        section?: string;
+      };
+    };
 
 /**
  * Metadata about the scoring process

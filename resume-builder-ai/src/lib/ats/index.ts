@@ -175,6 +175,7 @@ export async function scoreResume(
       subscores: optimizedAggregate.subscores,
       analyzerResults: optimizedResults,
       targetScore: 85,
+      jobData: preparedInput.job_data,
     });
 
     // Generate quick wins if requested

@@ -6,7 +6,7 @@
  */
 
 import OpenAI from 'openai';
-import type { Suggestion } from './types';
+import type { JobExtraction, Suggestion } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { AffectedField } from '@/types/chat';
 
@@ -30,6 +30,11 @@ export interface AmendmentGenerationResult {
   error?: string;
 }
 
+export interface AmendmentGenerationContext {
+  jobDescriptionText?: string;
+  jobData?: JobExtraction;
+}
+
 /**
  * Generate amendments from an ATS suggestion
  *
@@ -38,7 +43,8 @@ export interface AmendmentGenerationResult {
  */
 export async function generateAmendments(
   suggestion: Suggestion,
-  resumeContent: OptimizedResume
+  resumeContent: OptimizedResume,
+  context?: AmendmentGenerationContext
 ): Promise<AmendmentGenerationResult> {
   try {
     console.log(`📝 Generating amendments for suggestion: ${suggestion.id}`);
@@ -114,8 +120,17 @@ General Guidelines:
 7. Maximum 5 affected fields per suggestion (prioritize highest impact)
 8. Use context from the job description to infer professional skill names
 9. Filter out noise words that aren't actual skills
+10. Do not copy full job description sentences; rephrase using resume evidence
+11. Avoid job posting boilerplate (responsibilities, requirements, qualifications, benefits)
+12. Do not fabricate metrics; only use numbers already present in the resume
 
 Return ONLY the JSON object in the format shown above - no markdown, no code blocks, no explanation text outside the JSON.`;
+
+    const jobDescriptionText = context?.jobDescriptionText || 'N/A';
+    const jobDataText = context?.jobData
+      ? JSON.stringify(context.jobData, null, 2)
+      : 'N/A';
+    const actionText = suggestion.action ? JSON.stringify(suggestion.action, null, 2) : 'None';
 
     const userPrompt = `ATS Suggestion:
 "${suggestion.text}"
@@ -125,6 +140,13 @@ ${suggestion.explanation ? `Explanation: ${suggestion.explanation}` : ''}
 Estimated Impact: +${suggestion.estimated_gain} points
 Targets: ${suggestion.targets.join(', ')}
 Category: ${suggestion.category}
+Suggestion Action: ${actionText}
+
+Job Description Context:
+${jobDescriptionText}
+
+Structured Job Data:
+${jobDataText}
 
 Current Resume Content:
 ${JSON.stringify(resumeContent, null, 2)}
@@ -166,7 +188,7 @@ Analyze this suggestion and return the JSON array of affected fields with specif
       affectedFields = parsedResponse.amendments;
     } else {
       console.warn('Unexpected response format, falling back to heuristic parsing');
-      affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent);
+      affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent, context);
     }
 
     // Post-process: Clean up keywords using smart expansion and noise filtering
@@ -198,6 +220,8 @@ Analyze this suggestion and return the JSON array of affected fields with specif
       return field;
     });
 
+    affectedFields = filterBoilerplateAffectedFields(affectedFields);
+
     // Validate and clean affected fields
     affectedFields = affectedFields
       .filter(field => field.sectionId && field.field && field.changeType)
@@ -220,7 +244,7 @@ Analyze this suggestion and return the JSON array of affected fields with specif
     // Fallback to heuristic generation
     console.log('Falling back to heuristic amendment generation');
     try {
-      const affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent);
+      const affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent, context);
       return {
         affectedFields,
         success: true,
@@ -243,77 +267,146 @@ Analyze this suggestion and return the JSON array of affected fields with specif
  */
 async function generateAmendmentsHeuristic(
   suggestion: Suggestion,
-  resumeContent: OptimizedResume
+  resumeContent: OptimizedResume,
+  context?: AmendmentGenerationContext
 ): Promise<AffectedField[]> {
   const affectedFields: AffectedField[] = [];
-  const lowerText = suggestion.text.toLowerCase();
+  const action = suggestion.action;
 
-  // Pattern 1: Keyword additions
-  if (lowerText.includes('add') || lowerText.includes('include') || lowerText.includes('keyword')) {
-    // Check if it's about skills
-    if (lowerText.includes('skill') || suggestion.targets.includes('keyword_exact')) {
-      const keywords = extractKeywords(suggestion.text);
-      if (keywords.length > 0) {
+  if (action?.type === 'add_keyword' && Array.isArray(action.params.keywords)) {
+    const keywords = smartKeywordExpansion(action.params.keywords);
+    const existing = new Set((resumeContent.skills?.technical || []).map((skill) => skill.toLowerCase()));
+    const additions = keywords.filter((keyword) => !existing.has(keyword.toLowerCase()));
+    if (additions.length > 0) {
+      affectedFields.push({
+        sectionId: 'skills',
+        field: 'technical',
+        originalValue: resumeContent.skills.technical,
+        newValue: [...resumeContent.skills.technical, ...additions],
+        changeType: 'modify',
+      });
+    }
+  }
+
+  if (affectedFields.length === 0 && action?.type === 'add_phrase') {
+    const phrase = sanitizePhrase(action.params.phrases?.[0]);
+    if (phrase) {
+      const summary = resumeContent.summary || '';
+      const newSummary = summary
+        ? `${summary.replace(/\s+$/, '')}${summary.endsWith('.') ? '' : '.'} Experience with ${phrase}.`
+        : `Experience with ${phrase}.`;
+      affectedFields.push({
+        sectionId: 'summary',
+        field: 'text',
+        originalValue: resumeContent.summary,
+        newValue: newSummary,
+        changeType: 'modify',
+      });
+    }
+  }
+
+  if (affectedFields.length === 0 && action?.type === 'align_title' && action.params.targetTitle) {
+    const targetTitle = action.params.targetTitle.trim();
+    if (targetTitle.length > 0 && !isBoilerplateText(targetTitle)) {
+      const summary = resumeContent.summary || '';
+      if (!summary.toLowerCase().includes(targetTitle.toLowerCase())) {
+        const newSummary = summary
+          ? `${summary.replace(/\s+$/, '')}${summary.endsWith('.') ? '' : '.'} Target role: ${targetTitle}.`
+          : `Target role: ${targetTitle}.`;
         affectedFields.push({
-          sectionId: 'skills',
-          field: 'technical',
-          originalValue: resumeContent.skills.technical,
-          newValue: [...resumeContent.skills.technical, ...keywords],
+          sectionId: 'summary',
+          field: 'text',
+          originalValue: resumeContent.summary,
+          newValue: newSummary,
           changeType: 'modify',
         });
       }
     }
   }
 
-  // Pattern 2: Summary improvements
-  if (lowerText.includes('summary') || lowerText.includes('professional statement')) {
-    affectedFields.push({
-      sectionId: 'summary',
-      field: 'text',
-      originalValue: resumeContent.summary,
-      newValue: resumeContent.summary + ' [Suggested improvements to be reviewed]',
-      changeType: 'modify',
-    });
-  }
-
-  // Pattern 3: Achievement/metrics additions
-  if (lowerText.includes('achievement') || lowerText.includes('metric') || lowerText.includes('quantif')) {
-    const experienceIndex = 0; // Target most recent job
-    if (resumeContent.experience.length > 0) {
-      const exp = resumeContent.experience[experienceIndex];
-      affectedFields.push({
-        sectionId: `experience-${experienceIndex}`,
-        field: 'achievements',
-        originalValue: exp.achievements,
-        newValue: [...exp.achievements, '[Add quantified achievement based on suggestion]'],
-        changeType: 'modify',
-      });
+  if (affectedFields.length === 0 && suggestion.category === 'keywords') {
+    const fallbackKeywords = extractKeywords(suggestion.text);
+    if (fallbackKeywords.length > 0) {
+      const existing = new Set((resumeContent.skills?.technical || []).map((skill) => skill.toLowerCase()));
+      const additions = fallbackKeywords.filter((keyword) => !existing.has(keyword.toLowerCase()));
+      if (additions.length > 0) {
+        affectedFields.push({
+          sectionId: 'skills',
+          field: 'technical',
+          originalValue: resumeContent.skills.technical,
+          newValue: [...resumeContent.skills.technical, ...additions],
+          changeType: 'modify',
+        });
+      }
     }
   }
 
-  // Pattern 4: Format/structure suggestions
-  if (lowerText.includes('format') || lowerText.includes('readability') || suggestion.category === 'formatting') {
-    affectedFields.push({
-      sectionId: 'summary',
-      field: 'text',
-      originalValue: resumeContent.summary,
-      newValue: resumeContent.summary,
-      changeType: 'modify',
-    });
-  }
-
-  // If no patterns matched, create a generic summary change
-  if (affectedFields.length === 0) {
-    affectedFields.push({
-      sectionId: 'summary',
-      field: 'text',
-      originalValue: resumeContent.summary,
-      newValue: resumeContent.summary + ' [Review and apply suggestion]',
-      changeType: 'modify',
-    });
-  }
-
   return affectedFields;
+}
+
+const JOB_POSTING_PATTERNS: RegExp[] = [
+  /\bjob description\b/i,
+  /\babout the role\b/i,
+  /\bresponsibilit(y|ies)\b/i,
+  /\brequirements\b/i,
+  /\bqualifications\b/i,
+  /\bmust\s+have\b/i,
+  /\bnice\s+to\s+have\b/i,
+  /\byou will\b/i,
+  /\bwe are\b/i,
+  /\bapply\b/i,
+  /\bequal opportunity\b/i,
+  /\bbenefits?\b/i,
+  /\bsalary\b/i,
+  /\bcompany\b/i,
+];
+
+function isBoilerplateText(text: string): boolean {
+  return JOB_POSTING_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function sanitizePhrase(phrase?: string | null): string | null {
+  if (!phrase) return null;
+  const cleaned = phrase
+    .replace(/^[\W_]+|[\W_]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(responsible for|experience with|experience in|knowledge of|ability to)\s+/i, '')
+    .trim();
+
+  if (!cleaned || isBoilerplateText(cleaned)) return null;
+  const wordCount = cleaned.split(' ').length;
+  if (wordCount < 2 || wordCount > 8) return null;
+  return cleaned;
+}
+
+function filterBoilerplateAffectedFields(fields: AffectedField[]): AffectedField[] {
+  const filtered: AffectedField[] = [];
+
+  for (const field of fields) {
+    if (typeof field.newValue === 'string') {
+      if (!isBoilerplateText(field.newValue)) {
+        filtered.push(field);
+      }
+      continue;
+    }
+
+    if (Array.isArray(field.newValue)) {
+      const cleaned = field.newValue.filter(
+        (item) => typeof item !== 'string' || !isBoilerplateText(item)
+      );
+      if (cleaned.length > 0) {
+        filtered.push({
+          ...field,
+          newValue: cleaned,
+        });
+      }
+      continue;
+    }
+
+    filtered.push(field);
+  }
+
+  return filtered;
 }
 
 /**
@@ -369,7 +462,9 @@ function smartKeywordExpansion(keywords: string[]): string[] {
   // Noise words from job descriptions that aren't real skills
   const noiseWords = new Set([
     'job', 'title', 'posted', 'company', 'about', 'see', 'this', 'and', 'the',
-    'for', 'with', 'senior', 'manager', 'description', 'position', 'role'
+    'for', 'with', 'senior', 'manager', 'description', 'position', 'role',
+    'responsibilities', 'responsibility', 'requirements', 'qualification', 'qualifications',
+    'candidate', 'applicant', 'apply', 'benefits', 'salary', 'location', 'remote', 'hybrid'
   ]);
 
   const result: string[] = [];
@@ -403,12 +498,13 @@ function smartKeywordExpansion(keywords: string[]): string[] {
  */
 export async function generateAmendmentsBatch(
   suggestions: Suggestion[],
-  resumeContent: OptimizedResume
+  resumeContent: OptimizedResume,
+  context?: AmendmentGenerationContext
 ): Promise<Map<string, AmendmentGenerationResult>> {
   const results = new Map<string, AmendmentGenerationResult>();
 
   for (const suggestion of suggestions) {
-    const result = await generateAmendments(suggestion, resumeContent);
+    const result = await generateAmendments(suggestion, resumeContent, context);
     results.set(suggestion.id, result);
   }
 

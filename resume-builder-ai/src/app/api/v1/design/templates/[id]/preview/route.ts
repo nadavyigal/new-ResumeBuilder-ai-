@@ -214,14 +214,17 @@ function buildStyles(colors: ColorScheme, fonts: FontFamily, lineHeight: number,
 function buildHeader() {
   return `
     <div class="header">
-      <div class="name">${sample.name}</div>
-      <div class="title">${sample.title}</div>
+      <div class="identity">
+        <div class="avatar">JD</div>
+        <div>
+          <div class="name">${sample.name}</div>
+          <div class="title">${sample.title}</div>
+        </div>
+      </div>
       <div class="contact">
-        <span>${sample.location}</span>
-        <span>${sample.email}</span>
-        <span>${sample.phone}</span>
-        <span>${sample.linkedin}</span>
-        <span>${sample.website}</span>
+        <div>${sample.location}</div>
+        <div>${sample.email}</div>
+        <div>${sample.phone}</div>
       </div>
     </div>
   `;
