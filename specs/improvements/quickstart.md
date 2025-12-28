@@ -669,7 +669,7 @@ npm run test -- visual-customization
 #### Step 1: Run Migrations
 
 ```bash
-cd resume-builder-ai/supabase
+cd resume-builder-ai/resume-builder-ai
 
 # Create migration files
 supabase migration new create_ai_threads
