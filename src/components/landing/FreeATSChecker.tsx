@@ -238,6 +238,18 @@ export function FreeATSChecker() {
                   Unlock AI fixes after signup
                 </div>
               </div>
+
+              <div className="pt-4 border-t border-border/50">
+                <p className="text-sm text-foreground/60">
+                  Already have an account?{" "}
+                  <a
+                    href="/auth/signin"
+                    className="text-mobile-cta hover:underline font-semibold"
+                  >
+                    Log in here
+                  </a>
+                </p>
+              </div>
             </div>
 
             <div className="rounded-3xl border-2 border-border bg-card/95 p-6 md:p-8 shadow-xl shadow-mobile-cta/10">
