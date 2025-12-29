@@ -11,6 +11,12 @@ export function Footer() {
             Join 10,000+ professionals getting weekly tips on ATS optimization, resume writing, and landing interviews.
           </p>
           <NewsletterSignup />
+          <p className="text-sm text-foreground/50 mt-4">
+            This is our weekly newsletter. To optimize your resume with AI, {' '}
+            <a href="/auth/signup" className="text-blue-600 hover:underline font-medium">
+              sign up for free here
+            </a>.
+          </p>
         </div>
 
         {/* Footer Links */}

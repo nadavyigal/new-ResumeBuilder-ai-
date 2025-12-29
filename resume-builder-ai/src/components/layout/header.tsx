@@ -42,11 +42,18 @@ export function Header() {
               </Button>
             </div>
           ) : (
-            <Link href={ROUTES.auth.signUp}>
-              <Button variant="outline" size="sm">
-                Contact Us
-              </Button>
-            </Link>
+            <>
+              <Link href={ROUTES.auth.signIn}>
+                <Button variant="ghost" size="sm">
+                  Log In
+                </Button>
+              </Link>
+              <Link href={ROUTES.auth.signUp}>
+                <Button variant="default" size="sm">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
