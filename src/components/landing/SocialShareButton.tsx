@@ -1,6 +1,6 @@
 "use client";
 
-import { Linkedin, Twitter } from "lucide-react";
+import { Linkedin, Twitter } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 

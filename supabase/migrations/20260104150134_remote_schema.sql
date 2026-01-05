@@ -1,0 +1,1 @@
+-- Intentionally blank: auth/storage schemas are managed by Supabase.

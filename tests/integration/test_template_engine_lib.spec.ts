@@ -130,6 +130,7 @@ const MINIMAL_RESUME: OptimizedResume = {
   summary: 'Software developer with React experience',
   skills: {
     technical: ['React', 'JavaScript'],
+    soft: [],
   },
   experience: [
     {

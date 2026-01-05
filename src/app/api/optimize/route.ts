@@ -14,6 +14,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let resumeId: string | undefined;
+  let jobDescriptionId: string | undefined;
+
   try {
     const rateKey = `optimize:${user.id}`;
     const rateResult = checkRateLimit(rateKey, RATE_LIMITS.ai);
@@ -33,7 +36,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { resumeId, jobDescriptionId } = await req.json();
+    const parsed = await req.json();
+    resumeId = parsed.resumeId;
+    jobDescriptionId = parsed.jobDescriptionId;
 
     if (!resumeId || !jobDescriptionId) {
       return NextResponse.json({ error: "resumeId and jobDescriptionId are required." }, { status: 400 });

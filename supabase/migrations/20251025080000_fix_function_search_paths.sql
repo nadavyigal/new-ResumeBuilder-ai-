@@ -1,6 +1,12 @@
 -- Fix search_path security issues in functions
 -- This migration adds SET search_path = public to all security definer functions
 
+DROP FUNCTION IF EXISTS check_subscription_limit(UUID);
+DROP FUNCTION IF EXISTS update_applications_updated_at();
+DROP FUNCTION IF EXISTS increment_optimization_usage(UUID);
+DROP FUNCTION IF EXISTS applications_update_search();
+DROP FUNCTION IF EXISTS increment_optimizations_used(UUID, INTEGER);
+
 -- Fix: check_subscription_limit
 CREATE OR REPLACE FUNCTION check_subscription_limit(user_id_param UUID)
 RETURNS TABLE(allowed BOOLEAN, current_count INTEGER, max_allowed INTEGER) AS $$

@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       confidence: result.confidence,
     });
   } catch (error: unknown) {
-    logger.error('ATS rescan error', { optimizationId }, error);
+    logger.error('ATS rescan error', { optimizationId: optimizationId ?? undefined }, error);
 
     const err = error as Error;
     return NextResponse.json(

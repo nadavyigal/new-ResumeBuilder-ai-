@@ -8,7 +8,7 @@ import React from 'react';
 import type { ATSScoreOutput } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, TrendingUp } from 'lucide-react';
+import { ArrowRight, TrendingUp } from '@/lib/icons';
 import { QuickWinsSection } from './QuickWinsSection';
 
 interface ATSScoreCardProps {

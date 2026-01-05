@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Contact Us',
@@ -12,7 +13,7 @@ export default function ContactPage() {
 
       <div className="space-y-6">
         <p className="text-lg text-foreground/70">
-          Have questions or feedback? We'd love to hear from you!
+          Have questions or feedback? We&apos;d love to hear from you!
         </p>
 
         <div className="space-y-4">
@@ -37,7 +38,7 @@ export default function ContactPage() {
           <div>
             <h2 className="text-xl font-semibold mb-2">Feature Requests</h2>
             <p className="text-foreground/70">
-              Have an idea for a new feature? We're always looking to improve.
+              Have an idea for a new feature? We&apos;re always looking to improve.
               Send us your suggestions via email.
             </p>
           </div>
@@ -46,9 +47,9 @@ export default function ContactPage() {
         <div className="mt-8 p-6 bg-muted rounded-lg">
           <h3 className="font-semibold mb-2">Quick Links</h3>
           <ul className="space-y-2">
-            <li><a href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</a></li>
-            <li><a href="/terms" className="text-blue-600 hover:underline">Terms of Service</a></li>
-            <li><a href="/blog" className="text-blue-600 hover:underline">Blog</a></li>
+            <li><Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link></li>
+            <li><Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link></li>
+            <li><Link href="/blog" className="text-blue-600 hover:underline">Blog</Link></li>
           </ul>
         </div>
       </div>

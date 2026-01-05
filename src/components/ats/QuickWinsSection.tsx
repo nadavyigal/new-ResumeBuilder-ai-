@@ -11,7 +11,7 @@ import type { QuickWinSuggestion } from '@/lib/ats/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, Sparkles, TrendingUp } from 'lucide-react';
+import { Copy, Check, Sparkles, TrendingUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 interface QuickWinsSectionProps {

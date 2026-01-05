@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ShieldCheck } from "lucide-react";
+import { Sparkles, ShieldCheck } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { UploadForm } from "@/components/landing/UploadForm";
 import { LoadingState } from "@/components/landing/LoadingState";

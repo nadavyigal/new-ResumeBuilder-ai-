@@ -53,6 +53,10 @@ Resume Builder AI helps users optimize their resumes for specific job descriptio
 
 ## Getting Started
 
+> **Monorepo note (source of truth)**: This application root is `resume-builder-ai/resume-builder-ai/`.
+> - **Vercel Root Directory**: set to `resume-builder-ai/resume-builder-ai`
+> - **Supabase migrations**: use `supabase/migrations` in this directory (do not use the outer `resume-builder-ai/supabase/`)
+
 ### Prerequisites
 
 - Node.js 18+ and npm
@@ -65,7 +69,8 @@ Resume Builder AI helps users optimize their resumes for specific job descriptio
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd resume-builder-ai
+   # From the repo root:
+   cd resume-builder-ai/resume-builder-ai
    ```
 
 2. **Install dependencies**

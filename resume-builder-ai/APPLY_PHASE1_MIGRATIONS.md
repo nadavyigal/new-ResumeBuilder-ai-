@@ -277,7 +277,7 @@ If you encounter issues:
 
 All migration SQL files are located in:
 ```
-resume-builder-ai/supabase/migrations/
+supabase/migrations/
   ├── 20250118000001_create_ai_threads.sql
   ├── 20250118000002_create_content_modifications.sql
   ├── 20250118000003_create_style_history.sql

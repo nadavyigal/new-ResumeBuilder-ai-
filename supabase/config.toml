@@ -1,5 +1,14 @@
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config
+# -----------------------------------------------------------------------------
+# IMPORTANT (monorepo): DO NOT USE THIS SUPABASE DIRECTORY
+#
+# Source of truth lives at:
+#   resume-builder-ai/resume-builder-ai/supabase/
+#
+# This outer `resume-builder-ai/supabase/` is intentionally kept inert to prevent
+# migration drift when running `supabase` commands from the wrong working dir.
+# -----------------------------------------------------------------------------
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
 project_id = "resume-builder-ai"
@@ -54,7 +63,7 @@ schema_paths = []
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.
-enabled = true
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
 sql_paths = ["./seed.sql"]

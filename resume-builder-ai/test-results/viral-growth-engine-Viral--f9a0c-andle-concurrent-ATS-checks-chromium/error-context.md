@@ -1,0 +1,134 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - link "RESUMELY" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e6]: RESUMELY
+        - link "Contact Us" [ref=e8] [cursor=pointer]:
+          - /url: /auth/signup
+          - button "Contact Us" [ref=e9]
+    - main [ref=e10]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - img [ref=e20]
+            - generic [ref=e23]: Free ATS Score Checker
+          - generic [ref=e24]:
+            - heading "See if your resume survives ATS filters" [level=1] [ref=e25]
+            - paragraph [ref=e26]: Upload your resume, paste the job description, and get an instant ATS compatibility score. No signup needed.
+          - generic [ref=e27]:
+            - generic [ref=e28]:
+              - img [ref=e29]
+              - text: ATS-safe scoring
+            - generic [ref=e32]: Top 3 fixes free
+            - generic [ref=e33]: 5 checks per week
+          - generic [ref=e34]:
+            - generic [ref=e35]: Powered by our ATS v2 scoring engine
+            - generic [ref=e37]: We only store hashes for privacy
+            - generic [ref=e39]: Unlock AI fixes after signup
+        - generic [ref=e42]:
+          - img [ref=e44]
+          - generic [ref=e46]:
+            - heading "Scoring your resume..." [level=3] [ref=e47]
+            - paragraph [ref=e48]: This usually takes under a minute.
+          - generic [ref=e49]:
+            - generic [ref=e52]: Parsing your resume
+            - generic [ref=e55]: Extracting ATS keywords
+            - generic [ref=e58]: Scoring compatibility
+            - generic [ref=e61]: Generating improvements
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - heading "Why Choose Our AI Resume Optimizer" [level=2] [ref=e65]
+          - paragraph [ref=e66]: Everything you need to create resumes that get you hired
+        - generic [ref=e67]:
+          - generic [ref=e70]:
+            - img [ref=e72]
+            - heading "AI-Powered Optimization" [level=3] [ref=e75]
+            - paragraph [ref=e76]: Advanced AI analyzes job descriptions and optimizes your resume automatically with intelligent keyword matching
+          - generic [ref=e80]:
+            - img [ref=e82]
+            - heading "ATS-Optimized" [level=3] [ref=e86]
+            - paragraph [ref=e87]: Get match scores and keyword optimization to pass applicant tracking systems
+          - generic [ref=e91]:
+            - img [ref=e93]
+            - heading "Fast Results" [level=3] [ref=e95]
+            - paragraph [ref=e96]: Generate optimized resumes in minutes
+          - generic [ref=e100]:
+            - img [ref=e102]
+            - heading "Professional Templates" [level=3] [ref=e105]
+            - paragraph [ref=e106]: Choose from beautiful, ATS-friendly templates designed by experts
+          - generic [ref=e110]:
+            - img [ref=e112]
+            - heading "3x Interview Rate" [level=3] [ref=e115]
+            - paragraph [ref=e116]: Our users see up to 3x more interview invitations on average
+          - generic [ref=e120]:
+            - img [ref=e122]
+            - heading "Privacy First" [level=3] [ref=e124]
+            - paragraph [ref=e125]: Your data is encrypted and never shared with third parties. We respect your privacy.
+        - generic [ref=e127]:
+          - generic [ref=e128]:
+            - generic [ref=e129]: 10K+
+            - generic [ref=e130]: Resumes Optimized
+          - generic [ref=e131]:
+            - generic [ref=e132]: 92%
+            - generic [ref=e133]: Average Match Score
+          - generic [ref=e134]:
+            - generic [ref=e135]: 3x
+            - generic [ref=e136]: Interview Rate Increase
+          - generic [ref=e137]:
+            - generic [ref=e138]: 4.9/5
+            - generic [ref=e139]: Satisfaction Rate
+      - generic [ref=e141]:
+        - generic [ref=e142]:
+          - heading "How It Works" [level=2] [ref=e143]
+          - paragraph [ref=e144]: Three simple steps to your optimized resume
+        - generic [ref=e145]:
+          - generic [ref=e146]:
+            - generic [ref=e148]: "1"
+            - generic [ref=e150]:
+              - img [ref=e152]
+              - heading "Upload Your Resume" [level=3] [ref=e155]
+            - paragraph [ref=e156]: Begin by uploading your current resume in PDF or Word format. Our system will instantly parse and analyze your professional experience, skills, and achievements to create a structured profile.
+            - img [ref=e158]
+          - generic [ref=e160]:
+            - generic [ref=e162]: "2"
+            - generic [ref=e164]:
+              - img [ref=e166]
+              - heading "Add Job Description" [level=3] [ref=e171]
+            - paragraph [ref=e172]: Simply paste the job description you're applying for, and our AI will extract key requirements, desired skills, and important keywords to understand exactly what the employer is seeking.
+            - img [ref=e174]
+          - generic [ref=e176]:
+            - generic [ref=e178]: "3"
+            - generic [ref=e180]:
+              - img [ref=e182]
+              - heading "Get Optimized Resume" [level=3] [ref=e185]
+            - paragraph [ref=e186]: Receive your professionally optimized resume tailored to the specific job, complete with ATS match insights, keyword optimization, and strategic improvements to maximize your chances of landing an interview.
+    - contentinfo [ref=e187]:
+      - generic [ref=e188]:
+        - generic [ref=e189]:
+          - heading "Get Resume Tips & Career Insights" [level=3] [ref=e190]
+          - paragraph [ref=e191]: Join 10,000+ professionals getting weekly tips on ATS optimization, resume writing, and landing interviews.
+          - generic [ref=e192]:
+            - generic [ref=e193]:
+              - textbox "your.email@example.com" [ref=e194]
+              - button "Subscribe" [ref=e195]
+            - paragraph [ref=e196]: Get weekly resume tips, ATS insights, and career advice. Unsubscribe anytime.
+        - generic [ref=e197]:
+          - paragraph [ref=e198]: © 2025 Resumely. Crafted with care.
+          - generic [ref=e199]:
+            - link "Privacy" [ref=e200] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e201] [cursor=pointer]:
+              - /url: /terms
+            - link "Contact" [ref=e202] [cursor=pointer]:
+              - /url: /contact
+  - region "Notifications (F8)":
+    - list
+  - button "Open Next.js Dev Tools" [ref=e208] [cursor=pointer]:
+    - img [ref=e209]
+  - alert [ref=e212]
+```

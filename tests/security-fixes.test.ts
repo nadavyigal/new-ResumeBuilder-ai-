@@ -10,7 +10,8 @@
  */
 
 import { describe, it, expect, beforeAll } from '@jest/globals';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment } from '@/lib/env';
 
 describe('Security Fixes Verification', () => {
@@ -74,10 +75,10 @@ describe('Security Fixes Verification', () => {
   // ==================== TEST 2: RLS POLICIES ====================
 
   describe('2. Row Level Security (RLS) Policies', () => {
-    let supabase: ReturnType<typeof createClient>;
+    let supabase: SupabaseClient<Database>;
 
     beforeAll(() => {
-      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
     });
 
     it('should have RLS enabled on all critical tables', async () => {
@@ -140,10 +141,10 @@ describe('Security Fixes Verification', () => {
   // ==================== TEST 3: ATOMIC QUOTA INCREMENT ====================
 
   describe('3. Atomic Quota Increment Function', () => {
-    let supabase: ReturnType<typeof createClient>;
+    let supabase: SupabaseClient<Database>;
 
     beforeAll(() => {
-      supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
     });
 
     it('should have increment_optimizations_used function defined', async () => {

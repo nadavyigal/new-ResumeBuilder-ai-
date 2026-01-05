@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parsePdf } from '@/lib/pdf-parser';
 import { scoreResume } from '@/lib/ats';
-import type { ATSScoreInput } from '@/lib/ats/types';
+import type { ATSScoreInput, JobExtraction } from '@/lib/ats/types';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limiting/check-rate-limit';
 import { getClientIP } from '@/lib/rate-limiting/get-client-ip';
 import { hashContent } from '@/lib/utils/hash-content';
+import { isPdfUpload } from '@/lib/utils/pdf-validation';
 import { scrapeJobDescription } from '@/lib/job-scraper';
 import { extractJob } from '@/lib/scraper/jobExtractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
@@ -17,7 +18,7 @@ const MAX_FREE_CHECKS = 5;
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
-const DEFAULT_JOB_DATA = {
+const DEFAULT_JOB_DATA: JobExtraction = {
   title: '',
   must_have: [],
   nice_to_have: [],
@@ -77,11 +78,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Resume file must be under 10MB.' }, { status: 400 });
   }
 
-  const isPdf = resumeFile.type === 'application/pdf' || resumeFile.name.toLowerCase().endsWith('.pdf');
-  if (!isPdf) {
-    return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
-  }
-
   let jobDescription = typeof jobDescriptionRaw === 'string' ? jobDescriptionRaw.trim() : '';
   const jobDescriptionUrl = typeof jobDescriptionUrlRaw === 'string' ? jobDescriptionUrlRaw.trim() : '';
 
@@ -109,6 +105,10 @@ export async function POST(request: NextRequest) {
   }
 
   const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
+  if (!isPdfUpload(resumeFile, fileBuffer)) {
+    return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
+  }
+
   const pdfData = await parsePdf(fileBuffer);
   const resumeText = pdfData?.text?.trim();
 
@@ -143,13 +143,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Extract job data from job description for better quick wins
-  let jobData = DEFAULT_JOB_DATA;
+  let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
     const extractedJob = await extractJob(jobDescription);
-    if (extractedJob && extractedJob.must_have && extractedJob.must_have.length > 0) {
+    const requirements = extractedJob.requirements || [];
+    if (requirements.length > 0) {
       jobData = {
-        title: extractedJob.title || '',
-        must_have: extractedJob.must_have || [],
+        title: extractedJob.job_title || '',
+        must_have: requirements,
         nice_to_have: extractedJob.nice_to_have || [],
         responsibilities: extractedJob.responsibilities || [],
       };

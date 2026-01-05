@@ -13,7 +13,7 @@ Sentry.init({
   enabled: process.env.NODE_ENV === 'production',
 
   // Server-specific options
-  beforeSend(event, hint) {
+  beforeSend(event: Sentry.ErrorEvent, hint: Sentry.EventHint) {
     // Filter out sensitive data
     if (event.request) {
       // Remove sensitive headers

@@ -238,7 +238,7 @@ If you prefer command line:
 npm install -g supabase
 
 # Navigate to project
-cd resume-builder-ai
+cd resume-builder-ai/resume-builder-ai
 
 # Link your project (you'll be prompted for credentials)
 npx supabase link --project-ref brtdyamysfmctrhuankn
@@ -254,7 +254,7 @@ npx supabase db diff
 
 ## Files Reference
 
-All migration files are in: `resume-builder-ai/supabase/migrations/`
+All migration files are in: `supabase/migrations/`
 
 1. `20250118000001_create_ai_threads.sql` (54 lines)
 2. `20250118000002_create_content_modifications.sql` (69 lines)

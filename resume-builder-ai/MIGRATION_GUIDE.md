@@ -27,10 +27,10 @@ This is the most reliable method.
    a. Click "New query" button
 
    b. Copy the entire SQL content from the migration file:
-      - `resume-builder-ai/supabase/migrations/20250118000001_create_ai_threads.sql`
-      - `resume-builder-ai/supabase/migrations/20250118000002_create_content_modifications.sql`
-      - `resume-builder-ai/supabase/migrations/20250118000003_create_style_history.sql`
-      - `resume-builder-ai/supabase/migrations/20250118000004_alter_existing_tables.sql`
+      - `supabase/migrations/20250118000001_create_ai_threads.sql`
+      - `supabase/migrations/20250118000002_create_content_modifications.sql`
+      - `supabase/migrations/20250118000003_create_style_history.sql`
+      - `supabase/migrations/20250118000004_alter_existing_tables.sql`
 
    c. Paste into the SQL editor
 
@@ -88,7 +88,7 @@ npx supabase link --project-ref brtdyamysfmctrhuankn
 
 ### Apply Migrations:
 ```bash
-cd resume-builder-ai
+cd resume-builder-ai/resume-builder-ai
 npx supabase db push
 ```
 
@@ -116,10 +116,10 @@ If you have PostgreSQL client (psql) installed:
 
 3. **Run Each Migration**
    ```bash
-   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/supabase/migrations/20250118000001_create_ai_threads.sql
-   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/supabase/migrations/20250118000002_create_content_modifications.sql
-   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/supabase/migrations/20250118000003_create_style_history.sql
-   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/supabase/migrations/20250118000004_alter_existing_tables.sql
+   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/resume-builder-ai/supabase/migrations/20250118000001_create_ai_threads.sql
+   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/resume-builder-ai/supabase/migrations/20250118000002_create_content_modifications.sql
+   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/resume-builder-ai/supabase/migrations/20250118000003_create_style_history.sql
+   \i C:/Users/nadav/OneDrive/מסמכים/AI/cursor/cursor playground/ResumeBuilder AI/resume-builder-ai/resume-builder-ai/supabase/migrations/20250118000004_alter_existing_tables.sql
    ```
 
 ## Verification Script
@@ -127,7 +127,7 @@ If you have PostgreSQL client (psql) installed:
 After applying migrations, run the verification script:
 
 ```bash
-cd resume-builder-ai
+cd resume-builder-ai/resume-builder-ai
 node apply-migrations-simple.js
 ```
 

@@ -10,19 +10,20 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
-  let supabase: ReturnType<typeof createClient>;
+  let supabase: SupabaseClient<Database>;
   let testUserId: string;
   let testOptimizationId: string;
   let testApplicationId: string;
 
   beforeAll(async () => {
-    supabase = createClient(supabaseUrl, supabaseKey);
+    supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Create test user and optimization for testing
     const testEmail = `app-test-${Date.now()}@example.com`;
@@ -170,6 +171,9 @@ describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
 
       expect(error).toBeNull();
       expect(application).toBeDefined();
+      if (!application) {
+        throw new Error('Application not found');
+      }
       expect(application.optimization_id).toBe(testOptimizationId);
       expect(application.optimizations).toBeDefined();
     });
@@ -270,6 +274,9 @@ describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
         .single();
 
       expect(application).toBeDefined();
+      if (!application) {
+        throw new Error('Application not found');
+      }
       expect(application.optimizations).toBeDefined();
     });
 
@@ -294,6 +301,9 @@ describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
         .single();
 
       expect(application).toBeDefined();
+      if (!application) {
+        throw new Error('Application not found');
+      }
       expect(application.optimizations).toBeDefined();
     });
   });
@@ -450,11 +460,6 @@ describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
 
   describe('Application Lifecycle', () => {
     it('should support full application workflow', async () => {
-      if (response.status === 401) {
-        console.log('Skipping workflow test - auth required');
-        return;
-      }
-
       // 1. Create application
       let response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/applications`, {
         method: 'POST',
@@ -466,6 +471,11 @@ describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
           status: 'saved',
         }),
       });
+
+      if (response.status === 401) {
+        console.log('Skipping workflow test - auth required');
+        return;
+      }
 
       let data = await response.json();
       const appId = data.application?.id;
