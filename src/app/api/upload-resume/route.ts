@@ -5,11 +5,15 @@ import { cookies } from "next/headers";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { isPdfUpload } from "@/lib/utils/pdf-validation";
+import { logger } from "@/lib/agent/utils/logger";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
 import { scoreOptimization } from "@/lib/ats/integration";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -50,6 +54,10 @@ export async function POST(req: NextRequest) {
 
     if (!resumeFile) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
+    }
+
+    if (resumeFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: "Resume file must be under 10MB." }, { status: 400 });
     }
 
     // Get job description from either direct input or URL (with structured extraction)
@@ -96,8 +104,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Job description or URL is required." }, { status: 400 });
     }
 
-    // Validate file type (PDF only)
-    if (!resumeFile.type || resumeFile.type !== 'application/pdf') {
+    const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
+    if (!isPdfUpload(resumeFile, fileBuffer)) {
       return NextResponse.json(
         {
           error: 'Invalid file type',
@@ -107,10 +115,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
     const pdfData = await parsePdf(fileBuffer);
 
-    const { data: resumeData, error: resumeError } = await supabase
+    const resumeInsert = supabase
       .from("resumes")
       .insert({
         user_id: user.id,
@@ -122,15 +129,7 @@ export async function POST(req: NextRequest) {
       .select()
       .maybeSingle();
 
-    if (resumeError) {
-      throw resumeError;
-    }
-
-    if (!resumeData) {
-      throw new Error("Failed to create resume record - no data returned");
-    }
-
-    const { data: jdData, error: jdError } = await supabase
+    const jdInsert = supabase
       .from("job_descriptions")
       .insert({
         user_id: user.id,
@@ -144,6 +143,19 @@ export async function POST(req: NextRequest) {
       .select()
       .maybeSingle();
 
+    const [resumeResult, jdResult] = await Promise.all([resumeInsert, jdInsert]);
+
+    const { data: resumeData, error: resumeError } = resumeResult;
+    const { data: jdData, error: jdError } = jdResult;
+
+    if (resumeError) {
+      throw resumeError;
+    }
+
+    if (!resumeData) {
+      throw new Error("Failed to create resume record - no data returned");
+    }
+
     if (jdError) {
       throw jdError;
     }
@@ -153,11 +165,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Optimize resume using AI
-    console.log("Starting AI optimization...");
+    logger.info('Starting AI optimization', {
+      userId: user.id,
+      resumeId: resumeData.id,
+      jobDescriptionId: jdData.id,
+    });
     const optimizationResult = await optimizeResume(pdfData.text, jobDescriptionText);
 
     if (!optimizationResult.success) {
-      console.error("Optimization failed:", optimizationResult.error);
+      logger.error('AI optimization failed', {
+        userId: user.id,
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+        error: optimizationResult.error,
+      }, optimizationResult.error);
       return NextResponse.json({
         error: `Resume uploaded but optimization failed: ${optimizationResult.error}`,
         resumeId: resumeData.id,
@@ -165,9 +186,23 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
+    const optimizedResume = optimizationResult.optimizedResume;
+    if (!optimizedResume) {
+      logger.error('AI optimization returned no resume payload', {
+        userId: user.id,
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      });
+      return NextResponse.json({
+        error: "Optimization completed but no resume data was returned",
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      }, { status: 500 });
+    }
+
     // Validate and normalize match_score - must be a number between 0-100
     let matchScore = 0;
-    const rawScore = optimizationResult.optimizedResume?.matchScore;
+    const rawScore = optimizedResume.matchScore;
 
     if (typeof rawScore === 'number' && !isNaN(rawScore)) {
       matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
@@ -182,10 +217,10 @@ export async function POST(req: NextRequest) {
     // Score the optimization using ATS v2
     let atsResult = null;
     try {
-      console.log('Starting ATS v2 scoring...');
+      logger.info('Starting ATS v2 scoring', { resumeId: resumeData.id, userId: user.id });
       const scoringPromise = scoreOptimization({
         resumeOriginalText: pdfData.text,
-        resumeOptimizedJson: optimizationResult.optimizedResume,
+        resumeOptimizedJson: optimizedResume,
         jobDescriptionText: jobDescriptionText,
         jobTitle: extractedTitle || 'Position',
       });
@@ -197,17 +232,19 @@ export async function POST(req: NextRequest) {
 
       atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
 
-      console.log('ATS v2 scoring completed:', {
+      logger.info('ATS v2 scoring completed', {
+        resumeId: resumeData.id,
         original: atsResult?.ats_score_original,
         optimized: atsResult?.ats_score_optimized,
         improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
         suggestions: atsResult?.suggestions?.length || 0,
       });
     } catch (atsError: any) {
-      console.error('ATS v2 scoring failed, continuing without it:', {
+      logger.error('ATS v2 scoring failed, continuing without it', {
+        resumeId: resumeData.id,
+        userId: user.id,
         error: atsError?.message,
-        stack: atsError?.stack?.substring(0, 200),
-      });
+      }, atsError);
       // Continue with optimization even if ATS scoring fails
       atsResult = null;
     }
@@ -221,10 +258,10 @@ export async function POST(req: NextRequest) {
         jd_id: jdData.id,
         match_score: atsResult?.ats_score_optimized || matchScore,
         gaps_data: {
-          missingKeywords: optimizationResult.optimizedResume?.missingKeywords || [],
-          keyImprovements: optimizationResult.optimizedResume?.keyImprovements || [],
+          missingKeywords: optimizedResume.missingKeywords || [],
+          keyImprovements: optimizedResume.keyImprovements || [],
         },
-        rewrite_data: optimizationResult.optimizedResume,
+        rewrite_data: optimizedResume,
         template_key: 'natural', // Default natural design (no template)
         status: 'completed' as const,
         // ATS v2 fields - always use version 2
@@ -254,7 +291,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (optimizationError) {
-      console.error("Failed to save optimization:", optimizationError);
+      logger.error('Failed to save optimization record', {
+        userId: user.id,
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      }, optimizationError);
       return NextResponse.json({
         error: "Optimization completed but failed to save results",
         resumeId: resumeData.id,
@@ -263,7 +304,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!optimizationData) {
-      console.error("Failed to save optimization: no data returned");
+      logger.error('Optimization save returned no data', {
+        userId: user.id,
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+      });
       return NextResponse.json({
         error: "Optimization completed but failed to save results - no data returned",
         resumeId: resumeData.id,
@@ -281,7 +326,11 @@ export async function POST(req: NextRequest) {
     //   console.error("Failed to update optimization counter:", updateError);
     // }
 
-    console.log(`Optimization completed successfully. Match score: ${matchScore}%`);
+    logger.info('Optimization completed successfully', {
+      optimizationId: optimizationData.id,
+      matchScore,
+      userId: user.id,
+    });
 
     return NextResponse.json({
       success: true,
@@ -289,12 +338,12 @@ export async function POST(req: NextRequest) {
       jobDescriptionId: jdData.id,
       optimizationId: optimizationData.id,
       matchScore: matchScore,
-      keyImprovements: optimizationResult.optimizedResume?.keyImprovements,
-      missingKeywords: optimizationResult.optimizedResume?.missingKeywords,
+      keyImprovements: optimizedResume.keyImprovements,
+      missingKeywords: optimizedResume.missingKeywords,
     });
 
   } catch (error: unknown) {
-    console.error("Error uploading resume:", error);
+    logger.error('Error uploading resume', { userId: user?.id ?? null }, error);
     const errorMessage = error instanceof Error ? error.message : "Something went wrong";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

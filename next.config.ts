@@ -1,14 +1,28 @@
 import type { NextConfig } from "next";
 
+const contentSecurityPolicy = `
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+  style-src 'self' 'unsafe-inline' https:;
+  img-src 'self' data: https:;
+  font-src 'self' data: https:;
+  connect-src 'self' https:;
+  frame-ancestors 'none';
+  frame-src 'none';
+  object-src 'none';
+  base-uri 'self';
+  form-action 'self';
+`;
+
 const nextConfig: NextConfig = {
-  /* config options here */
-  eslint: {
-    // Disable ESLint during builds to allow deployment
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    // Disable type checking during builds (still check in dev)
-    ignoreBuildErrors: true,
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
   },
   // Generate unique build ID to force cache invalidation on deployments
   generateBuildId: async () => {
@@ -22,6 +36,35 @@ const nextConfig: NextConfig = {
       config.externals.push('pdf-parse');
     }
     return config;
+  },
+  async headers() {
+    const headers = [
+      {
+        key: 'Content-Security-Policy',
+        value: contentSecurityPolicy.replace(/\s{2,}/g, ' ').trim(),
+      },
+      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      {
+        key: 'Permissions-Policy',
+        value: 'camera=(), microphone=(), geolocation=(), payment=()',
+      },
+    ];
+
+    if (process.env.NODE_ENV === 'production') {
+      headers.push({
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains; preload',
+      });
+    }
+
+    return [
+      {
+        source: '/(.*)',
+        headers,
+      },
+    ];
   },
 };
 
