@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/navigation";
 import { Calendar, ExternalLink, Briefcase, TrendingUp, FileText, Check } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { OptimizationHistoryEntry } from "@/types/history";
+import { useLocale, useTranslations } from "next-intl";
 
 // Get badge variant based on ATS score
 function getScoreBadgeVariant(score: number): { bg: string; border: string; text: string } {
@@ -24,12 +24,15 @@ interface HistoryCardProps {
 }
 
 export function HistoryCard({ optimization, onApplyNow, isApplying = false }: HistoryCardProps) {
+  const t = useTranslations("dashboard.history.card");
+  const locale = useLocale();
+  const dateLocale = locale === "he" ? "he-IL" : "en-US";
   const scoreColors = getScoreBadgeVariant(optimization.matchScore);
   const scorePercent = Math.round(optimization.matchScore * 100);
-  const displayDate = new Date(optimization.createdAt).toLocaleDateString();
+  const displayDate = new Date(optimization.createdAt).toLocaleDateString(dateLocale);
 
-  const companyName = optimization.company || "Unknown Company";
-  const jobTitle = optimization.jobTitle || "Untitled Position";
+  const companyName = optimization.company || t("unknownCompany");
+  const jobTitle = optimization.jobTitle || t("untitledPosition");
 
   const handleApplyNow = () => {
     if (onApplyNow && !isApplying) {
@@ -65,7 +68,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
               <span className={cn("text-lg font-bold leading-none", scoreColors.text)}>
                 {scorePercent}
               </span>
-              <span className="text-[10px] text-muted-foreground">ATS</span>
+              <span className="text-[10px] text-muted-foreground">{t("atsLabel")}</span>
             </div>
           </div>
         </div>
@@ -81,7 +84,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
           {optimization.hasApplication && (
             <Badge variant="secondary" className="flex items-center gap-1 h-5 px-2">
               <Check className="w-3 h-3" />
-              <span className="text-xs">Applied</span>
+              <span className="text-xs">{t("applied")}</span>
             </Badge>
           )}
 
@@ -103,7 +106,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
           >
             <Link href={`/dashboard/optimizations/${optimization.id}`}>
               <FileText className="w-4 h-4 mr-2" />
-              View Resume
+              {t("viewResume")}
             </Link>
           </Button>
 
@@ -115,7 +118,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
               onClick={handleApplyNow}
               disabled={isApplying}
             >
-              {isApplying ? "Applying..." : "Apply Now"}
+              {isApplying ? t("applying") : t("applyNow")}
             </Button>
           )}
 
@@ -131,7 +134,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
                 href={optimization.jobUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open job posting"
+                title={t("openJobPosting")}
               >
                 <ExternalLink className="w-5 h-5" />
               </a>

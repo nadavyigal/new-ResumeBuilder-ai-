@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Lock, Sparkles } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,10 @@ interface ATSScoreDisplayProps {
 export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSScoreDisplayProps) {
   const score = data.score.overall;
   const { preview } = data;
+  const t = useTranslations("landing.score");
+
+  const matchLabel =
+    score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
 
   return (
     <div data-testid="ats-score-display" className="space-y-6">
@@ -29,7 +34,7 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
         </div>
         <div className="inline-flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-1 text-sm font-semibold">
           <Sparkles className="w-4 h-4 text-mobile-cta" />
-          {score >= 85 ? "Strong ATS match" : score >= 70 ? "Good ATS match" : "Needs improvement"}
+          {matchLabel}
         </div>
         {checksRemainingLabel && (
           <div className="text-xs text-foreground/60">{checksRemainingLabel}</div>
@@ -37,7 +42,7 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
       </div>
 
       <div data-testid="ats-issues-list" className="space-y-3">
-        <h3 className="text-base font-semibold text-foreground">Top critical issues</h3>
+        <h3 className="text-base font-semibold text-foreground">{t("topIssues")}</h3>
         {preview.topIssues.map((issue, index) => (
           <IssueCard key={issue.id || index} issue={issue} rank={index + 1} />
         ))}
@@ -65,13 +70,13 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
             <Card className="p-6 text-center max-w-sm">
               <Lock className="mx-auto h-10 w-10 mb-3 text-foreground" />
               <h3 className="text-lg font-bold mb-2">
-                {preview.lockedCount} more issues to fix
+                {t("lockedTitle", { count: preview.lockedCount })}
               </h3>
               <p className="text-sm text-foreground/70 mb-4">
-                Sign up free to unlock every issue and get AI-powered fixes.
+                {t("lockedDescription")}
               </p>
               <Button className="w-full" data-testid="signup-cta" onClick={onSignup}>
-                Sign Up Free
+                {t("lockedCta")}
               </Button>
             </Card>
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import { Link } from "@/navigation";
 import { ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Search as SearchIcon, SlidersHorizontal, Briefcase } from '@/lib/icons';
 import { useOptimizations } from '@/hooks/useOptimizations';
 import { HistoryCard } from '@/components/mobile/history-card';
@@ -48,6 +48,7 @@ import {
   createDefaultFilters,
   countActiveFilters,
 } from '@/lib/history-utils';
+import { useLocale, useTranslations } from 'next-intl';
 
 /**
  * HistoryTable Component
@@ -68,6 +69,9 @@ export default function HistoryTable() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const t = useTranslations('dashboard.history');
+  const locale = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
   // Parse initial state from URL or use defaults
   const initialState = parseQueryParams(searchParams);
@@ -181,12 +185,12 @@ export default function HistoryTable() {
     if (optimization.hasApplication) {
       toast({
         variant: "default",
-        title: "Already Applied",
-        description: `You've already applied to this position on ${
-          optimization.applicationDate
-            ? new Date(optimization.applicationDate).toLocaleDateString()
-            : 'a previous date'
-        }. Creating a new application record.`,
+        title: t('toasts.alreadyAppliedTitle'),
+        description: t('toasts.alreadyAppliedDescription', {
+          date: optimization.applicationDate
+            ? new Date(optimization.applicationDate).toLocaleDateString(dateLocale)
+            : t('toasts.unknownDate'),
+        }),
       });
     }
 
@@ -218,7 +222,7 @@ export default function HistoryTable() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create application record');
+        throw new Error(t('errors.createApplication'));
       }
 
       // Success - refresh data
@@ -226,10 +230,10 @@ export default function HistoryTable() {
 
       toast({
         variant: "default",
-        title: "Application Started!",
+        title: t('toasts.applicationStartedTitle'),
         description: optimization.jobUrl
-          ? "PDF downloaded and job posting opened. Application record created."
-          : "PDF downloaded. Application record created.",
+          ? t('toasts.applicationStartedWithUrl')
+          : t('toasts.applicationStartedNoUrl'),
       });
     } catch (err) {
       // Revert optimistic update on error
@@ -237,8 +241,8 @@ export default function HistoryTable() {
 
       toast({
         variant: "destructive",
-        title: "Application Failed",
-        description: err instanceof Error ? err.message : "Failed to process application. Please try again.",
+        title: t('toasts.applicationFailedTitle'),
+        description: err instanceof Error ? err.message : t('toasts.applicationFailedDescription'),
       });
     } finally {
       // Remove from applying set
@@ -310,7 +314,7 @@ export default function HistoryTable() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete optimizations');
+        throw new Error(t('errors.deleteOptimizations'));
       }
 
       const result = await response.json();
@@ -324,35 +328,34 @@ export default function HistoryTable() {
       // Show success toast
       toast({
         variant: 'default',
-        title: 'Deletion Complete',
-        description: `Successfully deleted ${result.deleted} optimization${
-          result.deleted > 1 ? 's' : ''
-        }.${
-          result.errors?.length
-            ? ` ${result.errors.length} item${result.errors.length > 1 ? 's' : ''} could not be deleted.`
-            : ''
-        }`,
+        title: t('toasts.deletionCompleteTitle'),
+        description: result.errors?.length
+          ? t('toasts.deletionCompleteWithErrors', {
+              deleted: result.deleted,
+              errors: result.errors.length,
+            })
+          : t('toasts.deletionComplete', { deleted: result.deleted }),
       });
 
       // Show warning if applications were preserved
       if (result.preserved?.applications > 0) {
         toast({
           variant: 'default',
-          title: 'Application Records Preserved',
-          description: `${result.preserved.applications} application record${
-            result.preserved.applications > 1 ? 's were' : ' was'
-          } preserved and can be viewed in your applications history.`,
+          title: t('toasts.applicationsPreservedTitle'),
+          description: t('toasts.applicationsPreservedDescription', {
+            count: result.preserved.applications,
+          }),
         });
       }
     } catch (err) {
       console.error('Bulk delete error:', err);
       toast({
         variant: 'destructive',
-        title: 'Deletion Failed',
+        title: t('toasts.deletionFailedTitle'),
         description:
           err instanceof Error
             ? err.message
-            : 'Failed to delete optimizations. Please try again.',
+            : t('toasts.deletionFailedDescription'),
       });
     } finally {
       setIsBulkProcessing(false);
@@ -380,7 +383,7 @@ export default function HistoryTable() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to export optimizations');
+        throw new Error(t('errors.exportOptimizations'));
       }
 
       // Get the ZIP file as blob
@@ -410,20 +413,18 @@ export default function HistoryTable() {
       // Show success toast
       toast({
         variant: 'default',
-        title: 'Export Complete',
-        description: `Successfully exported ${selectedIds.size} optimization${
-          selectedIds.size > 1 ? 's' : ''
-        } to ZIP file.`,
+        title: t('toasts.exportCompleteTitle'),
+        description: t('toasts.exportCompleteDescription', { count: selectedIds.size }),
       });
     } catch (err) {
       console.error('Bulk export error:', err);
       toast({
         variant: 'destructive',
-        title: 'Export Failed',
+        title: t('toasts.exportFailedTitle'),
         description:
           err instanceof Error
             ? err.message
-            : 'Failed to export optimizations. Please try again.',
+            : t('toasts.exportFailedDescription'),
       });
     } finally {
       setIsBulkProcessing(false);
@@ -508,20 +509,20 @@ export default function HistoryTable() {
               <Link href="/dashboard" className="touch-target">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-xl font-bold">History</h1>
+              <h1 className="text-xl font-bold">{t('mobile.title')}</h1>
             </div>
           </div>
           <div className="px-4 pt-8">
             <div className="rounded-md border border-destructive bg-destructive/10 p-6">
               <div className="flex flex-col items-center text-center space-y-4">
                 <p className="text-sm font-medium text-destructive">
-                  Failed to load optimization history
+                  {t('errors.loadHistory')}
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {error.message}
                 </p>
                 <Button onClick={() => refetch()} variant="outline" size="sm">
-                  Try again
+                  {t('actions.tryAgain')}
                 </Button>
               </div>
             </div>
@@ -547,13 +548,13 @@ export default function HistoryTable() {
           <div className="rounded-md border border-destructive bg-destructive/10 p-6">
             <div className="flex flex-col items-center text-center space-y-4">
               <p className="text-sm font-medium text-destructive">
-                Failed to load optimization history
+                {t('errors.loadHistory')}
               </p>
               <p className="text-sm text-muted-foreground">
                 {error.message}
               </p>
               <Button onClick={() => refetch()} variant="outline" size="sm">
-                Try again
+                {t('actions.tryAgain')}
               </Button>
             </div>
           </div>
@@ -576,13 +577,13 @@ export default function HistoryTable() {
               <Link href="/dashboard" className="touch-target">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-xl font-bold">History</h1>
+              <h1 className="text-xl font-bold">{t('mobile.title')}</h1>
             </div>
             <div className="px-4 pb-3 flex gap-2">
               <div className="relative flex-1">
                 <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search jobs..."
+                  placeholder={t('mobile.searchPlaceholder')}
                   value={filters.search}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10 h-11 bg-muted/50"
@@ -602,12 +603,12 @@ export default function HistoryTable() {
             <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4 mx-auto">
               <Briefcase className="w-10 h-10 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No Results Found</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('noResults.title')}</h3>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
-              Try adjusting your search or clearing filters
+              {t('noResults.description')}
             </p>
             <Button onClick={handleClearFilters} className="bg-mobile-cta hover:bg-mobile-cta-hover">
-              Clear Filters
+              {t('actions.clearFilters')}
             </Button>
           </div>
         </div>
@@ -630,12 +631,12 @@ export default function HistoryTable() {
 
           <div className="rounded-md border border-dashed p-12">
             <div className="flex flex-col items-center text-center space-y-4">
-              <p className="text-sm font-medium">No optimizations match your filters</p>
+              <p className="text-sm font-medium">{t('filteredEmpty.title')}</p>
               <p className="text-sm text-muted-foreground">
-                Try adjusting your search criteria or clearing filters to see all optimizations.
+                {t('filteredEmpty.description')}
               </p>
               <Button onClick={handleClearFilters} variant="outline" size="sm">
-                Clear filters
+                {t('filters.clear')}
               </Button>
             </div>
           </div>
@@ -659,8 +660,10 @@ export default function HistoryTable() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div className="flex-1">
-            <h1 className="text-xl font-bold">History</h1>
-            <p className="text-xs text-muted-foreground">{optimizations?.length || 0} optimizations</p>
+            <h1 className="text-xl font-bold">{t('mobile.title')}</h1>
+            <p className="text-xs text-muted-foreground">
+              {t('mobile.optimizationsCount', { count: optimizations?.length || 0 })}
+            </p>
           </div>
         </div>
 
@@ -669,7 +672,7 @@ export default function HistoryTable() {
           <div className="relative flex-1">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search jobs..."
+              placeholder={t('mobile.searchPlaceholder')}
               value={filters.search}
               onChange={(e) => handleSearchChange(e.target.value)}
               onKeyDown={(e) => {
@@ -695,7 +698,7 @@ export default function HistoryTable() {
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[80vh]">
               <SheetHeader>
-                <SheetTitle>Filters & Sort</SheetTitle>
+                <SheetTitle>{t('mobile.filtersTitle')}</SheetTitle>
               </SheetHeader>
               <div className="mt-6 space-y-6">
                 <HistoryFilters
@@ -778,7 +781,7 @@ export default function HistoryTable() {
                         handleDeselectAll();
                       }
                     }}
-                    aria-label="Select all optimizations"
+                    aria-label={t('table.selectAllAria')}
                   />
                 </TableHead>
 
@@ -790,13 +793,13 @@ export default function HistoryTable() {
                     className="-ml-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('date')}
                   >
-                    Date Created
+                    {t('table.dateCreated')}
                     {renderSortIcon('date')}
                   </Button>
                 </TableHead>
 
                 {/* Job Title */}
-                <TableHead>Job Title</TableHead>
+                <TableHead>{t('table.jobTitle')}</TableHead>
 
                 {/* Company - Sortable */}
                 <TableHead>
@@ -806,7 +809,7 @@ export default function HistoryTable() {
                     className="-ml-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('company')}
                   >
-                    Company
+                    {t('table.company')}
                     {renderSortIcon('company')}
                   </Button>
                 </TableHead>
@@ -819,16 +822,16 @@ export default function HistoryTable() {
                     className="-ml-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('score')}
                   >
-                    ATS Match %
+                    {t('table.atsMatch')}
                     {renderSortIcon('score')}
                   </Button>
                 </TableHead>
 
                 {/* Status */}
-                <TableHead className="w-[120px]">Status</TableHead>
+                <TableHead className="w-[120px]">{t('table.status')}</TableHead>
 
                 {/* Actions */}
-                <TableHead className="text-right w-[250px]">Actions</TableHead>
+                <TableHead className="text-right w-[250px]">{t('table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -858,23 +861,21 @@ export default function HistoryTable() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Selected Optimizations?</DialogTitle>
+            <DialogTitle>{t('dialog.title')}</DialogTitle>
             <DialogDescription>
-              You are about to delete {selectedIds.size} optimization
-              {selectedIds.size > 1 ? 's' : ''}. This action cannot be undone.
+              {t('dialog.description', { count: selectedIds.size })}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
             <p className="text-sm text-muted-foreground">
-              The following will be permanently deleted:
+              {t('dialog.listIntro')}
             </p>
             <ul className="list-disc list-inside text-sm space-y-1">
-              <li>Optimization records and PDF files</li>
-              <li>Associated metadata and ATS scores</li>
+              <li>{t('dialog.listItemRecords')}</li>
+              <li>{t('dialog.listItemMetadata')}</li>
             </ul>
             <p className="text-sm font-medium text-amber-600 dark:text-amber-500 mt-4">
-              ⚠️ Application records will be preserved and remain accessible in
-              your application history.
+              {t('dialog.warning')}
             </p>
           </div>
           <DialogFooter>
@@ -883,14 +884,14 @@ export default function HistoryTable() {
               onClick={() => setShowDeleteDialog(false)}
               disabled={isBulkProcessing}
             >
-              Cancel
+              {t('actions.cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={confirmBulkDelete}
               disabled={isBulkProcessing}
             >
-              {isBulkProcessing ? 'Deleting...' : 'Delete'}
+              {isBulkProcessing ? t('actions.deleting') : t('actions.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

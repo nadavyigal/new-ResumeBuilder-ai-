@@ -33,6 +33,11 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  [dir="rtl"] {
+    font-family: var(--font-heebo), var(--font-geist-sans), system-ui, sans-serif;
   }
 
   /* Mobile-first typography scale */

@@ -19,38 +19,38 @@ export interface SectionHeaderTranslations {
   professional: string;
 }
 
-export const SECTION_HEADERS: Record<'en' | 'he', SectionHeaderTranslations> = {
+export const SECTION_HEADERS: Record<"en" | "he", SectionHeaderTranslations> = {
   en: {
-    professionalSummary: 'Professional Summary',
-    skills: 'Skills',
-    technicalSkills: 'Technical Skills',
-    professionalSkills: 'Professional Skills',
-    softSkills: 'Soft Skills',
-    experience: 'Experience',
-    education: 'Education',
-    certifications: 'Certifications',
-    projects: 'Projects',
-    technical: 'Technical',
-    professional: 'Professional',
+    professionalSummary: "Professional Summary",
+    skills: "Skills",
+    technicalSkills: "Technical Skills",
+    professionalSkills: "Professional Skills",
+    softSkills: "Soft Skills",
+    experience: "Experience",
+    education: "Education",
+    certifications: "Certifications",
+    projects: "Projects",
+    technical: "Technical",
+    professional: "Professional",
   },
   he: {
-    professionalSummary: 'סיכום מקצועי',
-    skills: 'כישורים',
-    technicalSkills: 'כישורים טכניים',
-    professionalSkills: 'כישורים מקצועיים',
-    softSkills: 'כישורים רכים',
-    experience: 'ניסיון תעסוקתי',
-    education: 'השכלה',
-    certifications: 'הסמכות',
-    projects: 'פרויקטים',
-    technical: 'טכני',
-    professional: 'מקצועי',
+    professionalSummary: "\u05EA\u05E7\u05E6\u05D9\u05E8 \u05DE\u05E7\u05E6\u05D5\u05E2\u05D9",
+    skills: "\u05DB\u05D9\u05E9\u05D5\u05E8\u05D9\u05DD",
+    technicalSkills: "\u05DB\u05D9\u05E9\u05D5\u05E8\u05D9\u05DD \u05D8\u05DB\u05E0\u05D9\u05D9\u05DD",
+    professionalSkills: "\u05DB\u05D9\u05E9\u05D5\u05E8\u05D9\u05DD \u05DE\u05E7\u05E6\u05D5\u05E2\u05D9\u05D9\u05DD",
+    softSkills: "\u05DB\u05D9\u05E9\u05D5\u05E8\u05D9\u05DD \u05E8\u05DB\u05D9\u05DD",
+    experience: "\u05E0\u05D9\u05E1\u05D9\u05D5\u05DF",
+    education: "\u05D4\u05E9\u05DB\u05DC\u05D4",
+    certifications: "\u05D4\u05E1\u05DE\u05DB\u05D5\u05EA",
+    projects: "\u05E4\u05E8\u05D5\u05D9\u05E7\u05D8\u05D9\u05DD",
+    technical: "\u05D8\u05DB\u05E0\u05D9",
+    professional: "\u05DE\u05E7\u05E6\u05D5\u05E2\u05D9",
   },
 } as const;
 
 /**
  * Get section headers for a specific language
  */
-export function getSectionHeaders(languageCode: 'en' | 'he' | string): SectionHeaderTranslations {
-  return SECTION_HEADERS[languageCode === 'he' ? 'he' : 'en'];
+export function getSectionHeaders(languageCode: "en" | "he" | string): SectionHeaderTranslations {
+  return SECTION_HEADERS[languageCode === "he" ? "he" : "en"];
 }

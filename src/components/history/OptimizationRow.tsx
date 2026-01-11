@@ -1,13 +1,14 @@
 'use client';
 
 import { memo } from 'react';
-import Link from 'next/link';
+import { Link } from "@/navigation";
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { OptimizationHistoryEntry } from '@/types/history';
 import { Eye, Download, Send, Loader2 } from '@/lib/icons';
+import { useLocale, useTranslations } from 'next-intl';
 
 /**
  * OptimizationRow Component
@@ -35,10 +36,14 @@ function OptimizationRow({
   isSelected = false,
   onSelectionChange
 }: OptimizationRowProps) {
+  const t = useTranslations('dashboard.history.row');
+  const locale = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
+
   // Format date to readable string
   const formatDate = (isoDate: string): string => {
     const date = new Date(isoDate);
-    return new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat(dateLocale, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -68,6 +73,14 @@ function OptimizationRow({
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    const normalized = status.toLowerCase();
+    if (normalized === 'completed') return t('status.completed');
+    if (normalized === 'processing') return t('status.processing');
+    if (normalized === 'failed') return t('status.failed');
+    return status;
+  };
+
   // Handle PDF download
   const handleDownloadPDF = () => {
     // Open download endpoint in new window to trigger download
@@ -84,7 +97,7 @@ function OptimizationRow({
             onCheckedChange={(checked) =>
               onSelectionChange(optimization.id, checked as boolean)
             }
-            aria-label={`Select optimization ${optimization.id}`}
+            aria-label={t('selectOptimization', { id: optimization.id })}
           />
         </TableCell>
       )}
@@ -96,12 +109,12 @@ function OptimizationRow({
 
       {/* Job Title */}
       <TableCell>
-        {optimization.jobTitle || <span className="text-muted-foreground">N/A</span>}
+        {optimization.jobTitle || <span className="text-muted-foreground">{t('na')}</span>}
       </TableCell>
 
       {/* Company */}
       <TableCell>
-        {optimization.company || <span className="text-muted-foreground">N/A</span>}
+        {optimization.company || <span className="text-muted-foreground">{t('na')}</span>}
       </TableCell>
 
       {/* ATS Match % */}
@@ -115,7 +128,7 @@ function OptimizationRow({
       <TableCell>
         <div className="flex gap-2">
           <Badge variant={getStatusVariant(optimization.status)}>
-            {optimization.status}
+            {getStatusLabel(optimization.status)}
           </Badge>
 
           {/* Applied Badge (T017) */}
@@ -123,13 +136,13 @@ function OptimizationRow({
             <Badge
               variant="success"
               className="cursor-help"
-              title={`Applied on ${
-                optimization.applicationDate
-                  ? new Date(optimization.applicationDate).toLocaleDateString()
-                  : 'Unknown date'
-              }`}
+              title={t('appliedOn', {
+                date: optimization.applicationDate
+                  ? new Date(optimization.applicationDate).toLocaleDateString(dateLocale)
+                  : t('unknownDate'),
+              })}
             >
-              Applied
+              {t('applied')}
             </Badge>
           )}
         </div>
@@ -142,7 +155,7 @@ function OptimizationRow({
           <Button variant="outline" size="sm" asChild>
             <Link href={`/dashboard/optimizations/${optimization.id}`}>
               <Eye className="h-4 w-4 mr-1" />
-              View Details
+              {t('viewDetails')}
             </Link>
           </Button>
 
@@ -153,7 +166,7 @@ function OptimizationRow({
             onClick={handleDownloadPDF}
           >
             <Download className="h-4 w-4 mr-1" />
-            Download PDF
+            {t('downloadPdf')}
           </Button>
 
           {/* Apply Now Button (T015) */}
@@ -166,14 +179,14 @@ function OptimizationRow({
             {isApplying ? (
               <>
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Applying...
+                {t('applying')}
               </>
             ) : optimization.hasApplication ? (
-              <>Applied</>
+              <>{t('applied')}</>
             ) : (
               <>
                 <Send className="h-4 w-4 mr-1" />
-                Apply Now
+                {t('applyNow')}
               </>
             )}
           </Button>

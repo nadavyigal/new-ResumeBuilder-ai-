@@ -10,6 +10,7 @@ import { OptimizedResume } from '@/lib/ai-optimizer';
 import { ATSResumeTemplate } from '@/components/templates/ats-resume-template';
 import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { useSectionHeaders } from '@/hooks/useSectionHeaders';
+import { useTranslations } from 'next-intl';
 
 interface DesignRendererProps {
   resumeData: OptimizedResume;
@@ -51,7 +52,10 @@ function shouldUseRTL(resumeData: OptimizedResume, languagePreference?: 'auto' |
 /**
  * Transform OptimizedResume to format expected by external templates (JSON Resume format)
  */
-function transformResumeData(data: OptimizedResume): any {
+function transformResumeData(
+  data: OptimizedResume,
+  labels: { present: string; technical: string; soft: string }
+): any {
   return {
     basics: {
       name: data.contact?.name || '',
@@ -75,7 +79,7 @@ function transformResumeData(data: OptimizedResume): any {
       name: exp.company || '',
       position: exp.title || '',
       startDate: exp.startDate || '',
-      endDate: exp.endDate || 'Present',
+      endDate: exp.endDate || labels.present,
       location: exp.location || '',
       highlights: exp.achievements || []
     })),
@@ -89,12 +93,12 @@ function transformResumeData(data: OptimizedResume): any {
     skills: [
       ...(data.skills?.technical || []).map((skill) => ({
         name: skill,
-        level: 'Technical',
+        level: labels.technical,
         keywords: []
       })),
       ...(data.skills?.soft || []).map((skill) => ({
         name: skill,
-        level: 'Soft',
+        level: labels.soft,
         keywords: []
       }))
     ],
@@ -122,9 +126,12 @@ function ExternalTemplateRenderer({
   refreshKey,
   languagePreference
 }: DesignRendererProps) {
+  const t = useTranslations('dashboard.design');
   const [htmlContent, setHtmlContent] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const resumeWrapperClass =
+    'resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-[820px] mx-auto';
 
   useEffect(() => {
     if (!templateSlug || !resumeData) {
@@ -160,7 +167,7 @@ function ExternalTemplateRenderer({
         setLoading(false);
       } catch (err) {
         console.error('Error fetching template HTML:', err);
-        setError('Failed to render template');
+        setError(t('errors.renderTemplate'));
         setHtmlContent('');
         setLoading(false);
       }
@@ -171,25 +178,25 @@ function ExternalTemplateRenderer({
 
   if (loading) {
     return (
-      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '1100px' }}>
-        <div className="text-gray-500">Loading template...</div>
+      <div className={`${resumeWrapperClass} flex items-center justify-center`} style={{ minHeight: '1100px' }}>
+        <div className="text-gray-500">{t('loadingTemplate')}</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden flex items-center justify-center" style={{ minHeight: '1100px' }}>
+      <div className={`${resumeWrapperClass} flex items-center justify-center`} style={{ minHeight: '1100px' }}>
         <div className="text-red-500">{error}</div>
       </div>
     );
   }
 
   return (
-    <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
+    <div className={resumeWrapperClass} style={{ isolation: 'isolate' }}>
       <iframe
         srcDoc={htmlContent}
-        title="Resume Preview"
+        title={t('resumePreviewTitle')}
         className="w-full border-0"
         style={{
           minHeight: '1100px',
@@ -211,6 +218,7 @@ function InternalTemplateRenderer({
   customization,
   languagePreference
 }: DesignRendererProps) {
+  const t = useTranslations('dashboard.design');
   const [TemplateComponent, setTemplateComponent] = useState<React.ComponentType<any> | null>(
     null
   );
@@ -306,7 +314,7 @@ function InternalTemplateRenderer({
         setIsTransitioning(false);
       } catch (err) {
         console.error('Error loading template:', err);
-        setError('Failed to load template');
+        setError(t('errors.loadTemplate'));
         setLoading(false);
         setIsTransitioning(false);
 
@@ -411,7 +419,7 @@ function InternalTemplateRenderer({
       <div className="flex items-center justify-center p-8 bg-white rounded-lg shadow">
         <div className="text-center">
           <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-2" />
-          <p className="text-gray-600">Loading template...</p>
+          <p className="text-gray-600">{t('loadingTemplate')}</p>
         </div>
       </div>
     );
@@ -422,13 +430,15 @@ function InternalTemplateRenderer({
     const PrevComp = previousComponent;
     const componentData = templateSlug ? transformResumeData(resumeData) : resumeData;
 
+    const resumeWrapperClass =
+      'resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-[820px] mx-auto';
     return (
-      <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden relative" style={{ isolation: 'isolate' }}>
+      <div className={`${resumeWrapperClass} relative`} style={{ isolation: 'isolate' }}>
         {/* Loading overlay during transition */}
         <div className="absolute inset-0 bg-white/60 dark:bg-gray-900/60 z-50 flex items-center justify-center backdrop-blur-[2px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-2"></div>
-            <p className="text-sm font-medium text-muted-foreground">Switching design...</p>
+            <p className="text-sm font-medium text-muted-foreground">{t('switchingDesign')}</p>
           </div>
         </div>
 
@@ -444,7 +454,7 @@ function InternalTemplateRenderer({
     return (
       <div className="p-8 bg-red-50 border border-red-200 rounded-lg">
         <p className="text-red-800">{error}</p>
-        <p className="text-sm text-red-600 mt-2">Falling back to default template...</p>
+        <p className="text-sm text-red-600 mt-2">{t('fallbackTemplate')}</p>
       </div>
     );
   }
@@ -459,7 +469,7 @@ function InternalTemplateRenderer({
 
     return (
       <div
-        className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden p-8 max-w-4xl mx-auto"
+        className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden p-6 md:p-8 w-full max-w-[820px] mx-auto"
         style={{ isolation: 'isolate' }}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
@@ -504,7 +514,7 @@ function InternalTemplateRenderer({
                 <article key={index} data-section-id={`experience-${index}`} className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-800">{exp.title}</h3>
                   <div className="text-gray-600 text-sm mb-2">
-                    {exp.company} | {exp.location} | {exp.startDate} – {exp.endDate}
+                    {exp.company} | {exp.location} | {exp.startDate} - {exp.endDate}
                   </div>
                   {Array.isArray(exp.achievements) && exp.achievements.length > 0 && (
                     <ul className={`list-disc ${listMarginClass} space-y-1`}>
@@ -552,7 +562,8 @@ function InternalTemplateRenderer({
                   <p className="text-gray-700 mb-1">{project.description}</p>
                   {Array.isArray(project.technologies) && project.technologies.length > 0 && (
                     <div className="text-gray-600 text-sm">
-                      <span className="font-medium">Technologies:</span> {project.technologies.join(', ')}
+                      <span className="font-medium">{t('technologiesLabel')}:</span>{' '}
+                      {project.technologies.join(', ')}
                     </div>
                   )}
                 </article>
@@ -567,12 +578,20 @@ function InternalTemplateRenderer({
   // Transform data for external templates (they expect JSON Resume format)
   // ATS template uses OptimizedResume format directly
   // Ensure we always have valid data, even if resumeData is null/undefined during transitions
+  const transformLabels = {
+    present: t('present'),
+    technical: t('skillLevelTechnical'),
+    soft: t('skillLevelSoft'),
+  };
   const componentData = templateSlug && resumeData
-    ? transformResumeData(resumeData)
+    ? transformResumeData(resumeData, transformLabels)
     : (resumeData || {});
 
   return (
-    <div className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden" style={{ isolation: 'isolate' }}>
+    <div
+      className="resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-[820px] mx-auto"
+      style={{ isolation: 'isolate' }}
+    >
       <div className="resume-container" key={renderKey} onMouseUp={handleMouseUp}>
         <TemplateComponent data={componentData} customization={customization} />
       </div>
@@ -592,6 +611,7 @@ export function DesignRenderer({
   refreshKey,
   languagePreference = 'auto'
 }: DesignRendererProps) {
+  const t = useTranslations('dashboard.design');
   // Check if this is an external template (anything that isn't explicit internal)
   const internalSlugs = ['ats-safe', 'default'];
   const isExternalTemplate = templateSlug ? !internalSlugs.includes(templateSlug) : false;
@@ -635,14 +655,18 @@ export function DesignRenderer({
             </svg>
             <div className="flex-1">
               <span className="font-semibold text-yellow-800 dark:text-yellow-300">
-                Preview Mode:
+                {t('preview.modeLabel')}
               </span>
               <span className="text-yellow-700 dark:text-yellow-400 ml-1">
-                {affectedSections.size} section(s) will be modified  ({Array.from(affectedSections).slice(0, 3).join(', ')}{affectedSections.size > 3 ? '...' : ''})
+                {t('preview.sectionsSummary', {
+                  count: affectedSections.size,
+                  sections: Array.from(affectedSections).slice(0, 3).join(', '),
+                  suffix: affectedSections.size > 3 ? '...' : '',
+                })}
               </span>
             </div>
             <span className="text-xs text-yellow-600 dark:text-yellow-400 italic">
-              Review in chat sidebar →
+              {t('preview.reviewHint')}
             </span>
           </div>
         </div>

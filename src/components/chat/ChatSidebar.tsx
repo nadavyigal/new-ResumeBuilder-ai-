@@ -18,6 +18,7 @@ import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
 import { logger } from '@/lib/agent/utils/logger';
+import { useTranslations } from 'next-intl';
 
 /**
  * Validate and deduplicate pending changes
@@ -84,6 +85,7 @@ export function ChatSidebar({
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [processingRequests, setProcessingRequests] = useState<Set<string>>(new Set());
   const { selection, clearSelection } = useSectionSelection();
+  const t = useTranslations('dashboard.chat');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -111,7 +113,7 @@ export function ChatSidebar({
       const response = await fetch(`/api/v1/chat/sessions?status=active`);
 
       if (!response.ok) {
-        throw new Error('Failed to load sessions');
+        throw new Error(t('errors.loadSessions'));
       }
 
       const data = await response.json();
@@ -127,7 +129,7 @@ export function ChatSidebar({
       }
     } catch (err) {
       logger.error('Error loading chat session', { optimizationId }, err);
-      setError(err instanceof Error ? err.message : 'Failed to load chat session');
+      setError(err instanceof Error ? err.message : t('errors.loadChatSession'));
     } finally {
       setIsLoading(false);
     }
@@ -139,14 +141,14 @@ export function ChatSidebar({
       const response = await fetch(`/api/v1/chat/sessions/${sid}`);
 
       if (!response.ok) {
-        throw new Error('Failed to load messages');
+        throw new Error(t('errors.loadMessages'));
       }
 
       const data = await response.json();
       setMessages(data.messages || []);
     } catch (err) {
       logger.error('Error loading chat messages', { sessionId: sid, optimizationId }, err);
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+      setError(err instanceof Error ? err.message : t('errors.loadMessages'));
     }
   };
 
@@ -168,7 +170,7 @@ export function ChatSidebar({
           });
           setIsLoading(false);
           if (!res.ok) {
-            throw new Error(res.reason || 'Failed to apply refinement');
+            throw new Error(res.reason || t('errors.applyRefinement'));
           }
           setRefineResult(null);
           // Trigger refresh
@@ -215,7 +217,7 @@ export function ChatSidebar({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send message');
+        throw new Error(errorData.error || t('errors.sendMessage'));
       }
 
       const data: ChatSendMessageResponse = await response.json();
@@ -335,7 +337,7 @@ export function ChatSidebar({
       }
     } catch (err) {
       logger.error('Error sending chat message', { optimizationId }, err);
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      setError(err instanceof Error ? err.message : t('errors.sendMessage'));
 
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
@@ -352,7 +354,7 @@ export function ChatSidebar({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to close session');
+        throw new Error(t('errors.closeSession'));
       }
 
       // Reset state
@@ -360,7 +362,7 @@ export function ChatSidebar({
       setMessages([]);
     } catch (err) {
       logger.error('Error closing chat session', { sessionId, optimizationId }, err);
-      setError(err instanceof Error ? err.message : 'Failed to close session');
+      setError(err instanceof Error ? err.message : t('errors.closeSession'));
     }
   };
 
@@ -423,7 +425,7 @@ export function ChatSidebar({
       if (!response.ok) {
         const errorData = await response.json();
         logger.error('Approve change request failed', { optimizationId, suggestionId, errorData });
-        throw new Error(errorData.error || 'Failed to apply changes');
+        throw new Error(errorData.error || t('errors.applyChanges'));
       }
 
       const responseData = await response.json();
@@ -444,7 +446,7 @@ export function ChatSidebar({
       }
     } catch (err) {
       logger.error('Error approving pending change', { optimizationId, suggestionId }, err);
-      setError(err instanceof Error ? err.message : 'Failed to approve changes');
+      setError(err instanceof Error ? err.message : t('errors.approveChanges'));
     } finally {
       // Always remove from processing set
       setProcessingRequests(prev => {
@@ -483,19 +485,18 @@ export function ChatSidebar({
       <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white flex-shrink-0 border-b border-blue-700">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="text-2xl">🤖</span>
-            AI Assistant
+            {t('header.title')}
           </h2>
           <p className="text-xs text-blue-100 mt-0.5">
-            Refine content or customize design
+            {t('header.subtitle')}
           </p>
         </div>
         {sessionId && (
           <button
             onClick={handleCloseSession}
             className="p-1 hover:bg-blue-700 rounded transition-colors"
-            title="End session"
-            aria-label="End session"
+            title={t('header.endSession')}
+            aria-label={t('header.endSession')}
           >
             <svg
               className="w-5 h-5"
@@ -539,7 +540,7 @@ export function ChatSidebar({
                 onClick={() => setError(null)}
                 className="text-xs text-red-600 hover:text-red-800 underline mt-1"
               >
-                Dismiss
+                {t('error.dismiss')}
               </button>
             </div>
           </div>
@@ -586,14 +587,17 @@ export function ChatSidebar({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              <p className="text-sm text-gray-600">Loading chat...</p>
+              <p className="text-sm text-gray-600">{t('loading')}</p>
             </div>
           </div>
         ) : refineResult ? (
           <div className="space-y-2">
             {selection && (
               <div className="text-xs text-gray-600">
-                Suggestion for <span className="font-medium">{selection.field}</span> in <span className="font-mono">{selection.sectionId}</span>
+                {t.rich('refine.suggestionFor', {
+                  field: () => <span className="font-medium">{selection.field}</span>,
+                  section: () => <span className="font-mono">{selection.sectionId}</span>,
+                })}
               </div>
             )}
             <div className="p-3 bg-white border rounded text-sm whitespace-pre-wrap">{refineResult}</div>
@@ -601,11 +605,11 @@ export function ChatSidebar({
               <button
                 className="px-3 py-1 rounded bg-black text-white text-xs"
                 onClick={() => navigator.clipboard.writeText(refineResult)}
-              >Copy</button>
+              >{t('refine.copy')}</button>
               <button
                 className="px-3 py-1 rounded border text-xs"
                 onClick={() => { setRefineResult(null); clearSelection(); }}
-              >Clear</button>
+              >{t('refine.clear')}</button>
             </div>
           </div>
         ) : messages.length === 0 ? (
@@ -626,10 +630,10 @@ export function ChatSidebar({
                 />
               </svg>
               <p className="text-sm text-gray-600 mb-1">
-                Start a conversation with AI
+                {t('empty.title')}
               </p>
               <p className="text-xs text-gray-500">
-                Ask me to refine content, add skills, or change colors and fonts.
+                {t('empty.description')}
               </p>
             </div>
           </div>
@@ -653,11 +657,14 @@ export function ChatSidebar({
           sessionId={sessionId || ''}
           onSend={handleSendMessage}
           disabled={isLoading}
-          placeholder={selection ? 'Describe how to refine the selected text…' : "e.g., 'Add Python to skills' or 'Make headers blue'..."}
+          placeholder={selection ? t('input.selectionPlaceholder') : t('input.defaultPlaceholder')}
         />
         {selection && (
           <div className="px-4 py-2 text-xs text-gray-600 border-t bg-white">
-            Refining selection in <span className="font-mono">{selection.sectionId}</span> • <span className="font-medium">{selection.field}</span>
+            {t.rich('refine.selectionHint', {
+              section: () => <span className="font-mono">{selection.sectionId}</span>,
+              field: () => <span className="font-medium">{selection.field}</span>,
+            })}
           </div>
         )}
       </div>

@@ -1,10 +1,10 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-const envSchema = z.object({
+const baseSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z
     .string()
     .url()
-    .refine((value) => value.startsWith('https://'), {
+    .refine((value) => value.startsWith("https://"), {
       message: 'must start with "https://"',
     }),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(20),
@@ -13,11 +13,11 @@ const envSchema = z.object({
   OPENAI_API_KEY: z
     .string()
     .min(20)
-    .refine((value) => value.startsWith('sk-'), {
+    .refine((value) => value.startsWith("sk-"), {
       message: 'must start with "sk-"',
     }),
 
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   SENTRY_AUTH_TOKEN: z.string().optional(),
@@ -25,6 +25,14 @@ const envSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
+
+const envSchema =
+  process.env.NODE_ENV == "production"
+    ? baseSchema
+    : baseSchema.extend({
+        SUPABASE_SERVICE_ROLE_KEY: baseSchema.shape.SUPABASE_SERVICE_ROLE_KEY.optional(),
+        OPENAI_API_KEY: baseSchema.shape.OPENAI_API_KEY.optional(),
+      });
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -52,18 +60,21 @@ export function getEnv(): Env {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const formattedErrors = error.errors
-        .map((err) => `${err.path.join('.')}: ${err.message}`)
-        .join('\n');
+        .map((err) => `${err.path.join(".")}: ${err.message}`)
+        .join("\\n");
 
       throw new Error(
-        `❌ Invalid environment variables:\n${formattedErrors}\n\n` +
-          `Please check your .env.local file.`
+        `Invalid environment variables:
+${formattedErrors}
+
+` +
+          "Please check your .env.local file."
       );
     }
     throw error;
   }
 }
 
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV === "production") {
   getEnv();
 }

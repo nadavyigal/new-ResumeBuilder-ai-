@@ -5,6 +5,7 @@ import { Search, X } from '@/lib/icons';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { HistorySearchProps } from '@/types/history';
+import { useTranslations } from 'next-intl';
 
 /**
  * HistorySearch Component
@@ -17,8 +18,10 @@ export default function HistorySearch({
   value,
   onChange,
   onClear,
-  placeholder = 'Search by job title or company...',
+  placeholder,
 }: HistorySearchProps) {
+  const t = useTranslations('dashboard.history.search');
+  const resolvedPlaceholder = placeholder || t('placeholder');
   const [localValue, setLocalValue] = useState(value);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -86,11 +89,11 @@ export default function HistorySearch({
       {/* Search input */}
       <Input
         type="text"
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         value={localValue}
         onChange={handleInputChange}
         className="pl-10 pr-10"
-        aria-label="Search optimizations"
+        aria-label={t('ariaLabel')}
       />
 
       {/* Clear button - only show when input has value */}
@@ -101,7 +104,7 @@ export default function HistorySearch({
           size="sm"
           onClick={handleClear}
           className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
-          aria-label="Clear search"
+          aria-label={t('clearAria')}
         >
           <X className="h-4 w-4" />
         </Button>
