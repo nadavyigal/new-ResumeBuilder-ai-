@@ -58,9 +58,10 @@ export async function generateResumePDF(
   });
 
   // Parse the data (handle different possible structures)
-  const resumeData: ResumeData = typeof optimizationData === 'string'
+  const resumeData = (typeof optimizationData === 'string'
     ? JSON.parse(optimizationData)
-    : optimizationData;
+    : optimizationData) as ResumeData;
+  const resumeDataRecord = resumeData as Record<string, any>;
 
   // Set up fonts and styles
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -127,7 +128,7 @@ export async function generateResumePDF(
 
   try {
     // === HEADER: Personal Information ===
-    const personalInfo = resumeData.personalInfo || resumeData.personal_info || {};
+    const personalInfo = (resumeData.personalInfo || resumeDataRecord.personal_info || {}) as Record<string, any>;
     const name = personalInfo.name || personalInfo.full_name || 'Resume';
 
     // Name (Large, centered)
@@ -169,7 +170,7 @@ export async function generateResumePDF(
     yPos += 0.15;
 
     // === SUMMARY ===
-    const summary = resumeData.summary || resumeData.professional_summary;
+    const summary = resumeData.summary || resumeDataRecord.professional_summary;
     if (summary) {
       checkPageBreak(0.5);
       yPos = addText('PROFESSIONAL SUMMARY', margin, yPos, {
@@ -182,7 +183,7 @@ export async function generateResumePDF(
     }
 
     // === EXPERIENCE ===
-    const experience = resumeData.experience || resumeData.work_experience || [];
+    const experience = (resumeData.experience || resumeDataRecord.work_experience || []) as Array<Record<string, any>>;
     if (experience && experience.length > 0) {
       checkPageBreak(0.5);
       yPos = addText('PROFESSIONAL EXPERIENCE', margin, yPos, {
@@ -191,7 +192,7 @@ export async function generateResumePDF(
       });
       yPos += 0.15;
 
-      experience.forEach((job: Record<string, unknown>) => {
+      experience.forEach((job: Record<string, any>) => {
         checkPageBreak(0.8);
 
         // Job title and company
@@ -241,7 +242,7 @@ export async function generateResumePDF(
     }
 
     // === EDUCATION ===
-    const education = resumeData.education || [];
+    const education = (resumeData.education || []) as Array<Record<string, any>>;
     if (education && education.length > 0) {
       checkPageBreak(0.5);
       yPos = addText('EDUCATION', margin, yPos, {
@@ -250,7 +251,7 @@ export async function generateResumePDF(
       });
       yPos += 0.15;
 
-      education.forEach((edu: Record<string, unknown>) => {
+      education.forEach((edu: Record<string, any>) => {
         checkPageBreak(0.4);
 
         const degree = edu.degree || '';
@@ -280,7 +281,7 @@ export async function generateResumePDF(
     }
 
     // === SKILLS ===
-    const skills = resumeData.skills || [];
+    const skills = (resumeData.skills || resumeDataRecord.skill_set || []) as Array<string | Record<string, any>>;
     if (skills && skills.length > 0) {
       checkPageBreak(0.5);
       yPos = addText('SKILLS', margin, yPos, {
@@ -295,7 +296,8 @@ export async function generateResumePDF(
         yPos = addText(skills.join(', '), margin, yPos, { fontSize: 10 });
       } else if (Array.isArray(skills) && typeof skills[0] === 'object') {
         // Categorized skills
-        skills.forEach((category: Record<string, unknown>) => {
+        const categorizedSkills = skills as Array<Record<string, any>>;
+        categorizedSkills.forEach((category) => {
           checkPageBreak(0.3);
           const catName = category.category || category.name || '';
           const items = category.items || category.skills || [];
@@ -322,7 +324,7 @@ export async function generateResumePDF(
     }
 
     // === CERTIFICATIONS ===
-    const certifications = resumeData.certifications || resumeData.certificates || [];
+    const certifications = (resumeData.certifications || resumeDataRecord.certificates || []) as Array<Record<string, any>>;
     if (certifications && certifications.length > 0) {
       checkPageBreak(0.5);
       yPos = addText('CERTIFICATIONS', margin, yPos, {
@@ -331,7 +333,7 @@ export async function generateResumePDF(
       });
       yPos += 0.15;
 
-      certifications.forEach((cert: Record<string, unknown>) => {
+      certifications.forEach((cert: Record<string, any>) => {
         checkPageBreak(0.3);
         const name = cert.name || cert.title || '';
         const issuer = cert.issuer || cert.organization || '';

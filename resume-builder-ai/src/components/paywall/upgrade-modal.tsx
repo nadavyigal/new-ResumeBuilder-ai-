@@ -12,7 +12,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, Sparkles, Zap } from "lucide-react";
+import { Check, Sparkles, Zap } from "@/lib/icons";
+import { useTranslations } from "next-intl";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ interface UpgradeModalProps {
  * Displays when free-tier users attempt additional optimizations
  */
 export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModalProps) {
+  const t = useTranslations("dashboard.paywall");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -48,23 +50,23 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
         window.location.href = data.checkoutUrl;
       } else {
         console.error("Upgrade failed:", data.error);
-        alert("Failed to start upgrade process. Please try again.");
+        alert(t("errors.startUpgrade"));
       }
     } catch (error) {
       console.error("Upgrade error:", error);
-      alert("An error occurred. Please try again.");
+      alert(t("errors.generic"));
     } finally {
       setLoading(false);
     }
   };
 
   const premiumFeatures = [
-    "Unlimited resume optimizations",
-    "Access to all premium templates",
-    "Priority AI processing",
-    "Advanced match score analytics",
-    "Export in multiple formats",
-    "Priority customer support",
+    t("features.unlimited"),
+    t("features.templates"),
+    t("features.priorityProcessing"),
+    t("features.analytics"),
+    t("features.exportFormats"),
+    t("features.support"),
   ];
 
   return (
@@ -73,10 +75,10 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold flex items-center gap-2">
             <Sparkles className="w-6 h-6 text-yellow-500" />
-            Upgrade to Premium
+            {t("title")}
           </DialogTitle>
           <DialogDescription className="text-base">
-            You've used your free optimization ({optimizationsUsed}/1)
+            {t("usedFree", { count: optimizationsUsed })}
           </DialogDescription>
         </DialogHeader>
 
@@ -87,14 +89,14 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
               <div className="text-center mb-6">
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full mb-4">
                   <Zap className="w-5 h-5 text-primary" />
-                  <span className="font-semibold text-primary">Best Value</span>
+                  <span className="font-semibold text-primary">{t("bestValue")}</span>
                 </div>
                 <div className="mb-2">
                   <span className="text-5xl font-bold">$9.99</span>
-                  <span className="text-xl text-muted-foreground">/month</span>
+                  <span className="text-xl text-muted-foreground">{t("perMonth")}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Cancel anytime • No hidden fees
+                  {t('cancelAnytime')}
                 </p>
               </div>
 
@@ -117,18 +119,18 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></span>
-                    Processing...
+                    {t("processing")}
                   </span>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Upgrade to Premium
+                    {t("cta")}
                   </>
                 )}
               </Button>
 
               <p className="text-xs text-center text-muted-foreground mt-4">
-                Secure payment processed by Stripe
+                {t("securePayment")}
               </p>
             </CardContent>
           </Card>
@@ -140,7 +142,7 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
             onClick={onClose}
             disabled={loading}
           >
-            Maybe Later
+            {t("maybeLater")}
           </Button>
         </DialogFooter>
       </DialogContent>

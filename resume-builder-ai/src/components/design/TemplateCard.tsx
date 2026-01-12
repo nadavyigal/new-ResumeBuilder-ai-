@@ -9,7 +9,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Eye, Sparkles } from 'lucide-react';
+import { Check, Eye, Sparkles, X } from '@/lib/icons';
+import { useTranslations } from 'next-intl';
 
 interface DesignTemplate {
   id: string;
@@ -62,6 +63,7 @@ export function TemplateCard({
   isApplying = false,
   isApplyingThis = false
 }: TemplateCardProps) {
+  const t = useTranslations('dashboard.design.templateCard');
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -109,7 +111,7 @@ export function TemplateCard({
           {template.preview_thumbnail_url ? (
             <img
               src={template.preview_thumbnail_url}
-              alt={`${template.name} preview`}
+              alt={t('previewAlt', { name: template.name })}
               className="w-full h-full object-cover"
               loading="lazy"
             />
@@ -118,7 +120,7 @@ export function TemplateCard({
               <iframe
                 src={`/api/v1/design/templates/${template.id}/preview`}
                 className="border-none pointer-events-none w-[200%] h-[200%]"
-                title={`${template.name} preview`}
+                title={t('previewTitle', { name: template.name })}
                 loading="lazy"
                 style={{
                   transform: "scale(0.5)",
@@ -133,7 +135,7 @@ export function TemplateCard({
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity pointer-events-none">
               <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-6 py-3 rounded-lg text-gray-900 dark:text-white font-medium flex items-center gap-2 shadow-lg">
                 <Eye className="w-5 h-5" />
-                Click to Preview
+                {t('clickToPreview')}
               </div>
             </div>
           )}
@@ -142,7 +144,7 @@ export function TemplateCard({
           {isSelected && (
             <div className="absolute top-2 right-2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 shadow-lg">
               <Check className="w-3 h-3" />
-              Currently Selected
+              {t('selected')}
             </div>
           )}
 
@@ -150,13 +152,13 @@ export function TemplateCard({
           {template.is_premium && (
             <div className="absolute top-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 shadow-lg">
               <Sparkles className="w-3 h-3" />
-              Premium
+              {t('premium')}
             </div>
           )}
 
           {/* ATS Score */}
           <div className="absolute bottom-2 left-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium">
-            <span className="text-gray-600 dark:text-gray-400">ATS Score: </span>
+            <span className="text-gray-600 dark:text-gray-400">{t('atsScoreLabel')} </span>
             <span
               className={`font-bold ${
                 template.ats_compatibility_score >= 95
@@ -182,7 +184,7 @@ export function TemplateCard({
                 template.category
               )}`}
             >
-              {template.category}
+              {t(`categories.${template.category}`)}
             </span>
           </div>
 
@@ -194,17 +196,17 @@ export function TemplateCard({
           <div className="flex flex-wrap gap-2">
             {template.supported_customizations.colors && (
               <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs rounded">
-                Custom Colors
+                {t('customColors')}
               </span>
             )}
             {template.supported_customizations.fonts && (
               <span className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 text-xs rounded">
-                Custom Fonts
+                {t('customFonts')}
               </span>
             )}
             {template.supported_customizations.layout && (
               <span className="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 text-xs rounded">
-                Custom Layout
+                {t('customLayout')}
               </span>
             )}
           </div>
@@ -223,7 +225,7 @@ export function TemplateCard({
           >
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 gap-3">
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Template</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t("previewLabel")}</p>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
                   {template.name}
                 </h3>
@@ -237,14 +239,14 @@ export function TemplateCard({
                   disabled={isApplying}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
-                  {isApplyingThis ? 'Applying...' : 'Apply'}
+                  {isApplyingThis ? t('applying') : t('apply')}
                 </button>
                 <button
                   onClick={() => setShowPreview(false)}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-                  aria-label="Close preview"
+                  aria-label={t('closePreview')}
                 >
-                  ×
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -258,7 +260,7 @@ export function TemplateCard({
               <iframe
                 src={`/api/v1/design/templates/${template.id}/preview`}
                 className="w-full h-full border-none"
-                title={`${template.name} Preview`}
+                title={t('previewTitle', { name: template.name })}
                 onLoad={() => setPreviewLoading(false)}
               />
             </div>
@@ -268,7 +270,7 @@ export function TemplateCard({
                 onClick={() => setShowPreview(false)}
                 className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               >
-                Close
+                {t('closePreview')}
               </button>
               <button
                 onClick={() => {
@@ -278,7 +280,7 @@ export function TemplateCard({
                 disabled={isApplying}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
               >
-                {isApplyingThis ? 'Applying...' : 'Apply This Template'}
+                {isApplyingThis ? t('applying') : t('applyTemplate')}
               </button>
             </div>
           </div>

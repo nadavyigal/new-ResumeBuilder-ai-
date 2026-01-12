@@ -1,6 +1,10 @@
 import type { AgentArtifacts, Diff } from "../types";
 
-export function getFallbackATS() {
+export function getFallbackATS(): {
+  score: number;
+  missing_keywords: string[];
+  recommendations: string[];
+} {
   return {
     score: 0,
     missing_keywords: [],

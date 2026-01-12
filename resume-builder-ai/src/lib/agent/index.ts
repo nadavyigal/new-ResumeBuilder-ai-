@@ -111,7 +111,7 @@ export class AgentRuntime {
     }
 
     // Render preview
-    let rendered = { html: "", preview_pdf_path: undefined as string | undefined };
+    let rendered: { html: string; preview_pdf_path?: string } = { html: "" };
     let renderDegraded = false;
     try {
       rendered = await LayoutEngine.render(resume, theme);

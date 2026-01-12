@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { ATSIssue } from "@/components/landing/FreeATSChecker";
 
@@ -7,6 +8,8 @@ interface IssueCardProps {
 }
 
 export function IssueCard({ issue, rank }: IssueCardProps) {
+  const t = useTranslations("landing.issueCard");
+
   return (
     <div
       data-testid="issue-card"
@@ -26,12 +29,12 @@ export function IssueCard({ issue, rank }: IssueCardProps) {
             )}
             {typeof issue.estimated_gain === "number" && (
               <Badge variant="outline" className="text-xs">
-                +{issue.estimated_gain} pts
+                {t("points", { points: issue.estimated_gain })}
               </Badge>
             )}
             {issue.quick_win && (
               <Badge variant="secondary" className="text-xs">
-                Quick win
+                {t("quickWin")}
               </Badge>
             )}
           </div>

@@ -10,6 +10,7 @@ import { extractResumeText } from './extractors/resume-text-extractor';
 import { extractJobData } from './extractors/jd-extractor';
 import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import type { ATSScoreOutput } from './types';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 
 /**
  * Score a resume against a job description
@@ -31,9 +32,12 @@ export async function scoreResume(
 ): Promise<ATSScoreOutput> {
 
   // Extract text from resume JSON
-  const resumeOptimizedText = extractResumeText(resumeOptimizedData);
+  const resumeOptimized = resumeOptimizedData as unknown as OptimizedResume;
+  const resumeOriginal = resumeOriginalData as unknown as OptimizedResume;
+
+  const resumeOptimizedText = extractResumeText(resumeOptimized);
   const resumeOriginalText = resumeOriginalData
-    ? extractResumeText(resumeOriginalData)
+    ? extractResumeText(resumeOriginal)
     : resumeOptimizedText;
 
   // Extract job description text
@@ -45,7 +49,7 @@ export async function scoreResume(
     : extractJobData(jobText);
 
   // Generate format report
-  const formatReport = analyzeFormatWithTemplate(resumeOptimizedData, null);
+  const formatReport = analyzeFormatWithTemplate(resumeOptimized, null);
 
   // Call main scorer
   return scoreResumeMain({
@@ -54,8 +58,8 @@ export async function scoreResume(
     job_clean_text: jobText,
     job_extracted_json: jobExtraction,
     format_report: formatReport,
-    resume_original_json: resumeOriginalData,
-    resume_optimized_json: resumeOptimizedData,
+    resume_original_json: resumeOriginalData ? resumeOriginal : undefined,
+    resume_optimized_json: resumeOptimized,
   });
 }
 

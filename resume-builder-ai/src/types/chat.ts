@@ -31,6 +31,7 @@ export interface ChatSession {
   created_at: string;
   last_activity_at: string;
   updated_at: string;
+  openai_thread_id?: string | null;
   context?: Record<string, unknown>;
 }
 
@@ -128,6 +129,11 @@ export interface ChatSendMessageResponse {
   // Optional: returned when ATS tip implementation is requested
   pending_changes?: PendingChange[];
   tip_numbers?: number[];
+  tips_applied?: {
+    tip_numbers: number[];
+    score_change: number;
+    new_ats_score: number;
+  };
   intent?: 'content' | 'design' | 'ats_tip' | 'unclear';
 }
 
@@ -254,7 +260,7 @@ export interface ChangeDiffProps {
  */
 export type ChatSessionInsert = Omit<ChatSession, 'id' | 'created_at' | 'last_activity_at' | 'updated_at'>;
 export type ChatMessageInsert = Omit<ChatMessage, 'id' | 'created_at'>;
-export type ResumeVersionInsert = Omit<ResumeVersion, 'id' | 'created_at'>;
+export type ResumeVersionInsert = Omit<ResumeVersion, 'id' | 'created_at' | 'version_number'>;
 export type AmendmentRequestInsert = Omit<AmendmentRequest, 'id' | 'created_at' | 'processed_at'>;
 
 /**

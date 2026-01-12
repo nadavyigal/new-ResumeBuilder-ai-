@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
 import { processUnifiedMessage } from '@/lib/chat-manager/unified-processor';
-import type { ChatSendMessageRequest, ChatSendMessageResponse } from '@/types/chat';
+import type { ChatSendMessageRequest, ChatSendMessageResponse, ChatSession } from '@/types/chat';
 import {
   getDesignAssignment,
   updateDesignCustomization
@@ -144,6 +144,10 @@ function applyAmendmentsToResume(
 }
 
 export async function POST(request: NextRequest) {
+  let optimizationId: string | undefined;
+  let sessionId: string | undefined;
+  let userId: string | undefined;
+
   try {
     // Get authenticated user
     const supabase = await createRouteHandlerClient();
@@ -177,6 +181,9 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body: ChatSendMessageRequest = await request.json();
     const { session_id, optimization_id, message } = body;
+    optimizationId = optimization_id;
+    sessionId = session_id;
+    userId = user.id;
 
     if (!optimization_id || !message) {
       return NextResponse.json(
@@ -193,7 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get or create chat session
-    let chatSession;
+    let chatSession: ChatSession | null = null;
     if (session_id) {
       // Resume existing session
       const { data: existingSession } = await supabase
@@ -210,7 +217,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      chatSession = existingSession;
+      chatSession = existingSession as ChatSession;
     } else {
       // Create or get active session for this optimization (use authenticated client for RLS)
       const activeSession = await getActiveSession(user.id, optimization_id, supabase);
@@ -265,9 +272,16 @@ export async function POST(request: NextRequest) {
         }
 
         if (!chatSession) {
-          chatSession = newSession;
+          chatSession = (newSession as ChatSession | null) ?? null;
         }
       }
+    }
+
+    if (!chatSession) {
+      return NextResponse.json(
+        { error: 'Failed to load chat session.' },
+        { status: 500 }
+      );
     }
 
     // Save user message using authenticated supabase client
@@ -347,10 +361,10 @@ export async function POST(request: NextRequest) {
     const designAssignment = await getDesignAssignment(supabase, optimization_id, user.id);
 
     let currentDesignConfig = null;
-    let currentTemplateId = null;
+    let currentTemplateId: string | undefined;
 
     if (designAssignment) {
-      currentTemplateId = designAssignment.template_id;
+      currentTemplateId = designAssignment.template_id ?? undefined;
 
       if (designAssignment.customization_id) {
         currentDesignConfig = await getDesignCustomizationById(
@@ -389,6 +403,13 @@ export async function POST(request: NextRequest) {
           .select()
           .maybeSingle();
 
+        if (!aiMessage) {
+          return NextResponse.json(
+            { error: 'Failed to save AI message.' },
+            { status: 500 }
+          );
+        }
+
         // Return success response with tips_applied
         return NextResponse.json({
           session_id: chatSession.id,
@@ -407,6 +428,13 @@ export async function POST(request: NextRequest) {
           })
           .select()
           .maybeSingle();
+
+        if (!aiMessage) {
+          return NextResponse.json(
+            { error: 'Failed to save AI message.' },
+            { status: 500 }
+          );
+        }
 
         // Return error response
         return NextResponse.json({
@@ -436,18 +464,25 @@ export async function POST(request: NextRequest) {
             content: colorResult.message || 'Color customization applied',
             metadata: {
               intent: 'color_customization',
-              colors_changed: colorResult.color_customization,
+              colors_changed: colorResult.customization?.color_scheme,
             }
           })
           .select()
           .maybeSingle();
+
+        if (!aiMessage) {
+          return NextResponse.json(
+            { error: 'Failed to save AI message.' },
+            { status: 500 }
+          );
+        }
 
         // Return success response with design_customization
         return NextResponse.json({
           session_id: chatSession.id,
           message_id: aiMessage.id,
           ai_response: colorResult.message,
-          design_customization: colorResult.design_customization,
+          design_customization: colorResult.customization,
         });
       } else {
         // Save error message
@@ -460,6 +495,13 @@ export async function POST(request: NextRequest) {
           })
           .select()
           .maybeSingle();
+
+        if (!aiMessage) {
+          return NextResponse.json(
+            { error: 'Failed to save AI message.' },
+            { status: 500 }
+          );
+        }
 
         // Return error response
         return NextResponse.json({
@@ -479,7 +521,6 @@ export async function POST(request: NextRequest) {
       currentResumeContent,
       currentDesignConfig,
       currentTemplateId,
-      atsSuggestions  // Pass ATS suggestions for tip implementation
     });
     const processingTime = Date.now() - startTime;
 
@@ -506,6 +547,13 @@ export async function POST(request: NextRequest) {
     if (aiMessageError) {
       return NextResponse.json(
         { error: `Failed to save AI message: ${aiMessageError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (!aiMessage) {
+      return NextResponse.json(
+        { error: 'Failed to save AI message.' },
         { status: 500 }
       );
     }
@@ -608,12 +656,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Attach pending changes for ATS tip implementation
-    if (processResult.intent === 'ats_tip' && processResult.pendingChanges) {
-      response.pending_changes = processResult.pendingChanges;
-      response.tip_numbers = processResult.atsTipNumbers;
-      response.intent = processResult.intent;
-    }
-
     // Return response
     return NextResponse.json(response, { status: 200 });
 
@@ -622,9 +664,9 @@ export async function POST(request: NextRequest) {
 
     // PHASE 2 - USER STORY 2: Enhanced error logging with thread context
     console.error('[Error Context]', {
-      optimization_id,
-      user_id: user?.id,
-      session_id: session_id,
+      optimization_id: optimizationId,
+      user_id: userId,
+      session_id: sessionId,
       error_type: error instanceof Error ? error.constructor.name : typeof error,
       error_message: error instanceof Error ? error.message : String(error),
     });

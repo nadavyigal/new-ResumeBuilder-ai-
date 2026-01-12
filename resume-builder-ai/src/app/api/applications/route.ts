@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { logger } from "@/lib/agent/utils/logger";
 
 /**
  * Applications API Endpoint
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching applications:", error);
+      logger.error('Error fetching applications', { userId: user.id }, error);
       return NextResponse.json({
         error: "Failed to fetch applications",
         details: error.message,
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error("Applications fetch error:", error);
+    logger.error('Applications fetch failed unexpectedly', { userId: user.id }, error);
 
     return NextResponse.json({
       error: "Failed to fetch applications",
@@ -147,7 +148,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (insertError) {
-      console.error("Error creating application:", insertError);
+      logger.error('Error creating application record', {
+        userId: user.id,
+        optimizationId,
+      }, insertError);
       return NextResponse.json({
         error: "Failed to create application",
         details: insertError.message,
@@ -162,7 +166,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error("Application creation error:", error);
+    logger.error('Application creation failed unexpectedly', { userId: user.id }, error);
 
     return NextResponse.json({
       error: "Failed to create application",

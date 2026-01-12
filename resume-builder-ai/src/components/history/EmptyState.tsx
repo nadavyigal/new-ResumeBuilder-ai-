@@ -1,6 +1,7 @@
-import Link from 'next/link';
+import { Link } from "@/navigation";
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FileText } from '@/lib/icons';
+import { useTranslations } from "next-intl";
 
 /**
  * EmptyState Component
@@ -10,6 +11,8 @@ import { FileText } from 'lucide-react';
  * Provides a helpful message and CTA button to create their first optimization.
  */
 export default function EmptyState() {
+  const t = useTranslations("dashboard.history.empty");
+
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       {/* Icon illustration */}
@@ -19,17 +22,16 @@ export default function EmptyState() {
 
       {/* Message */}
       <h3 className="text-lg font-semibold mb-2">
-        No Optimizations Yet
+        {t("title")}
       </h3>
       <p className="text-muted-foreground mb-6 max-w-md">
-        You haven't created any resume optimizations yet. Start by uploading
-        your resume and a job description to get personalized recommendations.
+        {t("description")}
       </p>
 
       {/* CTA Button */}
       <Button asChild>
         <Link href="/dashboard/resume">
-          Create Your First Optimization
+          {t("cta")}
         </Link>
       </Button>
     </div>

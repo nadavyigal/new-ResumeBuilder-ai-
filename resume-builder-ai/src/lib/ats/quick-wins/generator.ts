@@ -146,8 +146,14 @@ function validateQuickWin(qw: any, index: number): QuickWinSuggestion | null {
  * Fallback: Generate quick wins from existing suggestions
  */
 function generateFallbackQuickWins(params: GenerateQuickWinsParams): QuickWinSuggestion[] {
-  // Extract sentences from experience section
-  const experienceBullets = extractExperienceBullets(params.resume_json);
+  // Extract sentences from experience section (try JSON first, fallback to text)
+  let experienceBullets = extractExperienceBullets(params.resume_json);
+
+  // If no structured data, extract from plain text
+  if (experienceBullets.length === 0 && params.resume_text) {
+    experienceBullets = extractBulletsFromText(params.resume_text);
+  }
+
   const missingKeywords = params.job_data.must_have.slice(0, 5);
 
   const quickWins: QuickWinSuggestion[] = [];
@@ -220,6 +226,46 @@ function extractExperienceBullets(resume: OptimizedResume): string[] {
         bullets.push(...exp.responsibilities);
       }
     }
+  }
+
+  return bullets.slice(0, 5);
+}
+
+/**
+ * Extract bullet points from plain text resume
+ */
+function extractBulletsFromText(resumeText: string): string[] {
+  const bullets: string[] = [];
+
+  // Split by newlines and look for bullet-like patterns
+  const lines = resumeText.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Skip empty lines or very short lines
+    if (trimmed.length < 20) continue;
+
+    // Look for lines that start with bullet markers or action verbs
+    const bulletPatterns = /^[•\-\*]|^(Led|Managed|Developed|Created|Built|Designed|Implemented|Improved|Increased|Reduced|Established|Coordinated|Delivered|Achieved|Optimized|Launched)/i;
+
+    if (bulletPatterns.test(trimmed)) {
+      // Clean up bullet markers
+      const cleaned = trimmed.replace(/^[•\-\*]\s*/, '').trim();
+      if (cleaned.length > 20 && cleaned.length < 200) {
+        bullets.push(cleaned);
+      }
+    }
+  }
+
+  // If we still don't have bullets, extract sentences from the middle section
+  if (bullets.length === 0) {
+    const sentences = resumeText
+      .split(/[.!?]\s+/)
+      .filter(s => s.length > 30 && s.length < 200)
+      .slice(0, 10);
+
+    bullets.push(...sentences);
   }
 
   return bullets.slice(0, 5);

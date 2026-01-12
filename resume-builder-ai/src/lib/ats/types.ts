@@ -47,6 +47,11 @@ export interface JobExtraction {
   /** Job title */
   title: string;
 
+  /** Optional database-style fields */
+  job_title?: string | null;
+  company_name?: string | null;
+  requirements?: string[] | string | null;
+
   /** Company name */
   company?: string;
 
@@ -210,8 +215,8 @@ export interface Suggestion {
   /** Estimated point gain if applied (1-15) */
   estimated_gain: number;
 
-  /** Which sub-scores this suggestion targets */
-  targets: SubScoreKey[];
+  /** Which scores or resume sections this suggestion targets */
+  targets: Array<SubScoreKey | 'skills' | 'experience' | 'summary' | 'template'>;
 
   /** True if this is a quick win (high impact, low effort) */
   quick_win: boolean;
@@ -518,3 +523,5 @@ export interface SimilarityResult {
   /** Text 2 */
   text2: string;
 }
+
+export type { OptimizedResume };

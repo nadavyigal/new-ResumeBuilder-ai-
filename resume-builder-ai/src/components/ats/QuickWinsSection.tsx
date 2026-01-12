@@ -3,15 +3,16 @@
 /**
  * Quick Wins Section Component
  *
- * Displays 3 AI-powered before/after text improvements with copy functionality
+ * Displays AI-powered before/after text improvements with copy functionality.
  */
 
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { QuickWinSuggestion } from '@/lib/ats/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, Sparkles, TrendingUp } from 'lucide-react';
+import { Copy, Check, Sparkles, TrendingUp } from '@/lib/icons';
 import { cn } from '@/lib/utils';
 
 interface QuickWinsSectionProps {
@@ -24,6 +25,7 @@ export function QuickWinsSection({ quickWins, className }: QuickWinsSectionProps
     return null;
   }
 
+  const t = useTranslations('landing.quickWins');
   const totalPotentialGain = quickWins.reduce((sum, qw) => sum + qw.estimated_impact, 0);
 
   return (
@@ -31,9 +33,11 @@ export function QuickWinsSection({ quickWins, className }: QuickWinsSectionProps
       {/* Header */}
       <div className="flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-yellow-500" />
-        <h3 className="text-lg font-semibold">3 Quick Win Suggestions</h3>
+        <h3 className="text-lg font-semibold">
+          {t('title', { count: quickWins.length })}
+        </h3>
         <Badge variant="secondary" className="ml-auto">
-          +{totalPotentialGain} pts potential
+          {t('potential', { points: totalPotentialGain })}
         </Badge>
       </div>
 
@@ -46,8 +50,7 @@ export function QuickWinsSection({ quickWins, className }: QuickWinsSectionProps
 
       {/* Educational Note */}
       <p className="text-sm text-gray-500 italic">
-        These AI-generated suggestions show specific improvements to boost your ATS score.
-        Copy and adapt them to your resume while staying truthful to your experience.
+        {t('note')}
       </p>
     </div>
   );
@@ -60,7 +63,16 @@ function QuickWinCard({
   quickWin: QuickWinSuggestion;
   index: number;
 }) {
+  const t = useTranslations('landing.quickWins');
   const [copiedField, setCopiedField] = useState<'original' | 'optimized' | null>(null);
+
+  const typeLabels: Record<string, string> = {
+    keyword_optimization: t('types.keyword_optimization'),
+    quantified_achievement: t('types.quantified_achievement'),
+    action_verb: t('types.action_verb'),
+    relevance_enhancement: t('types.relevance_enhancement'),
+  };
+  const typeLabel = typeLabels[quickWin.improvement_type] || quickWin.improvement_type;
 
   const handleCopy = async (text: string, field: 'original' | 'optimized') => {
     try {
@@ -79,22 +91,26 @@ function QuickWinCard({
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-2">
             <Badge variant="default" className="bg-yellow-500 hover:bg-yellow-600">
-              Quick Win #{index + 1}
+              {t('card.badge', { index: index + 1 })}
             </Badge>
-            <Badge variant="outline">
-              {getImprovementTypeLabel(quickWin.improvement_type)}
-            </Badge>
+            <Badge variant="outline">{typeLabel}</Badge>
           </div>
           <div className="flex items-center gap-1 text-green-600">
             <TrendingUp className="w-4 h-4" />
-            <span className="text-sm font-semibold">+{quickWin.estimated_impact} pts</span>
+            <span className="text-sm font-semibold">
+              {t('card.points', { points: quickWin.estimated_impact })}
+            </span>
           </div>
         </div>
 
         {/* Location */}
         <div className="text-xs text-gray-500 mb-3">
-          Location: {quickWin.location.section}
-          {quickWin.location.subsection && ` → ${quickWin.location.subsection}`}
+          {quickWin.location.subsection
+            ? t('card.locationWithSubsection', {
+                section: quickWin.location.section,
+                subsection: quickWin.location.subsection,
+              })
+            : t('card.location', { section: quickWin.location.section })}
         </div>
 
         {/* Before/After Comparison */}
@@ -102,7 +118,7 @@ function QuickWinCard({
           {/* Original */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-600">BEFORE</span>
+              <span className="text-xs font-medium text-gray-600">{t('card.before')}</span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -112,12 +128,12 @@ function QuickWinCard({
                 {copiedField === 'original' ? (
                   <>
                     <Check className="w-3 h-3 text-green-600 mr-1" />
-                    <span className="text-green-600">Copied</span>
+                    <span className="text-green-600">{t('card.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3 h-3 mr-1" />
-                    Copy
+                    {t('card.copy')}
                   </>
                 )}
               </Button>
@@ -130,7 +146,7 @@ function QuickWinCard({
           {/* Optimized */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-600">AFTER (OPTIMIZED)</span>
+              <span className="text-xs font-medium text-gray-600">{t('card.after')}</span>
               <Button
                 size="sm"
                 variant="ghost"
@@ -140,12 +156,12 @@ function QuickWinCard({
                 {copiedField === 'optimized' ? (
                   <>
                     <Check className="w-3 h-3 text-green-600 mr-1" />
-                    <span className="text-green-600">Copied</span>
+                    <span className="text-green-600">{t('card.copied')}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3 h-3 mr-1" />
-                    Copy
+                    {t('card.copy')}
                   </>
                 )}
               </Button>
@@ -158,13 +174,13 @@ function QuickWinCard({
 
         {/* Rationale */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="text-xs font-medium text-blue-900 mb-1">Why this improves your score:</div>
+          <div className="text-xs font-medium text-blue-900 mb-1">{t('card.rationaleTitle')}</div>
           <p className="text-sm text-blue-800">{quickWin.rationale}</p>
 
           {quickWin.keywords_added.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1 items-center">
-              <span className="text-xs text-blue-700">Keywords added:</span>
-              {quickWin.keywords_added.map(keyword => (
+              <span className="text-xs text-blue-700">{t('card.keywords')}</span>
+              {quickWin.keywords_added.map((keyword) => (
                 <Badge key={keyword} variant="secondary" className="text-xs bg-blue-100">
                   {keyword}
                 </Badge>
@@ -175,14 +191,4 @@ function QuickWinCard({
       </CardContent>
     </Card>
   );
-}
-
-function getImprovementTypeLabel(type: string): string {
-  const labels: Record<string, string> = {
-    keyword_optimization: 'Keywords',
-    quantified_achievement: 'Metrics',
-    action_verb: 'Action Verbs',
-    relevance_enhancement: 'Relevance',
-  };
-  return labels[type] || type;
 }

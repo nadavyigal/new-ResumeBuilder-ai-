@@ -66,17 +66,25 @@ export async function handleColorCustomization(
       currentCustomization = await getDesignCustomizationById(assignment.customization_id, userId) as DesignCustomization;
     }
 
-    const colorScheme = currentCustomization?.color_scheme || {
+    const defaultColorScheme = {
       primary: '#2563eb',
       secondary: '#64748b',
       accent: '#10b981',
       background: '#ffffff',
       text: '#1e293b'
     };
+    const colorScheme = {
+      ...defaultColorScheme,
+      ...(currentCustomization?.color_scheme || {})
+    };
 
-    const fontFamily = currentCustomization?.font_family || {
+    const defaultFontFamily = {
       heading: 'Arial',
       body: 'Arial'
+    };
+    const fontFamily = {
+      ...defaultFontFamily,
+      ...(currentCustomization?.font_family || {})
     };
 
     // Validate and apply changes
@@ -155,13 +163,16 @@ export async function handleColorCustomization(
       );
     }
 
+    const spacing = {
+      section_gap: '1.5rem',
+      line_height: '1.6',
+      ...(currentCustomization?.spacing || {})
+    };
+
     const newCustomization = await createDesignCustomization(userId, {
       color_scheme: colorScheme,
       font_family: fontFamily,
-      spacing: currentCustomization?.spacing || {
-        section_gap: '1.5rem',
-        line_height: '1.6'
-      },
+      spacing,
       custom_css: currentCustomization?.custom_css || '',
       is_ats_safe: true
     });

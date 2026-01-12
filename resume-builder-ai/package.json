@@ -61,7 +61,14 @@
     "remark-html": "^16.0.1",
     "resend": "^6.6.0",
     "server-only": "^0.0.1",
-    "tailwind-merge": "^3.3.1"
+    "tailwind-merge": "^3.3.1",
+    "@sentry/nextjs": "^10.32.1",
+    "@vercel/analytics": "^1.6.1",
+    "dompurify": "^3.0.11",
+    "isomorphic-dompurify": "^2.35.0",
+    "next-intl": "^4.7.0",
+    "sanitize-html": "^2.13.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -84,6 +91,8 @@
     "tailwindcss": "^4",
     "ts-jest": "^29.4.5",
     "tsx": "^4.20.6",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "@types/dompurify": "^3.0.5",
+    "@types/sanitize-html": "^2.13.0"
   }
 }

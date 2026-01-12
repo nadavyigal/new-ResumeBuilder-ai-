@@ -1,11 +1,15 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/navigation";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "@/lib/icons";
 
 export function HeroSection() {
+  const t = useTranslations("landing.hero");
+  const benefits = t.raw("benefits") as string[];
+
   return (
     <section className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32">
       {/* Decorative background elements */}
@@ -21,7 +25,7 @@ export function HeroSection() {
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-mobile-cta/20 to-secondary/20 border-2 border-mobile-cta/30 backdrop-blur-sm">
               <Sparkles className="w-4 h-4 text-mobile-cta animate-pulse" />
               <span className="text-sm font-semibold text-foreground">
-                AI-Powered Resume Optimization
+                {t("badge")}
               </span>
             </div>
           </div>
@@ -29,38 +33,28 @@ export function HeroSection() {
           {/* Hero Title */}
           <h1 className="text-center mb-6 animate-slideUp">
             <span className="block text-4xl md:text-5xl lg:text-6xl text-foreground font-bold leading-tight mb-2">
-              Get 3X More Interviews
+              {t("titleLine1")}
             </span>
             <span className="block text-3xl md:text-4xl lg:text-5xl bg-gradient-to-r from-mobile-cta via-primary to-secondary bg-clip-text text-transparent font-bold leading-tight">
-              With AI-Optimized Resumes
+              {t("titleLine2")}
             </span>
           </h1>
 
           {/* Subtitle */}
           <p className="text-center text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-4 leading-relaxed animate-slideUp delay-100">
-            Beat ATS filters in minutes. Our AI tailors your resume for every job, tracks your applications, and helps you land interviews faster.
+            {t("subtitle")}
           </p>
 
           {/* Key Benefits */}
           <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8 text-sm md:text-base animate-slideUp delay-150">
-            <div className="flex items-center gap-2 text-foreground/70">
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Beat the ATS Black Hole</span>
-            </div>
-            <div className="flex items-center gap-2 text-foreground/70">
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>92% Average Match Score</span>
-            </div>
-            <div className="flex items-center gap-2 text-foreground/70">
-              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Optimize in 30 Seconds</span>
-            </div>
+            {benefits.map((benefit, index) => (
+              <div key={index} className="flex items-center gap-2 text-foreground/70">
+                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>{benefit}</span>
+              </div>
+            ))}
           </div>
 
           {/* CTA Buttons */}
@@ -71,7 +65,7 @@ export function HeroSection() {
               className="w-full sm:w-auto bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white shadow-xl shadow-mobile-cta/30 border-0 h-14 px-8 text-base font-semibold group"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
-                Start Free Optimization
+                {t("ctaPrimary")}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
@@ -83,7 +77,7 @@ export function HeroSection() {
               className="w-full sm:w-auto border-2 h-14 px-8 text-base font-semibold hover:bg-accent"
             >
               <Link href="#features">
-                See How It Works
+                {t("ctaSecondary")}
               </Link>
             </Button>
           </div>
@@ -102,7 +96,9 @@ export function HeroSection() {
                 ))}
               </div>
               <span>
-                <strong className="text-foreground">10,000+</strong> resumes optimized
+                {t.rich("socialProof.resumesOptimized", {
+                  strong: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+                })}
               </span>
             </div>
 
@@ -117,7 +113,9 @@ export function HeroSection() {
                 </svg>
               ))}
               <span className="ml-2">
-                <strong className="text-foreground">4.9</strong> (1,234 reviews)
+                {t.rich("socialProof.reviews", {
+                  strong: (chunks) => <strong className="text-foreground">{chunks}</strong>,
+                })}
               </span>
             </div>
 
@@ -126,7 +124,7 @@ export function HeroSection() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               <span className="text-green-700 dark:text-green-300 font-semibold">
-                ATS-Approved
+                {t("socialProof.atsApproved")}
               </span>
             </div>
           </div>

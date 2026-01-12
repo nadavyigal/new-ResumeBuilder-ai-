@@ -37,7 +37,7 @@ export async function createVersion(
     optimization_id: input.optimizationId,
     session_id: input.sessionId,
     content: input.content,
-    change_summary: input.changeSummary,
+    change_summary: input.changeSummary ?? null,
   });
 
   return {

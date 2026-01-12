@@ -7,7 +7,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -16,11 +16,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await context.params;
+
   try {
     const { error } = await supabase
       .from("applications")
       .update({ apply_clicked_at: new Date().toISOString() })
-      .eq("id", params.id)
+      .eq("id", id)
       .eq("user_id", user.id);
 
     if (error) {

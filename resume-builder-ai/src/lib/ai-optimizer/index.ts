@@ -15,6 +15,8 @@ export interface OptimizedResume {
     email: string;
     phone: string;
     location: string;
+    title?: string;
+    company?: string;
     linkedin?: string;
     portfolio?: string;
   };
@@ -29,6 +31,7 @@ export interface OptimizedResume {
     startDate: string;
     endDate: string;
     achievements: string[];
+    responsibilities?: string[];
   }>;
   education: Array<{
     degree: string;

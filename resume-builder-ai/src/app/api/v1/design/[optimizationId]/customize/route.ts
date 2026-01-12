@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 
 import { validateAndApply } from '@/lib/design-manager/customization-engine';
+import type { CustomizationResult } from '@/lib/design-manager/customization-engine';
 import { getDesignAssignment, updateDesignCustomization } from '@/lib/supabase/resume-designs';
 import { getDesignTemplateById } from '@/lib/supabase/design-templates';
 import {
@@ -140,29 +141,25 @@ export async function POST(
 
     // Check if interpretation failed
     if ('understood' in result && !result.understood) {
-      const errorResponse: any = {
-        error: result.error,
-        message: result.clarificationNeeded || 'Unable to process request'
-      };
-
-      if (result.validationErrors) {
-        errorResponse.validationErrors = result.validationErrors;
-      }
-
-      if (result.clarificationNeeded) {
-        errorResponse.clarificationNeeded = result.clarificationNeeded;
-      }
-
-      return NextResponse.json(errorResponse, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'unclear_request',
+          message: result.clarificationNeeded || 'Unable to process request',
+          clarificationNeeded: result.clarificationNeeded,
+        },
+        { status: 400 }
+      );
     }
+
+    const customizationResult = result as CustomizationResult;
 
     // Create new customization record
     const newCustomization = await createDesignCustomization(user.id, {
-      color_scheme: result.customization.color_scheme,
-      font_family: result.customization.font_family,
-      spacing: result.customization.spacing,
-      custom_css: result.customization.custom_css,
-      is_ats_safe: result.customization.is_ats_safe
+      color_scheme: customizationResult.customization.color_scheme,
+      font_family: customizationResult.customization.font_family,
+      spacing: customizationResult.customization.spacing,
+      custom_css: customizationResult.customization.custom_css,
+      is_ats_safe: customizationResult.customization.is_ats_safe
     });
 
     // Update assignment with new customization (save previous for undo)
@@ -176,8 +173,8 @@ export async function POST(
     return NextResponse.json(
       {
         customization: newCustomization,
-        reasoning: result.reasoning,
-        preview: result.preview
+        reasoning: customizationResult.reasoning,
+        preview: customizationResult.preview
       },
       { status: 200 }
     );

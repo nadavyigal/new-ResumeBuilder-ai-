@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/navigation";
 import { MobileMenu } from "./mobile-menu";
 
 interface MobileHeaderProps {

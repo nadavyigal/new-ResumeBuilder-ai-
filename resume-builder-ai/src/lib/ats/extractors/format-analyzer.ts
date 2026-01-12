@@ -6,7 +6,7 @@
  */
 
 import type { FormatReport, OptimizedResume } from '../types';
-import { FORMAT_THRESHOLDS } from '../config/thresholds';
+import { FORMAT_THRESHOLDS, PENALTY_THRESHOLDS } from '../config/thresholds';
 
 /**
  * Analyze resume format for ATS safety
@@ -17,7 +17,7 @@ import { FORMAT_THRESHOLDS } from '../config/thresholds';
  */
 export function analyzeResumeFormat(resume: OptimizedResume, templateKey?: string | null): FormatReport {
   const issues: string[] = [];
-  let formatScore = FORMAT_THRESHOLDS.base_format_score;
+  let formatScore: number = FORMAT_THRESHOLDS.base_format_score;
 
   // Check if template is known ATS-safe
   const isATSSafeTemplate = templateKey && (
@@ -176,7 +176,7 @@ export function getFormatRecommendations(report: FormatReport): string[] {
  * Determine if format is high-risk for ATS
  */
 export function isHighRiskFormat(report: FormatReport): boolean {
-  return report.format_safety_score < FORMAT_THRESHOLDS.format_risk_threshold;
+  return report.format_safety_score < PENALTY_THRESHOLDS.format_risk_threshold;
 }
 
 /**

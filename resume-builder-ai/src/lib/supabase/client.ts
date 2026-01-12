@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js'
-import { createClientComponentClient } from '@supabase/ssr'
+import { createBrowserClient as createSupabaseBrowserClient } from '@supabase/ssr'
 import { Database } from './types'
 
 // Environment variables validation
@@ -23,7 +23,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
  * Use this in React components and client-side code
  */
 export const createBrowserClient = () => {
-  return createClientComponentClient<Database>()
+  return createSupabaseBrowserClient<Database>(supabaseUrl, supabaseAnonKey)
 }
 
 /**

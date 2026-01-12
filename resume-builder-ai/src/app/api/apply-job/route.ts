@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { generatePdfWithDesign } from "@/lib/export";
+import { cleanResumeData, generatePdfWithDesign } from "@/lib/export";
+import { resolvePdfDesignContext, type PdfDesignContext } from "@/lib/pdf-design-context";
+import { callPDFService } from "@/lib/pdf-service-client";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 
 export const runtime = "nodejs";
@@ -49,8 +51,43 @@ export async function POST(req: NextRequest) {
     const jobDescription = optimizationData.job_descriptions as { source_url: string | null; title: string; company: string };
 
     // Generate PDF resume
-    const pdfResult = await generatePdfWithDesign(resumeData, optimizationId);
-    const pdfBuffer = pdfResult.buffer;
+    const cleanedResumeData = cleanResumeData(resumeData);
+    let designContext: PdfDesignContext | null = null;
+    let dockerAttempted = false;
+    let pdfBuffer: Buffer | null = null;
+
+    try {
+      designContext = await resolvePdfDesignContext(supabase, optimizationId, user.id);
+      dockerAttempted = true;
+
+      const dockerResult = await callPDFService(
+        cleanedResumeData,
+        designContext.templateSlug,
+        designContext.customization
+      );
+
+      if (dockerResult.success && dockerResult.pdfBase64) {
+        pdfBuffer = Buffer.from(dockerResult.pdfBase64, "base64");
+        console.log(`[APPLY-JOB] Docker PDF generated successfully, size: ${pdfBuffer.length} bytes`);
+      } else {
+        console.warn('[APPLY-JOB] Docker PDF service returned error:', dockerResult.error);
+      }
+    } catch (dockerError) {
+      console.warn('[APPLY-JOB] Docker PDF service failed, falling back:', dockerError);
+    }
+
+    if (!pdfBuffer) {
+      let pdfResult: Awaited<ReturnType<typeof generatePdfWithDesign>>;
+      if (dockerAttempted && designContext) {
+        pdfResult = await generatePdfWithDesign(resumeData, optimizationId, { skipDocker: true, designContext });
+      } else {
+        pdfResult = await generatePdfWithDesign(resumeData, optimizationId);
+      }
+      pdfBuffer = pdfResult.buffer;
+    }
+    if (!pdfBuffer) {
+      throw new Error("PDF generation failed");
+    }
     const pdfBase64 = pdfBuffer.toString('base64');
 
     // Log the application event

@@ -8,7 +8,8 @@ import React from 'react';
 import type { SubScores } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Info } from 'lucide-react';
+import { Info } from '@/lib/icons';
+import { useTranslations } from 'next-intl';
 
 interface SubScoreBreakdownProps {
   subscores: SubScores;
@@ -16,55 +17,57 @@ interface SubScoreBreakdownProps {
   showComparison?: boolean;
 }
 
-const SUB_SCORE_LABELS: Record<keyof SubScores, { label: string; description: string }> = {
-  keyword_exact: {
-    label: 'Exact Keywords',
-    description: 'Matches exact keywords from job description (must-have and nice-to-have skills)',
-  },
-  keyword_phrase: {
-    label: 'Phrase Matching',
-    description: 'Matches multi-word phrases and responsibilities from job description',
-  },
-  semantic_relevance: {
-    label: 'Semantic Relevance',
-    description: 'Overall relevance of experience and skills beyond exact keywords',
-  },
-  title_alignment: {
-    label: 'Title Alignment',
-    description: 'How well your job titles match the target role and seniority level',
-  },
-  metrics_presence: {
-    label: 'Quantified Metrics',
-    description: 'Presence of measurable achievements (%, $, numbers, timeframes)',
-  },
-  section_completeness: {
-    label: 'Section Completeness',
-    description: 'Presence and quality of required resume sections',
-  },
-  format_parseability: {
-    label: 'ATS-Safe Format',
-    description: 'Resume format compatibility with ATS systems (no tables, images, multi-column)',
-  },
-  recency_fit: {
-    label: 'Recency Fit',
-    description: 'How recent and relevant your skills and experience are',
-  },
-};
-
 export function SubScoreBreakdown({
   subscores,
   subscores_original,
   showComparison = false,
 }: SubScoreBreakdownProps) {
+  const t = useTranslations('dashboard.ats.subscores');
+
+  const labels: Record<keyof SubScores, { label: string; description: string }> = {
+    keyword_exact: {
+      label: t('keywordExact.label'),
+      description: t('keywordExact.description'),
+    },
+    keyword_phrase: {
+      label: t('keywordPhrase.label'),
+      description: t('keywordPhrase.description'),
+    },
+    semantic_relevance: {
+      label: t('semanticRelevance.label'),
+      description: t('semanticRelevance.description'),
+    },
+    title_alignment: {
+      label: t('titleAlignment.label'),
+      description: t('titleAlignment.description'),
+    },
+    metrics_presence: {
+      label: t('metricsPresence.label'),
+      description: t('metricsPresence.description'),
+    },
+    section_completeness: {
+      label: t('sectionCompleteness.label'),
+      description: t('sectionCompleteness.description'),
+    },
+    format_parseability: {
+      label: t('formatParseability.label'),
+      description: t('formatParseability.description'),
+    },
+    recency_fit: {
+      label: t('recencyFit.label'),
+      description: t('recencyFit.description'),
+    },
+  };
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Score Breakdown</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {Object.entries(subscores).map(([key, score]) => {
-            const config = SUB_SCORE_LABELS[key as keyof SubScores];
+            const config = labels[key as keyof SubScores];
             const originalScore = subscores_original?.[key as keyof SubScores];
             const improvement = originalScore !== undefined ? score - originalScore : 0;
 

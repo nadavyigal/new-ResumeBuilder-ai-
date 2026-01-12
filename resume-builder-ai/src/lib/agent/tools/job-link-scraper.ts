@@ -25,9 +25,9 @@ export const JobLinkScraper = {
       if (extracted.responsibilities?.length) parts.push(`Responsibilities: ${extracted.responsibilities.join("; ")}`);
       if (extracted.qualifications?.length) parts.push(`Qualifications: ${extracted.qualifications.join("; ")}`);
       return {
-        title: extracted.job_title,
-        company: extracted.company_name,
-        location: extracted.location,
+        title: extracted.job_title ?? undefined,
+        company: extracted.company_name ?? undefined,
+        location: extracted.location ?? undefined,
         text: parts.join("\n"),
         url: job_url,
         raw: extracted,

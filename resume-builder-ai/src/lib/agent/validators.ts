@@ -4,9 +4,9 @@ import type { AgentArtifacts, AgentResult, Diff, RunInput } from "./types";
 
 // Core schemas
 export const DiffSchema = z.object({
-  scope: z.enum(["section", "paragraph", "bullet", "style", "layout"]).default("paragraph"),
-  before: z.string().default(""),
-  after: z.string().default(""),
+  scope: z.enum(["section", "paragraph", "bullet", "style", "layout"]),
+  before: z.string(),
+  after: z.string(),
 });
 
 export const AgentArtifactsSchema = z.object({
@@ -15,7 +15,7 @@ export const AgentArtifactsSchema = z.object({
   export_files: z
     .array(
       z.object({
-        type: z.enum(["pdf", "docx", "json"]).default("pdf"),
+        type: z.enum(["pdf", "docx", "json"]),
         path: z.string(),
       })
     )
@@ -26,9 +26,9 @@ export const AgentArtifactsSchema = z.object({
 export const OptimizedResumeSchema: z.ZodType<OptimizedResume> = z.any();
 
 export const ATSReportSchema = z.object({
-  score: z.number().min(0).max(100).default(0),
-  missing_keywords: z.array(z.string()).default([]),
-  recommendations: z.array(z.string()).default([]),
+  score: z.number().min(0).max(100),
+  missing_keywords: z.array(z.string()),
+  recommendations: z.array(z.string()),
 });
 
 export const RunInputSchema: z.ZodType<RunInput> = z.object({
@@ -51,11 +51,14 @@ export const RunInputSchema: z.ZodType<RunInput> = z.object({
 
 export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
   intent: z.enum([
+    "tip_implementation",
+    "color_customization",
     "rewrite",
     "add_skills",
     "design",
     "layout",
     "ats_optimize",
+    "optimize",
     "export",
     "undo",
     "redo",
@@ -65,11 +68,11 @@ export const AgentResultSchema: z.ZodType<AgentResult> = z.object({
   actions: z.array(
     z.object({
       tool: z.string(),
-      args: z.record(z.any()).default({}),
-      rationale: z.string().default(""),
+      args: z.record(z.any()),
+      rationale: z.string(),
     })
   ),
-  diffs: z.array(DiffSchema).default([]),
+  diffs: z.array(DiffSchema),
   artifacts: AgentArtifactsSchema,
   ats_report: ATSReportSchema.optional(),
   history_record: z

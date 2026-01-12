@@ -4,7 +4,7 @@
  */
 
 import { createBrowserClient, createServerClient } from './client'
-import { type User } from '@supabase/supabase-js'
+import { type AuthChangeEvent, type Session, type User } from '@supabase/supabase-js'
 import { type Profile, type SubscriptionStatus } from './types'
 
 /**
@@ -73,7 +73,7 @@ export class AuthClient {
    * Listen to authentication state changes
    */
   onAuthStateChange(callback: (user: User | null) => void) {
-    return this.supabase.auth.onAuthStateChange((event, session) => {
+    return this.supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       callback(session?.user || null)
     })
   }
@@ -272,7 +272,7 @@ export async function requireSubscription(
     throw new Error('Invalid user session')
   }
 
-  if (tier === 'premium' && profile.subscription_tier !== 'premium') {
+  if (tier === 'premium' && profile.plan_type !== 'premium') {
     throw new Error('Premium subscription required')
   }
 

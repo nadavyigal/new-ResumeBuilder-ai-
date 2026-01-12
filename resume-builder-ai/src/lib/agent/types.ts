@@ -8,6 +8,7 @@ export type Intent =
   | "design"
   | "layout"
   | "ats_optimize"
+  | "optimize"
   | "export"
   | "undo"
   | "redo"

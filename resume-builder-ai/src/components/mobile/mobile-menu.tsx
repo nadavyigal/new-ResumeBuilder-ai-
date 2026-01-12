@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/navigation";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, Home, Upload, Briefcase, Palette, Settings, HelpCircle, LogOut, Sparkles } from "lucide-react";
+import { Menu, X, Home, Upload, Briefcase, Palette, Settings, HelpCircle, LogOut, Sparkles } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -13,24 +13,14 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { createClientComponentClient } from "@/lib/supabase";
+import { useTranslations } from "next-intl";
 
 interface MobileMenuProps {
   user: any;
 }
 
-const menuItems = [
-  { href: "/dashboard", icon: Home, label: "Dashboard" },
-  { href: "/dashboard/resume", icon: Upload, label: "Upload Resume" },
-  { href: "/dashboard/applications", icon: Briefcase, label: "Applications" },
-  { href: "/templates", icon: Palette, label: "Templates" },
-];
-
-const secondaryItems = [
-  { href: "/settings", icon: Settings, label: "Settings" },
-  { href: "/help", icon: HelpCircle, label: "Help & Support" },
-];
-
 export function MobileMenu({ user }: MobileMenuProps) {
+  const t = useTranslations("dashboard.mobileMenu");
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -40,6 +30,18 @@ export function MobileMenu({ user }: MobileMenuProps) {
     await supabase.auth.signOut();
     router.push("/");
   };
+
+  const menuItems = [
+    { href: "/dashboard", icon: Home, label: t("dashboard") },
+    { href: "/dashboard/resume", icon: Upload, label: t("uploadResume") },
+    { href: "/dashboard/applications", icon: Briefcase, label: t("applications") },
+    { href: "/templates", icon: Palette, label: t("templates") },
+  ];
+
+  const secondaryItems = [
+    { href: "/settings", icon: Settings, label: t("settings") },
+    { href: "/help", icon: HelpCircle, label: t("helpSupport") },
+  ];
 
   return (
     <>
@@ -85,7 +87,7 @@ export function MobileMenu({ user }: MobileMenuProps) {
 
                 <div className="flex-1 min-w-0">
                   <SheetTitle className="text-lg font-bold text-left truncate">
-                    {user?.user_metadata?.full_name || "User"}
+                    {user?.user_metadata?.full_name || t("userFallback")}
                   </SheetTitle>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {user?.email}
@@ -97,7 +99,7 @@ export function MobileMenu({ user }: MobileMenuProps) {
               {user?.user_metadata?.is_premium && (
                 <div className="mt-3 flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-full border border-yellow-500/30 w-fit">
                   <Sparkles className="w-3.5 h-3.5 text-yellow-600" />
-                  <span className="text-xs font-semibold text-yellow-700">Premium</span>
+                  <span className="text-xs font-semibold text-yellow-700">{t("premium")}</span>
                 </div>
               )}
             </SheetHeader>
@@ -181,7 +183,7 @@ export function MobileMenu({ user }: MobileMenuProps) {
                 onClick={handleSignOut}
               >
                 <LogOut className="w-4 h-4" />
-                <span className="font-medium">Sign Out</span>
+                <span className="font-medium">{t("signOut")}</span>
               </Button>
             </div>
           </div>

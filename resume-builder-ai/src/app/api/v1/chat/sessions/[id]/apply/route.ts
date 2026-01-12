@@ -97,11 +97,11 @@ export async function POST(
       // No versions yet, get from optimization
       const { data: optimization } = await supabase
         .from('optimizations')
-        .select('optimized_data')
+        .select('rewrite_data')
         .eq('id', session.optimization_id)
         .maybeSingle();
 
-      currentContent = optimization?.optimized_data || {};
+      currentContent = optimization?.rewrite_data || {};
     }
 
     // TODO: Implement actual amendment application logic

@@ -7,8 +7,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
+import { logger } from '@/lib/agent/utils/logger';
 
 export async function POST(request: NextRequest) {
+  let optimizationId: string | null = null;
   try {
     const supabase = await createRouteHandlerClient();
 
@@ -23,6 +25,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { optimization_id } = body;
+    optimizationId = optimization_id;
 
     if (!optimization_id) {
       return NextResponse.json(
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
       confidence: result.confidence,
     });
   } catch (error: unknown) {
-    console.error('ATS rescan error:', error);
+    logger.error('ATS rescan error', { optimizationId: optimizationId ?? undefined }, error);
 
     const err = error as Error;
     return NextResponse.json(

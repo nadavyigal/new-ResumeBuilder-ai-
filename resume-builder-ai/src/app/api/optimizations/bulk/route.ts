@@ -9,7 +9,7 @@ import type { BulkDeleteRequest, BulkDeleteResponse } from '@/types/history';
  * Bulk delete optimizations with ownership verification via RLS
  *
  * Request Body:
- * - ids: number[] (array of optimization IDs, max 50)
+ * - ids: string[] (array of optimization IDs, max 50)
  *
  * Response:
  * - success: boolean
@@ -43,7 +43,7 @@ export async function DELETE(req: NextRequest) {
         {
           success: false,
           error: 'Invalid request body',
-          details: 'ids must be an array of numbers',
+          details: 'ids must be an array of strings',
           code: 'INVALID_BODY',
         },
         { status: 400 }
@@ -74,13 +74,13 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Validate all IDs are numbers
-    if (!body.ids.every((id) => typeof id === 'number' && id > 0)) {
+    // Validate all IDs are strings
+    if (!body.ids.every((id) => typeof id === 'string' && id.trim().length > 0)) {
       return NextResponse.json(
         {
           success: false,
           error: 'Invalid ID format',
-          details: 'All IDs must be positive numbers',
+          details: 'All IDs must be non-empty strings',
           code: 'INVALID_IDS',
         },
         { status: 400 }

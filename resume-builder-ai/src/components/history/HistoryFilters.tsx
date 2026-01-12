@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Calendar, Filter, X } from 'lucide-react';
+import { Calendar, Filter, X } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -26,8 +26,8 @@ import {
   getDateRangeFromPreset,
   detectDateRangePreset,
   detectScorePreset,
-  countActiveFilters,
 } from '@/lib/history-utils';
+import { useLocale, useTranslations } from 'next-intl';
 
 /**
  * HistoryFilters Component
@@ -44,6 +44,10 @@ export default function HistoryFilters({
   onClearFilters,
   activeFilterCount,
 }: HistoryFiltersProps) {
+  const t = useTranslations('dashboard.history.filters');
+  const locale = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
+
   // Local state for date range picker
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
   const [customDateRange, setCustomDateRange] = useState<{
@@ -125,24 +129,24 @@ export default function HistoryFilters({
    */
   const formatDateRangeLabel = (): string => {
     if (!filters.dateRange) {
-      return 'All time';
+      return t('allTime');
     }
 
     if (currentDatePreset !== 'custom') {
       const presetLabels: Record<DateRangePreset, string> = {
-        'last-7-days': 'Last 7 days',
-        'last-30-days': 'Last 30 days',
-        'last-90-days': 'Last 90 days',
-        'custom': 'Custom',
+        'last-7-days': t('last7Days'),
+        'last-30-days': t('last30Days'),
+        'last-90-days': t('last90Days'),
+        'custom': t('custom'),
       };
       return presetLabels[currentDatePreset];
     }
 
-    const from = filters.dateRange.from.toLocaleDateString('en-US', {
+    const from = filters.dateRange.from.toLocaleDateString(dateLocale, {
       month: 'short',
       day: 'numeric',
     });
-    const to = filters.dateRange.to.toLocaleDateString('en-US', {
+    const to = filters.dateRange.to.toLocaleDateString(dateLocale, {
       month: 'short',
       day: 'numeric',
     });
@@ -154,7 +158,7 @@ export default function HistoryFilters({
       {/* Filter icon with active count badge */}
       <div className="flex items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+        <span className="text-sm font-medium text-muted-foreground">{t('label')}</span>
         {activeFilterCount > 0 && (
           <Badge variant="secondary" className="h-5 px-1.5 text-xs">
             {activeFilterCount}
@@ -190,7 +194,7 @@ export default function HistoryFilters({
                 className="w-full justify-start"
                 onClick={() => handleDatePresetChange('last-7-days')}
               >
-                Last 7 days
+                {t('last7Days')}
               </Button>
               <Button
                 variant={currentDatePreset === 'last-30-days' ? 'secondary' : 'ghost'}
@@ -198,7 +202,7 @@ export default function HistoryFilters({
                 className="w-full justify-start"
                 onClick={() => handleDatePresetChange('last-30-days')}
               >
-                Last 30 days
+                {t('last30Days')}
               </Button>
               <Button
                 variant={currentDatePreset === 'last-90-days' ? 'secondary' : 'ghost'}
@@ -206,12 +210,12 @@ export default function HistoryFilters({
                 className="w-full justify-start"
                 onClick={() => handleDatePresetChange('last-90-days')}
               >
-                Last 90 days
+                {t('last90Days')}
               </Button>
             </div>
 
             <div className="border-t pt-2">
-              <p className="text-xs text-muted-foreground mb-2">Custom range:</p>
+              <p className="text-xs text-muted-foreground mb-2">{t('customRange')}</p>
               <CalendarComponent
                 mode="range"
                 selected={{
@@ -240,13 +244,13 @@ export default function HistoryFilters({
         <SelectTrigger
           className={`h-9 w-[140px] ${filters.minScore !== null ? 'border-primary' : ''}`}
         >
-          <SelectValue placeholder="Score" />
+          <SelectValue placeholder={t('scorePlaceholder')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All scores</SelectItem>
-          <SelectItem value="90-plus">90% and above</SelectItem>
-          <SelectItem value="80-plus">80% and above</SelectItem>
-          <SelectItem value="70-plus">70% and above</SelectItem>
+          <SelectItem value="all">{t('allScores')}</SelectItem>
+          <SelectItem value="90-plus">{t('score90Plus')}</SelectItem>
+          <SelectItem value="80-plus">{t('score80Plus')}</SelectItem>
+          <SelectItem value="70-plus">{t('score70Plus')}</SelectItem>
         </SelectContent>
       </Select>
 
@@ -259,7 +263,7 @@ export default function HistoryFilters({
           className="h-9 gap-1 text-muted-foreground hover:text-foreground"
         >
           <X className="h-4 w-4" />
-          Clear filters
+          {t('clear')}
         </Button>
       )}
     </div>

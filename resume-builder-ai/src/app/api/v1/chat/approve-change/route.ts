@@ -289,9 +289,9 @@ export async function POST(request: NextRequest) {
           success: true,
           message: `Applied changes from Tip #${suggestion.number || '?'}`,
           updated_resume: updatedResumeData,
-          new_ats_score: scoreResult.optimizedScore,
+          new_ats_score: scoreResult.ats_score_optimized,
           previous_ats_score: optimization.ats_score_optimized,
-          score_improvement: scoreResult.optimizedScore - (optimization.ats_score_optimized || 0),
+          score_improvement: scoreResult.ats_score_optimized - (optimization.ats_score_optimized || 0),
         }, { status: 200 });
       }
     } catch (scoreError) {
@@ -489,7 +489,7 @@ function applyATSSuggestion(
       if (termsMatch) {
         const terms = termsMatch[1]
           .split(/[,;]|\band\b/)
-          .map(t => t.trim().replace(/['"`]/g, ''))
+          .map((t: string) => t.trim().replace(/['"`]/g, ''))
           .filter(Boolean);
 
         if (!updated.skills) {
@@ -498,7 +498,7 @@ function applyATSSuggestion(
 
         const skills = updated.skills as { technical: string[], soft: string[] };
 
-        terms.forEach(term => {
+        terms.forEach((term: string) => {
           const isTechnical = TECHNICAL_KEYWORDS.some(kw => term.toLowerCase().includes(kw));
           if (isTechnical && !skills.technical.includes(term)) {
             skills.technical.push(term);
