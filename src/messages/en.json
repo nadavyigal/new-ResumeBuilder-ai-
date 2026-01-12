@@ -902,6 +902,7 @@
       "design": {
         "defaultDescription": "Natural (no design)",
         "defaultName": "Natural",
+        "changeDesign": "Change design",
         "currentTitle": "Current design: {name}",
         "atsFriendly": "ATS-friendly",
         "applyError": "Failed to apply design.",

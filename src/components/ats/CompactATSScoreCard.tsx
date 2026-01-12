@@ -9,8 +9,8 @@ import type { ATSScoreOutput } from '@/lib/ats/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { SubScoreBreakdown } from './SubScoreBreakdown';
-import { ArrowRight, TrendingUp, ChevronRight } from '@/lib/icons';
-import { useTranslations } from 'next-intl';
+import { ArrowRight, TrendingUp, ChevronLeft, ChevronRight } from '@/lib/icons';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface CompactATSScoreCardProps {
   atsScoreOriginal: number;
@@ -26,6 +26,9 @@ export function CompactATSScoreCard({
   subscoresOriginal,
 }: CompactATSScoreCardProps) {
   const t = useTranslations('dashboard.ats.compact');
+  const locale = useLocale();
+  const DetailsChevron = locale === 'he' ? ChevronLeft : ChevronRight;
+  const detailsChevronClass = locale === 'he' ? 'w-3 h-3 mr-1' : 'w-3 h-3 ml-1';
   const improvement = atsScoreOptimized - atsScoreOriginal;
   const hasV2Data = subscores && subscoresOriginal;
 
@@ -80,7 +83,7 @@ export function CompactATSScoreCard({
                   className="h-auto py-1 px-2 text-xs hover:bg-green-100 dark:hover:bg-green-900/50 shrink-0"
                 >
                   <span className="text-green-700 dark:text-green-300">{t('details')}</span>
-                  <ChevronRight className="w-3 h-3 ml-1" />
+                  <DetailsChevron className={detailsChevronClass} />
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">

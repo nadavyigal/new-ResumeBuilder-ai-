@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 
 // Disable static generation for this dynamic page
@@ -71,6 +71,9 @@ export default function OptimizationPage() {
   const supabase = createClientComponentClient();
   const { toast } = useToast();
   const t = useTranslations("dashboard.optimization");
+  const locale = useLocale();
+  const designDescription = currentDesignAssignment?.template?.description || t("design.defaultDescription");
+  const designSummaryLabel = locale === "he" ? t("design.changeDesign") : designDescription;
 
   useEffect(() => {
     // Set initial FAB position after mount (bottom-right)
@@ -711,15 +714,15 @@ export default function OptimizationPage() {
             </Select>
           </div>
 
-          <Button 
-            onClick={() => setShowDesignBrowser(true)} 
-            variant="outline"
-            className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
-          >
-            {currentDesignAssignment?.template?.description || t("design.defaultDescription")}
-          </Button>
+            <Button 
+              onClick={() => setShowDesignBrowser(true)} 
+              variant="outline"
+              className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
+            >
+              {designSummaryLabel}
+            </Button>
+          </div>
         </div>
-      </div>
 
       {/* Design Controls (if customizations exist) */}
       {currentDesignAssignment?.customization && (
@@ -769,13 +772,13 @@ export default function OptimizationPage() {
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  {t("design.currentTitle", { name: currentDesignAssignment?.template?.name || t("design.defaultName") })}
-                </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
-                  {currentDesignAssignment?.template?.description || t("design.defaultDescription")}
-                </p>
-              </div>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    {t("design.currentTitle", { name: currentDesignAssignment?.template?.name || t("design.defaultName") })}
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+                    {designSummaryLabel}
+                  </p>
+                </div>
               <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
                 {t("design.atsFriendly")}
               </span>
