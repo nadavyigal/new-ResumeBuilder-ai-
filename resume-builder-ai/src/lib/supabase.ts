@@ -1,8 +1,8 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '@/types/database';
-import { getEnv } from './env';
+import { getClientEnv } from './env';
 
-const env = getEnv();
+const env = getClientEnv();
 const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 

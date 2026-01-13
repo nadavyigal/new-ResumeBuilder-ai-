@@ -1,8 +1,8 @@
 import OpenAI from "openai";
-import { getEnv } from "./env";
+import { getServerEnv } from "./env";
 import { logger } from "@/lib/agent/utils/logger";
 
-const env = getEnv();
+const env = getServerEnv();
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
