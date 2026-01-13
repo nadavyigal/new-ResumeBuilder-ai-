@@ -1,17 +1,15 @@
 import OpenAI from "openai";
+import { getServerEnv } from "./env";
+import { logger } from "@/lib/agent/utils/logger";
+
+const env = getServerEnv();
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
   if (!openaiInstance) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      console.error('OPENAI_API_KEY is not set in environment variables');
-    }
-    openaiInstance = new OpenAI({
-      apiKey: apiKey || 'invalid-key-placeholder',
-    });
+    openaiInstance = new OpenAI({ apiKey: env.OPENAI_API_KEY });
   }
   return openaiInstance;
 }
@@ -20,9 +18,7 @@ function getOpenAI(): OpenAI {
 export { getOpenAI };
 
 export async function optimizeResume(resumeText: string, jobDescriptionText: string) {
-  // Validate API key before making request
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || apiKey === 'invalid-key-placeholder') {
+  if (!env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not configured. Please add your OpenAI API key to the .env.local file.');
   }
 
@@ -49,11 +45,12 @@ export async function optimizeResume(resumeText: string, jobDescriptionText: str
 
     return JSON.parse(result);
   } catch (error: unknown) {
-    // Enhanced error handling for OpenAI API errors
+    logger.error('OpenAI optimization failed', { inputLength: resumeText.length }, error);
     if (error instanceof Error) {
-      // Check for common OpenAI API errors
       if (error.message.includes('Incorrect API key') || error.message.includes('invalid_api_key')) {
-        throw new Error('Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env.local file. You can get a valid key from https://platform.openai.com/api-keys');
+        throw new Error(
+          'Invalid OpenAI API key. Please check your OPENAI_API_KEY in .env.local file. You can get a valid key from https://platform.openai.com/api-keys'
+        );
       }
       if (error.message.includes('insufficient_quota')) {
         throw new Error('OpenAI API quota exceeded. Please check your billing at https://platform.openai.com/account/billing');

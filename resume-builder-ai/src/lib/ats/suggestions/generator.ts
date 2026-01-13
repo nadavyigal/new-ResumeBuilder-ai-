@@ -303,8 +303,8 @@ function selectKeywordCandidates(evidence: any, jobData?: JobExtraction): {
 
   const keywords = dedupePreserveOrder(
     rawKeywords
-      .map((keyword) => String(keyword).trim())
-      .filter((keyword) => keyword.length >= 3)
+      .map((keyword: string) => String(keyword).trim())
+      .filter((keyword: string) => keyword.length >= 3)
   ).slice(0, 5);
 
   const missingMustHave = Math.max(

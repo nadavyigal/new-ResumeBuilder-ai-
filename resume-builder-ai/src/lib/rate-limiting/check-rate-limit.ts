@@ -13,13 +13,19 @@ export interface RateLimitResult {
 
 const UNIQUE_VIOLATION = '23505';
 const NOT_FOUND = 'PGRST116';
+const RPC_NOT_FOUND = 'PGRST202';
 
-export async function checkRateLimit(
+interface RateLimitRow {
+  requests_count: number;
+  window_start: string;
+}
+
+async function legacyCheckRateLimit(
+  supabase: ReturnType<typeof createServiceRoleClient>,
   identifier: string,
   endpoint: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
-  const supabase = createServiceRoleClient();
   const now = new Date();
 
   const { data: existing, error } = await supabase
@@ -44,7 +50,7 @@ export async function checkRateLimit(
       });
 
     if (insertError && insertError.code === UNIQUE_VIOLATION) {
-      return checkRateLimit(identifier, endpoint, config);
+      return legacyCheckRateLimit(supabase, identifier, endpoint, config);
     }
 
     if (insertError) {
@@ -102,6 +108,41 @@ export async function checkRateLimit(
   return {
     allowed: true,
     remaining: Math.max(0, config.maxRequests - nextCount),
+    resetAt,
+  };
+}
+
+export async function checkRateLimit(
+  identifier: string,
+  endpoint: string,
+  config: RateLimitConfig
+): Promise<RateLimitResult> {
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase.rpc('increment_rate_limit', {
+    p_identifier: identifier,
+    p_endpoint: endpoint,
+    p_window_ms: config.windowMs,
+  });
+
+  if (error) {
+    if (error.code === RPC_NOT_FOUND || error.message?.includes('increment_rate_limit')) {
+      return legacyCheckRateLimit(supabase, identifier, endpoint, config);
+    }
+    throw new Error(`Rate limit update failed: ${error.message}`);
+  }
+
+  const row = (Array.isArray(data) ? data[0] : data) as RateLimitRow | null;
+  if (!row?.window_start) {
+    throw new Error('Rate limit update returned no data');
+  }
+
+  const requestsCount = Number(row.requests_count) || 0;
+  const windowStart = new Date(row.window_start);
+  const resetAt = new Date(windowStart.getTime() + config.windowMs);
+
+  return {
+    allowed: requestsCount <= config.maxRequests,
+    remaining: Math.max(0, config.maxRequests - requestsCount),
     resetAt,
   };
 }

@@ -4,6 +4,7 @@ import { Trash2, Download, CheckSquare, Square } from '@/lib/icons';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { BulkActionsProps } from '@/types/history';
+import { useTranslations } from 'next-intl';
 
 /**
  * BulkActions Component
@@ -24,6 +25,7 @@ export default function BulkActions({
   onDeselectAll,
   isProcessing,
 }: BulkActionsProps) {
+  const t = useTranslations('dashboard.history.bulk');
   const hasSelections = selectedCount > 0;
   const allSelected = selectedCount === totalCount && totalCount > 0;
 
@@ -34,7 +36,7 @@ export default function BulkActions({
         {/* Selection count badge */}
         {hasSelections && (
           <Badge variant="secondary" className="h-7 px-3 text-sm font-medium">
-            {selectedCount} selected
+            {t('selectedCount', { count: selectedCount })}
           </Badge>
         )}
 
@@ -45,24 +47,24 @@ export default function BulkActions({
           onClick={allSelected ? onDeselectAll : onSelectAll}
           className="gap-2"
           disabled={isProcessing || totalCount === 0}
-          aria-label={allSelected ? 'Deselect all items' : 'Select all items'}
+          aria-label={allSelected ? t('aria.deselectAll') : t('aria.selectAll')}
         >
           {allSelected ? (
             <>
               <Square className="h-4 w-4" />
-              Deselect All
+              {t('deselectAll')}
             </>
           ) : (
             <>
               <CheckSquare className="h-4 w-4" />
-              Select All
+              {t('selectAll')}
             </>
           )}
         </Button>
 
         {!hasSelections && (
           <span className="text-sm text-muted-foreground">
-            Select items to perform bulk actions
+            {t('selectHint')}
           </span>
         )}
       </div>
@@ -77,12 +79,12 @@ export default function BulkActions({
             onClick={onExportSelected}
             disabled={isProcessing || selectedCount > 20}
             className="gap-2"
-            aria-label={`Export ${selectedCount} selected optimization${selectedCount > 1 ? 's' : ''}`}
+            aria-label={t('aria.exportSelected', { count: selectedCount })}
           >
             <Download className="h-4 w-4" />
-            Export Selected
+            {t('exportSelected')}
             {selectedCount > 20 && (
-              <span className="text-xs text-destructive ml-1">(max 20)</span>
+              <span className="text-xs text-destructive ml-1">{t('max20')}</span>
             )}
           </Button>
 
@@ -93,12 +95,12 @@ export default function BulkActions({
             onClick={onDeleteSelected}
             disabled={isProcessing || selectedCount > 50}
             className="gap-2"
-            aria-label={`Delete ${selectedCount} selected optimization${selectedCount > 1 ? 's' : ''}`}
+            aria-label={t('aria.deleteSelected', { count: selectedCount })}
           >
             <Trash2 className="h-4 w-4" />
-            Delete Selected
+            {t('deleteSelected')}
             {selectedCount > 50 && (
-              <span className="text-xs ml-1">(max 50)</span>
+              <span className="text-xs ml-1">{t('max50')}</span>
             )}
           </Button>
         </div>
@@ -108,7 +110,7 @@ export default function BulkActions({
       {isProcessing && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-          <span>Processing...</span>
+          <span>{t('processing')}</span>
         </div>
       )}
     </div>

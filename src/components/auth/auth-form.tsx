@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Link, useRouter } from "@/navigation";
 import { createClientComponentClient } from "@/lib/supabase";
 import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   
+  const t = useTranslations("auth.form");
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
@@ -32,9 +34,9 @@ export function AuthForm({ mode }: AuthFormProps) {
     const urlError = searchParams.get('error');
     const urlMessage = searchParams.get('message');
     if (urlError || urlMessage) {
-      setError(urlMessage || 'An error occurred during authentication');
+      setError(urlMessage || t('errorGeneric'));
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +75,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         if (error) throw error;
 
         if (data.user && !data.user.email_confirmed_at) {
-          setMessage("Check your email for the confirmation link!");
+          setMessage(t("confirmEmail"));
         } else if (data.user) {
           // User is immediately confirmed - complete signup flow
           const utmParams = typeof window !== 'undefined' 
@@ -140,23 +142,23 @@ export function AuthForm({ mode }: AuthFormProps) {
         <Card className="shadow-lg">
           <CardHeader className="space-y-3">
             <CardTitle className="text-3xl font-bold text-center">
-              {mode === "signup" ? "Get Started" : "Welcome Back"}
+              {mode === "signup" ? t("title.signup") : t("title.signin")}
             </CardTitle>
             <CardDescription className="text-center text-base">
               {mode === "signup"
-                ? "Create your free account"
-                : "Sign in to your account"}
+                ? t("subtitle.signup")
+                : t("subtitle.signin")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <form onSubmit={handleSubmit} className="space-y-5">
             {mode === "signup" && (
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName">{t("labels.fullName")}</Label>
                 <Input
                   id="fullName"
                   type="text"
-                  placeholder="John Doe"
+                  placeholder={t("placeholders.fullName")}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
@@ -165,11 +167,11 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("labels.email")}</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="john@example.com"
+                placeholder={t("placeholders.email")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -177,7 +179,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("labels.password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -211,10 +213,10 @@ export function AuthForm({ mode }: AuthFormProps) {
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></span>
-                  Processing...
+                  {t("processing")}
                 </span>
               ) : (
-                mode === "signup" ? "Create Account" : "Sign In"
+                mode === "signup" ? t("buttons.createAccount") : t("buttons.signIn")
               )}
             </Button>
           </form>
@@ -225,7 +227,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="bg-card px-4 text-foreground/60">
-                {mode === "signup" ? "Already have an account?" : "Don't have an account?"}
+                {mode === "signup" ? t("switchPrompt.hasAccount") : t("switchPrompt.noAccount")}
               </span>
             </div>
           </div>
@@ -234,13 +236,13 @@ export function AuthForm({ mode }: AuthFormProps) {
             {mode === "signup" ? (
               <Link href={ROUTES.auth.signIn}>
                 <Button variant="outline" className="w-full">
-                  Sign In Instead
+                  {t("switchButtons.signIn")}
                 </Button>
               </Link>
             ) : (
               <Link href={ROUTES.auth.signUp}>
                 <Button variant="outline" className="w-full">
-                  Create New Account
+                  {t("switchButtons.createAccount")}
                 </Button>
               </Link>
             )}
@@ -252,7 +254,7 @@ export function AuthForm({ mode }: AuthFormProps) {
                 href={ROUTES.auth.resetPassword}
                 className="text-sm text-foreground/70 hover:text-foreground font-medium"
               >
-                Forgot your password?
+                {t("forgotPassword")}
               </Link>
             </div>
           )}

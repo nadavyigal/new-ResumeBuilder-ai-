@@ -11,7 +11,7 @@ import { generateResumePDF } from '@/lib/pdf-generator';
  * Bulk export optimizations as ZIP file with PDFs and manifest
  *
  * Request Body:
- * - ids: number[] (array of optimization IDs, max 20)
+ * - ids: string[] (array of optimization IDs, max 20)
  * - includeManifest: boolean (optional, default: true)
  *
  * Response:
@@ -36,14 +36,14 @@ export async function POST(req: NextRequest) {
 
   try {
     // Parse and validate request body
-    const body: BulkExportRequest = await req.json();
+      const body: BulkExportRequest = await req.json();
 
     if (!body.ids || !Array.isArray(body.ids)) {
       return NextResponse.json(
         {
           success: false,
           error: 'Invalid request body',
-          details: 'ids must be an array of numbers',
+          details: 'ids must be an array of strings',
           code: 'INVALID_BODY',
         },
         { status: 400 }
@@ -74,13 +74,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate all IDs are numbers
-    if (!body.ids.every((id) => typeof id === 'number' && id > 0)) {
+    // Validate all IDs are strings
+    if (!body.ids.every((id) => typeof id === 'string' && id.trim().length > 0)) {
       return NextResponse.json(
         {
           success: false,
           error: 'Invalid ID format',
-          details: 'All IDs must be positive numbers',
+          details: 'All IDs must be non-empty strings',
           code: 'INVALID_IDS',
         },
         { status: 400 }
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         match_score,
         status,
         template_key,
-        optimization_data,
+        rewrite_data,
         job_descriptions!jd_id (
           id,
           title,
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     // Create ZIP file
     const zip = new JSZip();
     const manifest: string[] = [];
-    const failed: Array<{ id: number; error: string }> = [];
+    const failed: Array<{ id: string; error: string }> = [];
 
     // Add each optimization to ZIP
     for (const opt of optimizations) {
@@ -151,12 +151,12 @@ export async function POST(req: NextRequest) {
           .replace(/_+/g, '_')
           .substring(0, 200); // Limit filename length
 
-        // Check if optimization_data exists (resume JSON data)
-        if (opt.optimization_data) {
+        // Check if rewrite_data exists (resume JSON data)
+        if (opt.rewrite_data) {
           try {
-            // Generate PDF from optimization_data
+            // Generate PDF from rewrite_data
             const pdfBuffer = await generateResumePDF(
-              opt.optimization_data,
+              opt.rewrite_data,
               opt.template_key || 'default'
             );
 
@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
             console.error(`Error generating PDF for optimization ${opt.id}:`, pdfError);
 
             // Fallback: Export JSON if PDF generation fails
-            const jsonContent = JSON.stringify(opt.optimization_data, null, 2);
+            const jsonContent = JSON.stringify(opt.rewrite_data, null, 2);
             const jsonFilename = filename.replace('.pdf', '.json');
             zip.file(jsonFilename, jsonContent);
 
@@ -262,7 +262,8 @@ export async function POST(req: NextRequest) {
     const zipFilename = `resume-optimizations-${timestamp}.zip`;
 
     // Return ZIP file
-    return new NextResponse(zipBuffer, {
+    const zipBody = zipBuffer as unknown as BodyInit;
+    return new NextResponse(zipBody, {
       status: 200,
       headers: {
         'Content-Type': 'application/zip',

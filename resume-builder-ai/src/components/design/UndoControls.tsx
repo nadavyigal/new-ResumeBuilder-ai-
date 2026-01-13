@@ -9,7 +9,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Undo, RotateCcw, Loader2 } from 'lucide-react';
+import { Undo, RotateCcw, Loader2 } from '@/lib/icons';
+import { useTranslations } from 'next-intl';
 
 interface UndoControlsProps {
   optimizationId: string;
@@ -26,6 +27,7 @@ export function UndoControls({
   onUndo,
   onRevert
 }: UndoControlsProps) {
+  const t = useTranslations('dashboard.design.undo');
   const [isUndoing, setIsUndoing] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [showRevertConfirm, setShowRevertConfirm] = useState(false);
@@ -41,14 +43,14 @@ export function UndoControls({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to undo');
+        throw new Error(data.error || t('errors.undo'));
       }
 
       // Notify parent component
       onUndo();
     } catch (error) {
       console.error('Undo failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to undo');
+      alert(error instanceof Error ? error.message : t('errors.undo'));
     } finally {
       setIsUndoing(false);
     }
@@ -67,14 +69,14 @@ export function UndoControls({
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to revert');
+        throw new Error(data.error || t('errors.revert'));
       }
 
       // Notify parent component
       onRevert();
     } catch (error) {
       console.error('Revert failed:', error);
-      alert(error instanceof Error ? error.message : 'Failed to revert');
+      alert(error instanceof Error ? error.message : t('errors.revert'));
     } finally {
       setIsReverting(false);
     }
@@ -93,14 +95,14 @@ export function UndoControls({
           onClick={handleUndo}
           disabled={!canUndo || isUndoing || isReverting}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title={canUndo ? 'Undo last change' : 'No changes to undo'}
+          title={canUndo ? t('undoTitle') : t('undoDisabledTitle')}
         >
           {isUndoing ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Undo className="w-4 h-4" />
           )}
-          Undo
+          {t('undo')}
         </button>
 
         {/* Revert Button */}
@@ -108,14 +110,14 @@ export function UndoControls({
           onClick={() => setShowRevertConfirm(true)}
           disabled={!hasCustomizations || isUndoing || isReverting}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-800 border border-red-300 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title={hasCustomizations ? 'Revert to original template design' : 'No customizations to revert'}
+          title={hasCustomizations ? t('revertTitle') : t('revertDisabledTitle')}
         >
           {isReverting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <RotateCcw className="w-4 h-4" />
           )}
-          Revert to Original
+          {t('revert')}
         </button>
       </div>
 
@@ -128,11 +130,10 @@ export function UndoControls({
                 <RotateCcw className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-2">
-                Revert All Customizations?
+                {t('modal.title')}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                This will remove all custom design changes and restore the original template
-                design. This action cannot be undone.
+                {t('modal.description')}
               </p>
             </div>
 
@@ -141,13 +142,13 @@ export function UndoControls({
                 onClick={() => setShowRevertConfirm(false)}
                 className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors font-medium"
               >
-                Cancel
+                {t('modal.cancel')}
               </button>
               <button
                 onClick={handleRevert}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
               >
-                Yes, Revert
+                {t('modal.confirm')}
               </button>
             </div>
           </div>

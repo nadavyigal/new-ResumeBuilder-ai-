@@ -4,6 +4,7 @@ import { optimizeResume } from "@/lib/openai";
 import { scoreOptimization } from "@/lib/ats/integration";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { logger } from "@/lib/agent/utils/logger";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -12,6 +13,9 @@ export async function POST(req: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  let resumeId: string | undefined;
+  let jobDescriptionId: string | undefined;
 
   try {
     const rateKey = `optimize:${user.id}`;
@@ -32,27 +36,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { resumeId, jobDescriptionId } = await req.json();
+    const parsed = await req.json();
+    resumeId = parsed.resumeId;
+    jobDescriptionId = parsed.jobDescriptionId;
 
     if (!resumeId || !jobDescriptionId) {
       return NextResponse.json({ error: "resumeId and jobDescriptionId are required." }, { status: 400 });
     }
 
-    const { data: resumeData, error: resumeError } = await supabase
+    const resumeQuery = supabase
       .from("resumes")
       .select("raw_text")
       .eq("id", resumeId)
       .maybeSingle();
 
-    if (resumeError || !resumeData) {
-      throw new Error(resumeError?.message || "Resume not found");
-    }
-
-    const { data: jdData, error: jdError } = await supabase
+    const jdQuery = supabase
       .from("job_descriptions")
       .select("raw_text")
       .eq("id", jobDescriptionId)
       .maybeSingle();
+
+    const [resumeResult, jdResult] = await Promise.all([resumeQuery, jdQuery]);
+
+    const { data: resumeData, error: resumeError } = resumeResult;
+    const { data: jdData, error: jdError } = jdResult;
+
+    if (resumeError || !resumeData) {
+      throw new Error(resumeError?.message || "Resume not found");
+    }
 
     if (jdError || !jdData) {
       throw new Error(jdError?.message || "Job description not found");
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
     // Score the optimization using ATS v2
     let atsResult = null;
     try {
-      console.log('Starting ATS v2 scoring...');
+      logger.info('Starting ATS v2 scoring', { userId: user.id, resumeId, jobDescriptionId });
       const scoringPromise = scoreOptimization({
         resumeOriginalText: (resumeData as any).raw_text,
         resumeOptimizedJson: optimizedResume,
@@ -78,16 +89,20 @@ export async function POST(req: NextRequest) {
       
       atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
       
-      console.log('ATS v2 scoring completed:', {
+      logger.info('ATS v2 scoring completed', {
+        userId: user.id,
+        resumeId,
         original: atsResult?.ats_score_original,
         optimized: atsResult?.ats_score_optimized,
         improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
       });
     } catch (atsError: any) {
-      console.error('ATS v2 scoring failed, using fallback scoring:', {
+      logger.error('ATS v2 scoring failed, using fallback scoring', {
+        userId: user.id,
+        resumeId,
+        jobDescriptionId,
         error: atsError?.message,
-        stack: atsError?.stack?.substring(0, 200),
-      });
+      }, atsError);
 
       // FALLBACK: Calculate basic keyword-based scores instead of null
       try {
@@ -109,7 +124,9 @@ export async function POST(req: NextRequest) {
         const originalScore = Math.round(40 + (originalMatches / jdKeywords.length) * 45);
         const optimizedScore = Math.round(Math.max(originalScore + 5, 45 + (optimizedMatches / jdKeywords.length) * 45));
 
-        console.log('📊 Fallback scoring:', {
+        logger.info('Fallback scoring metrics', {
+          userId: user.id,
+          resumeId,
           jdKeywords: jdKeywords.length,
           originalMatches,
           optimizedMatches,
@@ -126,7 +143,7 @@ export async function POST(req: NextRequest) {
           confidence: 0.5, // Lower confidence for fallback
         };
       } catch (fallbackError) {
-        console.error('Fallback scoring also failed:', fallbackError);
+        logger.error('Fallback scoring also failed', { userId: user.id, resumeId }, fallbackError);
         atsResult = null;
       }
     }
@@ -173,7 +190,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ optimizationId: (optimizationData as any).id });
 
   } catch (error: unknown) {
-    console.error("Error optimizing resume:", error);
+    logger.error('Error optimizing resume via API', { userId: user.id, resumeId, jobDescriptionId }, error);
 
     // Provide detailed error messages for better debugging
     let errorMessage = "Something went wrong";

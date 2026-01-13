@@ -57,10 +57,10 @@ export async function GET(req: NextRequest) {
     }
 
     const {
-      page,
-      limit,
-      sort,
-      order,
+      page = 1,
+      limit = 20,
+      sort = 'date',
+      order = 'desc',
       dateFrom,
       dateTo,
       minScore,
@@ -221,7 +221,7 @@ export async function GET(req: NextRequest) {
  */
 function parseQueryParams(searchParams: URLSearchParams): {
   valid: boolean;
-  data: Required<OptimizationsQueryParams>;
+  data: OptimizationsQueryParams;
   errors: string[];
 } {
   const errors: string[] = [];

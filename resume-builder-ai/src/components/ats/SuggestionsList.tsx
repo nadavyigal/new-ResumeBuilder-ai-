@@ -9,7 +9,8 @@ import type { Suggestion } from '@/lib/ats/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Lightbulb, Zap, TrendingUp } from 'lucide-react';
+import { Lightbulb, Zap, TrendingUp } from '@/lib/icons';
+import { useTranslations } from 'next-intl';
 
 interface SuggestionsListProps {
   suggestions: Suggestion[];
@@ -22,18 +23,19 @@ export function SuggestionsList({
   onApplySuggestion,
   maxSuggestions = 10,
 }: SuggestionsListProps) {
+  const t = useTranslations('dashboard.ats.suggestions');
   const displayedSuggestions = suggestions.slice(0, maxSuggestions);
 
   if (displayedSuggestions.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Suggestions</CardTitle>
+          <CardTitle>{t('emptyTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-gray-500">
             <Lightbulb className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>No suggestions - your resume is well-optimized!</p>
+            <p>{t('emptyDescription')}</p>
           </div>
         </CardContent>
       </Card>
@@ -48,9 +50,9 @@ export function SuggestionsList({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Improvement Suggestions</CardTitle>
+          <CardTitle>{t('title')}</CardTitle>
           <Badge variant="secondary">
-            {displayedSuggestions.length} suggestions
+            {t('count', { count: displayedSuggestions.length })}
           </Badge>
         </div>
       </CardHeader>
@@ -61,7 +63,7 @@ export function SuggestionsList({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Zap className="w-4 h-4 text-yellow-500" />
-                <h3 className="font-semibold text-sm">Quick Wins</h3>
+                <h3 className="font-semibold text-sm">{t('quickWins')}</h3>
               </div>
               <div className="space-y-3">
                 {quickWins.map(suggestion => (
@@ -80,7 +82,7 @@ export function SuggestionsList({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="w-4 h-4 text-green-500" />
-                <h3 className="font-semibold text-sm">High Impact</h3>
+                <h3 className="font-semibold text-sm">{t('highImpact')}</h3>
               </div>
               <div className="space-y-3">
                 {highImpact.map(suggestion => (
@@ -99,7 +101,7 @@ export function SuggestionsList({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Lightbulb className="w-4 h-4 text-blue-500" />
-                <h3 className="font-semibold text-sm">Other Improvements</h3>
+                <h3 className="font-semibold text-sm">{t('otherImprovements')}</h3>
               </div>
               <div className="space-y-3">
                 {otherSuggestions.map(suggestion => (
@@ -125,6 +127,7 @@ function SuggestionCard({
   suggestion: Suggestion;
   onApply?: (suggestion: Suggestion) => void;
 }) {
+  const t = useTranslations('dashboard.ats.suggestions');
   return (
     <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
       <div className="flex items-start justify-between gap-4">
@@ -132,18 +135,18 @@ function SuggestionCard({
           <div className="flex items-center gap-2 mb-2">
             {suggestion.quick_win && (
               <Badge variant="default" className="text-xs">
-                Quick Win
+                {t('quickWinBadge')}
               </Badge>
             )}
             <Badge variant="outline" className="text-xs">
-              {getCategoryLabel(suggestion.category)}
+              {getCategoryLabel(suggestion.category, t)}
             </Badge>
           </div>
           <p className="text-sm text-gray-900">{suggestion.text}</p>
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-sm font-semibold text-green-600">
-            +{suggestion.estimated_gain} pts
+            {t('points', { points: suggestion.estimated_gain })}
           </div>
           {onApply && (
             <Button
@@ -152,7 +155,7 @@ function SuggestionCard({
               className="mt-2"
               onClick={() => onApply(suggestion)}
             >
-              Apply
+              {t('apply')}
             </Button>
           )}
         </div>
@@ -161,13 +164,16 @@ function SuggestionCard({
   );
 }
 
-function getCategoryLabel(category: string): string {
+function getCategoryLabel(
+  category: string,
+  t: ReturnType<typeof useTranslations>
+): string {
   const labels: Record<string, string> = {
-    keywords: 'Keywords',
-    formatting: 'Format',
-    content: 'Content',
-    structure: 'Structure',
-    metrics: 'Metrics',
+    keywords: t('categories.keywords'),
+    formatting: t('categories.formatting'),
+    content: t('categories.content'),
+    structure: t('categories.structure'),
+    metrics: t('categories.metrics'),
   };
   return labels[category] || category;
 }

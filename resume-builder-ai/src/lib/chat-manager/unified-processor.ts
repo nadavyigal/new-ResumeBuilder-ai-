@@ -135,12 +135,9 @@ export async function processUnifiedMessage(
 
         // Convert to amendment request format
         contentAmendments.push({
-          section: functionCall.params.section,
-          operation: functionCall.params.operation,
-          value: functionCall.params.value,
-          targetIndex: functionCall.params.target_index,
-          targetField: functionCall.params.target_field,
-          reasoning: functionCall.params.reasoning
+          type: functionCall.params.operation,
+          targetSection: functionCall.params.section,
+          description: functionCall.params.value
         });
 
         // Record change in context

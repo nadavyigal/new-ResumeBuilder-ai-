@@ -1,14 +1,17 @@
 "use client";
 
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { createClientComponentClient } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ROUTES } from "@/lib/constants";
 
 export function Header() {
   const { user } = useAuth();
   const supabase = createClientComponentClient();
+  const t = useTranslations("header");
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -26,11 +29,12 @@ export function Header() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3">
+          <LanguageSwitcher />
           {user ? (
             <div className="flex items-center gap-3">
               <Link href={ROUTES.dashboard}>
                 <Button variant="ghost" size="sm">
-                  Dashboard
+                  {t("dashboard")}
                 </Button>
               </Link>
               <Button
@@ -38,19 +42,19 @@ export function Header() {
                 size="sm"
                 onClick={handleSignOut}
               >
-                Sign Out
+                {t("signOut")}
               </Button>
             </div>
           ) : (
             <>
               <Link href={ROUTES.auth.signIn}>
                 <Button variant="ghost" size="sm">
-                  Log In
+                  {t("logIn")}
                 </Button>
               </Link>
               <Link href={ROUTES.auth.signUp}>
                 <Button variant="default" size="sm">
-                  Sign Up
+                  {t("signUp")}
                 </Button>
               </Link>
             </>

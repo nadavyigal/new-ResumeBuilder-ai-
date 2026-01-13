@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { generatePdfWithDesign, generateDocxWithDesign } from "@/lib/export";
+import { cleanResumeData, generatePdfWithDesign, generateDocxWithDesign, type PdfWithDesignResult } from "@/lib/export";
+import { resolvePdfDesignContext, type PdfDesignContext } from "@/lib/pdf-design-context";
+import { callPDFService } from "@/lib/pdf-service-client";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { logger } from "@/lib/agent/utils/logger";
 
 export const runtime = "nodejs";
 
@@ -10,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { searchParams } = new URL(req.url);
   const format = (searchParams.get("fmt") ?? "pdf").toLowerCase();
 
-  console.log(`[DOWNLOAD] Starting download for optimization ${id}, format: ${format}`);
+  logger.info('Starting download request', { optimizationId: id, format });
 
   if (format !== "pdf" && format !== "docx") {
     return NextResponse.json({ error: "Invalid format specified. Use 'pdf' or 'docx'." }, { status: 400 });
@@ -21,11 +24,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Verify user authentication
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.log('[DOWNLOAD] User not authenticated');
+    logger.warn('Download request rejected due to missing authentication', { optimizationId: id });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  console.log(`[DOWNLOAD] User authenticated: ${user.id}`);
+  logger.info('Download request authenticated', { optimizationId: id, userId: user.id });
 
   const { data: optimizationData, error } = await supabase
     .from("optimizations")
@@ -35,51 +38,114 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .maybeSingle();
 
   if (error) {
-    console.error('[DOWNLOAD] Database error:', error);
+    logger.error('Database error while fetching optimization for download', { optimizationId: id, userId: user.id }, error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   if (!optimizationData) {
-    console.error('[DOWNLOAD] Optimization not found');
+    logger.error('Optimization not found for download request', { optimizationId: id, userId: user.id });
     return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
   }
 
-  console.log('[DOWNLOAD] Optimization data fetched successfully');
+  logger.info('Optimization data fetched successfully for download', { optimizationId: id, userId: user.id });
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;
 
-  let fileBuffer: Buffer;
+  let fileBuffer: Buffer | null = null;
   let contentType: string;
   let filename: string;
   const safeName = resumeData?.contact?.name?.trim() || "Resume";
-  let pdfResult: Awaited<ReturnType<typeof generatePdfWithDesign>> | null = null;
+  let pdfResult: PdfWithDesignResult | null = null;
 
   try {
     if (format === "pdf") {
-      console.log('[DOWNLOAD] Generating PDF with HTML template/design (fallbacks enabled)');
-      pdfResult = await generatePdfWithDesign(resumeData, id);
-      fileBuffer = pdfResult.buffer;
+      logger.info('Generating PDF for download with docker fallback', { optimizationId: id });
+      const cleanedResumeData = cleanResumeData(resumeData);
+      let designContext: PdfDesignContext | null = null;
+      let dockerAttempted = false;
+
+      try {
+        designContext = await resolvePdfDesignContext(supabase, id, user.id);
+        dockerAttempted = true;
+
+        const dockerResult = await callPDFService(
+          cleanedResumeData,
+          designContext.templateSlug,
+          designContext.customization
+        );
+
+        if (dockerResult.success && dockerResult.pdfBase64) {
+          const buffer = Buffer.from(dockerResult.pdfBase64, "base64");
+          pdfResult = {
+            buffer,
+            renderer: "docker",
+            templateSlug: dockerResult.metadata?.templateSlug ?? designContext.templateSlug,
+            usedDesignAssignment: designContext.usedDesignAssignment,
+          };
+          fileBuffer = buffer;
+          logger.info('Docker PDF generated successfully', {
+            optimizationId: id,
+            size: buffer.length,
+            templateSlug: pdfResult.templateSlug,
+          });
+        } else {
+          logger.warn('Docker PDF service returned error', {
+            optimizationId: id,
+            error: dockerResult.error,
+          });
+        }
+      } catch (dockerError) {
+        logger.warn('Docker PDF service failed, falling back to local renderer', { optimizationId: id }, dockerError);
+      }
+
+      if (!pdfResult) {
+        logger.info('Falling back to local PDF generation', { optimizationId: id, dockerAttempted });
+        if (dockerAttempted && designContext) {
+          pdfResult = await generatePdfWithDesign(resumeData, id, { skipDocker: true, designContext });
+        } else {
+          pdfResult = await generatePdfWithDesign(resumeData, id);
+        }
+        const buffer = pdfResult.buffer;
+        fileBuffer = buffer;
+        logger.info('Local PDF generated successfully', {
+          optimizationId: id,
+          size: buffer.length,
+        });
+      }
 
       contentType = "application/pdf";
       filename = `${safeName.replace(/\s+/g, '_')}_Resume.pdf`;
 
-      console.log(`[DOWNLOAD] PDF generated successfully, size: ${fileBuffer.length} bytes`);
     } else {
-      console.log('[DOWNLOAD] Generating DOCX (design support is limited)');
-      fileBuffer = await generateDocxWithDesign(resumeData, id);
+      logger.info('Generating DOCX for download', { optimizationId: id });
+      const buffer = await generateDocxWithDesign(resumeData, id);
+      fileBuffer = buffer;
 
       contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
       filename = `${safeName.replace(/\s+/g, '_')}_Resume.docx`;
 
-      console.log(`[DOWNLOAD] DOCX generated successfully, size: ${fileBuffer.length} bytes`);
+      logger.info('DOCX generated successfully', {
+        optimizationId: id,
+        size: buffer.length,
+      });
     }
   } catch (error) {
-    console.error('[DOWNLOAD] Error generating file:', error);
-    console.error('[DOWNLOAD] Error details:', {
+    const errorDetails: Record<string, unknown> = {
+      optimizationId: id,
+      format,
       message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    };
+    if (process.env.NODE_ENV === 'development' && error instanceof Error) {
+      errorDetails.stack = error.stack;
+    }
+    logger.error('Error generating download file', errorDetails, error);
     throw error;
+  }
+
+  // Safety check: ensure fileBuffer was generated
+  if (!fileBuffer) {
+    logger.error('File buffer missing after download generation', { optimizationId: id, format });
+    return NextResponse.json({ error: "Failed to generate file" }, { status: 500 });
   }
 
   const headers = new Headers();
@@ -95,6 +161,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     headers.set("X-Resume-Design-Assigned", pdfResult.usedDesignAssignment ? "1" : "0");
   }
 
-  console.log(`[DOWNLOAD] Sending file: ${filename}`);
-  return new NextResponse(fileBuffer, { headers });
+  logger.info('Sending download response', { optimizationId: id, filename, contentType });
+  const body = fileBuffer as unknown as BodyInit;
+  return new NextResponse(body, { headers });
 }

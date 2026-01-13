@@ -3,6 +3,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { remark } from 'remark';
 import html from 'remark-html';
+import { sanitizeBlogHtml } from './sanitize-html';
 
 const postsDirectory = path.join(process.cwd(), 'src/content/blog');
 
@@ -18,25 +19,27 @@ export interface BlogPost {
   tags?: string[];
 }
 
-export function getAllPosts(): BlogPost[] {
+export async function getAllPosts(): Promise<BlogPost[]> {
   if (!fs.existsSync(postsDirectory)) {
     return [];
   }
 
   const fileNames = fs.readdirSync(postsDirectory);
-  const allPosts = fileNames
-    .filter((fileName) => fileName.endsWith('.md'))
-    .map((fileName) => {
-      const slug = fileName.replace(/\.md$/, '');
-      return getPostBySlug(slug);
-    })
+  const allPosts = await Promise.all(
+    fileNames
+      .filter((fileName) => fileName.endsWith('.md'))
+      .map((fileName) => {
+        const slug = fileName.replace(/\.md$/, '');
+        return getPostBySlug(slug);
+      })
+  );
+
+  return allPosts
     .filter((post): post is BlogPost => post !== null)
     .sort((a, b) => (a.date > b.date ? -1 : 1));
-
-  return allPosts;
 }
 
-export function getPostBySlug(slug: string): BlogPost | null {
+export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
   try {
     const fullPath = path.join(postsDirectory, `${slug}.md`);
 
@@ -48,10 +51,10 @@ export function getPostBySlug(slug: string): BlogPost | null {
     const { data, content } = matter(fileContents);
 
     // Convert markdown to HTML
-    const processedContent = remark()
+    const processedContent = await remark()
       .use(html)
-      .processSync(content);
-    const contentHtml = processedContent.toString();
+      .process(content);
+    const contentHtml = sanitizeBlogHtml(processedContent.toString());
 
     // Calculate reading time (average 200 words per minute)
     const wordCount = content.split(/\s+/g).length;

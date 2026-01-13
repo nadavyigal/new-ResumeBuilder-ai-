@@ -11,7 +11,7 @@ import { setFieldValue } from '@/lib/resume/field-path-resolver';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createRouteHandlerClient();
@@ -26,7 +26,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const modificationId = params.id;
+    const { id } = await context.params;
+    const modificationId = id;
 
     // Get the modification to revert
     const { data: modification, error: modError } = await supabase
@@ -86,7 +87,7 @@ export async function POST(
       .insert({
         user_id: user.id,
         optimization_id: modification.optimization_id,
-        operation: 'replace', // Revert is always a replace
+        operation_type: 'replace', // Revert is always a replace
         field_path: modification.field_path,
         old_value: modification.new_value, // Current (new) becomes old
         new_value: modification.old_value, // Old becomes new

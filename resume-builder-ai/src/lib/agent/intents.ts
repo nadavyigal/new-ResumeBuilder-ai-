@@ -30,7 +30,7 @@ export async function classifyIntentLLM(command: string): Promise<Intent | null>
   try {
     const openai = new OpenAI({ apiKey });
     // Lightweight classification; keep cost minimal
-    const prompt = `Classify this resume-edit command into one intent: rewrite | add_skills | design | layout | ats_optimize | export | undo | redo | compare | save_history. Reply with just the label.\n\nCommand: ${command}`;
+    const prompt = `Classify this resume-edit command into one intent: rewrite | add_skills | design | layout | ats_optimize | optimize | export | undo | redo | compare | save_history. Reply with just the label.\n\nCommand: ${command}`;
     const resp = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       temperature: 0,

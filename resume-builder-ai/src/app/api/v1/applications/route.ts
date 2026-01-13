@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     if (!url && (!html || !optimizationId || !jobTitle || !company)) {
       return NextResponse.json({
         error: "Missing required fields",
-        required: ["url"] as string[] || ["html", "optimizationId", "jobTitle", "company"],
+        required: ["html", "optimizationId", "jobTitle", "company"],
       }, { status: 400 });
     }
 
@@ -152,9 +152,7 @@ export async function POST(req: NextRequest) {
       const { error: optionalErr } = await supabase
         .from("applications")
         .update({
-          // @ts-ignore - columns may not exist pre-migration
           source_url: sourceUrl || null,
-          // @ts-ignore - columns may not exist pre-migration
           job_extraction: extracted || null,
         } as any)
         .eq("id", appId)

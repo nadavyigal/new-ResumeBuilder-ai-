@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +22,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
   const [jobDescriptionUrl, setJobDescriptionUrl] = useState("");
   const [inputMode, setInputMode] = useState<"text" | "url">("text");
   const [submitting, setSubmitting] = useState(false);
+  const t = useTranslations("landing.uploadForm");
 
   const wordCount = useMemo(() => {
     if (inputMode !== "text") return 0;
@@ -59,7 +61,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
       <div className="space-y-2">
-        <Label htmlFor="resume">Upload resume (PDF)</Label>
+        <Label htmlFor="resume">{t("resumeLabel")}</Label>
         <Input
           id="resume"
           type="file"
@@ -69,12 +71,14 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           required
         />
         {resumeFile && (
-          <p className="text-xs text-foreground/60">Selected: {resumeFile.name}</p>
+          <p className="text-xs text-foreground/60">
+            {t("selectedFile", { fileName: resumeFile.name })}
+          </p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label>Job Description</Label>
+        <Label>{t("jobDescriptionLabel")}</Label>
         <div className="flex gap-2">
           <Button
             type="button"
@@ -82,7 +86,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             onClick={() => setInputMode("text")}
             className="flex-1"
           >
-            Paste Text
+            {t("inputModes.text")}
           </Button>
           <Button
             type="button"
@@ -90,7 +94,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             onClick={() => setInputMode("url")}
             className="flex-1"
           >
-            Enter URL
+            {t("inputModes.url")}
           </Button>
         </div>
         {inputMode === "text" ? (
@@ -98,15 +102,15 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Textarea
               id="jobDescription"
               data-testid="job-description-input"
-              placeholder="Paste the full job description here..."
+              placeholder={t("placeholders.description")}
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
               rows={6}
               required
             />
             <div className="flex items-center justify-between text-xs text-foreground/60">
-              <span>Minimum 100 words for accurate scoring.</span>
-              <span>{wordCount} words</span>
+              <span>{t("minimumWords")}</span>
+              <span>{t("wordCount", { count: wordCount })}</span>
             </div>
           </>
         ) : (
@@ -115,13 +119,13 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
               id="jobDescriptionUrl"
               data-testid="job-description-url-input"
               type="text"
-              placeholder="Paste job URL here (e.g., https://linkedin.com/jobs/view/123456)"
+              placeholder={t("placeholders.url")}
               value={jobDescriptionUrl}
               onChange={(event) => setJobDescriptionUrl(event.target.value)}
               required
             />
             <p className="text-xs text-foreground/60">
-              We will fetch the job description from the URL.
+              {t("urlHelper")}
             </p>
           </>
         )}
@@ -139,7 +143,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
         className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
         disabled={!canSubmit || submitting}
       >
-        {submitting ? "Checking..." : "Check My ATS Score"}
+        {submitting ? t("checking") : t("submit")}
       </Button>
     </form>
   );

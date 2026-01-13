@@ -9,16 +9,19 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatInputProps } from '@/types/chat';
+import { useTranslations } from 'next-intl';
 
 export function ChatInput({
   sessionId,
   onSend,
   disabled = false,
-  placeholder = 'Type your message...',
+  placeholder,
 }: ChatInputProps) {
+  const t = useTranslations('dashboard.chat.input');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const resolvedPlaceholder = placeholder || t('placeholder');
 
   const maxLength = 5000;
   const charactersRemaining = maxLength - message.length;
@@ -73,7 +76,7 @@ export function ChatInput({
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           disabled={disabled || isSubmitting}
           className={`
             w-full resize-none rounded-lg border border-gray-300
@@ -100,7 +103,7 @@ export function ChatInput({
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }
           `}
-          aria-label="Send message"
+          aria-label={t('send')}
         >
           {isSubmitting ? (
             <svg
@@ -149,12 +152,12 @@ export function ChatInput({
           ${charactersRemaining < 100 ? 'text-red-600' : 'text-gray-500'}
         `}
       >
-        {charactersRemaining} characters remaining
+        {t('charactersRemaining', { count: charactersRemaining })}
       </div>
 
       {/* Help Text */}
       <div className="mt-1 text-xs text-gray-500">
-        Press Enter to send, Shift+Enter for new line
+        {t('helpText')}
       </div>
     </form>
   );

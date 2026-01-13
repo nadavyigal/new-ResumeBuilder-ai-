@@ -19,7 +19,7 @@ import {
   FileText,
   Plus,
   TrendingUp,
-} from "lucide-react";
+} from "@/lib/icons";
 
 interface Application {
   id: string;

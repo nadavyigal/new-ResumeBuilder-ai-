@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/navigation";
+import { AlertTriangle } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
-import { formatDistance } from "@/lib/utils/format-distance";
 
 interface RateLimitMessageProps {
   resetAt: Date;
@@ -11,7 +12,26 @@ interface RateLimitMessageProps {
 
 export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
   const router = useRouter();
-  const timeUntilReset = formatDistance(resetAt, new Date());
+  const t = useTranslations("landing.rateLimit");
+  const timeUntilReset = useMemo(() => {
+    const diffMs = resetAt.getTime() - Date.now();
+    if (!Number.isFinite(diffMs) || diffMs <= 0) {
+      return t("time.soon");
+    }
+
+    const minutes = Math.ceil(diffMs / (60 * 1000));
+    if (minutes < 60) {
+      return t("time.minutes", { count: minutes });
+    }
+
+    const hours = Math.ceil(minutes / 60);
+    if (hours < 24) {
+      return t("time.hours", { count: hours });
+    }
+
+    const days = Math.ceil(hours / 24);
+    return t("time.days", { count: days });
+  }, [resetAt, t]);
 
   return (
     <div data-testid="rate-limit-message" className="space-y-4 text-center">
@@ -22,17 +42,17 @@ export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
       </div>
       <div className="space-y-2">
         <h3 className="text-xl font-semibold text-foreground">
-          You&apos;ve used your 5 free checks this week
+          {t("title")}
         </h3>
         <p className="text-sm text-foreground/70">
-          Resets in {timeUntilReset}. Sign up for unlimited checks and AI-powered fixes.
+          {t("description", { time: timeUntilReset })}
         </p>
       </div>
       <Button
         className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
         onClick={() => router.push("/auth/signup")}
       >
-        Sign Up Free
+        {t("cta")}
       </Button>
     </div>
   );

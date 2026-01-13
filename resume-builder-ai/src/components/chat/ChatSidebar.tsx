@@ -17,6 +17,8 @@ import type { Suggestion } from '@/lib/ats/types';
 import { useSectionSelection } from '@/hooks/useSectionSelection';
 import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
+import { logger } from '@/lib/agent/utils/logger';
+import { useTranslations } from 'next-intl';
 
 /**
  * Validate and deduplicate pending changes
@@ -41,19 +43,19 @@ function validateAndDeduplicatePendingChanges(
   for (const change of newChanges) {
     // Validate required fields
     if (!change.suggestionId || !change.suggestionText || !change.suggestionNumber) {
-      console.warn('Skipping invalid pending change (missing required fields):', change);
+      logger.warn('Skipping invalid pending change (missing required fields)', { change });
       continue;
     }
 
     // Skip duplicates
     if (seen.has(change.suggestionId)) {
-      console.warn('Skipping duplicate pending change:', change.suggestionId);
+      logger.warn('Skipping duplicate pending change', { suggestionId: change.suggestionId });
       continue;
     }
 
     // Validate status
     if (change.status !== 'pending' && change.status !== 'approved' && change.status !== 'rejected') {
-      console.warn('Invalid status for pending change, defaulting to pending:', change.status);
+      logger.warn('Invalid status for pending change, defaulting to pending', { status: change.status, suggestionId: change.suggestionId });
       change.status = 'pending';
     }
 
@@ -83,6 +85,7 @@ export function ChatSidebar({
   const [pendingChanges, setPendingChanges] = useState<PendingChange[]>([]);
   const [processingRequests, setProcessingRequests] = useState<Set<string>>(new Set());
   const { selection, clearSelection } = useSectionSelection();
+  const t = useTranslations('dashboard.chat');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -110,7 +113,7 @@ export function ChatSidebar({
       const response = await fetch(`/api/v1/chat/sessions?status=active`);
 
       if (!response.ok) {
-        throw new Error('Failed to load sessions');
+        throw new Error(t('errors.loadSessions'));
       }
 
       const data = await response.json();
@@ -125,8 +128,8 @@ export function ChatSidebar({
         await loadMessages(existingSession.id);
       }
     } catch (err) {
-      console.error('Error loading session:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load chat session');
+      logger.error('Error loading chat session', { optimizationId }, err);
+      setError(err instanceof Error ? err.message : t('errors.loadChatSession'));
     } finally {
       setIsLoading(false);
     }
@@ -138,14 +141,14 @@ export function ChatSidebar({
       const response = await fetch(`/api/v1/chat/sessions/${sid}`);
 
       if (!response.ok) {
-        throw new Error('Failed to load messages');
+        throw new Error(t('errors.loadMessages'));
       }
 
       const data = await response.json();
       setMessages(data.messages || []);
     } catch (err) {
-      console.error('Error loading messages:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load messages');
+      logger.error('Error loading chat messages', { sessionId: sid, optimizationId }, err);
+      setError(err instanceof Error ? err.message : t('errors.loadMessages'));
     }
   };
 
@@ -167,7 +170,7 @@ export function ChatSidebar({
           });
           setIsLoading(false);
           if (!res.ok) {
-            throw new Error(res.reason || 'Failed to apply refinement');
+            throw new Error(res.reason || t('errors.applyRefinement'));
           }
           setRefineResult(null);
           // Trigger refresh
@@ -214,17 +217,20 @@ export function ChatSidebar({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send message');
+        throw new Error(errorData.error || t('errors.sendMessage'));
       }
 
       const data: ChatSendMessageResponse = await response.json();
 
-      // DEBUG: Log full API response
-      console.log('🔍 FULL API RESPONSE:', JSON.stringify(data, null, 2));
-      console.log('🔍 Response keys:', Object.keys(data));
-      console.log('🔍 tips_applied exists?', 'tips_applied' in data, data.tips_applied);
-      console.log('🔍 design_customization exists?', 'design_customization' in data, data.design_customization);
-      console.log('🔍 onMessageSent defined?', typeof onMessageSent, !!onMessageSent);
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('Chat send response payload', {
+          responseKeys: Object.keys(data),
+          hasTipsApplied: !!data.tips_applied,
+          hasDesignCustomization: !!data.design_customization,
+          onMessageSentDefined: !!onMessageSent,
+          rawResponse: data,
+        });
+      }
 
       // Handle pending changes for ATS tip implementation
       if (data.pending_changes) {
@@ -237,7 +243,10 @@ export function ChatSidebar({
         );
 
         setPendingChanges(validatedChanges);
-        console.log('📝 Received pending changes for ATS tips:', validatedChanges);
+        logger.info('Received pending changes for ATS tips', {
+          optimizationId,
+          validatedChangesCount: validatedChanges.length,
+        });
 
         // Emit to parent for resume highlighting
         if (onPendingChanges) {
@@ -247,45 +256,68 @@ export function ChatSidebar({
 
       // Handle tip implementation - trigger refresh to show applied changes
       if (data.tips_applied) {
-        console.log('✅ TIPS_APPLIED DETECTED:', data.tips_applied);
-        console.log('🔍 Callback function defined?', typeof onMessageSent, !!onMessageSent);
+        logger.info('Tips applied in chat response', {
+          optimizationId,
+          tipsApplied: data.tips_applied,
+          hasOnMessageSent: !!onMessageSent,
+        });
 
         if (onMessageSent) {
-          console.log('✅ CALLING onMessageSent() for tips - IMMEDIATE TRIGGER');
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug('Calling onMessageSent after tips applied', { optimizationId });
+          }
           try {
             await onMessageSent();
-            console.log('✅ onMessageSent() completed successfully for tips');
+            if (process.env.NODE_ENV === 'development') {
+              logger.debug('onMessageSent completed after tips applied', { optimizationId });
+            }
           } catch (err) {
-            console.error('❌ ERROR calling onMessageSent:', err);
+            logger.error('Failed to invoke onMessageSent after tips applied', { optimizationId }, err);
           }
         } else {
-          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
-          console.error('❌ Component props:', { optimizationId, onDesignPreview: !!onDesignPreview, atsSuggestions: !!atsSuggestions });
+          logger.error('onMessageSent callback missing when tips applied', {
+            optimizationId,
+            onDesignPreviewProvided: !!onDesignPreview,
+            atsSuggestionsProvided: !!atsSuggestions,
+          });
         }
       }
 
       // Emit ephemeral design preview if provided
       if (data.design_customization) {
-        console.log('✅ DESIGN_CUSTOMIZATION DETECTED:', data.design_customization);
+        logger.info('Design customization provided', {
+          optimizationId,
+          hasOnDesignPreview: !!onDesignPreview,
+          designCustomization: data.design_customization,
+        });
+
         if (onDesignPreview) {
           try {
-            console.log('✅ CALLING onDesignPreview()');
+            if (process.env.NODE_ENV === 'development') {
+              logger.debug('Calling onDesignPreview callback', { optimizationId });
+            }
             onDesignPreview(data.design_customization);
-            console.log('✅ onDesignPreview() called successfully');
+            if (process.env.NODE_ENV === 'development') {
+              logger.debug('onDesignPreview callback completed', { optimizationId });
+            }
           } catch (err) {
-            console.error('❌ ERROR in onDesignPreview:', err);
+            logger.error('Error while executing onDesignPreview callback', { optimizationId }, err);
           }
         } else {
-          console.warn('⚠️ onDesignPreview is undefined');
+          logger.warn('onDesignPreview callback not provided', { optimizationId });
         }
 
         // Also trigger refresh to commit design changes from database
         if (onMessageSent) {
-          console.log('✅ CALLING onMessageSent() for design');
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug('Calling onMessageSent after design customization', { optimizationId });
+          }
           onMessageSent();
-          console.log('✅ onMessageSent() called successfully for design');
+          if (process.env.NODE_ENV === 'development') {
+            logger.debug('onMessageSent completed after design customization', { optimizationId });
+          }
         } else {
-          console.error('❌ ERROR: onMessageSent is undefined! Cannot trigger refresh!');
+          logger.error('onMessageSent callback missing while processing design customization', { optimizationId });
         }
       }
 
@@ -304,8 +336,8 @@ export function ChatSidebar({
         }
       }
     } catch (err) {
-      console.error('Error sending message:', err);
-      setError(err instanceof Error ? err.message : 'Failed to send message');
+      logger.error('Error sending chat message', { optimizationId }, err);
+      setError(err instanceof Error ? err.message : t('errors.sendMessage'));
 
       // Remove optimistic message on error
       setMessages((prev) => prev.filter((m) => !m.id.startsWith('temp-')));
@@ -322,15 +354,15 @@ export function ChatSidebar({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to close session');
+        throw new Error(t('errors.closeSession'));
       }
 
       // Reset state
       setSessionId(null);
       setMessages([]);
     } catch (err) {
-      console.error('Error closing session:', err);
-      setError(err instanceof Error ? err.message : 'Failed to close session');
+      logger.error('Error closing chat session', { sessionId, optimizationId }, err);
+      setError(err instanceof Error ? err.message : t('errors.closeSession'));
     }
   };
 
@@ -338,7 +370,7 @@ export function ChatSidebar({
   const handleApproveChange = async (suggestionId: string) => {
     // Prevent duplicate requests
     if (processingRequests.has(suggestionId)) {
-      console.log('Request already in progress for:', suggestionId);
+      logger.info('Approve request already in progress', { optimizationId, suggestionId });
       return;
     }
 
@@ -366,11 +398,10 @@ export function ChatSidebar({
         affected_fields: change.affectedFields,
       };
 
-      console.log('🔍 CLIENT - Sending approve request:', {
-        optimization_id: optimizationId,
-        suggestion_id: suggestionId,
-        affected_fields_count: change.affectedFields?.length || 0,
-        change
+      logger.info('Sending approve change request', {
+        optimizationId,
+        suggestionId,
+        affectedFieldsCount: change.affectedFields?.length || 0,
       });
 
       const response = await fetch('/api/v1/chat/approve-change', {
@@ -381,20 +412,24 @@ export function ChatSidebar({
         body: JSON.stringify(requestBody),
       });
 
-      console.log('🔍 CLIENT - Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok
-      });
+      if (process.env.NODE_ENV === 'development') {
+        logger.debug('Approve request response metadata', {
+          optimizationId,
+          suggestionId,
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+        });
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('❌ CLIENT - Error response:', errorData);
-        throw new Error(errorData.error || 'Failed to apply changes');
+        logger.error('Approve change request failed', { optimizationId, suggestionId, errorData });
+        throw new Error(errorData.error || t('errors.applyChanges'));
       }
 
       const responseData = await response.json();
-      console.log('✅ CLIENT - Success response:', responseData);
+      logger.info('Approve change request succeeded', { optimizationId, suggestionId, responseData });
 
       // Remove from pending changes
       const updatedChanges = pendingChanges.filter(c => c.suggestionId !== suggestionId);
@@ -410,8 +445,8 @@ export function ChatSidebar({
         onMessageSent();
       }
     } catch (err) {
-      console.error('Error approving change:', err);
-      setError(err instanceof Error ? err.message : 'Failed to approve changes');
+      logger.error('Error approving pending change', { optimizationId, suggestionId }, err);
+      setError(err instanceof Error ? err.message : t('errors.approveChanges'));
     } finally {
       // Always remove from processing set
       setProcessingRequests(prev => {
@@ -450,19 +485,18 @@ export function ChatSidebar({
       <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white flex-shrink-0 border-b border-blue-700">
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="text-2xl">🤖</span>
-            AI Assistant
+            {t('header.title')}
           </h2>
           <p className="text-xs text-blue-100 mt-0.5">
-            Refine content or customize design
+            {t('header.subtitle')}
           </p>
         </div>
         {sessionId && (
           <button
             onClick={handleCloseSession}
             className="p-1 hover:bg-blue-700 rounded transition-colors"
-            title="End session"
-            aria-label="End session"
+            title={t('header.endSession')}
+            aria-label={t('header.endSession')}
           >
             <svg
               className="w-5 h-5"
@@ -506,7 +540,7 @@ export function ChatSidebar({
                 onClick={() => setError(null)}
                 className="text-xs text-red-600 hover:text-red-800 underline mt-1"
               >
-                Dismiss
+                {t('error.dismiss')}
               </button>
             </div>
           </div>
@@ -553,14 +587,17 @@ export function ChatSidebar({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              <p className="text-sm text-gray-600">Loading chat...</p>
+              <p className="text-sm text-gray-600">{t('loading')}</p>
             </div>
           </div>
         ) : refineResult ? (
           <div className="space-y-2">
             {selection && (
               <div className="text-xs text-gray-600">
-                Suggestion for <span className="font-medium">{selection.field}</span> in <span className="font-mono">{selection.sectionId}</span>
+                {t.rich('refine.suggestionFor', {
+                  field: () => <span className="font-medium">{selection.field}</span>,
+                  section: () => <span className="font-mono">{selection.sectionId}</span>,
+                })}
               </div>
             )}
             <div className="p-3 bg-white border rounded text-sm whitespace-pre-wrap">{refineResult}</div>
@@ -568,11 +605,11 @@ export function ChatSidebar({
               <button
                 className="px-3 py-1 rounded bg-black text-white text-xs"
                 onClick={() => navigator.clipboard.writeText(refineResult)}
-              >Copy</button>
+              >{t('refine.copy')}</button>
               <button
                 className="px-3 py-1 rounded border text-xs"
                 onClick={() => { setRefineResult(null); clearSelection(); }}
-              >Clear</button>
+              >{t('refine.clear')}</button>
             </div>
           </div>
         ) : messages.length === 0 ? (
@@ -593,10 +630,10 @@ export function ChatSidebar({
                 />
               </svg>
               <p className="text-sm text-gray-600 mb-1">
-                Start a conversation with AI
+                {t('empty.title')}
               </p>
               <p className="text-xs text-gray-500">
-                Ask me to refine content, add skills, or change colors and fonts.
+                {t('empty.description')}
               </p>
             </div>
           </div>
@@ -620,11 +657,14 @@ export function ChatSidebar({
           sessionId={sessionId || ''}
           onSend={handleSendMessage}
           disabled={isLoading}
-          placeholder={selection ? 'Describe how to refine the selected text…' : "e.g., 'Add Python to skills' or 'Make headers blue'..."}
+          placeholder={selection ? t('input.selectionPlaceholder') : t('input.defaultPlaceholder')}
         />
         {selection && (
           <div className="px-4 py-2 text-xs text-gray-600 border-t bg-white">
-            Refining selection in <span className="font-mono">{selection.sectionId}</span> • <span className="font-medium">{selection.field}</span>
+            {t.rich('refine.selectionHint', {
+              section: () => <span className="font-mono">{selection.sectionId}</span>,
+              field: () => <span className="font-medium">{selection.field}</span>,
+            })}
           </div>
         )}
       </div>

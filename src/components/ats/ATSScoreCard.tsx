@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, TrendingUp } from '@/lib/icons';
 import { QuickWinsSection } from './QuickWinsSection';
+import { useTranslations } from 'next-intl';
 
 interface ATSScoreCardProps {
   scoreData: ATSScoreOutput;
@@ -17,18 +18,20 @@ interface ATSScoreCardProps {
 }
 
 export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProps) {
+  const t = useTranslations('dashboard.ats.scoreCard');
   const improvement = scoreData.ats_score_optimized - scoreData.ats_score_original;
   const improvementPercent = scoreData.ats_score_original > 0
     ? ((improvement / scoreData.ats_score_original) * 100).toFixed(1)
     : '0';
+  const confidenceLabel = getConfidenceLabel(scoreData.confidence, t);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>ATS Match Score</span>
+          <span>{t('title')}</span>
           <Badge variant={getConfidenceBadgeVariant(scoreData.confidence)}>
-            {getConfidenceLabel(scoreData.confidence)} Confidence
+            {t('confidence.label', { level: confidenceLabel })}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -36,11 +39,11 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         {/* Score Comparison */}
         <div className="flex items-center justify-between mb-6">
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1">Original</div>
+            <div className="text-sm text-gray-600 mb-1">{t('original')}</div>
             <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_original)}`}>
               {scoreData.ats_score_original}
             </div>
-            <div className="text-xs text-gray-500">out of 100</div>
+            <div className="text-xs text-gray-500">{t('outOf')}</div>
           </div>
 
           <div className="flex flex-col items-center px-4">
@@ -48,17 +51,17 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
             {improvement > 0 && (
               <div className="flex items-center gap-1 text-green-600">
                 <TrendingUp className="w-4 h-4" />
-                <span className="text-sm font-medium">+{improvement} pts</span>
+                <span className="text-sm font-medium">+{improvement}</span>
               </div>
             )}
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1">Optimized</div>
+            <div className="text-sm text-gray-600 mb-1">{t('optimized')}</div>
             <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_optimized)}`}>
               {scoreData.ats_score_optimized}
             </div>
-            <div className="text-xs text-gray-500">out of 100</div>
+            <div className="text-xs text-gray-500">{t('outOf')}</div>
           </div>
         </div>
 
@@ -66,17 +69,20 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         {improvement > 0 && (
           <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              <div>
-                <div className="font-medium text-green-900">
-                  {improvement} point improvement ({improvementPercent}%)
-                </div>
-                <div className="text-sm text-green-700">
-                  Your optimized resume scores significantly better!
+                <TrendingUp className="w-5 h-5 text-green-600" />
+                <div>
+                  <div className="font-medium text-green-900">
+                    {t('improvementTitle', {
+                      points: improvement,
+                      percent: improvementPercent,
+                    })}
+                  </div>
+                  <div className="text-sm text-green-700">
+                    {t('improvementDescription')}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
         )}
 
         {/* Quick Wins Section */}
@@ -90,16 +96,16 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         {showDetails && (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">Processing Time:</span>
+              <span className="text-gray-600">{t('processingTime')}</span>
               <span className="font-medium">{scoreData.metadata.processing_time_ms}ms</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Analyzers Used:</span>
+              <span className="text-gray-600">{t('analyzersUsed')}</span>
               <span className="font-medium">{scoreData.metadata.analyzers_used?.length || 8}/8</span>
             </div>
             {scoreData.metadata.warnings && scoreData.metadata.warnings.length > 0 && (
               <div className="mt-2 text-amber-600 text-xs">
-                ⚠️ {scoreData.metadata.warnings[0]}
+                {t('warning', { message: scoreData.metadata.warnings[0] })}
               </div>
             )}
           </div>
@@ -116,10 +122,13 @@ function getScoreColor(score: number): string {
   return 'text-red-600';
 }
 
-function getConfidenceLabel(confidence: number): string {
-  if (confidence >= 0.8) return 'High';
-  if (confidence >= 0.5) return 'Medium';
-  return 'Low';
+function getConfidenceLabel(
+  confidence: number,
+  t: ReturnType<typeof useTranslations>
+): string {
+  if (confidence >= 0.8) return t('confidence.high');
+  if (confidence >= 0.5) return t('confidence.medium');
+  return t('confidence.low');
 }
 
 function getConfidenceBadgeVariant(confidence: number): 'default' | 'secondary' | 'destructive' {

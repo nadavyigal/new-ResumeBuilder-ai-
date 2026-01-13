@@ -63,7 +63,7 @@ export interface OptimizationsResponse {
  */
 export interface OptimizationHistoryEntry {
   /** Optimization ID (unique identifier) */
-  id: number;
+  id: string;
 
   /** Creation timestamp (ISO 8601 format) */
   createdAt: string;
@@ -96,7 +96,7 @@ export interface OptimizationHistoryEntry {
   applicationDate?: string;
 
   /** Application ID if exists */
-  applicationId?: number;
+  applicationId?: string;
 }
 
 /**
@@ -138,7 +138,7 @@ export type ApplicationStatus =
  */
 export interface BulkDeleteRequest {
   /** Array of optimization IDs to delete (max 50) */
-  ids: number[];
+  ids: string[];
 }
 
 /**
@@ -153,7 +153,7 @@ export interface BulkDeleteResponse {
   deleted: number;
 
   /** Errors encountered (if any) */
-  errors?: Array<{ id: number; error: string }>;
+  errors?: Array<{ id: string; error: string }>;
 
   /** Information about preserved records */
   preserved: {
@@ -168,7 +168,7 @@ export interface BulkDeleteResponse {
  */
 export interface BulkExportRequest {
   /** Array of optimization IDs to export (max 20) */
-  ids: number[];
+  ids: string[];
 
   /** Whether to include metadata manifest file in ZIP */
   includeManifest?: boolean;

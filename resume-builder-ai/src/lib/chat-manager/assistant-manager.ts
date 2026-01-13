@@ -6,7 +6,9 @@
  */
 
 import OpenAI from 'openai';
-import type { Assistant, Thread, Run } from 'openai/resources/beta/index';
+import type { Assistant } from 'openai/resources/beta/assistants';
+import type { Thread } from 'openai/resources/beta/threads/threads';
+import type { Run } from 'openai/resources/beta/threads/runs/runs';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 
@@ -153,7 +155,9 @@ export class AssistantManager {
       await this.sleep(1000);
 
       console.log('Retrieving run status - thread:', resolvedThreadId, 'run:', run.id);
-      run = await this.client.beta.threads.runs.retrieve(resolvedThreadId, run.id);
+      run = await this.client.beta.threads.runs.retrieve(run.id, {
+        thread_id: resolvedThreadId,
+      });
 
       // Handle function calls
       if (run.status === 'requires_action' && run.required_action?.type === 'submit_tool_outputs') {
@@ -187,13 +191,10 @@ export class AssistantManager {
         }
 
         // Submit tool outputs to continue the run
-        run = await this.client.beta.threads.runs.submitToolOutputs(
-          resolvedThreadId,
-          run.id,
-          {
-            tool_outputs: toolOutputs
-          }
-        );
+        run = await this.client.beta.threads.runs.submitToolOutputs(run.id, {
+          thread_id: resolvedThreadId,
+          tool_outputs: toolOutputs
+        });
       }
     }
 

@@ -9,8 +9,12 @@
 
 import React from 'react';
 import type { ChatMessageProps } from '@/types/chat';
+import { useLocale, useTranslations } from 'next-intl';
 
 export function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
+  const t = useTranslations('dashboard.chat.message');
+  const locale = useLocale();
+  const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
   const isUser = message.sender === 'user';
 
   // Format timestamp
@@ -20,14 +24,13 @@ export function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 24) {
-      return date.toLocaleTimeString('en-US', {
+      return date.toLocaleTimeString(dateLocale, {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true,
       });
     }
 
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(dateLocale, {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',
@@ -54,7 +57,7 @@ export function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
               ${isUser ? 'text-blue-100' : 'text-gray-600'}
             `}
           >
-            {isUser ? 'You' : 'AI Assistant'}
+            {isUser ? t('you') : t('assistant')}
           </span>
           {message.metadata?.ai_model_version && (
             <span className="ml-2 text-xs text-gray-500">

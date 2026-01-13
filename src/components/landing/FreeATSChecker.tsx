@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Link, useRouter } from "@/navigation";
 import { Sparkles, ShieldCheck } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { UploadForm } from "@/components/landing/UploadForm";
@@ -55,6 +56,7 @@ export function FreeATSChecker() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rateLimitResetAt, setRateLimitResetAt] = useState<Date | null>(null);
   const router = useRouter();
+  const t = useTranslations("landing.atsChecker");
 
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_KEY);
@@ -84,8 +86,8 @@ export function FreeATSChecker() {
 
   const checksRemainingLabel = useMemo(() => {
     if (!scoreData) return null;
-    return `${scoreData.checksRemaining} free checks remaining`;
-  }, [scoreData]);
+    return t("checksRemaining", { count: scoreData.checksRemaining });
+  }, [scoreData, t]);
 
   const handleFileSelected = (file: File) => {
     posthog.capture("ats_checker_file_uploaded", {
@@ -151,7 +153,7 @@ export function FreeATSChecker() {
       }
 
       if (!response.ok) {
-        setErrorMessage(payload?.error || "Something went wrong. Please try again.");
+        setErrorMessage(payload?.error || t("errors.generic"));
         setStep("upload");
         return;
       }
@@ -163,7 +165,7 @@ export function FreeATSChecker() {
       setStep("results");
     } catch (error) {
       console.error("ATS check failed:", error);
-      setErrorMessage("Connection error. Please try again.");
+      setErrorMessage(t("errors.connection"));
       setStep("upload");
     }
   };
@@ -199,7 +201,7 @@ export function FreeATSChecker() {
               >
                 <Sparkles className="w-4 h-4 text-mobile-cta" />
                 <span className="text-sm font-semibold text-foreground">
-                  Free ATS Score Checker
+                  {t("badge")}
                 </span>
               </div>
 
@@ -208,46 +210,46 @@ export function FreeATSChecker() {
                   data-testid="ats-checker-heading"
                   className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
                 >
-                  See if your resume survives ATS filters
+                  {t("title")}
                 </h1>
                 <p className="text-lg text-foreground/80 leading-relaxed">
-                  Upload your resume, paste the job description or add the URL, and get an instant ATS compatibility score. No signup needed.
+                  {t("description")}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3">
                 <Badge variant="secondary" className="gap-2">
                   <ShieldCheck className="w-4 h-4" />
-                  ATS-safe scoring
+                  {t("badges.atsSafe")}
                 </Badge>
-                <Badge variant="secondary">Top 3 fixes free</Badge>
-                <Badge variant="secondary">5 checks per week</Badge>
+                <Badge variant="secondary">{t("badges.topFixes")}</Badge>
+                <Badge variant="secondary">{t("badges.weeklyChecks")}</Badge>
               </div>
 
               <div className="space-y-3 text-sm text-foreground/70">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  Powered by our ATS v2 scoring engine
+                  {t("bullets.v2Engine")}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  We only store hashes for privacy
+                  {t("bullets.hashPrivacy")}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
-                  Unlock AI fixes after signup
+                  {t("bullets.unlockFixes")}
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border/50">
                 <p className="text-sm text-foreground/60">
-                  Already have an account?{" "}
-                  <a
+                  {t("existingAccount")}{" "}
+                  <Link
                     href="/auth/signin"
                     className="text-mobile-cta hover:underline font-semibold"
                   >
-                    Log in here
-                  </a>
+                    {t("loginLink")}
+                  </Link>
                 </p>
               </div>
             </div>

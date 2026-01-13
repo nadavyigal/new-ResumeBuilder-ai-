@@ -12,9 +12,8 @@ import type {
   OptimizationsQueryParams,
   DateRangePreset,
   ScoreFilterPreset,
-  SCORE_FILTER_VALUES,
-  DATE_RANGE_DAYS,
 } from '@/types/history';
+import { SCORE_FILTER_VALUES, DATE_RANGE_DAYS } from '@/types/history';
 
 // ============================================================================
 // Search & Filter Functions

@@ -302,6 +302,8 @@ function renderHtml(
   resume: JsonResume,
   headers: SectionHeaderTranslations,
   mode: RenderMode,
+  direction: "ltr" | "rtl",
+  language: "en" | "he",
   customization?: DesignCustomizationLike
 ): string {
   const { palette, fonts, spacing, customCss } = applyCustomization(selectPalette(templateId), customization);
@@ -467,7 +469,7 @@ function renderHtml(
   const pageMaxWidth = isPdf ? '8.5in' : '900px';
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${language}" dir="${direction}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -480,8 +482,24 @@ function renderHtml(
       padding:${isPdf ? '0' : '24px'};
       background:${bodyBg};
       font-family: ${fonts.body}, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      direction: ${direction};
+      text-align: ${direction === "rtl" ? "right" : "left"};
       color: ${palette.text};
       ${spacing.lineHeight ? `line-height: ${spacing.lineHeight};` : ''}
+    }
+    p,
+    li,
+    .summary,
+    .job-title,
+    .job-meta,
+    .job-dates,
+    .edu-title,
+    .edu-meta,
+    .name,
+    .title,
+    .meta,
+    .meta-row {
+      unicode-bidi: plaintext;
     }
     .page {
       max-width: ${pageMaxWidth};
@@ -509,7 +527,7 @@ function renderHtml(
     .job-title { font-weight: 700; font-size: 13px; color:${palette.primary}; }
     .job-meta { font-size: 11.5px; color:${palette.secondary}; margin:4px 0; }
     .job-dates { font-size: 11px; color:${palette.accent}; font-weight:700; }
-    ul { margin:6px 0 0 16px; color:${palette.text}; font-size:12px; line-height:1.55; }
+    ul { margin:6px ${direction === "rtl" ? "16px" : "0"} 0 ${direction === "rtl" ? "0" : "16px"}; color:${palette.text}; font-size:12px; line-height:1.55; }
     li { margin-bottom:5px; }
     .edu { padding:8px 0; border-bottom:1px solid rgba(15,23,42,0.05); }
     .edu:last-child { border-bottom:none; }
@@ -551,6 +569,7 @@ export function renderDesignPreviewHtml(params: {
   const jsonResume = transformToJsonResume(resumeData);
   const detectedLanguage = detectResumeLanguage(resumeData, languagePreference);
   const sectionHeaders = getSectionHeaders(detectedLanguage);
-  return renderHtml(templateId, jsonResume, sectionHeaders, mode, customization);
+  const direction = detectedLanguage === "he" ? "rtl" : "ltr";
+  return renderHtml(templateId, jsonResume, sectionHeaders, mode, direction, detectedLanguage, customization);
 }
 

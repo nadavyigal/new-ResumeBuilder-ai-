@@ -11,6 +11,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Filter } from '@/lib/icons';
 import { TemplateCard } from './TemplateCard';
+import { useTranslations } from 'next-intl';
 
 interface DesignTemplate {
   id: string;
@@ -65,12 +66,13 @@ export function DesignBrowser({
   isApplying = false,
   applyingTemplateId = null
 }: DesignBrowserProps) {
+  const t = useTranslations('dashboard.design.browser');
   const [templates, setTemplates] = useState<DesignTemplate[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  const categories = ['traditional', 'modern', 'corporate', 'creative'];
+  const categories = ['traditional', 'modern', 'corporate', 'creative'] as const;
 
   useEffect(() => {
     if (isOpen) {
@@ -91,16 +93,16 @@ export function DesignBrowser({
       const response = await fetch(url.toString());
 
       if (!response.ok) {
-        throw new Error('Failed to fetch templates');
+        throw new Error(t('errors.fetchTemplates'));
       }
 
       const data = await response.json();
-      console.log('🎨 Design Browser - Response data:', data);
-      console.log('🎨 Design Browser - Templates count:', data.templates?.length || 0);
-      console.log('🎨 Design Browser - First template:', data.templates?.[0]);
+      console.log('Design Browser - Response data:', data);
+      console.log('Design Browser - Templates count:', data.templates?.length || 0);
+      console.log('Design Browser - First template:', data.templates?.[0]);
       setTemplates(data.templates || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load templates');
+      setError(err instanceof Error ? err.message : t('errors.loadTemplates'));
     } finally {
       setLoading(false);
     }
@@ -119,16 +121,16 @@ export function DesignBrowser({
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Choose a Design
+              {t('title')}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Select a template to customize your resume's appearance
+              {t('subtitle')}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
           >
             <X className="w-6 h-6 text-gray-500" />
           </button>
@@ -145,7 +147,7 @@ export function DesignBrowser({
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
             }`}
           >
-            All Templates
+            {t('allTemplates')}
           </button>
           {categories.map((category) => (
             <button
@@ -157,7 +159,7 @@ export function DesignBrowser({
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
               }`}
             >
-              {category}
+              {t(`categories.${category}`)}
             </button>
           ))}
         </div>
@@ -172,13 +174,13 @@ export function DesignBrowser({
 
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-800 dark:text-red-200">
-              <p className="font-medium">Error loading templates</p>
+              <p className="font-medium">{t('errorTitle')}</p>
               <p className="text-sm mt-1">{error}</p>
               <button
                 onClick={fetchTemplates}
                 className="mt-3 text-sm font-medium text-red-600 dark:text-red-400 hover:underline"
               >
-                Try again
+                {t('tryAgain')}
               </button>
             </div>
           )}
@@ -186,8 +188,9 @@ export function DesignBrowser({
           {!loading && !error && templates.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-600 dark:text-gray-400">
-                No templates found
-                {selectedCategory && ` in "${selectedCategory}" category`}
+                {selectedCategory
+                  ? t('emptyWithCategory', { category: t(`categories.${selectedCategory}`) })
+                  : t('empty')}
               </p>
             </div>
           )}
@@ -212,13 +215,13 @@ export function DesignBrowser({
         {/* Footer */}
         <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            {templates.length} template{templates.length !== 1 ? 's' : ''} available
+            {t('templatesAvailable', { count: templates.length })}
           </p>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium"
           >
-            Close
+            {t('close')}
           </button>
         </div>
       </div>

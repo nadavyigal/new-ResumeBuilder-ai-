@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/navigation";
 import { Calendar, ExternalLink, Briefcase, TrendingUp } from "@/lib/icons";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocale, useTranslations } from "next-intl";
 
 // Helper function to clean job titles (remove company name and LinkedIn suffix)
 function cleanJobTitle(title: string): string {
@@ -47,6 +47,9 @@ interface ApplicationCardProps {
 }
 
 export function ApplicationCard({ application, onMarkApplied }: ApplicationCardProps) {
+  const t = useTranslations("dashboard.applications.card");
+  const locale = useLocale();
+  const dateLocale = locale === "he" ? "he-IL" : "en-US";
   const [markingApplied, setMarkingApplied] = useState(false);
 
   const handleMarkApplied = async () => {
@@ -64,10 +67,10 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
   };
 
   const displayDate = application.apply_clicked_at
-    ? new Date(application.apply_clicked_at).toLocaleDateString()
-    : new Date(application.applied_date).toLocaleDateString();
+    ? new Date(application.apply_clicked_at).toLocaleDateString(dateLocale)
+    : new Date(application.applied_date).toLocaleDateString(dateLocale);
 
-  const companyName = application.job_extraction?.company_name || application.company_name || "Unknown Company";
+  const companyName = application.job_extraction?.company_name || application.company_name || t("unknownCompany");
   const jobTitle = cleanJobTitle(application.job_extraction?.job_title || application.job_title);
 
   return (
@@ -104,7 +107,7 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
                 <span className="text-lg font-bold leading-none">
                   {Math.round(application.ats_score)}
                 </span>
-                <span className="text-[10px] text-muted-foreground">ATS</span>
+                <span className="text-[10px] text-muted-foreground">{t("atsLabel")}</span>
               </div>
             </div>
           )}
@@ -113,7 +116,7 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
         {/* Metadata Row: Date */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Calendar className="w-3.5 h-3.5" />
-          <span>Applied {displayDate}</span>
+          <span>{t("appliedDate", { date: displayDate })}</span>
         </div>
 
         {/* Actions Row */}
@@ -126,7 +129,7 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
               className="flex-1 h-11 bg-mobile-cta hover:bg-mobile-cta-hover text-white font-medium"
             >
               <Link href={`/dashboard/optimizations/${application.optimization_id}`}>
-                View Resume
+                {t("viewResume")}
               </Link>
             </Button>
           ) : (
@@ -136,7 +139,7 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
               onClick={handleMarkApplied}
               disabled={markingApplied}
             >
-              {markingApplied ? "Marking..." : "Mark Applied"}
+              {markingApplied ? t("marking") : t("markApplied")}
             </Button>
           )}
 
@@ -152,7 +155,7 @@ export function ApplicationCard({ application, onMarkApplied }: ApplicationCardP
                 href={application.source_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open job posting"
+                title={t("openJobPosting")}
               >
                 <ExternalLink className="w-5 h-5" />
               </a>

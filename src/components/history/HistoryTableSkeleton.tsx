@@ -6,6 +6,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useTranslations } from 'next-intl';
 
 /**
  * HistoryTableSkeleton Component
@@ -15,17 +16,19 @@ import {
  * Displays a shimmer effect for 5 placeholder rows while data is being fetched.
  */
 export default function HistoryTableSkeleton() {
+  const t = useTranslations('dashboard.history.table');
+
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[180px]">Date Created</TableHead>
-            <TableHead>Job Title</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead className="w-[120px]">ATS Match %</TableHead>
-            <TableHead className="w-[120px]">Status</TableHead>
-            <TableHead className="text-right w-[200px]">Actions</TableHead>
+            <TableHead className="w-[180px]">{t('dateCreated')}</TableHead>
+            <TableHead>{t('jobTitle')}</TableHead>
+            <TableHead>{t('company')}</TableHead>
+            <TableHead className="w-[120px]">{t('atsMatch')}</TableHead>
+            <TableHead className="w-[120px]">{t('status')}</TableHead>
+            <TableHead className="text-right w-[200px]">{t('actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

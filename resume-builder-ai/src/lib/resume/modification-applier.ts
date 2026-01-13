@@ -271,7 +271,11 @@ function applyRemove(data: any, path: string): any {
     // Navigate to parent and delete property
     if (segments.length === 1) {
       // Top-level property
-      delete result[segments[0].key];
+      const onlySegment = segments[0];
+      if (onlySegment.type !== 'property') {
+        throw new Error('Cannot remove array index at root');
+      }
+      delete result[onlySegment.key];
     } else {
       // Nested property
       const parentPath = segments.slice(0, -1);
@@ -285,6 +289,9 @@ function applyRemove(data: any, path: string): any {
         }
       }
 
+      if (lastSegment.type !== 'property') {
+        throw new Error('Cannot remove array index without a property target');
+      }
       delete current[lastSegment.key];
     }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Linkedin, Twitter } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
@@ -11,13 +12,9 @@ interface SocialShareButtonProps {
   score: number;
 }
 
-const platformLabels: Record<SharePlatform, string> = {
-  linkedin: "LinkedIn",
-  twitter: "Twitter",
-};
-
 export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
   const testId = platform === "linkedin" ? "share-linkedin" : "share-twitter";
+  const t = useTranslations("landing.share");
 
   const handleShare = () => {
     if (typeof window === "undefined") return;
@@ -36,8 +33,8 @@ export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
     // Build platform-specific message with UTM-tracked URL
     const message =
       platform === "linkedin"
-        ? `I just checked my resume's ATS score - got ${score}/100. Check yours free at ${shareUrl}`
-        : `My resume scored ${score}/100 on ATS compatibility. Check yours free at ${shareUrl}`;
+        ? t("messageLinkedIn", { score, url: shareUrl })
+        : t("messageTwitter", { score, url: shareUrl });
 
     // Build share link
     const url =
@@ -62,7 +59,7 @@ export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
       ) : (
         <Twitter className="w-4 h-4 mr-2" />
       )}
-      Share on {platformLabels[platform]}
+      {t("label", { platform: t(`platform.${platform}`) })}
     </Button>
   );
 }

@@ -1,36 +1,38 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/navigation";
 import { usePathname } from "next/navigation";
-import { Home, Upload, User, Briefcase } from "lucide-react";
+import { Home, Upload, User, Briefcase } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  {
-    href: "/dashboard",
-    icon: Home,
-    label: "Home",
-  },
-  {
-    href: "/dashboard/applications",
-    icon: Briefcase,
-    label: "Applications",
-  },
-  {
-    href: "/dashboard/resume",
-    icon: Upload,
-    label: "Upload",
-    primary: true, // Highlighted action
-  },
-  {
-    href: "/dashboard/profile",
-    icon: User,
-    label: "Profile",
-  },
-];
+import { useTranslations } from "next-intl";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useTranslations("dashboard.nav");
+
+  const navItems = [
+    {
+      href: "/dashboard",
+      icon: Home,
+      label: t("home"),
+    },
+    {
+      href: "/dashboard/applications",
+      icon: Briefcase,
+      label: t("applications"),
+    },
+    {
+      href: "/dashboard/resume",
+      icon: Upload,
+      label: t("upload"),
+      primary: true, // Highlighted action
+    },
+    {
+      href: "/dashboard/profile",
+      icon: User,
+      label: t("profile"),
+    },
+  ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 pb-safe-bottom">

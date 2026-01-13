@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/useToast';
@@ -32,6 +33,7 @@ import { useToast } from '@/hooks/useToast';
  * ```
  */
 export function NewsletterSignup() {
+  const t = useTranslations('newsletter');
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -58,8 +60,8 @@ export function NewsletterSignup() {
 
       if (response.ok) {
         toast({
-          title: 'Success! 🎉',
-          description: 'Check your email to confirm your subscription.',
+          title: t('successTitle'),
+          description: t('successDescription'),
         });
         setEmail('');
 
@@ -72,14 +74,14 @@ export function NewsletterSignup() {
       } else {
         // Handle Buttondown error responses
         const errorText = await response.text();
-        let errorMessage = 'Failed to subscribe. Please try again.';
+        let errorMessage = t('errorGeneric');
 
         if (errorText.includes('already subscribed') || errorText.includes('duplicate')) {
-          errorMessage = 'This email is already subscribed!';
+          errorMessage = t('errorDuplicate');
         }
 
         toast({
-          title: 'Error',
+          title: t('errorTitle'),
           description: errorMessage,
           variant: 'destructive',
         });
@@ -87,8 +89,8 @@ export function NewsletterSignup() {
     } catch (error) {
       console.error('Newsletter signup error:', error);
       toast({
-        title: 'Error',
-        description: 'Something went wrong. Please try again.',
+        title: t('errorTitle'),
+        description: t('errorUnexpected'),
         variant: 'destructive',
       });
     } finally {
@@ -103,7 +105,7 @@ export function NewsletterSignup() {
           type="email"
           name="email"
           id="bd-email"
-          placeholder="your.email@example.com"
+          placeholder={t('placeholder')}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -111,11 +113,11 @@ export function NewsletterSignup() {
           className="flex-1"
         />
         <Button type="submit" disabled={loading} className="sm:w-auto">
-          {loading ? 'Subscribing...' : 'Subscribe'}
+          {loading ? t('subscribing') : t('subscribe')}
         </Button>
       </div>
       <p className="text-xs text-center text-foreground/60">
-        Get weekly resume tips, ATS insights, and career advice. Unsubscribe anytime.
+        {t('note')}
       </p>
     </form>
   );

@@ -30,7 +30,7 @@ export function tokenize(text: string, minLength: number = KEYWORD_THRESHOLDS.mi
 /**
  * Extract n-grams from text
  */
-export function extractNgrams(text: string, sizes: number[] = KEYWORD_THRESHOLDS.ngram_sizes): string[] {
+export function extractNgrams(text: string, sizes: readonly number[] = KEYWORD_THRESHOLDS.ngram_sizes): string[] {
   const tokens = tokenize(text);
   const ngrams: string[] = [];
 
@@ -90,7 +90,7 @@ export function findMissing<T>(set1: Set<T>, set2: Set<T>): T[] {
 /**
  * Count occurrences of patterns in text
  */
-export function countPatternMatches(text: string, patterns: RegExp[]): number {
+export function countPatternMatches(text: string, patterns: readonly RegExp[]): number {
   return patterns.reduce((count, pattern) => {
     const matches = text.match(new RegExp(pattern.source, 'g'));
     return count + (matches ? matches.length : 0);

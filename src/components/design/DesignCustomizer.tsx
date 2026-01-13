@@ -11,6 +11,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { Send, Loader2, AlertCircle, CheckCircle, X } from '@/lib/icons';
+import { useTranslations } from 'next-intl';
 
 interface CustomizationMessage {
   role: 'user' | 'assistant' | 'error';
@@ -34,12 +35,12 @@ export function DesignCustomizer({
   onClose,
   onCustomizationApplied
 }: DesignCustomizerProps) {
-  const [messages, setMessages] = useState<CustomizationMessage[]>([
+  const t = useTranslations('dashboard.design.customizer');
+  const [messages, setMessages] = useState<CustomizationMessage[]>(() => [
     {
       role: 'assistant',
-      content:
-        "Hi! I can help you customize your resume's design. Try asking me to:\n\n• Change colors: \"make headers dark blue\"\n• Update fonts: \"use Times New Roman for body text\"\n• Adjust spacing: \"increase line spacing\"\n\nI'll make sure all changes are ATS-friendly!"
-    }
+      content: t('welcome'),
+    },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,31 +101,37 @@ export function DesignCustomizer({
             ...prev,
             {
               role: 'error',
-              content: `❌ ATS Violation Detected\n\n${data.message || 'This change would make your resume less compatible with Applicant Tracking Systems.'}`,
+              content: t('errors.atsViolation', {
+                message: data.message || t('errors.atsViolationDetail'),
+              }),
               error: data.error,
-              clarificationNeeded: data.clarificationNeeded
-            }
+              clarificationNeeded: data.clarificationNeeded,
+            },
           ]);
         } else if (data.error === 'unclear_request') {
           setMessages((prev) => [
             ...prev,
             {
               role: 'assistant',
-              content: `I need more details to help you with that.\n\n${data.clarificationNeeded || 'Could you please be more specific about what you\'d like to change?'}`,
-              clarificationNeeded: data.clarificationNeeded
-            }
+              content: t('errors.needsDetails', {
+                message: data.clarificationNeeded || t('errors.needsDetailsDetail'),
+              }),
+              clarificationNeeded: data.clarificationNeeded,
+            },
           ]);
         } else if (data.error === 'fabrication') {
           setMessages((prev) => [
             ...prev,
             {
               role: 'error',
-              content: `❌ Invalid Request\n\n${data.clarificationNeeded || 'I can only modify visual design elements like colors, fonts, and spacing. I cannot add or modify resume content.'}`,
-              error: data.error
-            }
+              content: t('errors.invalidRequest', {
+                message: data.clarificationNeeded || t('errors.invalidRequestDetail'),
+              }),
+              error: data.error,
+            },
           ]);
         } else {
-          throw new Error(data.message || 'Failed to apply customization');
+          throw new Error(data.message || t('errors.applyCustomization'));
         }
       } else {
         // Success - update preview and add assistant response
@@ -133,7 +140,7 @@ export function DesignCustomizer({
           ...prev,
           {
             role: 'assistant',
-            content: `✅ ${data.reasoning || 'Applied successfully!'}`,
+            content: t('success.applied', { message: data.reasoning || t('success.appliedDefault') }),
             preview: data.preview,
             reasoning: data.reasoning
           }
@@ -147,7 +154,7 @@ export function DesignCustomizer({
         ...prev,
         {
           role: 'error',
-          content: `❌ Error: ${error instanceof Error ? error.message : 'Something went wrong. Please try again.'}`,
+          content: t('errors.generic', { message: error instanceof Error ? error.message : t('errors.genericDetail') }),
           error: 'internal_error'
         }
       ]);
@@ -165,16 +172,16 @@ export function DesignCustomizer({
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Customize with AI
+              {t('header.title')}
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-              Describe design changes in plain English
+              {t('header.subtitle')}
             </p>
           </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-            aria-label="Close"
+            aria-label={t('header.close')}
           >
             <X className="w-6 h-6 text-gray-500" />
           </button>
@@ -201,7 +208,7 @@ export function DesignCustomizer({
                 {message.clarificationNeeded && message.role === 'assistant' && (
                   <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      💡 Tip: Try being more specific about colors, fonts, or spacing.
+                      {t('messages.tip')}
                     </p>
                   </div>
                 )}
@@ -211,9 +218,7 @@ export function DesignCustomizer({
                     <button
                       onClick={() => setCurrentPreview(message.preview!)}
                       className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                    >
-                      View updated preview →
-                    </button>
+                    >{t('messages.viewPreview')}</button>
                   </div>
                 )}
               </div>
@@ -225,7 +230,7 @@ export function DesignCustomizer({
               <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                 <span className="text-gray-600 dark:text-gray-400">
-                  Analyzing your request...
+                  {t('processing')}
                 </span>
               </div>
             </div>
@@ -242,7 +247,7 @@ export function DesignCustomizer({
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="e.g., 'make headers dark blue' or 'use a larger font size'"
+              placeholder={t('input.placeholder')}
               disabled={isProcessing}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
             />
@@ -256,18 +261,18 @@ export function DesignCustomizer({
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              Send
+              {t('input.send')}
             </button>
           </form>
 
           <div className="mt-3 flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
             <div className="flex items-center gap-1">
               <CheckCircle className="w-3 h-3" />
-              ATS-safe changes only
+              {t('footer.atsSafe')}
             </div>
             <div className="flex items-center gap-1">
               <AlertCircle className="w-3 h-3" />
-              Content cannot be modified
+              {t('footer.contentLocked')}
             </div>
           </div>
         </div>
@@ -284,7 +289,7 @@ export function DesignCustomizer({
             >
               <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Updated Preview
+                  {t('preview.title')}
                 </h3>
                 <button
                   onClick={() => setCurrentPreview(null)}

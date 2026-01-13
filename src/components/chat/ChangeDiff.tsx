@@ -12,6 +12,7 @@
 
 import React from 'react';
 import type { ChangeDiffProps } from '@/types/chat';
+import { useTranslations } from 'next-intl';
 
 export function ChangeDiff({
   original,
@@ -19,6 +20,7 @@ export function ChangeDiff({
   showLineNumbers = true,
   splitView = false,
 }: ChangeDiffProps) {
+  const t = useTranslations('dashboard.chat.changeDiff');
   // Simple line-by-line diff
   const originalLines = original.split('\n');
   const modifiedLines = modified.split('\n');
@@ -81,7 +83,7 @@ export function ChangeDiff({
         {/* Original Column */}
         <div className="border border-gray-300 rounded-lg overflow-hidden">
           <div className="bg-gray-100 px-3 py-2 font-semibold text-gray-700">
-            Original
+            {t('original')}
           </div>
           <div className="divide-y divide-gray-200">
             {diffLines.map((line, index) => (
@@ -109,7 +111,7 @@ export function ChangeDiff({
         {/* Modified Column */}
         <div className="border border-gray-300 rounded-lg overflow-hidden">
           <div className="bg-gray-100 px-3 py-2 font-semibold text-gray-700">
-            Modified
+            {t('modified')}
           </div>
           <div className="divide-y divide-gray-200">
             {diffLines.map((line, index) => (
@@ -141,16 +143,16 @@ export function ChangeDiff({
   return (
     <div className="border border-gray-300 rounded-lg overflow-hidden font-mono text-sm">
       <div className="bg-gray-100 px-3 py-2 font-semibold text-gray-700 flex items-center justify-between">
-        <span>Changes</span>
+        <span>{t('changes')}</span>
         <div className="flex gap-4 text-xs">
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 bg-green-500 rounded"></span> Added
+            <span className="w-3 h-3 bg-green-500 rounded"></span> {t('added')}
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 bg-red-500 rounded"></span> Removed
+            <span className="w-3 h-3 bg-red-500 rounded"></span> {t('removed')}
           </span>
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 bg-yellow-500 rounded"></span> Modified
+            <span className="w-3 h-3 bg-yellow-500 rounded"></span> {t('modified')}
           </span>
         </div>
       </div>
