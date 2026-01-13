@@ -4,7 +4,8 @@
  */
 
 export async function parsePdf(dataBuffer: Buffer): Promise<{ text: string; numpages: number; info: any }> {
-  // Use require instead of import to load the externalized module at runtime
-  const pdfParse = require('pdf-parse');
+  // Load the externalized module at runtime
+  const pdfParseModule = await import('pdf-parse');
+  const pdfParse = pdfParseModule.default ?? pdfParseModule;
   return pdfParse(dataBuffer);
 }

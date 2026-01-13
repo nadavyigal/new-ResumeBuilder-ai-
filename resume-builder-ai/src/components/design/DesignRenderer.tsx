@@ -219,6 +219,11 @@ function InternalTemplateRenderer({
   languagePreference
 }: DesignRendererProps) {
   const t = useTranslations('dashboard.design');
+  const transformLabels = {
+    present: t('present'),
+    technical: t('skillLevelTechnical'),
+    soft: t('skillLevelSoft'),
+  };
   const [TemplateComponent, setTemplateComponent] = useState<React.ComponentType<any> | null>(
     null
   );
@@ -428,7 +433,9 @@ function InternalTemplateRenderer({
   // During transition, show previous component with overlay
   if (isTransitioning && previousComponent) {
     const PrevComp = previousComponent;
-    const componentData = templateSlug ? transformResumeData(resumeData) : resumeData;
+    const componentData = templateSlug
+      ? transformResumeData(resumeData, transformLabels)
+      : resumeData;
 
     const resumeWrapperClass =
       'resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-[820px] mx-auto';
@@ -578,11 +585,6 @@ function InternalTemplateRenderer({
   // Transform data for external templates (they expect JSON Resume format)
   // ATS template uses OptimizedResume format directly
   // Ensure we always have valid data, even if resumeData is null/undefined during transitions
-  const transformLabels = {
-    present: t('present'),
-    technical: t('skillLevelTechnical'),
-    soft: t('skillLevelSoft'),
-  };
   const componentData = templateSlug && resumeData
     ? transformResumeData(resumeData, transformLabels)
     : (resumeData || {});

@@ -8,12 +8,12 @@ const nextConfig: NextConfig = {
   // Vercel has its own optimized deployment pipeline for Next.js
   distDir: '.next',
   eslint: {
-    // Disable ESLint during builds to allow deployment
-    ignoreDuringBuilds: true,
+    // Enforce ESLint during builds
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    // Disable type checking during builds (still check in dev)
-    ignoreBuildErrors: true,
+    // Enforce type checking during builds
+    ignoreBuildErrors: false,
   },
   // Generate unique build ID to force cache invalidation on deployments
   generateBuildId: async () => {

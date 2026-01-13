@@ -134,7 +134,7 @@ export class CacheBustingErrorBoundary extends Component<Props, State> {
                       2
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium mb-2">If that doesn't work, Clear All Cache</p>
+                      <p className="font-medium mb-2">If that doesn&apos;t work, Clear All Cache</p>
                       <Button
                         onClick={this.handleClearCache}
                         variant="destructive"
@@ -158,7 +158,7 @@ export class CacheBustingErrorBoundary extends Component<Props, State> {
                   <ul className="text-sm text-amber-800 dark:text-amber-200 mt-2 space-y-1 list-disc list-inside">
                     <li>Open this page in an incognito/private window</li>
                     <li>Try a different browser</li>
-                    <li>Clear browser data in Settings (choose "Cached images and files")</li>
+                    <li>Clear browser data in Settings (choose &quot;Cached images and files&quot;)</li>
                   </ul>
                 </div>
               </div>

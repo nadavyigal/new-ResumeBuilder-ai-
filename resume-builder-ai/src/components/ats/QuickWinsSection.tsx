@@ -21,11 +21,11 @@ interface QuickWinsSectionProps {
 }
 
 export function QuickWinsSection({ quickWins, className }: QuickWinsSectionProps) {
+  const t = useTranslations('landing.quickWins');
   if (!quickWins || quickWins.length === 0) {
     return null;
   }
 
-  const t = useTranslations('landing.quickWins');
   const totalPotentialGain = quickWins.reduce((sum, qw) => sum + qw.estimated_impact, 0);
 
   return (

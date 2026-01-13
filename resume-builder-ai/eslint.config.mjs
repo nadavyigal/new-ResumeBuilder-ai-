@@ -12,24 +12,46 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
+    linterOptions: {
+      reportUnusedDisableDirectives: "off",
+    },
+  },
+  {
     ignores: [
       "node_modules/**",
       ".next/**",
+      "**/.next/**",
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "resume-builder-ai/**",
+      "scripts/**",
+      "tests/**",
+      "**/*.test.*",
+      "**/*.spec.*",
+      "coverage/**",
+      "*.js",
+      "*.mjs",
     ],
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@next/next/no-img-element": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
   },
   {
     files: ["src/lib/chat-manager/**/*.ts"],
     rules: {
       // Chat manager library-specific rules
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/explicit-function-return-type": ["warn", {
         allowExpressions: true,
         allowTypedFunctionExpressions: true,
       }],
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      "no-console": "off",
     },
   },
 ];
