@@ -150,7 +150,8 @@ export async function renderTemplatePreview(
 ): Promise<string> {
   try {
     // Load template component dynamically
-    const TemplateComponent = require(`../templates/external/${templateId}/Resume.jsx`).default;
+    const templateModule = await import(`../templates/external/${templateId}/Resume.jsx`);
+    const TemplateComponent = templateModule.default ?? templateModule;
 
     if (!TemplateComponent) {
       throw new Error(`Template component not found: ${templateId}`);
@@ -173,7 +174,7 @@ export async function renderTemplatePreview(
     };
 
     // Use ReactDOMServer from react-dom/server (compatible with Next.js 15)
-    const ReactDOMServer = require('react-dom/server');
+    const ReactDOMServer = await import('react-dom/server');
     const markup = ReactDOMServer.renderToString(React.createElement(TemplateComponent, props));
 
     // Generate customization CSS

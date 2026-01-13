@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { Filter, ArrowLeft } from "@/lib/icons";
 import { TemplateCard } from "@/components/design/TemplateCard";
+import { ROUTES } from "@/lib/constants";
 
 interface DesignTemplate {
   id: string;

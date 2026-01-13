@@ -6,7 +6,7 @@
  * Task: T017
  */
 
-import { getExternalTemplate, listExternalTemplates, TEMPLATE_REGISTRY } from '../templates/external';
+import { getExternalTemplate, listExternalTemplates } from '../templates/external';
 
 export interface TemplateComponent {
   (props: any): JSX.Element;
@@ -19,7 +19,7 @@ export interface TemplateComponent {
  * @throws Error if template not found
  */
 export async function loadTemplate(templateId: string): Promise<TemplateComponent> {
-  const template = getExternalTemplate(templateId);
+  const template = await getExternalTemplate(templateId);
 
   if (!template) {
     throw new Error(`Template not found: ${templateId}`);
@@ -42,7 +42,7 @@ export function listAvailableTemplates(): string[] {
  * @returns true if template exists, false otherwise
  */
 export function validateTemplate(templateId: string): boolean {
-  return TEMPLATE_REGISTRY.hasOwnProperty(templateId);
+  return listExternalTemplates().includes(templateId);
 }
 
 /**
