@@ -91,62 +91,62 @@
       "lockedDescription": "We found your biggest blockers. Create a free account to unlock the full issue list, tailored examples, and one-click improvements.",
       "lockedCta": "Continue free",
       "mainIssues": {
-        "title": "Top 3 main issues",
-        "subtitle": "These blockers most often prevent interviews. Fix them first to get the fastest lift in ATS match and recruiter clarity.",
+        "title": "Your 3 main issues",
+        "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix them first for the fastest lift.",
         "issueBadge": "Issue {index}",
         "pointsBadge": "+{points} pts",
         "whyLabel": "Why this matters",
         "exampleLabel": "Copy-paste example",
         "copy": "Copy",
         "copied": "Copied",
-        "continueTitle": "Want all fixes and auto-apply?",
-        "continueDescription": "Create a free account to unlock every issue, get smarter examples, and apply improvements in seconds.",
+        "continueTitle": "Want the full analysis and fixes?",
+        "continueDescription": "Create a free account to unlock every issue, smarter examples, and one-click improvements.",
         "continueCta": "Continue free",
         "categories": {
           "keywords": {
-            "title": "Missing critical skills & keywords",
-            "description": "The ATS cannot match you if the right terms are missing from Skills and recent achievements.",
-            "why": "ATS filters and recruiter searches rely on exact matches. Without the right keywords, strong experience can stay invisible.",
-            "fallbackTerm": "a critical job skill",
+            "title": "Missing role-critical skills",
+            "description": "ATS cannot confirm fit if key skills or keywords are missing from Skills or recent achievements.",
+            "why": "Recruiters and ATS filters rely on exact terms. Missing them can hide strong experience.",
+            "fallbackTerm": "a role-critical skill",
             "examples": {
-              "example1": "Skills: {term}, [Skill 2], [Skill 3], [Tool/Platform], [Methodology]",
-              "example2": "Applied {term} to [project/task], improving [KPI] by [X%] and reducing [cost/time] by [Y%]."
+              "example1": "Skills/Tools: {skillsList}",
+              "example2": "Nice-to-have (if accurate): {niceList}"
             }
           },
           "metrics": {
-            "title": "Achievements are not quantified",
-            "description": "Strong claims need numbers. Metrics make impact obvious, credible, and easier to compare.",
-            "why": "Hiring managers scan for measurable results to decide quickly who is worth a closer look.",
-            "fallbackTerm": "a key business KPI",
+            "title": "Impact isn't quantified",
+            "description": "Strong claims need numbers to be credible and easy to compare.",
+            "why": "Measurable results are what recruiters scan for first.",
+            "fallbackTerm": "a core KPI",
             "examples": {
-              "example1": "Led [initiative] across [team/region], increasing {term} by [X%] within [timeframe].",
-              "example2": "Reduced [cost/time/errors] by [Y%] by redesigning [process/system] and standardizing execution."
+              "example1": "Improved {metric} by [X%] by {action}, reducing [cost/time] by [Y%].",
+              "example2": "Led {initiative} across {scope}, delivering {result} in [timeframe]."
             }
           },
           "content": {
-            "title": "Target-role message is unclear",
-            "description": "Your resume should make it obvious which role you want and why you are a strong fit.",
-            "why": "Clarity improves semantic matching and gives recruiters confidence in seconds.",
+            "title": "Target role is unclear",
+            "description": "Your summary should state the role you want and the value you bring.",
+            "why": "Clear positioning improves semantic matching and recruiter confidence.",
             "fallbackTerm": "target job title",
             "examples": {
-              "example1": "Targeting {term} roles. I translate [domain expertise] into [business outcomes] using [skills/tools].",
-              "example2": "[Job Title] with [X]+ years in [domain], specializing in [Skill 1], [Skill 2], and {term}."
+              "example1": "Targeting {title} roles. I specialize in {skill1}, {skill2}, and {skill3} to drive [Outcome].",
+              "example2": "{title} with [X]+ years in [Industry], focused on {skill1}, {skill2}, and [Outcome]."
             }
           },
           "structure": {
             "title": "Core sections are thin or missing",
-            "description": "If summary, skills, or achievements are missing, the ATS has less signal to evaluate.",
-            "why": "Complete, standard sections improve parseability, keyword coverage, and recruiter scan speed.",
+            "description": "Missing summary, skills, or achievements reduces ATS signal.",
+            "why": "Complete sections boost parseability and keyword coverage.",
             "fallbackTerm": "a professional summary",
             "examples": {
-              "example1": "Professional Summary: [Job Title] with [X]+ years delivering [outcome] in [industry].",
-              "example2": "Skills: [Hard Skill 1], [Hard Skill 2], [Tool], [Domain Keyword], [Methodology]"
+              "example1": "Summary: [Job Title] with [X]+ years delivering [Outcome] in [Industry].",
+              "example2": "Skills: [Hard Skill 1], [Hard Skill 2], [Tool], [Domain Keyword], [Method]"
             }
           },
           "formatting": {
             "title": "Formatting may block ATS parsing",
-            "description": "Complex layouts, tables, and graphics can hide important information from ATS systems.",
-            "why": "If the ATS cannot read your content, it cannot match your qualifications.",
+            "description": "Tables, graphics, and complex layouts can hide content from ATS.",
+            "why": "If the ATS can't read it, it can't match you.",
             "fallbackTerm": "standard headings",
             "examples": {
               "example1": "Use standard headings: Summary | Experience | Skills | Education",
@@ -160,10 +160,10 @@
       "points": "+{points} pts",
       "quickWin": "Quick win",
       "categories": {
-        "keywords": "Missing keywords",
+        "keywords": "Missing skills/keywords",
         "metrics": "Missing metrics",
-        "content": "Role alignment",
-        "structure": "Structure",
+        "content": "Role clarity",
+        "structure": "Core sections",
         "formatting": "ATS formatting"
       }
     },
@@ -1328,62 +1328,62 @@
         "cta": "Open the assistant to apply fixes and see the full plan.",
         "collapsedPreview": "{count} quick wins available",
         "mainIssues": {
-          "title": "Your 3 main blockers",
-          "subtitle": "Fix these first for the biggest jump in match quality and recruiter clarity.",
+          "title": "Your 3 main issues",
+          "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix them first for the fastest lift.",
           "issueBadge": "Issue {index}",
           "pointsBadge": "+{points} pts",
           "whyLabel": "Why this matters",
           "exampleLabel": "Copy-paste example",
           "copy": "Copy",
           "copied": "Copied",
-          "continueTitle": "See the full improvement plan",
+          "continueTitle": "Want the full analysis and fixes?",
           "continueDescription": "Create a free account to unlock every issue, smarter examples, and one-click improvements.",
           "continueCta": "Continue free",
           "categories": {
             "keywords": {
-              "title": "Missing critical skills & keywords",
-              "description": "The ATS cannot match you if the right terms are missing from Skills and recent achievements.",
-              "why": "ATS filters and recruiter searches rely on exact matches. Without the right keywords, strong experience can stay invisible.",
-              "fallbackTerm": "a critical job skill",
+              "title": "Missing role-critical skills",
+              "description": "ATS cannot confirm fit if key skills or keywords are missing from Skills or recent achievements.",
+              "why": "Recruiters and ATS filters rely on exact terms. Missing them can hide strong experience.",
+              "fallbackTerm": "a role-critical skill",
               "examples": {
-                "example1": "Skills: {term}, [Skill 2], [Skill 3], [Tool/Platform], [Methodology]",
-                "example2": "Applied {term} to [project/task], improving [KPI] by [X%] and reducing [cost/time] by [Y%]."
+                "example1": "Skills/Tools: {skillsList}",
+                "example2": "Nice-to-have (if accurate): {niceList}"
               }
             },
             "metrics": {
-              "title": "Achievements are not quantified",
-              "description": "Strong claims need numbers. Metrics make impact obvious, credible, and easier to compare.",
-              "why": "Hiring managers scan for measurable results to decide quickly who is worth a closer look.",
-              "fallbackTerm": "a key business KPI",
+              "title": "Impact isn't quantified",
+              "description": "Strong claims need numbers to be credible and easy to compare.",
+              "why": "Measurable results are what recruiters scan for first.",
+              "fallbackTerm": "a core KPI",
               "examples": {
-                "example1": "Led [initiative] across [team/region], increasing {term} by [X%] within [timeframe].",
-                "example2": "Reduced [cost/time/errors] by [Y%] by redesigning [process/system] and standardizing execution."
+                "example1": "Improved {metric} by [X%] by {action}, reducing [cost/time] by [Y%].",
+                "example2": "Led {initiative} across {scope}, delivering {result} in [timeframe]."
               }
             },
             "content": {
-              "title": "Target-role message is unclear",
-              "description": "Your resume should make it obvious which role you want and why you are a strong fit.",
-              "why": "Clarity improves semantic matching and gives recruiters confidence in seconds.",
+              "title": "Target role is unclear",
+              "description": "Your summary should state the role you want and the value you bring.",
+              "why": "Clear positioning improves semantic matching and recruiter confidence.",
               "fallbackTerm": "target job title",
               "examples": {
-                "example1": "Targeting {term} roles. I translate [domain expertise] into [business outcomes] using [skills/tools].",
-                "example2": "[Job Title] with [X]+ years in [domain], specializing in [Skill 1], [Skill 2], and {term}."
+                "example1": "Targeting {title} roles. I specialize in {skill1}, {skill2}, and {skill3} to drive [Outcome].",
+                "example2": "{title} with [X]+ years in [Industry], focused on {skill1}, {skill2}, and [Outcome]."
               }
             },
             "structure": {
               "title": "Core sections are thin or missing",
-              "description": "If summary, skills, or achievements are missing, the ATS has less signal to evaluate.",
-              "why": "Complete, standard sections improve parseability, keyword coverage, and recruiter scan speed.",
+              "description": "Missing summary, skills, or achievements reduces ATS signal.",
+              "why": "Complete sections boost parseability and keyword coverage.",
               "fallbackTerm": "a professional summary",
               "examples": {
-                "example1": "Professional Summary: [Job Title] with [X]+ years delivering [outcome] in [industry].",
-                "example2": "Skills: [Hard Skill 1], [Hard Skill 2], [Tool], [Domain Keyword], [Methodology]"
+                "example1": "Summary: [Job Title] with [X]+ years delivering [Outcome] in [Industry].",
+                "example2": "Skills: [Hard Skill 1], [Hard Skill 2], [Tool], [Domain Keyword], [Method]"
               }
             },
             "formatting": {
               "title": "Formatting may block ATS parsing",
-              "description": "Complex layouts, tables, and graphics can hide important information from ATS systems.",
-              "why": "If the ATS cannot read your content, it cannot match your qualifications.",
+              "description": "Tables, graphics, and complex layouts can hide content from ATS.",
+              "why": "If the ATS can't read it, it can't match you.",
               "fallbackTerm": "standard headings",
               "examples": {
                 "example1": "Use standard headings: Summary | Experience | Skills | Education",
