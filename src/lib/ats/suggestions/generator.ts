@@ -238,6 +238,36 @@ const JOB_POSTING_PATTERNS: RegExp[] = [
   /\bbenefits?\b/i,
 ];
 
+const GENERIC_KEYWORD_PATTERNS: RegExp[] = [
+  /^job\s*title$/i,
+  /^title$/i,
+  /^company$/i,
+  /^company\s*name$/i,
+  /^about$/i,
+  /^about\s+this\s+job$/i,
+  /^nominal$/i,
+  /^nominal\s+about$/i,
+  /^responsibilities$/i,
+  /^requirements$/i,
+  /^qualifications$/i,
+  /^location$/i,
+  /^role$/i,
+  /^position$/i,
+];
+
+function isGenericKeyword(keyword: string): boolean {
+  const cleaned = keyword.trim().toLowerCase();
+  if (cleaned.length < 3) return true;
+  if (GENERIC_KEYWORD_PATTERNS.some((pattern) => pattern.test(cleaned))) return true;
+  if (cleaned.startsWith('job title')) return true;
+  if (cleaned.startsWith('company')) return true;
+  if (cleaned.startsWith('about')) return true;
+  if (cleaned.startsWith('responsibilit')) return true;
+  if (cleaned.startsWith('requirement')) return true;
+  if (cleaned.startsWith('qualification')) return true;
+  return false;
+}
+
 function normalizePhrase(phrase: string): string {
   return phrase
     .replace(/^[\W_]+|[\W_]+$/g, '')
@@ -305,6 +335,7 @@ function selectKeywordCandidates(evidence: any, jobData?: JobExtraction): {
     rawKeywords
       .map((keyword: string) => String(keyword).trim())
       .filter((keyword: string) => keyword.length >= 3)
+      .filter((keyword: string) => !isGenericKeyword(keyword))
   ).slice(0, 5);
 
   const missingMustHave = Math.max(
