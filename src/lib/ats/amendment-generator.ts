@@ -249,7 +249,7 @@ Analyze this suggestion and return the JSON array of affected fields with specif
         affectedFields,
         success: true,
       };
-    } catch (fallbackError) {
+    } catch {
       return {
         affectedFields: [],
         success: false,
@@ -270,6 +270,7 @@ async function generateAmendmentsHeuristic(
   resumeContent: OptimizedResume,
   context?: AmendmentGenerationContext
 ): Promise<AffectedField[]> {
+  void context;
   const affectedFields: AffectedField[] = [];
   const action = suggestion.action;
 

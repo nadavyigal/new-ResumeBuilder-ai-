@@ -8,7 +8,6 @@
 import OpenAI from 'openai';
 import type { Assistant } from 'openai/resources/beta/assistants';
 import type { Thread } from 'openai/resources/beta/threads/threads';
-import type { Run } from 'openai/resources/beta/threads/runs/runs';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 

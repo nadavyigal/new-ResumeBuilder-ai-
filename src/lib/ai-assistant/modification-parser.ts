@@ -162,7 +162,7 @@ export function parseModificationIntent(
 
   // Parse achievement modifications
   if (lowerMessage.includes('achievement')) {
-    return parseAchievementModification(message, lowerMessage, resumeContext);
+    return parseAchievementModification(message, lowerMessage);
   }
 
   // Generic experience modification (fallback)
@@ -485,8 +485,7 @@ function parseSummaryModification(
  */
 function parseAchievementModification(
   message: string,
-  lowerMessage: string,
-  context?: any
+  lowerMessage: string
 ): ModificationIntent {
   const fieldPath = 'experiences[latest].achievements';
 

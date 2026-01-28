@@ -8,7 +8,7 @@
 
 import { BaseAnalyzer } from './base';
 import type { AnalyzerInput, AnalyzerResult } from '../types';
-import { getEmbedding, cosineSimilarity, findMostSimilar } from '../utils/embeddings';
+import { getEmbedding, cosineSimilarity } from '../utils/embeddings';
 import { SEMANTIC_THRESHOLDS } from '../config/thresholds';
 import { extractSectionText } from '../extractors/resume-text-extractor';
 

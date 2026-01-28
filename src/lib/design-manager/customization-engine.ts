@@ -340,7 +340,7 @@ function parseDesignMessage(message: string): ParsedIntent {
   return result;
 }
 
-function mergeCustomization(current: any, parsed: ParsedIntent, templateId?: string) {
+function mergeCustomization(current: any, parsed: ParsedIntent) {
   const customization = JSON.parse(JSON.stringify(current || {}));
 
   customization.color_scheme = customization.color_scheme || {};
@@ -443,7 +443,7 @@ export async function validateAndApply(
     return interpreted;
   }
 
-  const customization = mergeCustomization(currentDesignConfig || {}, interpreted as ParsedIntent, templateId);
+  const customization = mergeCustomization(currentDesignConfig || {}, interpreted as ParsedIntent);
 
   const reasoningParts: string[] = [];
   const p = interpreted as ParsedIntent;
@@ -464,7 +464,7 @@ export async function validateAndApply(
   let preview = '';
   try {
     preview = await renderTemplatePreview(templateId, currentResumeContent, customization);
-  } catch (err) {
+  } catch {
     preview = '';
   }
 

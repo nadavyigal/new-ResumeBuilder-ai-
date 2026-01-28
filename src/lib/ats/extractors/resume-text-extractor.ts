@@ -168,7 +168,6 @@ export function hasRequiredSections(resume: OptimizedResume): {
   missing: string[];
   present: string[];
 } {
-  const required = ['summary', 'skills', 'experience', 'education'];
   const present: string[] = [];
   const missing: string[] = [];
 

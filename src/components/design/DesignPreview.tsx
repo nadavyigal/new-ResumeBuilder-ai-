@@ -29,6 +29,7 @@ export function DesignPreview({
   onClose,
   isOpen
 }: DesignPreviewProps) {
+  void optimizationId;
   const t = useTranslations('dashboard.design.preview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

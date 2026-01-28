@@ -14,7 +14,7 @@ import { logger } from "@/lib/agent/utils/logger";
  * GET /api/applications
  * FR-026: Get all applications for the current user
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
 

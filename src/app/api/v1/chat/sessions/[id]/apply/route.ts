@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getChatSession } from '@/lib/supabase/chat-sessions';
 import { createVersion, getLatestVersion } from '@/lib/chat-manager/versioning';
-import { processMessage } from '@/lib/chat-manager/processor';
 import type { ChatApplyAmendmentRequest, ChatApplyAmendmentResponse } from '@/types/chat';
 
 export async function POST(

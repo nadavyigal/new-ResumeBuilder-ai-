@@ -8,6 +8,7 @@ import { CountUp } from "@/components/ui/CountUp";
 import { IssueCard } from "@/components/landing/IssueCard";
 import { SocialShareButton } from "@/components/landing/SocialShareButton";
 import { QuickWinsSection } from "@/components/ats/QuickWinsSection";
+import { MainIssuesSummary } from "@/components/ats/MainIssuesSummary";
 import type { ATSCheckerResponse } from "@/components/landing/FreeATSChecker";
 import type { QuickWinSuggestion } from "@/lib/ats/types";
 
@@ -21,6 +22,7 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
   const score = data.score.overall;
   const { preview } = data;
   const t = useTranslations("landing.score");
+  const continueHandler = preview.lockedCount > 0 ? onSignup : undefined;
 
   const matchLabel =
     score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
@@ -40,6 +42,12 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
           <div className="text-xs text-foreground/60">{checksRemainingLabel}</div>
         )}
       </div>
+
+      <MainIssuesSummary
+        items={preview.topIssues}
+        baseKey="landing.score.mainIssues"
+        onContinue={continueHandler}
+      />
 
       <div data-testid="ats-issues-list" className="space-y-3">
         <h3 className="text-base font-semibold text-foreground">{t("topIssues")}</h3>

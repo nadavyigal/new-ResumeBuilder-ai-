@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -30,8 +29,6 @@ interface UpgradeModalProps {
 export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModalProps) {
   const t = useTranslations("dashboard.paywall");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
-
   const handleUpgrade = async () => {
     setLoading(true);
 

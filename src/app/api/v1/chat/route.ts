@@ -54,7 +54,6 @@ function applyAmendmentsToResume(
 
   for (const amendment of amendments) {
     const section = amendment.targetSection || 'summary';
-    const description = amendment.description.toLowerCase();
 
     try {
       switch (amendment.type) {
@@ -285,7 +284,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save user message using authenticated supabase client
-    const { data: userMessage, error: userMessageError } = await supabase
+    const { error: userMessageError } = await supabase
       .from('chat_messages')
       .insert({
         session_id: chatSession.id,
@@ -673,8 +672,6 @@ export async function POST(request: NextRequest) {
 
     // Sanitize error message before returning to client
     const userSafeMessage = sanitizeErrorForClient(error);
-    const errorDetails = error instanceof Error ? error.message : 'Unknown error occurred';
-
     return NextResponse.json(
       {
         error: userSafeMessage,

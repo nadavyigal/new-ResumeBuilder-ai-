@@ -136,7 +136,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
         job_title = job_title || jsonData.title || null;
         company_name = company_name || jsonData.hiringOrganization?.name || null;
       }
-    } catch (e) {
+    } catch {
       // JSON parsing failed, continue with other methods
     }
   }

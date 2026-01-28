@@ -50,6 +50,7 @@ export async function generateResumePDF(
   optimizationData: unknown,
   _template: string = 'default'
 ): Promise<Buffer> {
+  void _template;
   // Create new PDF document (Letter size: 8.5" x 11")
   const doc = new jsPDF({
     orientation: 'portrait',

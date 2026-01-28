@@ -21,7 +21,7 @@ export function SectionSelectionProvider({ children }: { children: React.ReactNo
 
   const value = useMemo(
     () => ({ selection, setSelection, beginSelection, clearSelection }),
-    [selection, beginSelection]
+    [selection, beginSelection, clearSelection]
   );
 
   return (

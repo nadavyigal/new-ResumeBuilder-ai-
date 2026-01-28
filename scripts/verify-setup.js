@@ -22,7 +22,7 @@ async function verifyTables() {
   
   for (const table of tables) {
     try {
-      const { data, error } = await supabaseService.from(table).select('count');
+      const { error } = await supabaseService.from(table).select('count');
       if (error) {
         console.log(`❌ Table '${table}': ${error.message}`);
         allTablesExist = false;
@@ -93,7 +93,7 @@ async function verifyRLS() {
 async function verifyAuthTrigger() {
   console.log('\n🎯 Checking Auth Trigger Function...');
   try {
-    const { data, error } = await supabaseService.rpc('handle_new_user');
+    const { error } = await supabaseService.rpc('handle_new_user');
     
     // The function should exist but fail without proper context
     if (error && !error.message.includes('does not exist')) {
@@ -106,7 +106,7 @@ async function verifyAuthTrigger() {
       console.log('✅ Auth Trigger: Function exists');
       return true;
     }
-  } catch (err) {
+  } catch {
     console.log('✅ Auth Trigger: Function exists (expected error in test context)');
     return true;
   }

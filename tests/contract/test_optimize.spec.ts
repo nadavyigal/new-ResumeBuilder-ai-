@@ -17,8 +17,6 @@ const TEST_TIMEOUT = 25000; // 25 seconds to account for network + processing
 
 describe('POST /api/upload-resume - Epic 3: AI Optimization', () => {
   let authToken: string;
-  let resumeId: string;
-  let jobDescriptionId: string;
 
   beforeAll(async () => {
     // Setup: Create test user and upload resume + job description

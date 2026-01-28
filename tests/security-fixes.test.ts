@@ -82,7 +82,7 @@ describe('Security Fixes Verification', () => {
     });
 
     it('should have RLS enabled on all critical tables', async () => {
-      const { data, error } = await supabase.rpc('pg_tables_with_rls', {});
+      const { error } = await supabase.rpc('pg_tables_with_rls', {});
 
       // Note: This requires a custom RPC function or we can check via policies
       // For now, we'll verify by attempting unauthorized access
@@ -91,7 +91,7 @@ describe('Security Fixes Verification', () => {
 
     it('should prevent users from accessing other users data (profiles)', async () => {
       // Try to access all profiles - should only return current user's profile
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('profiles')
         .select('*');
 
@@ -102,33 +102,28 @@ describe('Security Fixes Verification', () => {
     });
 
     it('should prevent users from accessing other users resumes', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('resumes')
         .select('*');
 
       if (data) {
         // Should only return current user's resumes
-        expect(data.every((resume: any) => {
-          // If authenticated, all should belong to current user
-          return true; // Further verification requires auth context
-        })).toBe(true);
+        expect(data.every(() => true)).toBe(true);
       }
     });
 
     it('should prevent users from accessing other users optimizations', async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('optimizations')
         .select('*');
 
       if (data) {
-        expect(data.every((opt: any) => {
-          return true; // Further verification requires auth context
-        })).toBe(true);
+        expect(data.every(() => true)).toBe(true);
       }
     });
 
     it('should allow authenticated users to view templates', async () => {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('templates')
         .select('*');
 
@@ -149,7 +144,7 @@ describe('Security Fixes Verification', () => {
 
     it('should have increment_optimizations_used function defined', async () => {
       // Query to check if function exists
-      const { data, error } = await supabase.rpc('increment_optimizations_used', {
+      const { error } = await supabase.rpc('increment_optimizations_used', {
         user_id_param: '00000000-0000-0000-0000-000000000000', // Invalid UUID for test
         max_allowed: 1
       });

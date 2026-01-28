@@ -5,7 +5,6 @@
 
 import http from 'http';
 import https from 'https';
-import fs from 'fs';
 import { createHash, randomUUID } from 'crypto';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
@@ -51,7 +50,7 @@ function makeRequest(options, data) {
               ? JSON.parse(body)
               : body
           });
-        } catch (e) {
+        } catch {
           resolve({
             status: res.statusCode,
             headers: res.headers,
@@ -182,13 +181,6 @@ async function testHashGeneration() {
 // Test 7: Environment variables check
 async function testEnvironmentVariables() {
   try {
-    const requiredEnvVars = [
-      'NEXT_PUBLIC_SUPABASE_URL',
-      'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-      'SUPABASE_SERVICE_ROLE_KEY',
-      'OPENAI_API_KEY'
-    ];
-
     // We can't check env vars directly, but we can verify the app is configured
     // by checking if it responds correctly
     const passed = true; // Assume configured if server is running

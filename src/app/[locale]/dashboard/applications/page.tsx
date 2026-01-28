@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@/navigation";
-import { Search, ArrowLeft, Briefcase, FileText } from "@/lib/icons";
+import { Search, ArrowLeft, Briefcase } from "@/lib/icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ApplicationCard } from "@/components/mobile/application-card";
 import { useTranslations } from "next-intl";
 
@@ -21,21 +20,6 @@ function cleanJobTitle(title: string): string {
     cleaned = hiringMatch[1].trim();
   }
   return cleaned;
-}
-
-// Helper function to detect if URL has easy apply
-function hasEasyApply(url: string | null | undefined, applicationInstructions: string[] | null | undefined): boolean {
-  if (!url) return false;
-  const lowerUrl = url.toLowerCase();
-  // Check if URL contains easy apply indicators
-  if (lowerUrl.includes("easyapply") || lowerUrl.includes("easy-apply") || lowerUrl.includes("easy_apply")) {
-    return true;
-  }
-  // Check if application instructions indicate easy apply
-  if (applicationInstructions && applicationInstructions.length > 0) {
-    return true;
-  }
-  return false;
 }
 
 interface ApplicationItem {
@@ -63,22 +47,28 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [createUrl, setCreateUrl] = useState("");
+  const queryRef = useRef(q);
 
-  const load = async () => {
+  useEffect(() => {
+    queryRef.current = q;
+  }, [q]);
+
+  const load = useCallback(async (overrideQuery?: string) => {
     setLoading(true);
     const url = new URL(`/api/v1/applications`, window.location.origin);
-    if (q) url.searchParams.set("q", q);
+    const query = overrideQuery ?? queryRef.current;
+    if (query) url.searchParams.set("q", query);
     const res = await fetch(url.toString(), { cache: "no-store" });
     if (res.ok) {
       const data = await res.json();
       setItems(data.applications || []);
     }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const createFromUrl = async () => {
     if (!createUrl.trim()) return;
@@ -172,7 +162,7 @@ export default function ApplicationsPage() {
                 onChange={(e) => setQ(e.target.value)}
                 className="bg-muted/80 border-2 border-border/70"
               />
-              <Button onClick={load} disabled={loading}>{t("search.button")}</Button>
+              <Button onClick={() => load()} disabled={loading}>{t("search.button")}</Button>
             </div>
             {/* Add Job URL Input */}
             <div className="flex items-center gap-2">
@@ -300,95 +290,6 @@ export default function ApplicationsPage() {
         )}
       </div>
     </div>
-  );
-}
-
-function OpenResumeButton({ id }: { id: string }) {
-  const t = useTranslations("dashboard.applications");
-  const [loading, setLoading] = useState(false);
-  const onOpen = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/v1/applications/${id}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.htmlUrl) window.open(data.htmlUrl, "_blank");
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <Button size="sm" onClick={onOpen} disabled={loading}>
-      {loading ? t("actions.opening") : t("actions.openResume")}
-    </Button>
-  );
-}
-
-function OpenOptimizedButton({ id, fallbackHtml }: { id: string; fallbackHtml?: boolean }) {
-  const t = useTranslations("dashboard.applications");
-  const [loading, setLoading] = useState(false);
-  const [url, setUrl] = useState<string | null>(null);
-  const onOpen = async () => {
-    setLoading(true);
-    try {
-      // Try open optimized resume first via details
-      const res = await fetch(`/api/v1/applications/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.application?.optimized_resume_url) {
-          window.open(data.application.optimized_resume_url, "_blank");
-          return;
-        }
-        if (fallbackHtml && data.htmlUrl) {
-          window.open(data.htmlUrl, "_blank");
-          return;
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <Button size="sm" onClick={onOpen} disabled={loading}>
-      {loading ? t("actions.opening") : t("actions.openOptimized")}
-    </Button>
-  );
-}
-
-function OpenOptimizedCircle({ id, optimizationId }: { id: string; optimizationId: string | null }) {
-  const t = useTranslations("dashboard.applications");
-  const [loading, setLoading] = useState(false);
-  const onOpen = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/v1/applications/${id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.application?.optimized_resume_url) {
-          window.open(data.application.optimized_resume_url, "_blank");
-          return;
-        }
-        if (data.htmlUrl) {
-          window.open(data.htmlUrl, "_blank");
-          return;
-        }
-      }
-      if (optimizationId) {
-        window.location.href = `/dashboard/optimizations/${optimizationId}`;
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-  return (
-    <button
-      onClick={onOpen}
-      disabled={loading}
-      className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-black text-white hover:opacity-90"
-      title={t("actions.openOptimizedTitle")}
-    >
-      {loading ? "..." : ">"}
-    </button>
   );
 }
 

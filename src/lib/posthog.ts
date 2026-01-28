@@ -27,7 +27,7 @@ export function initPostHog() {
       maskAllInputs: true,
       maskTextSelector: '[data-private]',
     },
-    loaded: (posthog) => {
+    loaded: () => {
       if (process.env.NODE_ENV === 'development') {
         console.log('PostHog initialized:', { apiHost, apiKey: apiKey.substring(0, 8) + '...' });
       }

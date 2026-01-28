@@ -124,7 +124,7 @@ export default function ResumeUploadPage() {
         throw new Error(errorData.error || t("errors.generic"));
       }
 
-      const { resumeId, jobDescriptionId, optimizationId } = await response.json();
+      const { optimizationId } = await response.json();
       router.push(`${ROUTES.optimizations}/${optimizationId}`);
     } catch (error: any) {
       if (error.name === 'AbortError') {

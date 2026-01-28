@@ -179,13 +179,13 @@ async function checkRLSPolicies() {
       // Test 1: Anonymous access (should fail with RLS)
       async () => {
         const anonClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-        const { data, error } = await anonClient.from(table).select('*').limit(1);
-        return { type: 'anonymous', data, error };
+        const { error } = await anonClient.from(table).select('*').limit(1);
+        return { type: 'anonymous', error };
       },
       // Test 2: Service role access (should succeed)
       async () => {
-        const { data, error } = await supabase.from(table).select('count').limit(0);
-        return { type: 'service_role', data, error };
+        const { error } = await supabase.from(table).select('count').limit(0);
+        return { type: 'service_role', error };
       }
     ];
 
@@ -223,7 +223,7 @@ async function checkAuthFlow() {
     } else if (data) {
       log(`  ✅ Current user context: ${data}`, 'green');
     }
-  } catch (e) {
+  } catch {
     log('  ℹ️  auth.uid() RPC test not available (expected in client-side RLS)', 'blue');
   }
 
@@ -278,7 +278,7 @@ async function checkForeignKeys() {
     log(`\n${description}:`, 'cyan');
 
     // Check if we can query the relationship
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from(child)
       .select(`${fkColumn}, ${parent}(id)`)
       .limit(1);
@@ -361,7 +361,7 @@ async function getSecurityAdvisorIssues() {
       name: 'Templates accessible to all users',
       check: async () => {
         const anonClient = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-        const { data, error } = await anonClient.from('design_templates').select('id').limit(1);
+        const { error } = await anonClient.from('design_templates').select('id').limit(1);
         return {
           passed: !error,
           details: error

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { createClientComponentClient } from '@/lib/supabase';
@@ -21,7 +21,7 @@ export default function ConfirmEmailPage() {
   // Get the full confirmation URL from the query params
   const confirmationUrl = searchParams.get('confirmation_url');
 
-  const handleConfirmation = async () => {
+  const handleConfirmation = useCallback(async () => {
     if (!confirmationUrl) {
       setError(t('invalidLinkError'));
       return;
@@ -61,7 +61,7 @@ export default function ConfirmEmailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [confirmationUrl, router, supabase, t]);
 
   // Auto-confirm on mount if we have a confirmation URL
   useEffect(() => {
@@ -72,7 +72,7 @@ export default function ConfirmEmailPage() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [confirmationUrl]);
+  }, [confirmationUrl, error, handleConfirmation, loading, success]);
 
   if (!confirmationUrl) {
     return (

@@ -18,6 +18,7 @@ export function applyPenalties(
   penalizedScore: number;
   appliedPenalties: Array<{ reason: string; amount: number }>;
 } {
+  void evidence;
   let penalizedScore = score;
   const appliedPenalties: Array<{ reason: string; amount: number }> = [];
 

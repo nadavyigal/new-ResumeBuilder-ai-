@@ -110,7 +110,7 @@ function identifyWeakSpots(subscores: SubScores): WeakSpot[] {
   const entries = Object.entries(subscores) as Array<[SubScoreKey, number]>;
 
   return entries
-    .filter(([_, score]) => score < 70) // Only include weak scores
+    .filter(([, score]) => score < 70) // Only include weak scores
     .sort((a, b) => a[1] - b[1]) // Sort ascending (worst first)
     .slice(0, 3) // Top 3 weakest
     .map(([name, score]) => ({

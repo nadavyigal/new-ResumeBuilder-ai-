@@ -6,7 +6,7 @@
  * Validates FR-010 to FR-014 at the library level
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import { optimizeResume, calculateMatchScore, extractKeywords } from '@/lib/ai-optimizer';
 
 const SAMPLE_RESUME = `

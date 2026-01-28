@@ -21,7 +21,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const logger = require('./utils/logger');
-const authMiddleware = require('./utils/auth');
 const errorHandler = require('./utils/error-handler');
 const { getBrowser, shutdown: shutdownBrowser } = require('./lib/pdf-generator');
 const generatePdfRouter = require('./routes/generate-pdf');

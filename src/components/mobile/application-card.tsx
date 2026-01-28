@@ -19,14 +19,6 @@ function cleanJobTitle(title: string): string {
   return cleaned;
 }
 
-// Get badge variant based on ATS score
-function getScoreBadgeVariant(score: number): "default" | "secondary" | "destructive" | "outline" | "success" {
-  if (score >= 90) return "default"; // High score - green
-  if (score >= 80) return "secondary"; // Good score - blue
-  if (score >= 70) return "outline"; // OK score - outline
-  return "destructive"; // Low score - red
-}
-
 interface ApplicationCardProps {
   application: {
     id: string;

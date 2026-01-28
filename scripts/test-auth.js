@@ -28,7 +28,7 @@ async function testConnection() {
     console.log('\n🔗 Testing Supabase Connection...');
     
     // Test basic connection
-    const { data, error } = await supabase.from('templates').select('count');
+    const { error } = await supabase.from('templates').select('count');
     
     if (error) {
       console.log(`❌ Connection failed: ${error.message}`);
@@ -76,7 +76,7 @@ async function testPolicies() {
     console.log('\n🛡️  Testing RLS Policies...');
     
     // This should fail without authentication (good!)
-    const { data, error } = await supabase.from('profiles').select('*');
+    const { error } = await supabase.from('profiles').select('*');
     
     if (error && error.message.includes('RLS')) {
       console.log('✅ RLS policies are active (expected behavior)');

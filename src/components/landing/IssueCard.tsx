@@ -9,6 +9,9 @@ interface IssueCardProps {
 
 export function IssueCard({ issue, rank }: IssueCardProps) {
   const t = useTranslations("landing.issueCard");
+  const categoryKey = issue.category?.trim().toLowerCase();
+  const categoryLabel =
+    categoryKey && t.has(`categories.${categoryKey}`) ? t(`categories.${categoryKey}`) : issue.category;
 
   return (
     <div
@@ -22,9 +25,9 @@ export function IssueCard({ issue, rank }: IssueCardProps) {
         <div className="flex-1 space-y-2">
           <p className="text-sm font-medium text-foreground">{issue.text}</p>
           <div className="flex flex-wrap items-center gap-2">
-            {issue.category && (
+            {categoryLabel && (
               <Badge variant="secondary" className="text-xs">
-                {issue.category}
+                {categoryLabel}
               </Badge>
             )}
             {typeof issue.estimated_gain === "number" && (

@@ -142,6 +142,7 @@ export async function deleteDesignAssignment(
   optimizationId: string,
   userId: string
 ): Promise<void> {
+  void userId;
   const { error } = await supabase
     .from('resume_design_assignments')
     .delete()

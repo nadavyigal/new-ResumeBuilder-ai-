@@ -1,8 +1,8 @@
 import { getRequestConfig } from 'next-intl/server';
 import { defaultLocale, locales, type Locale } from './locales';
 
-function isLocale(value: string): value is Locale {
-  return locales.includes(value as Locale);
+function isLocale(value?: string): value is Locale {
+  return !!value && locales.includes(value as Locale);
 }
 
 type Messages = Record<string, unknown>;

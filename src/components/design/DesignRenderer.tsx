@@ -174,7 +174,7 @@ function ExternalTemplateRenderer({
     };
 
     fetchHtml();
-  }, [templateSlug, resumeData, customization, refreshKey, languagePreference]);
+  }, [customization, languagePreference, refreshKey, resumeData, t, templateSlug]);
 
   if (loading) {
     return (
@@ -230,6 +230,11 @@ function InternalTemplateRenderer({
 
   // Get section headers in appropriate language (must be called at top level)
   const headers = useSectionHeaders(resumeData, languagePreference);
+  const transformLabels = {
+    present: t('present'),
+    technical: t('skillLevelTechnical'),
+    soft: t('skillLevelSoft'),
+  };
 
 	function handleMouseUp() {
 		try {
@@ -325,7 +330,7 @@ function InternalTemplateRenderer({
     }
 
     loadTemplate();
-  }, [templateSlug, TemplateComponent]); // Add TemplateComponent to dependencies
+  }, [TemplateComponent, t, templateSlug]); // Add TemplateComponent to dependencies
 
   // Force re-render when resumeData changes
   // Only update if not loading/transitioning to avoid race conditions
@@ -428,7 +433,9 @@ function InternalTemplateRenderer({
   // During transition, show previous component with overlay
   if (isTransitioning && previousComponent) {
     const PrevComp = previousComponent;
-    const componentData = templateSlug ? transformResumeData(resumeData) : resumeData;
+    const componentData = templateSlug && resumeData
+      ? transformResumeData(resumeData, transformLabels)
+      : (resumeData || {});
 
     const resumeWrapperClass =
       'resume-wrapper bg-white rounded-lg shadow-lg overflow-hidden w-full max-w-[820px] mx-auto';
@@ -463,7 +470,6 @@ function InternalTemplateRenderer({
   if (!TemplateComponent) {
     // Determine if RTL layout should be used
     const isRTL = shouldUseRTL(resumeData, languagePreference);
-    const directionClass = isRTL ? 'rtl' : 'ltr';
     const textAlignClass = isRTL ? 'text-right' : 'text-left';
     const listMarginClass = isRTL ? 'mr-5' : 'ml-5';
 
@@ -578,11 +584,6 @@ function InternalTemplateRenderer({
   // Transform data for external templates (they expect JSON Resume format)
   // ATS template uses OptimizedResume format directly
   // Ensure we always have valid data, even if resumeData is null/undefined during transitions
-  const transformLabels = {
-    present: t('present'),
-    technical: t('skillLevelTechnical'),
-    soft: t('skillLevelSoft'),
-  };
   const componentData = templateSlug && resumeData
     ? transformResumeData(resumeData, transformLabels)
     : (resumeData || {});

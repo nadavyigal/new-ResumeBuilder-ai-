@@ -32,14 +32,6 @@ function logSuccess(message) {
   log(`✅ ${message}`, colors.green);
 }
 
-function logWarning(message) {
-  log(`⚠️  ${message}`, colors.yellow);
-}
-
-function logInfo(message) {
-  log(`ℹ️  ${message}`, colors.blue);
-}
-
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout

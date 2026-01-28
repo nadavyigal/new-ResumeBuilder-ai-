@@ -72,7 +72,7 @@ function checkSupabaseCLI() {
   try {
     execSync('supabase --version', { stdio: 'pipe' });
     log('✅ Supabase CLI is installed', 'green');
-  } catch (error) {
+  } catch {
     log('❌ Supabase CLI not found', 'red');
     log('Install it with: npm install -g supabase', 'yellow');
     throw new Error('Supabase CLI is required');
@@ -98,7 +98,7 @@ function linkProject() {
       `supabase link --project-ref ${projectRef}`,
       'Linking to Supabase project'
     );
-  } catch (error) {
+  } catch {
     // If link fails, it might already be linked
     log('⚠️  Project might already be linked, continuing...', 'yellow');
   }
@@ -124,7 +124,7 @@ function runMigrations() {
 
   try {
     execCommand('supabase db push', 'Applying migrations to remote database');
-  } catch (error) {
+  } catch {
     log('⚠️  Migration push failed, trying alternative method...', 'yellow');
 
     // Try running migrations individually via psql if push fails
@@ -138,12 +138,6 @@ function runMigrations() {
 
 function validateDeployment() {
   log('\n✅ Validating deployment...', 'cyan');
-
-  const validationQueries = [
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'",
-    "SELECT COUNT(*) as template_count FROM templates",
-    "SELECT proname FROM pg_proc WHERE proname LIKE '%optimization%'"
-  ];
 
   // Note: This would require database connection to validate
   // For now, we'll just check that files were created

@@ -5,6 +5,7 @@ const logger = require('./logger');
  * Catches all errors and returns consistent JSON responses
  */
 function errorHandler(err, req, res, next) {
+  void next;
   // Log the full error
   logger.error('Request error:', {
     message: err.message,

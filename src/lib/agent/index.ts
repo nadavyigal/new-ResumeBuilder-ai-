@@ -5,7 +5,6 @@ import { JobLinkScraper } from "./tools/job-link-scraper";
 import { ResumeWriter } from "./tools/resume-writer";
 import { DesignOps } from "./tools/design-ops";
 import { LayoutEngine } from "./tools/layout-engine";
-import { SkillsMiner } from "./tools/skills-miner";
 import { ATS } from "./tools/ats";
 import { Versioning } from "./tools/versioning";
 import { HistoryStore } from "./tools/history-store";

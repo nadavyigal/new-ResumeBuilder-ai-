@@ -17,7 +17,6 @@ import {
   Calendar,
   ExternalLink,
   FileText,
-  Plus,
   TrendingUp,
 } from "@/lib/icons";
 

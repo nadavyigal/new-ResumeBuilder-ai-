@@ -597,47 +597,6 @@ export async function renderWithDesign(
     // Get template slug from design assignment
     const templateSlug = assignment.template.slug;
 
-    // Get customization if exists
-    const customization = assignment.customization || null;
-
-    // Transform resume data to format expected by design templates
-    const resumeData = {
-      personalInfo: {
-        fullName: resume.contact.name,
-        email: resume.contact.email,
-        phone: resume.contact.phone,
-        location: resume.contact.location,
-        linkedin: resume.contact.linkedin,
-        website: resume.contact.portfolio
-      },
-      summary: resume.summary,
-      experience: resume.experience.map(exp => ({
-        company: exp.company,
-        position: exp.title,
-        startDate: exp.startDate,
-        endDate: exp.endDate,
-        description: '',
-        achievements: exp.achievements
-      })),
-      education: resume.education.map(edu => ({
-        institution: edu.institution,
-        degree: edu.degree,
-        graduationDate: edu.graduationDate,
-        gpa: edu.gpa
-      })),
-      skills: resume.skills.technical.concat(resume.skills.soft || []),
-      certifications: (resume.certifications || []).map(cert => ({
-        name: cert,
-        issuer: '',
-        date: ''
-      })),
-      projects: (resume.projects || []).map(proj => ({
-        name: proj.name,
-        description: proj.description,
-        technologies: proj.technologies
-      }))
-    };
-
     // TEMPORARY FIX: Use built-in templates instead of external renderer
     // TODO: Implement proper design template rendering when template-renderer is fixed
     const templateType: TemplateType = templateSlug as TemplateType || 'ats-safe';

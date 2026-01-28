@@ -162,7 +162,6 @@ export function extractKeywords(text: string, maxKeywords: number = KEYWORD_THRE
   ];
 
   // Find all technical terms that appear in the text (case-insensitive)
-  const textLower = text.toLowerCase();
   for (const term of technicalTerms) {
     const regex = new RegExp(term, 'gi');
     const matches = text.match(regex);

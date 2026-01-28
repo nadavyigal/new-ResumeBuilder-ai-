@@ -3,6 +3,7 @@ import { getAllPosts, getPostBySlug } from '@/lib/blog';
 import { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import DOMPurify from 'isomorphic-dompurify';
+import Image from 'next/image';
 import { Link } from '@/navigation';
 
 export async function generateStaticParams() {
@@ -58,9 +59,12 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
       {/* Featured Image */}
       {post.coverImage && (
         <div className="mb-8">
-          <img
+          <Image
             src={post.coverImage}
             alt={post.title}
+            width={1200}
+            height={630}
+            sizes="100vw"
             className="w-full h-auto rounded-lg shadow-lg"
           />
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -9,7 +9,8 @@ function CompareContent() {
   const t = useTranslations("dashboard.applications.compare");
   const locale = useLocale();
   const dateLocale = locale === "he" ? "he-IL" : "en-US";
-  const ids = (sp.get("ids") || "").split(",").filter(Boolean);
+  const idsParam = sp.get("ids") || "";
+  const ids = useMemo(() => idsParam.split(",").filter(Boolean), [idsParam]);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +29,7 @@ function CompareContent() {
       setLoading(false);
     };
     if (ids.length) load();
-  }, [ids.join(",")]);
+  }, [ids]);
 
   if (loading) return <div className="p-6">{t("loading")}</div>;
   if (!ids.length) return <div className="p-6">{t("empty")}</div>;

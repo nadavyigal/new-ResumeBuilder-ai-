@@ -26,7 +26,7 @@ export function generateSuggestions(params: {
   targetScore?: number; // Target score to reach (default: 85)
   jobData?: JobExtraction;
 }): Suggestion[] {
-  const { subscores, analyzerResults, targetScore = 85, jobData } = params;
+  const { subscores, analyzerResults, jobData } = params;
 
   const suggestions: Suggestion[] = [];
 
@@ -65,7 +65,7 @@ export function generateSuggestions(params: {
   }
 
   // Rank and filter suggestions
-  return rankSuggestions(suggestions, targetScore).slice(0, SUGGESTION_THRESHOLDS.max_suggestions);
+  return rankSuggestions(suggestions).slice(0, SUGGESTION_THRESHOLDS.max_suggestions);
 }
 
 /**
@@ -213,7 +213,7 @@ function generateSuggestionId(subscore: SubScoreKey, text: string): string {
 /**
  * Rank suggestions by impact and effort
  */
-function rankSuggestions(suggestions: Suggestion[], targetScore: number): Suggestion[] {
+function rankSuggestions(suggestions: Suggestion[]): Suggestion[] {
   return suggestions.sort((a, b) => {
     // Quick wins first
     if (a.quick_win && !b.quick_win) return -1;

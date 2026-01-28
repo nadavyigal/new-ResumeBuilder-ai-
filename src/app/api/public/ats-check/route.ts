@@ -258,7 +258,7 @@ async function resolveJobDescriptionFromUrl(rawUrl: string) {
   try {
     const extracted = await extractJob(normalizedUrl);
     extractedText = buildJobDescriptionFromExtracted(extracted);
-  } catch (error) {
+  } catch {
     extractedText = '';
   }
 
@@ -271,7 +271,7 @@ async function resolveJobDescriptionFromUrl(rawUrl: string) {
     if (scraped && scraped.trim().length > 0) {
       return scraped.trim();
     }
-  } catch (error) {
+  } catch {
     // Fall through to error below.
   }
 

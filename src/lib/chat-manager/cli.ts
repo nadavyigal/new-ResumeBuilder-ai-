@@ -55,6 +55,7 @@ export async function runCLI(): Promise<void> {
  * Handle CLI command and return response
  */
 async function handleCommand(command: CLICommand): Promise<CLIResponse> {
+  void command;
   // Implementation will be added during core implementation phase
   // This stub satisfies TDD requirement for library structure
   return {

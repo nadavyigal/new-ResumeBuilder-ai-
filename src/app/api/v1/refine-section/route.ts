@@ -47,16 +47,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Malformed AI response' }, { status: 502 });
     }
 
+    const suggestionText = typeof parsed.suggestion === 'string' ? parsed.suggestion : '';
+    if (!suggestionText.trim()) {
+      return NextResponse.json({ error: 'Malformed AI response' }, { status: 502 });
+    }
+
     const validation = validateRefineSuggestion(
       body.selection.text,
-      parsed.suggestion,
+      suggestionText,
       body.constraints?.maxChars
     );
 
+    const keywordsApplied = Array.isArray(parsed.keywordsApplied)
+      ? parsed.keywordsApplied.filter((item) => typeof item === 'string')
+      : [];
+    const rationale = typeof parsed.rationale === 'string' ? parsed.rationale : undefined;
+
     const response: RefineSectionResponse = {
-      suggestion: parsed.suggestion.trim(),
-      keywordsApplied: Array.isArray(parsed.keywordsApplied) ? parsed.keywordsApplied : [],
-      rationale: parsed.rationale || undefined,
+      suggestion: suggestionText.trim(),
+      keywordsApplied,
+      rationale,
       flags: validation.flags.length ? validation.flags : undefined,
     };
 
