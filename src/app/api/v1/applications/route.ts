@@ -330,12 +330,12 @@ export async function GET(req: NextRequest) {
             if (!a.job_title && meta.jobTitle) a.job_title = meta.jobTitle;
             if (!a.source_url && meta.sourceUrl) a.source_url = meta.sourceUrl;
             if (a.ats_score == null && (meta.atsScore != null)) a.ats_score = meta.atsScore;
-          } catch (_) {
+          } catch {
             // ignore malformed
           }
         }
       }));
-    } catch (_) {
+    } catch {
       // ignore storage errors
     }
 

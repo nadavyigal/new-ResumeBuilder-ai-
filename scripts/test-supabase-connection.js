@@ -83,7 +83,7 @@ async function testSupabaseConnection() {
     // Step 3: Test authentication service
     log('\n3. Testing Authentication Service...', colors.magenta);
     
-    const { data, error } = await supabase.auth.getSession();
+    const { error } = await supabase.auth.getSession();
     if (error) {
       logWarning(`Auth service accessible but no active session: ${error.message}`);
     } else {
@@ -114,7 +114,7 @@ async function testSupabaseConnection() {
     const tables = ['profiles', 'resumes', 'job_descriptions', 'optimizations', 'events'];
     
     for (const table of tables) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from(table)
         .select('count', { count: 'exact' })
         .limit(0);
@@ -154,7 +154,7 @@ async function testRLSConfiguration() {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
     
     // Test RLS status query using service role
-    const { data, error } = await supabaseAdmin
+    const { error } = await supabaseAdmin
       .rpc('check_rls_status');
 
     if (error) {

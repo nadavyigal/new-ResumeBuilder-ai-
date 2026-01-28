@@ -1,6 +1,7 @@
 import { getAllPosts } from '@/lib/blog';
 import { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
+import Image from 'next/image';
 import { Link } from '@/navigation';
 
 export const metadata: Metadata = {
@@ -35,9 +36,12 @@ export default async function BlogIndex() {
             {/* Featured Image */}
             {post.coverImage && (
               <div className="aspect-video overflow-hidden">
-                <img
+                <Image
                   src={post.coverImage}
                   alt={post.title}
+                  width={800}
+                  height={450}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
               </div>

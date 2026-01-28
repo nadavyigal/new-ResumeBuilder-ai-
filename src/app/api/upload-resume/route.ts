@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { parsePdf } from "@/lib/pdf-parser";
-import { cookies } from "next/headers";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
         if (extracted.responsibilities?.length) parts.push(`Responsibilities: ${extracted.responsibilities.join("; ")}`);
         if (extracted.qualifications?.length) parts.push(`Qualifications: ${extracted.qualifications.join("; ")}`);
         jobDescriptionText = parts.join("\n");
-      } catch (e) {
+      } catch {
         // Fallback to simple scraper if structured extraction fails
         try {
           const text = await scrapeJobDescription(jobDescriptionUrl);

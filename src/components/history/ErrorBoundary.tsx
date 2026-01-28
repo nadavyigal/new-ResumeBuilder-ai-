@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from '@/lib/icons';
 import { useTranslations } from 'next-intl';
@@ -160,12 +161,12 @@ function ErrorBoundaryContent({
         {/* Help Text */}
         <p className="text-xs text-muted-foreground">
           {t('helpText')}{' '}
-          <a
+          <Link
             href="/support"
             className="underline underline-offset-2 hover:text-foreground"
           >
             {t('contactSupport')}
-          </a>
+          </Link>
           .
         </p>
       </div>

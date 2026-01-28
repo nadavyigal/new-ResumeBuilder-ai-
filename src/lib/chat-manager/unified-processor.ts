@@ -6,13 +6,12 @@
  * context tracking for natural multi-turn conversations.
  */
 
-import { AssistantManager, type RunAssistantInput, type FunctionCall } from './assistant-manager';
+import { AssistantManager, type RunAssistantInput } from './assistant-manager';
 import {
   isUpdateDesignParams,
   isUpdateContentParams,
   isClarifyRequestParams,
   type UpdateDesignParams,
-  type UpdateContentParams
 } from './assistant-functions';
 import {
   createEmptyContext,

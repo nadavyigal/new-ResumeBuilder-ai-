@@ -5,8 +5,10 @@ import { AppLayout } from "@/components/layout/app-layout";
 
 export default async function DashboardLayout({
   children,
+  params,
 }: {
   children: ReactNode;
+  params: { locale: string };
 }) {
   const supabase = await createServerComponentClient();
   const {
@@ -14,7 +16,7 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/signin");
+    redirect({ href: "/auth/signin", locale: params.locale });
   }
 
   return <AppLayout user={user}>{children}</AppLayout>;

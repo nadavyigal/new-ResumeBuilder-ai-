@@ -96,13 +96,13 @@ async function applySchema() {
       const command = statement.split('\n')[0].substring(0, 60) + '...';
       logInfo(`SQL: ${command}`);
 
-      const { data, error } = await supabase.rpc('exec_sql', {
+      const { error } = await supabase.rpc('exec_sql', {
         sql: statement
       });
 
       if (error) {
         // Try direct execution for some statements
-        const { data: directData, error: directError } = await supabase
+        const { error: directError } = await supabase
           .from('_temp_exec')
           .select('*')
           .limit(0);
@@ -167,7 +167,7 @@ async function verifySchema() {
   
   for (const table of tables) {
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from(table)
         .select('count', { count: 'exact' })
         .limit(0);

@@ -3,7 +3,6 @@ import { applySuggestionsWithTracking } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ModificationOperation } from '../../resume/modification-applier';
 
 interface AgentContext {
   message: string;

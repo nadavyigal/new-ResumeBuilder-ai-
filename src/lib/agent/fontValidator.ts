@@ -185,7 +185,7 @@ export function validateFont(fontName: string): FontMapping | null {
   }
 
   // Check aliases
-  for (const [key, mapping] of Object.entries(FONT_LIBRARY)) {
+  for (const mapping of Object.values(FONT_LIBRARY)) {
     if (mapping.aliases.includes(normalized)) {
       return mapping;
     }

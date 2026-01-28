@@ -8,7 +8,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { X, Filter } from '@/lib/icons';
 import { TemplateCard } from './TemplateCard';
 import { useTranslations } from 'next-intl';
@@ -74,13 +74,7 @@ export function DesignBrowser({
 
   const categories = ['traditional', 'modern', 'corporate', 'creative'] as const;
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchTemplates();
-    }
-  }, [isOpen, selectedCategory]);
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -106,7 +100,13 @@ export function DesignBrowser({
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, t]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchTemplates();
+    }
+  }, [fetchTemplates, isOpen]);
 
   const handleCategoryFilter = (category: string | null) => {
     setSelectedCategory(category);

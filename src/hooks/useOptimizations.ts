@@ -173,6 +173,7 @@ export function useOptimizations(
       }
     };
   }, [
+    params,
     params?.page,
     params?.limit,
     params?.sort,

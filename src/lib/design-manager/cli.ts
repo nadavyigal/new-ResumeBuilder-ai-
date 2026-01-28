@@ -3,6 +3,7 @@
 // Command-line interface for testing design functionality
 
 export function main(args: string[]) {
+  void args;
   // TODO: Implement CLI commands
   // --render <templateId> <dataFile>
   // --validate <customizationFile>

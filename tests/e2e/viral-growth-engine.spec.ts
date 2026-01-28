@@ -273,7 +273,6 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
     await page.waitForLoadState('networkidle');
 
     // Spy on PostHog capture calls
-    const capturedEvents: any[] = [];
     await page.evaluate(() => {
       const originalCapture = (window as any).posthog?.capture;
       if (originalCapture) {
@@ -341,7 +340,7 @@ test.describe('Viral Growth Engine - Anonymous ATS Checker', () => {
       console.log('✅ LinkedIn share popup opened:', popupUrl);
 
       await popup.close();
-    } catch (e) {
+    } catch {
       console.log('⚠️ Share popup may be blocked (expected in headless mode)');
     }
   });

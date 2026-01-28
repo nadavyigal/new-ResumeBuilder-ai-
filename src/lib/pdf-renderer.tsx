@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { OptimizedResume } from './ai-optimizer';
 
 // Register fonts (optional - uses built-in Helvetica by default)

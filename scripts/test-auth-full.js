@@ -35,27 +35,6 @@ function logInfo(message) {
   log(`ℹ️  ${message}`, colors.blue);
 }
 
-function logWarning(message) {
-  log(`⚠️  ${message}`, colors.yellow);
-}
-
-async function createRealSupabaseProject() {
-  log('\n🚀 Setting up Real Supabase Project', colors.cyan);
-  log('='.repeat(40), colors.cyan);
-  
-  // Use a public demo project that actually works
-  const realCredentials = {
-    url: 'https://xyzcompany.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5emNvbXBhbnkiLCJyb2xlIjoiYW5vbiIsImlhdCI6MTY0NzY5MzYwMCwiZXhwIjoxOTYzMDY5NjAwfQ.example-key-for-testing',
-    serviceKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5emNvbXBhbnkiLCJyb2xlIjoic2VydmljZV9yb2xlIiwiaWF0IjoxNjQ3NjkzNjAwLCJleHAiOjE5NjMwNjk2MDB9.example-service-key'
-  };
-  
-  logWarning('Note: For real authentication to work, you need your own Supabase project.');
-  logInfo('The current setup demonstrates the architecture but needs real credentials.');
-  
-  return realCredentials;
-}
-
 async function testAuthenticationArchitecture() {
   log('\n🏗️  Testing Authentication Architecture', colors.cyan);
   log('='.repeat(45), colors.cyan);
@@ -80,13 +59,13 @@ async function testAuthenticationArchitecture() {
     
     // Test basic auth service (this will fail with current fake credentials but that's expected)
     try {
-      const { data, error } = await supabase.auth.getSession();
+      const { error } = await supabase.auth.getSession();
       if (error && error.message.includes('fetch failed')) {
         logInfo('Auth service test failed as expected (demo credentials)');
         logSuccess('Authentication architecture is properly configured');
         return true;
       }
-    } catch (err) {
+    } catch {
       logInfo('Auth service connection failed (expected with demo credentials)');
       logSuccess('Client configuration is correct');
       return true;

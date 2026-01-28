@@ -96,15 +96,25 @@ export function ChatSidebar({
     }
   }, [messages]);
 
-  // Load existing session on mount
-  useEffect(() => {
-    if (!sessionId) {
-      loadSession();
+  // Load messages for a session
+  const loadMessages = useCallback(async (sid: string) => {
+    try {
+      const response = await fetch(`/api/v1/chat/sessions/${sid}`);
+
+      if (!response.ok) {
+        throw new Error(t('errors.loadMessages'));
+      }
+
+      const data = await response.json();
+      setMessages(data.messages || []);
+    } catch (err) {
+      logger.error('Error loading chat messages', { sessionId: sid, optimizationId }, err);
+      setError(err instanceof Error ? err.message : t('errors.loadMessages'));
     }
-  }, [optimizationId]);
+  }, [optimizationId, t]);
 
   // Load session and messages
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -133,24 +143,14 @@ export function ChatSidebar({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [loadMessages, optimizationId, t]);
 
-  // Load messages for a session
-  const loadMessages = async (sid: string) => {
-    try {
-      const response = await fetch(`/api/v1/chat/sessions/${sid}`);
-
-      if (!response.ok) {
-        throw new Error(t('errors.loadMessages'));
-      }
-
-      const data = await response.json();
-      setMessages(data.messages || []);
-    } catch (err) {
-      logger.error('Error loading chat messages', { sessionId: sid, optimizationId }, err);
-      setError(err instanceof Error ? err.message : t('errors.loadMessages'));
+  // Load existing session on mount
+  useEffect(() => {
+    if (!sessionId) {
+      loadSession();
     }
-  };
+  }, [loadSession, sessionId]);
 
   // Send message
   const handleSendMessage = async (message: string) => {

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { createClientComponentClient } from "@/lib/supabase";
 
 interface Template {
   id: number;
@@ -13,8 +12,6 @@ interface Template {
 export function TemplateSelector() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
-  const supabase = createClientComponentClient();
-
   useEffect(() => {
     const fetchTemplates = async () => {
       // Mock data for now

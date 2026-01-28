@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { Filter, ArrowLeft } from "@/lib/icons";
 import { TemplateCard } from "@/components/design/TemplateCard";
+import { ROUTES } from "@/lib/constants";
 
 interface DesignTemplate {
   id: string;
@@ -60,11 +61,7 @@ export default function TemplatesPage() {
     return categories.find((item) => item.value === category)?.label || category;
   };
 
-  useEffect(() => {
-    fetchTemplates();
-  }, [selectedCategory]);
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -87,7 +84,11 @@ export default function TemplatesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, t]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const handleCategoryFilter = (category: string | null) => {
     setSelectedCategory(category);

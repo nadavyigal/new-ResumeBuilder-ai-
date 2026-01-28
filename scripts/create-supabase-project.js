@@ -36,10 +36,6 @@ function logInfo(message) {
   log(`ℹ️  ${message}`, colors.blue);
 }
 
-function logWarning(message) {
-  log(`⚠️  ${message}`, colors.yellow);
-}
-
 function generateSecureSecret() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -90,7 +86,7 @@ NEXTAUTH_URL=http://localhost:3007
   }
 }
 
-async function createSimpleSchema(supabase) {
+async function createSimpleSchema() {
   log('\n📊 Creating Essential Tables...', colors.cyan);
   
   const essentialSQL = `
@@ -147,6 +143,7 @@ CREATE TRIGGER on_auth_user_created
 
   try {
     // For demo purposes, we'll provide instructions instead of direct execution
+    logInfo(`Prepared ${essentialSQL.split('\n').length} lines of SQL for manual execution`);
     logInfo('Essential schema prepared for application');
     logSuccess('Basic tables structure ready');
     return true;
@@ -163,7 +160,7 @@ async function testConnection(config) {
     const supabase = createClient(config.url, config.anonKey);
     
     // Test basic connection
-    const { data, error } = await supabase.auth.getSession();
+    const { error } = await supabase.auth.getSession();
     if (error && !error.message.includes('session')) {
       throw error;
     }
@@ -203,8 +200,8 @@ async function main() {
   }
   
   // Create schema
-  const supabase = createClient(config.url, config.serviceKey);
-  await createSimpleSchema(supabase);
+  createClient(config.url, config.serviceKey);
+  await createSimpleSchema();
   
   log('\n🎉 Setup Complete!', colors.green);
   log('\n📋 Next Steps:', colors.blue);

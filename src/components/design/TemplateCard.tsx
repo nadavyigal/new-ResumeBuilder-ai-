@@ -9,6 +9,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { Check, Eye, Sparkles, X } from '@/lib/icons';
 import { useTranslations } from 'next-intl';
 
@@ -63,15 +64,11 @@ export function TemplateCard({
   isApplying = false,
   isApplyingThis = false
 }: TemplateCardProps) {
+  void optimizationId;
   const t = useTranslations('dashboard.design.templateCard');
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
-
-  const handlePreview = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowPreview(true);
-  };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -109,11 +106,13 @@ export function TemplateCard({
         {/* Thumbnail/Preview */}
         <div className="relative aspect-[3/4] bg-gray-100 dark:bg-gray-800 overflow-hidden">
           {template.preview_thumbnail_url ? (
-            <img
+            <Image
               src={template.preview_thumbnail_url}
               alt={t('previewAlt', { name: template.name })}
+              width={400}
+              height={533}
+              sizes="(max-width: 768px) 100vw, 33vw"
               className="w-full h-full object-cover"
-              loading="lazy"
             />
           ) : (
             <div className="w-full h-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 flex items-center justify-center">

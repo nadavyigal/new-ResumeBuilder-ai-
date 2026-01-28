@@ -30,6 +30,7 @@ export async function scoreResume(
   jobDescriptionData: any,
   jobEmbeddings?: number[] | null
 ): Promise<ATSScoreOutput> {
+  void jobEmbeddings;
 
   // Extract text from resume JSON
   const resumeOptimized = resumeOptimizedData as unknown as OptimizedResume;

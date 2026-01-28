@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import type { Suggestion } from '@/lib/ats/types';
 import { ChevronDown, ChevronUp, Lightbulb, Zap, TrendingUp } from '@/lib/icons';
 import { useTranslations } from 'next-intl';
+import { MainIssuesSummary } from '@/components/ats/MainIssuesSummary';
 
 interface ATSSuggestionsBannerProps {
   suggestions: Suggestion[];
@@ -56,49 +57,57 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
 
       {/* Suggestions List */}
       {isExpanded && (
-        <div className="mt-3 space-y-2">
-          {displaySuggestions.map((suggestion, index) => (
-            <div
-              key={suggestion.id}
-              className="bg-white/50 dark:bg-gray-800/50 rounded p-2 border border-blue-100 dark:border-blue-900"
-            >
-              <div className="flex items-start gap-2">
-                {suggestion.quick_win ? (
-                  <Zap className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <TrendingUp className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-900 dark:text-gray-100">
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">
-                      {t('tipLabel', { number: suggestion.number })}
-                    </span>{' '}
-                    {suggestion.text}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded font-medium">
-                      {t('points', { points: suggestion.estimated_gain })}
-                    </span>
-                    {suggestion.quick_win && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 rounded">
-                        {t('quickWin')}
+        <div className="mt-3 space-y-3">
+          <MainIssuesSummary
+            items={suggestions}
+            baseKey="dashboard.chat.suggestionsBanner.mainIssues"
+            variant="compact"
+          />
+
+          <div className="space-y-2">
+            {displaySuggestions.map((suggestion) => (
+              <div
+                key={suggestion.id}
+                className="bg-white/50 dark:bg-gray-800/50 rounded p-2 border border-blue-100 dark:border-blue-900"
+              >
+                <div className="flex items-start gap-2">
+                  {suggestion.quick_win ? (
+                    <Zap className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  ) : (
+                    <TrendingUp className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-900 dark:text-gray-100">
+                      <span className="font-semibold text-blue-600 dark:text-blue-400">
+                        {t('tipLabel', { number: suggestion.number })}
+                      </span>{' '}
+                      {suggestion.text}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded font-medium">
+                        {t('points', { points: suggestion.estimated_gain })}
                       </span>
-                    )}
+                      {suggestion.quick_win && (
+                        <span className="text-[10px] px-1.5 py-0.5 bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-400 rounded">
+                          {t('quickWin')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {suggestions.length > displaySuggestions.length && (
-            <p className="text-xs text-center text-blue-600 dark:text-blue-400 mt-2">
-              {t("moreSuggestions", { count: suggestions.length - displaySuggestions.length })}
+            {suggestions.length > displaySuggestions.length && (
+              <p className="text-xs text-center text-blue-600 dark:text-blue-400 mt-2">
+                {t("moreSuggestions", { count: suggestions.length - displaySuggestions.length })}
+              </p>
+            )}
+
+            <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
+              {t("cta")}
             </p>
-          )}
-
-          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2 italic">
-            {t("cta")}
-          </p>
+          </div>
         </div>
       )}
 

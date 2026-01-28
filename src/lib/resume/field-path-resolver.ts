@@ -122,7 +122,7 @@ export function getFieldValue(data: any, path: string): any {
     }
 
     return current;
-  } catch (error) {
+  } catch {
     return undefined;
   }
 }

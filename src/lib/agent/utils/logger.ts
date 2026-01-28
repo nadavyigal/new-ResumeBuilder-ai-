@@ -91,7 +91,6 @@ export function log(category: Category, message: string, meta?: Record<string, a
   const safeMessage = redactPII(String(message || ""));
   const safeMeta = meta ? JSON.parse(redactPII(JSON.stringify(meta))) : undefined;
   const payload = { t: new Date().toISOString(), category, message: safeMessage, ...(safeMeta ? { meta: safeMeta } : {}) };
-  // eslint-disable-next-line no-console
   console.log(JSON.stringify(payload));
 }
 
@@ -126,13 +125,10 @@ export function logWithLevel(
 
   // Output to appropriate stream
   if (level === 'error') {
-    // eslint-disable-next-line no-console
     console.error(output);
   } else if (level === 'warn') {
-    // eslint-disable-next-line no-console
     console.warn(output);
   } else {
-    // eslint-disable-next-line no-console
     console.log(output);
   }
 }

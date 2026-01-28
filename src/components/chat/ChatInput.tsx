@@ -17,6 +17,7 @@ export function ChatInput({
   disabled = false,
   placeholder,
 }: ChatInputProps) {
+  void sessionId;
   const t = useTranslations('dashboard.chat.input');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

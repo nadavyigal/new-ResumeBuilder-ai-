@@ -85,7 +85,7 @@ export default function OptimizationPage() {
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
       if (!dragging) return;
-      setFabPosition(prev => ({
+      setFabPosition(() => ({
         x: Math.min(Math.max(12, e.clientX - dragOffset.current.x), window.innerWidth - 72),
         y: Math.min(Math.max(12, e.clientY - dragOffset.current.y), window.innerHeight - 72),
       }));
@@ -101,7 +101,7 @@ export default function OptimizationPage() {
     };
   }, [dragging]);
 
-  const generateJobDescriptionSummary = (jdData: any) => {
+  const generateJobDescriptionSummary = useCallback((jdData: any) => {
     try {
       const parts: string[] = [];
 
@@ -153,9 +153,9 @@ export default function OptimizationPage() {
         : t("jobSummary.detailsFallback");
       setJobDescriptionSummary(fallback);
     }
-  };
+  }, [t]);
 
-  const fetchOptimizationData = async () => {
+  const fetchOptimizationData = useCallback(async () => {
     try {
       const idVal = String(params.id || "");
 
@@ -256,11 +256,11 @@ export default function OptimizationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, supabase, t, generateJobDescriptionSummary]);
 
   useEffect(() => {
     fetchOptimizationData();
-  }, [params, supabase]);
+  }, [fetchOptimizationData]);
 
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
@@ -429,7 +429,7 @@ export default function OptimizationPage() {
       setPendingTemplateId(null);
       console.log('Design change complete');
     }
-  }, [params.id, designLoading, toast]);
+  }, [params.id, designLoading, t, toast]);
 
   const handleDesignUpdate = async () => {
     // Refresh design assignment after customization
@@ -500,9 +500,6 @@ export default function OptimizationPage() {
     window.location.href = `/api/download/${params.id}?fmt=pdf`;
   };
 
-  const handleDownloadDOCX = () => {
-    window.location.href = `/api/download/${params.id}?fmt=docx`;
-  };
 
   const handleCopyText = async () => {
     if (!optimizedResume) return;

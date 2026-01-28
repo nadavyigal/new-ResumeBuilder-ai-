@@ -136,7 +136,6 @@ export async function scoreResume(
     const rawImprovement = normalizedOptimized - normalizedOriginal;
 
     if (rawImprovement < MIN_IMPROVEMENT) {
-      const correctionNeeded = MIN_IMPROVEMENT - rawImprovement;
       const oldOptimized = normalizedOptimized;
 
       // Add the minimum improvement, but cap at 95

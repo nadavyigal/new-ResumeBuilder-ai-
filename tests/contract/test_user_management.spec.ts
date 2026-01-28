@@ -33,7 +33,7 @@ describe('Epic 5: User Management and Monetization - FR-020 to FR-024', () => {
     if (testUserId && supabase) {
       try {
         await supabase.auth.admin.deleteUser(testUserId);
-      } catch (error) {
+      } catch {
         console.log('Cleanup: Could not delete test user');
       }
     }
@@ -129,8 +129,6 @@ describe('Epic 5: User Management and Monetization - FR-020 to FR-024', () => {
         },
         body: formData,
       });
-
-      const data = await response.json();
 
       if (response.status === 401) {
         console.warn('Auth not working in test environment - skipping API test');

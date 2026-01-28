@@ -136,7 +136,7 @@ export function parseQueryParams(searchParams: URLSearchParams): {
         from: new Date(dateFrom),
         to: new Date(dateTo),
       };
-    } catch (e) {
+    } catch {
       // Invalid dates - ignore
     }
   }

@@ -28,7 +28,7 @@ async function fullVerification() {
 
   const tableResults = {};
 
-  for (const [tableName, expectedColumns] of Object.entries(tables)) {
+  for (const tableName of Object.keys(tables)) {
     const { data, error } = await supabase
       .from(tableName)
       .select('*')
@@ -39,8 +39,6 @@ async function fullVerification() {
       tableResults[tableName] = { exists: false, error: error.message };
     } else {
       const actualColumns = data && data.length > 0 ? Object.keys(data[0]) : [];
-      const hasAllColumns = expectedColumns.every(col => actualColumns.includes(col) || actualColumns.includes(col.replace(/_/g, '')));
-
       console.log(`✅ ${tableName}: EXISTS`);
       if (actualColumns.length > 0) {
         console.log(`   Columns: ${actualColumns.join(', ')}`);
