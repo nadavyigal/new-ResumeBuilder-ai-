@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
 import { RateLimitMessage } from "@/components/landing/RateLimitMessage";
 import { Badge } from "@/components/ui/badge";
+import type { SuggestionAction } from "@/lib/ats/types";
 
 const SESSION_KEY = "ats_session_id";
 
@@ -22,6 +23,7 @@ export interface ATSIssue {
   category?: string;
   quick_win?: boolean;
   explanation?: string;
+  action?: SuggestionAction;
 }
 
 export interface ATSCheckerResponse {
