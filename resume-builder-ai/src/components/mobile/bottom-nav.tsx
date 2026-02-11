@@ -37,7 +37,7 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 md:hidden z-50 pb-safe-bottom" aria-label="Main navigation">
       <div className="relative px-4 pb-4 pt-2">
-        <div className="relative bg-card border-2 border-border rounded-[2rem] shadow-xl">
+        <div className="relative bg-card/95 backdrop-blur-md border-2 border-border rounded-[2rem] shadow-2xl shadow-foreground/8">
           <div className="relative flex items-center justify-around h-16 px-2">
             {navItems.map(({ href, icon: Icon, label, primary }) => {
               const isActive = pathname === href || pathname.startsWith(href + "/");

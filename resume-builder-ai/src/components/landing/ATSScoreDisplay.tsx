@@ -26,14 +26,14 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
     score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
 
   return (
-    <div data-testid="ats-score-display" className="space-y-6">
-      <div className="text-center space-y-2">
-        <div data-testid="ats-score" className="text-5xl font-bold text-foreground">
+    <div data-testid="ats-score-display" className="space-y-6 animate-fade-in">
+      <div className="text-center space-y-3">
+        <div data-testid="ats-score" className="text-6xl md:text-7xl font-extrabold text-foreground tracking-tight animate-scale-in">
           <CountUp end={score} duration={2} />
-          <span className="text-2xl text-foreground/60">/100</span>
+          <span className="text-2xl md:text-3xl text-foreground/40 font-bold">/100</span>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-1 text-sm font-semibold">
-          <Sparkles className="w-4 h-4 text-mobile-cta" />
+        <div className="inline-flex items-center gap-2 rounded-full bg-mobile-cta/10 border border-mobile-cta/20 px-5 py-1.5 text-sm font-bold text-mobile-cta animate-fade-in-up stagger-2">
+          <Sparkles className="w-4 h-4" />
           {matchLabel}
         </div>
         {checksRemainingLabel && (

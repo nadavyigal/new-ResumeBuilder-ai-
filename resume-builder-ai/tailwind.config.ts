@@ -61,8 +61,8 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
         // Mobile-specific colors for high conversion
-        "mobile-primary": "hsl(20 20% 10%)",
-        "mobile-primary-hover": "hsl(20 30% 20%)",
+        "mobile-primary": "hsl(220 25% 12%)",
+        "mobile-primary-hover": "hsl(220 25% 20%)",
         "mobile-cta": "hsl(142 76% 36%)",      // Green for CTAs
         "mobile-cta-hover": "hsl(142 76% 30%)",
       },

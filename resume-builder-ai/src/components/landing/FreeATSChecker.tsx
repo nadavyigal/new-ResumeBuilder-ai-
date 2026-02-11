@@ -203,11 +203,11 @@ export function FreeATSChecker() {
               <div className="space-y-4">
                 <h1
                   data-testid="ats-checker-heading"
-                  className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
+                  className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.1] tracking-tight"
                 >
                   {t("title")}
                 </h1>
-                <p className="text-lg text-foreground/80 leading-relaxed">
+                <p className="text-lg md:text-xl text-foreground/70 leading-relaxed">
                   {t("description")}
                 </p>
               </div>
@@ -249,7 +249,7 @@ export function FreeATSChecker() {
               </div>
             </div>
 
-            <div className="rounded-3xl border-2 border-border bg-card/95 p-6 md:p-8 shadow-xl shadow-mobile-cta/10">
+            <div className="rounded-3xl border-2 border-border bg-card p-6 md:p-8 shadow-2xl shadow-foreground/8">
               {step === "upload" && (
                 <UploadForm
                   onSubmit={handleSubmit}

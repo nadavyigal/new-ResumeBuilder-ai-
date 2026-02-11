@@ -11,46 +11,48 @@ export function HeroSection() {
   const benefits = t.raw("benefits") as string[];
 
   return (
-    <section className="relative bg-background pt-12 pb-16 md:pt-24 md:pb-32">
+    <section className="relative bg-background pt-16 pb-20 md:pt-32 md:pb-40 overflow-hidden">
       <div className="container px-4 mx-auto">
-        <div className="max-w-4xl mx-auto">
-          {/* Hero Title */}
-          <h1 className="text-center mb-6">
-            <span className="block text-4xl md:text-5xl lg:text-6xl text-foreground font-bold leading-tight mb-2">
+        <div className="max-w-5xl mx-auto">
+          {/* Hero Title — dramatic scale */}
+          <h1 className="text-center mb-8 animate-fade-in-up">
+            <span className="block text-5xl md:text-6xl lg:text-7xl text-foreground font-extrabold leading-[1.1] tracking-tight mb-3">
               {t("titleLine1")}
             </span>
-            <span className="block text-3xl md:text-4xl lg:text-5xl text-mobile-cta font-bold leading-tight">
+            <span className="block text-4xl md:text-5xl lg:text-6xl text-mobile-cta font-extrabold leading-[1.1] tracking-tight">
               {t("titleLine2")}
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="text-center text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-4 leading-relaxed">
+          <p className="text-center text-lg md:text-xl text-foreground/70 max-w-2xl mx-auto mb-6 leading-relaxed animate-fade-in-up stagger-1">
             {t("subtitle")}
           </p>
 
           {/* Key Benefits */}
-          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-6 mb-8 text-sm md:text-base">
+          <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 mb-10 text-sm md:text-base animate-fade-in-up stagger-2">
             {benefits.map((benefit, index) => (
-              <div key={index} className="flex items-center gap-2 text-foreground/70">
-                <svg className="w-5 h-5 text-mobile-cta" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+              <div key={index} className="flex items-center gap-2.5 text-foreground/80 font-medium">
+                <div className="w-6 h-6 rounded-full bg-mobile-cta/15 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-3.5 h-3.5 text-mobile-cta" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
                 <span>{benefit}</span>
               </div>
             ))}
           </div>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+          {/* CTA Buttons — bigger, bolder */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14 animate-fade-in-up stagger-3">
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-mobile-cta hover:bg-mobile-cta-hover text-white shadow-lg border-0 h-14 px-8 text-base font-semibold group"
+              className="w-full sm:w-auto bg-mobile-cta hover:bg-mobile-cta-hover text-white shadow-xl shadow-mobile-cta/25 border-0 h-16 px-10 text-lg font-bold group btn-press"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
                 {t("ctaPrimary")}
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-200" aria-hidden="true" />
               </Link>
             </Button>
 
@@ -58,7 +60,7 @@ export function HeroSection() {
               asChild
               size="lg"
               variant="outline"
-              className="w-full sm:w-auto border-2 h-14 px-8 text-base font-semibold hover:bg-accent"
+              className="w-full sm:w-auto border-2 h-16 px-10 text-lg font-bold hover:bg-accent btn-press"
             >
               <Link href="#features">
                 {t("ctaSecondary")}
@@ -67,7 +69,7 @@ export function HeroSection() {
           </div>
 
           {/* Social Proof */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-foreground/75">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 text-xs md:text-sm text-foreground/75 animate-fade-in stagger-4">
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2" aria-hidden="true">
                 {[1, 2, 3, 4].map((i) => (

@@ -846,11 +846,11 @@ export default function OptimizationPage() {
           {/* Chat Modal Overlay */}
           {showChat && (
             <div
-              className="fixed inset-0 bg-black/50 z-40 print:hidden"
+              className="fixed inset-0 bg-black/50 z-[60] print:hidden animate-fade-in"
               onClick={() => setShowChat(false)}
             >
               <div
-                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
+                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-slide-up md:animate-scale-in"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="h-full flex flex-col">

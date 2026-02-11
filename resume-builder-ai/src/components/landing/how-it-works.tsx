@@ -18,9 +18,9 @@ export function HowItWorks() {
     <section className="py-16 md:py-24 bg-background">
       <div className="container px-4 mx-auto">
         {/* Section Header */}
-        <div className="max-w-3xl mx-auto mb-12 md:mb-16 text-center">
-          <h2 className="mb-4">{t("title")}</h2>
-          <p className="text-lg text-muted-foreground">
+        <div className="max-w-3xl mx-auto mb-12 md:mb-20 text-center">
+          <h2 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">{t("title")}</h2>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
         </div>
@@ -73,7 +73,7 @@ export function HowItWorks() {
             return (
             <div
               key={`step-${index + 1}`}
-              className="group relative rounded-3xl border-2 border-border bg-card p-8 space-y-6 transition-all duration-300 hover:shadow-2xl hover:scale-105"
+              className="group relative rounded-3xl border-2 border-border bg-card p-8 space-y-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 animate-fade-in-up"
               style={{
                 animationDelay: `${index * 150}ms`,
               }}

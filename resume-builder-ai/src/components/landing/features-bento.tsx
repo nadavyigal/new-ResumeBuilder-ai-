@@ -52,9 +52,9 @@ export function FeaturesBento() {
     <section id="features" className="py-16 md:py-24 bg-muted/30">
       <div className="container px-4 mx-auto">
         {/* Section Header */}
-        <div className="max-w-3xl mx-auto mb-12 md:mb-16 text-center">
-          <h2 className="mb-4">{t("title")}</h2>
-          <p className="text-lg text-muted-foreground">
+        <div className="max-w-3xl mx-auto mb-12 md:mb-20 text-center">
+          <h2 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">{t("title")}</h2>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
         </div>
@@ -68,14 +68,15 @@ export function FeaturesBento() {
             <div
               key={index}
               className={cn(
-                "group relative overflow-hidden rounded-3xl border-2 border-border bg-card p-6 md:p-8 transition-shadow duration-300 hover:shadow-xl",
+                "group relative overflow-hidden rounded-3xl border-2 border-border bg-card p-6 md:p-8 transition-all duration-300 hover:shadow-2xl hover:shadow-foreground/8 hover:-translate-y-1.5 animate-fade-in-up",
                 style.span
               )}
+              style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Gradient Background */}
               <div
                 className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-50 transition-opacity group-hover:opacity-70",
+                  "absolute inset-0 bg-gradient-to-br opacity-50 transition-opacity duration-300 group-hover:opacity-70",
                   style.gradient
                 )}
               />
@@ -85,7 +86,7 @@ export function FeaturesBento() {
                 {/* Icon */}
                 <div
                   className={cn(
-                    "w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg",
+                    "w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center mb-4 shadow-lg transition-transform duration-300 group-hover:scale-110",
                     style.iconBg
                   )}
                 >
@@ -115,12 +116,13 @@ export function FeaturesBento() {
           {stats.map((stat, index) => (
             <div
               key={index}
-              className="text-center p-4 rounded-2xl bg-card border-2 border-border"
+              className="text-center p-4 rounded-2xl bg-card border-2 border-border animate-fade-in-up hover:shadow-md transition-shadow duration-300"
+              style={{ animationDelay: `${600 + index * 100}ms` }}
             >
-              <div className="text-2xl md:text-3xl font-bold text-mobile-cta mb-1">
+              <div className="text-3xl md:text-4xl font-extrabold text-mobile-cta mb-1 tracking-tight">
                 {stat.value}
               </div>
-              <div className="text-xs md:text-sm text-muted-foreground">
+              <div className="text-xs md:text-sm text-muted-foreground font-medium">
                 {stat.label}
               </div>
             </div>
