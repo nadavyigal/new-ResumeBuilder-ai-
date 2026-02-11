@@ -211,7 +211,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       error: errorMessage,
-      details: error instanceof Error ? error.stack : undefined
     }, { status: statusCode });
   }
 }

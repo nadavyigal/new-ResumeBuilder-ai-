@@ -22,11 +22,9 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Exclude pdf-parse and puppeteer from webpack bundling
+      // Exclude pdf-parse from webpack bundling (native module)
       config.externals = config.externals || [];
       config.externals.push('pdf-parse');
-      config.externals.push('puppeteer');
-      config.externals.push('puppeteer-core');
     }
     return config;
   },

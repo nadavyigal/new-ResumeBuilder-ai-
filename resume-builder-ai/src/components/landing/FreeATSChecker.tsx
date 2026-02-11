@@ -186,11 +186,6 @@ export function FreeATSChecker() {
       data-testid="free-ats-checker"
       className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32"
     >
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-mobile-cta/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
-      </div>
-
       <div className="container px-4 mx-auto">
         <div className="max-w-6xl mx-auto">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start">

@@ -123,7 +123,7 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
                   </span>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5 mr-2" />
+                    <Sparkles className="w-5 h-5 me-2" />
                     {t("cta")}
                   </>
                 )}

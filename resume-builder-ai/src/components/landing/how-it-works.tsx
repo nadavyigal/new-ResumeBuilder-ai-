@@ -38,7 +38,7 @@ export function HowItWorks() {
                 className="border-2 border-border rounded-2xl mb-4 overflow-hidden bg-card"
               >
                 <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/50 transition-colors touch-target">
-                  <div className="flex items-center gap-4 text-left">
+                  <div className="flex items-center gap-4 text-start">
                     {/* Icon Circle */}
                     <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-mobile-cta to-mobile-cta-hover flex items-center justify-center text-white font-bold text-lg shadow-lg">
                       {index + 1}

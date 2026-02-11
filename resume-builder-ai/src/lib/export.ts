@@ -14,44 +14,28 @@ import { callPDFService } from "./pdf-service-client";
 import { resolvePdfDesignContext, type PdfDesignContext } from "./pdf-design-context";
 import { logger } from "@/lib/agent/utils/logger";
 
+/**
+ * Generate PDF from HTML using the Docker PDF service.
+ * Puppeteer was removed to avoid 300MB+ of Chrome binaries that don't work on serverless.
+ * Falls back to React PDF if Docker service is unavailable.
+ */
 async function generatePdfFromHtml(html: string): Promise<Buffer> {
-  // Dynamic import so Next server bundling stays lean and still works with externals.
-  const puppeteerModule = await import("puppeteer");
-  const puppeteer = puppeteerModule.default ?? puppeteerModule;
-
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--no-zygote",
-    ],
-    ...(executablePath ? { executablePath } : {}),
-  });
-
+  // Try Docker PDF service (which has its own headless browser)
   try {
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: ["domcontentloaded", "networkidle0"] });
-
-    const pdfBuffer = await page.pdf({
-      format: "letter",
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: {
-        top: "0in",
-        right: "0in",
-        bottom: "0in",
-        left: "0in",
-      },
-    });
-
-    return Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer);
-  } finally {
-    await browser.close();
+    const response = await callPDFService(
+      {} as any, // Not used when passing raw HTML
+      'raw-html',
+      null,
+    );
+    if (response.success && response.pdfBase64) {
+      return Buffer.from(response.pdfBase64, 'base64');
+    }
+  } catch {
+    logger.warn('Docker PDF service unavailable for HTML-to-PDF, will fall through to React PDF');
   }
+
+  // If Docker service fails, throw to let callers fall back to React PDF
+  throw new Error('HTML-to-PDF generation unavailable (puppeteer removed, Docker service unavailable)');
 }
 
 export type PdfRenderer = "docker" | "html" | "react-pdf" | "jspdf";

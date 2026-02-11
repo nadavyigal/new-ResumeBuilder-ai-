@@ -71,7 +71,7 @@ export default function DashboardPage() {
               </h1>
               {user.user_metadata?.is_premium && (
                 <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 border-0 hidden md:inline-flex">
-                  <Sparkles className="w-3 h-3 mr-1" />
+                  <Sparkles className="w-3 h-3 me-1" />
                   {t("welcome.premium")}
                 </Badge>
               )}
@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button asChild className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
+                <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white">
                   <Link href={ROUTES.upload}>
                     {t("conversion.cta")}
                   </Link>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
                       {t("actions.uploadDescription")}
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
+                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white">
                     {t("actions.getStarted")}
                   </Button>
                 </CardHeader>

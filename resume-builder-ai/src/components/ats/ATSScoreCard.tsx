@@ -39,45 +39,45 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         {/* Score Comparison */}
         <div className="flex items-center justify-between mb-6">
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1">{t('original')}</div>
+            <div className="text-sm text-muted-foreground mb-1">{t('original')}</div>
             <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_original)}`}>
               {scoreData.ats_score_original}
             </div>
-            <div className="text-xs text-gray-500">{t('outOf')}</div>
+            <div className="text-xs text-muted-foreground">{t('outOf')}</div>
           </div>
 
           <div className="flex flex-col items-center px-4">
-            <ArrowRight className="w-8 h-8 text-gray-400 mb-2" />
+            <ArrowRight className="w-8 h-8 text-muted-foreground mb-2" aria-hidden="true" />
             {improvement > 0 && (
-              <div className="flex items-center gap-1 text-green-600">
-                <TrendingUp className="w-4 h-4" />
+              <div className="flex items-center gap-1 text-success">
+                <TrendingUp className="w-4 h-4" aria-hidden="true" />
                 <span className="text-sm font-medium">+{improvement}</span>
               </div>
             )}
           </div>
 
           <div className="text-center">
-            <div className="text-sm text-gray-600 mb-1">{t('optimized')}</div>
+            <div className="text-sm text-muted-foreground mb-1">{t('optimized')}</div>
             <div className={`text-4xl font-bold ${getScoreColor(scoreData.ats_score_optimized)}`}>
               {scoreData.ats_score_optimized}
             </div>
-            <div className="text-xs text-gray-500">{t('outOf')}</div>
+            <div className="text-xs text-muted-foreground">{t('outOf')}</div>
           </div>
         </div>
 
         {/* Improvement Summary */}
         {improvement > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+          <div className="bg-success-muted border border-success/30 rounded-lg p-3 mb-4">
             <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+                <TrendingUp className="w-5 h-5 text-success" aria-hidden="true" />
                 <div>
-                  <div className="font-medium text-green-900">
+                  <div className="font-medium text-foreground">
                     {t('improvementTitle', {
                       points: improvement,
                       percent: improvementPercent,
                     })}
                   </div>
-                  <div className="text-sm text-green-700">
+                  <div className="text-sm text-muted-foreground">
                     {t('improvementDescription')}
                   </div>
                 </div>
@@ -96,11 +96,11 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
         {showDetails && (
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-600">{t('processingTime')}</span>
+              <span className="text-muted-foreground">{t('processingTime')}</span>
               <span className="font-medium">{scoreData.metadata.processing_time_ms}ms</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">{t('analyzersUsed')}</span>
+              <span className="text-muted-foreground">{t('analyzersUsed')}</span>
               <span className="font-medium">{scoreData.metadata.analyzers_used?.length || 8}/8</span>
             </div>
             {scoreData.metadata.warnings && scoreData.metadata.warnings.length > 0 && (
@@ -116,10 +116,10 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 80) return 'text-green-600';
-  if (score >= 60) return 'text-yellow-600';
-  if (score >= 40) return 'text-orange-600';
-  return 'text-red-600';
+  if (score >= 80) return 'text-score-high';
+  if (score >= 60) return 'text-warning';
+  if (score >= 40) return 'text-warning';
+  return 'text-error';
 }
 
 function getConfidenceLabel(

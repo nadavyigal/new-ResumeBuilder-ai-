@@ -68,12 +68,9 @@ export function FeaturesBento() {
             <div
               key={index}
               className={cn(
-                "group relative overflow-hidden rounded-3xl border-2 border-border bg-card p-6 md:p-8 transition-all duration-300 hover:shadow-2xl hover:scale-[1.02]",
+                "group relative overflow-hidden rounded-3xl border-2 border-border bg-card p-6 md:p-8 transition-shadow duration-300 hover:shadow-xl",
                 style.span
               )}
-              style={{
-                animationDelay: `${index * 100}ms`,
-              }}
             >
               {/* Gradient Background */}
               <div
@@ -92,7 +89,7 @@ export function FeaturesBento() {
                     style.iconBg
                   )}
                 >
-                  <style.icon className="w-7 h-7 md:w-8 md:h-8 text-white" strokeWidth={2} />
+                  <style.icon className="w-7 h-7 md:w-8 md:h-8 text-white" strokeWidth={2} aria-hidden="true" />
                 </div>
 
                 {/* Title */}

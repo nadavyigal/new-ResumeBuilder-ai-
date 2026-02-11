@@ -21,6 +21,22 @@
   --color-input: hsl(35 20% 85%);
   --color-ring: hsl(20 20% 10%);
 
+  /* Semantic status colors */
+  --color-success: hsl(142 76% 36%);
+  --color-success-foreground: hsl(0 0% 100%);
+  --color-success-muted: hsl(142 40% 94%);
+  --color-warning: hsl(45 100% 51%);
+  --color-warning-foreground: hsl(20 20% 10%);
+  --color-warning-muted: hsl(45 60% 94%);
+  --color-error: hsl(0 84% 60%);
+  --color-error-foreground: hsl(0 0% 100%);
+  --color-error-muted: hsl(0 50% 95%);
+
+  /* ATS score colors */
+  --color-score-high: hsl(142 76% 36%);
+  --color-score-medium: hsl(45 100% 45%);
+  --color-score-low: hsl(0 84% 60%);
+
   --radius-lg: 1.5rem;
   --radius-md: calc(1.5rem - 0.125rem);
   --radius-sm: calc(1.5rem - 0.25rem);

@@ -128,7 +128,7 @@ export default function ApplicationsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && load()}
-              className="pl-10 h-11 bg-muted/80 border-2 border-border/70"
+              className="ps-10 h-11 bg-muted/80 border-2 border-border/70"
             />
           </div>
           {/* Add Job URL Input */}
@@ -247,7 +247,7 @@ export default function ApplicationsPage() {
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b">
+                    <tr className="text-start border-b">
                       <th className="py-3">{t("table.headers.resume")}</th>
                       <th className="py-3">{t("table.headers.company")}</th>
                       <th className="py-3">{t("table.headers.jobTitle")}</th>
@@ -269,7 +269,7 @@ export default function ApplicationsPage() {
                         <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
                         <td className="py-3">
                           {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
-                          <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
+                          <span className="ms-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
                         </td>
                         <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
                         <td className="py-3">

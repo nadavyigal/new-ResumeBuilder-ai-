@@ -96,7 +96,7 @@ export function ChangeDiff({
                 }`}
               >
                 {showLineNumbers && (
-                  <span className="inline-block w-8 text-gray-400 mr-2">
+                  <span className="inline-block w-8 text-gray-400 me-2">
                     {line.lineNumber}
                   </span>
                 )}
@@ -124,7 +124,7 @@ export function ChangeDiff({
                 }`}
               >
                 {showLineNumbers && (
-                  <span className="inline-block w-8 text-gray-400 mr-2">
+                  <span className="inline-block w-8 text-gray-400 me-2">
                     {line.lineNumber}
                   </span>
                 )}
@@ -163,11 +163,11 @@ export function ChangeDiff({
             return (
               <div key={index} className="px-3 py-1 bg-white">
                 {showLineNumbers && (
-                  <span className="inline-block w-8 text-gray-400 mr-2">
+                  <span className="inline-block w-8 text-gray-400 me-2">
                     {line.lineNumber}
                   </span>
                 )}
-                <span className="inline-block w-4 text-gray-400 mr-2">
+                <span className="inline-block w-4 text-gray-400 me-2">
                   {getStatusIcon(line.status)}
                 </span>
                 <span className="whitespace-pre-wrap break-all">
@@ -183,11 +183,11 @@ export function ChangeDiff({
               <React.Fragment key={index}>
                 <div className={`px-3 py-1 ${getStatusColor('removed')}`}>
                   {showLineNumbers && (
-                    <span className="inline-block w-8 text-gray-400 mr-2">
+                    <span className="inline-block w-8 text-gray-400 me-2">
                       {line.lineNumber}
                     </span>
                   )}
-                  <span className="inline-block w-4 text-red-600 mr-2 font-semibold">
+                  <span className="inline-block w-4 text-red-600 me-2 font-semibold">
                     -
                   </span>
                   <span className="whitespace-pre-wrap break-all text-red-900">
@@ -196,11 +196,11 @@ export function ChangeDiff({
                 </div>
                 <div className={`px-3 py-1 ${getStatusColor('added')}`}>
                   {showLineNumbers && (
-                    <span className="inline-block w-8 text-gray-400 mr-2">
+                    <span className="inline-block w-8 text-gray-400 me-2">
                       {line.lineNumber}
                     </span>
                   )}
-                  <span className="inline-block w-4 text-green-600 mr-2 font-semibold">
+                  <span className="inline-block w-4 text-green-600 me-2 font-semibold">
                     +
                   </span>
                   <span className="whitespace-pre-wrap break-all text-green-900">
@@ -215,12 +215,12 @@ export function ChangeDiff({
           return (
             <div key={index} className={`px-3 py-1 ${getStatusColor(line.status)}`}>
               {showLineNumbers && (
-                <span className="inline-block w-8 text-gray-400 mr-2">
+                <span className="inline-block w-8 text-gray-400 me-2">
                   {line.lineNumber}
                 </span>
               )}
               <span
-                className={`inline-block w-4 mr-2 font-semibold ${
+                className={`inline-block w-4 me-2 font-semibold ${
                   line.status === 'added' ? 'text-green-600' : 'text-red-600'
                 }`}
               >

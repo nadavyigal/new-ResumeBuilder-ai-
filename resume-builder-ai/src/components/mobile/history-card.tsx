@@ -105,7 +105,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
             className="flex-1 h-11 bg-mobile-cta hover:bg-mobile-cta-hover text-white font-medium"
           >
             <Link href={`/dashboard/optimizations/${optimization.id}`}>
-              <FileText className="w-4 h-4 mr-2" />
+              <FileText className="w-4 h-4 me-2" />
               {t("viewResume")}
             </Link>
           </Button>

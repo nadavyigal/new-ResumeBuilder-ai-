@@ -659,7 +659,7 @@ export function DesignRenderer({
               <span className="font-semibold text-yellow-800 dark:text-yellow-300">
                 {t('preview.modeLabel')}
               </span>
-              <span className="text-yellow-700 dark:text-yellow-400 ml-1">
+              <span className="text-yellow-700 dark:text-yellow-400 ms-1">
                 {t('preview.sectionsSummary', {
                   count: affectedSections.size,
                   sections: Array.from(affectedSections).slice(0, 3).join(', '),

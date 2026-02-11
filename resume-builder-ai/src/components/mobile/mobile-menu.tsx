@@ -86,7 +86,7 @@ export function MobileMenu({ user }: MobileMenuProps) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <SheetTitle className="text-lg font-bold text-left truncate">
+                  <SheetTitle className="text-lg font-bold text-start truncate">
                     {user?.user_metadata?.full_name || t("userFallback")}
                   </SheetTitle>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -143,7 +143,7 @@ export function MobileMenu({ user }: MobileMenuProps) {
 
                     {/* Active indicator dot */}
                     {isActive && (
-                      <div className="relative z-10 ml-auto w-2 h-2 rounded-full bg-primary-foreground" />
+                      <div className="relative z-10 ms-auto w-2 h-2 rounded-full bg-primary-foreground" />
                     )}
                   </Link>
                 );

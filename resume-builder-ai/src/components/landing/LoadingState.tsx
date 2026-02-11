@@ -21,7 +21,7 @@ export function LoadingState() {
         <h3 className="text-xl font-semibold text-foreground">{t("title")}</h3>
         <p className="text-sm text-foreground/60">{t("subtitle")}</p>
       </div>
-      <div className="grid gap-2 text-left text-sm text-foreground/70 w-full">
+      <div className="grid gap-2 text-start text-sm text-foreground/70 w-full">
         {steps.map((step) => (
           <div key={step} className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-mobile-cta/80" />

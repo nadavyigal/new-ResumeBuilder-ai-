@@ -79,9 +79,11 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
 
       <div className="space-y-2">
         <Label>{t("jobDescriptionLabel")}</Label>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="tablist" aria-label="Job description input method">
           <Button
             type="button"
+            role="tab"
+            aria-selected={inputMode === "text"}
             variant={inputMode === "text" ? "default" : "outline"}
             onClick={() => setInputMode("text")}
             className="flex-1"
@@ -90,6 +92,8 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           </Button>
           <Button
             type="button"
+            role="tab"
+            aria-selected={inputMode === "url"}
             variant={inputMode === "url" ? "default" : "outline"}
             onClick={() => setInputMode("url")}
             className="flex-1"
@@ -132,7 +136,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       </div>
 
       {errorMessage && (
-        <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div role="alert" className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
         </div>
       )}
@@ -140,7 +144,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       <Button
         type="submit"
         data-testid="analyze-button"
-        className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
+        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white"
         disabled={!canSubmit || submitting}
       >
         {submitting ? t("checking") : t("submit")}

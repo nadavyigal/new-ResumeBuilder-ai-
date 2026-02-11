@@ -36,7 +36,7 @@ export default async function TermsOfService() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.service.title')}</h2>
         <p className="mb-4">{t('sections.service.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {serviceItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -47,7 +47,7 @@ export default async function TermsOfService() {
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.accounts.creation.title')}</h3>
         <p className="mb-4">{t('sections.accounts.creation.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {accountItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -61,7 +61,7 @@ export default async function TermsOfService() {
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.pricing.tiers.title')}</h3>
         <div className="mb-6">
           <p className="mb-4">{t('sections.pricing.tiers.intro')}</p>
-          <ul className="list-disc pl-6 mb-4 space-y-2">
+          <ul className="list-disc ps-6 mb-4 space-y-2">
             {pricingItems.map((item) => (
               <li key={item}>{item}</li>
             ))}
@@ -69,7 +69,7 @@ export default async function TermsOfService() {
         </div>
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.pricing.payment.title')}</h3>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {paymentItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -83,7 +83,7 @@ export default async function TermsOfService() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.acceptableUse.title')}</h2>
         <p className="mb-4">{t('sections.acceptableUse.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {acceptableItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -99,7 +99,7 @@ export default async function TermsOfService() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.aiContent.title')}</h2>
         <p className="mb-4">{t('sections.aiContent.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {aiItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -115,7 +115,7 @@ export default async function TermsOfService() {
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.disclaimers.liability.title')}</h3>
         <p className="mb-6">{t('sections.disclaimers.liability.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {liabilityItems.map((item) => (
             <li key={item}>{item}</li>
           ))}

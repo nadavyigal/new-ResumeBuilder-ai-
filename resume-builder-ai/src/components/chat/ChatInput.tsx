@@ -68,9 +68,8 @@ export function ChatInput({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t border-gray-200 bg-white px-4 pt-4 pb-8 md:pb-4">
+    <form onSubmit={handleSubmit} className="border-t border-border bg-card px-4 pt-4 pb-8 md:pb-4">
       <div className="relative">
-        {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={message}
@@ -78,31 +77,20 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={resolvedPlaceholder}
           disabled={disabled || isSubmitting}
-          className={`
-            w-full resize-none rounded-lg border border-gray-300
-            px-4 py-3 pr-12
-            focus:outline-none focus:ring-2 focus:ring-blue-500
-            disabled:bg-gray-100 disabled:cursor-not-allowed
-            min-h-[48px] max-h-[200px]
-          `}
+          aria-label={t('placeholder')}
+          aria-describedby="chat-help-text"
+          className="w-full resize-none rounded-lg border border-input px-4 py-3 pe-12 focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-muted disabled:cursor-not-allowed min-h-[48px] max-h-[200px]"
           rows={1}
         />
 
-        {/* Send Button */}
         <button
           type="submit"
           disabled={!isValid || isSubmitting || disabled}
-          className={`
-            absolute right-2 bottom-3
-            flex items-center justify-center
-            w-8 h-8 rounded-full
-            transition-colors
-            ${
-              isValid && !isSubmitting && !disabled
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }
-          `}
+          className={`absolute end-2 bottom-3 flex items-center justify-center w-8 h-8 rounded-full transition-colors ${
+            isValid && !isSubmitting && !disabled
+              ? 'bg-mobile-cta hover:bg-mobile-cta-hover text-white'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
           aria-label={t('send')}
         >
           {isSubmitting ? (
@@ -111,6 +99,7 @@ export function ChatInput({
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <circle
                 className="opacity-25"
@@ -133,6 +122,7 @@ export function ChatInput({
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -147,16 +137,15 @@ export function ChatInput({
 
       {/* Character Counter */}
       <div
-        className={`
-          mt-2 text-xs text-right
-          ${charactersRemaining < 100 ? 'text-red-600' : 'text-gray-500'}
-        `}
+        className={`mt-2 text-xs text-end ${charactersRemaining < 100 ? 'text-error' : 'text-muted-foreground'}`}
+        aria-live="polite"
+        aria-atomic="true"
       >
         {t('charactersRemaining', { count: charactersRemaining })}
       </div>
 
       {/* Help Text */}
-      <div className="mt-1 text-xs text-gray-500">
+      <div id="chat-help-text" className="mt-1 text-xs text-muted-foreground">
         {t('helpText')}
       </div>
     </form>

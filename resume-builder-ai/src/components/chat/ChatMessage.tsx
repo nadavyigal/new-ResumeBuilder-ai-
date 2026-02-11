@@ -60,7 +60,7 @@ export function ChatMessage({ message, isLatest = false }: ChatMessageProps) {
             {isUser ? t('you') : t('assistant')}
           </span>
           {message.metadata?.ai_model_version && (
-            <span className="ml-2 text-xs text-gray-500">
+            <span className="ms-2 text-xs text-muted-foreground">
               ({message.metadata.ai_model_version})
             </span>
           )}

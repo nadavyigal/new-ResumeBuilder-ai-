@@ -36,7 +36,7 @@ export function QuickWinsSection({ quickWins, className }: QuickWinsSectionProps
         <h3 className="text-lg font-semibold">
           {t('title', { count: quickWins.length })}
         </h3>
-        <Badge variant="secondary" className="ml-auto">
+        <Badge variant="secondary" className="ms-auto">
           {t('potential', { points: totalPotentialGain })}
         </Badge>
       </div>
@@ -127,12 +127,12 @@ function QuickWinCard({
               >
                 {copiedField === 'original' ? (
                   <>
-                    <Check className="w-3 h-3 text-green-600 mr-1" />
+                    <Check className="w-3 h-3 text-green-600 me-1" />
                     <span className="text-green-600">{t('card.copied')}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3 h-3 mr-1" />
+                    <Copy className="w-3 h-3 me-1" />
                     {t('card.copy')}
                   </>
                 )}
@@ -155,12 +155,12 @@ function QuickWinCard({
               >
                 {copiedField === 'optimized' ? (
                   <>
-                    <Check className="w-3 h-3 text-green-600 mr-1" />
+                    <Check className="w-3 h-3 text-green-600 me-1" />
                     <span className="text-green-600">{t('card.copied')}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3 h-3 mr-1" />
+                    <Copy className="w-3 h-3 me-1" />
                     {t('card.copy')}
                   </>
                 )}

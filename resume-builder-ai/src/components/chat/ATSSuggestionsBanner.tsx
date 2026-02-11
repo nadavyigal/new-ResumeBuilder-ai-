@@ -36,7 +36,7 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-left group"
+        className="w-full flex items-center justify-between text-start group"
       >
         <div className="flex items-center gap-2">
           <Lightbulb className="w-4 h-4 text-blue-600 dark:text-blue-400" />
