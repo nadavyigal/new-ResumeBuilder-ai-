@@ -118,7 +118,11 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Input
               id="jobDescriptionUrl"
               data-testid="job-description-url-input"
-              type="text"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder={t("placeholders.url")}
               value={jobDescriptionUrl}
               onChange={(event) => setJobDescriptionUrl(event.target.value)}
