@@ -436,12 +436,12 @@ export default function HistoryTable() {
    */
   const renderSortIcon = (column: 'date' | 'score' | 'company') => {
     if (sortConfig.column !== column) {
-      return <ArrowUpDown className="ml-2 h-4 w-4" />;
+      return <ArrowUpDown className="ms-2 h-4 w-4" />;
     }
     return sortConfig.direction === 'asc' ? (
-      <ArrowUp className="ml-2 h-4 w-4" />
+      <ArrowUp className="ms-2 h-4 w-4" />
     ) : (
-      <ArrowDown className="ml-2 h-4 w-4" />
+      <ArrowDown className="ms-2 h-4 w-4" />
     );
   };
 
@@ -586,7 +586,7 @@ export default function HistoryTable() {
                   placeholder={t('mobile.searchPlaceholder')}
                   value={filters.search}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10 h-11 bg-muted/50"
+                  className="ps-10 h-11 bg-muted/50"
                 />
               </div>
               <Button variant="outline" size="icon" className="h-11 w-11" onClick={handleClearFilters}>
@@ -607,7 +607,7 @@ export default function HistoryTable() {
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
               {t('noResults.description')}
             </p>
-            <Button onClick={handleClearFilters} className="bg-mobile-cta hover:bg-mobile-cta-hover">
+            <Button onClick={handleClearFilters} className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
               {t('actions.clearFilters')}
             </Button>
           </div>
@@ -680,7 +680,7 @@ export default function HistoryTable() {
                   handleSearchClear();
                 }
               }}
-              className="pl-10 h-11 bg-muted/50"
+              className="ps-10 h-11 bg-muted/50"
             />
           </div>
 
@@ -790,7 +790,7 @@ export default function HistoryTable() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                    className="-ms-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('date')}
                   >
                     {t('table.dateCreated')}
@@ -806,7 +806,7 @@ export default function HistoryTable() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                    className="-ms-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('company')}
                   >
                     {t('table.company')}
@@ -819,7 +819,7 @@ export default function HistoryTable() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                    className="-ms-3 h-8 data-[state=open]:bg-accent"
                     onClick={() => handleSort('score')}
                   >
                     {t('table.atsMatch')}
@@ -831,7 +831,7 @@ export default function HistoryTable() {
                 <TableHead className="w-[120px]">{t('table.status')}</TableHead>
 
                 {/* Actions */}
-                <TableHead className="text-right w-[250px]">{t('table.actions')}</TableHead>
+                <TableHead className="text-end w-[250px]">{t('table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -144,7 +144,7 @@ function SuggestionCard({
           </div>
           <p className="text-sm text-gray-900">{suggestion.text}</p>
         </div>
-        <div className="text-right flex-shrink-0">
+        <div className="text-end flex-shrink-0">
           <div className="text-sm font-semibold text-green-600">
             {t('points', { points: suggestion.estimated_gain })}
           </div>

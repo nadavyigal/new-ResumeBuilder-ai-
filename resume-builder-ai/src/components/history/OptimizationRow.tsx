@@ -149,12 +149,12 @@ function OptimizationRow({
       </TableCell>
 
       {/* Actions */}
-      <TableCell className="text-right">
+      <TableCell className="text-end">
         <div className="flex justify-end gap-2">
           {/* View Details Button */}
           <Button variant="outline" size="sm" asChild>
             <Link href={`/dashboard/optimizations/${optimization.id}`}>
-              <Eye className="h-4 w-4 mr-1" />
+              <Eye className="h-4 w-4 me-1" />
               {t('viewDetails')}
             </Link>
           </Button>
@@ -165,7 +165,7 @@ function OptimizationRow({
             size="sm"
             onClick={handleDownloadPDF}
           >
-            <Download className="h-4 w-4 mr-1" />
+            <Download className="h-4 w-4 me-1" />
             {t('downloadPdf')}
           </Button>
 
@@ -178,14 +178,14 @@ function OptimizationRow({
           >
             {isApplying ? (
               <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                <Loader2 className="h-4 w-4 me-1 animate-spin" />
                 {t('applying')}
               </>
             ) : optimization.hasApplication ? (
               <>{t('applied')}</>
             ) : (
               <>
-                <Send className="h-4 w-4 mr-1" />
+                <Send className="h-4 w-4 me-1" />
                 {t('applyNow')}
               </>
             )}

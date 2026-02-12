@@ -28,7 +28,7 @@ export default function HistoryTableSkeleton() {
             <TableHead>{t('company')}</TableHead>
             <TableHead className="w-[120px]">{t('atsMatch')}</TableHead>
             <TableHead className="w-[120px]">{t('status')}</TableHead>
-            <TableHead className="text-right w-[200px]">{t('actions')}</TableHead>
+            <TableHead className="text-end w-[200px]">{t('actions')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -60,7 +60,7 @@ export default function HistoryTableSkeleton() {
               </TableCell>
 
               {/* Actions skeleton */}
-              <TableCell className="text-right">
+              <TableCell className="text-end">
                 <div className="flex justify-end gap-2">
                   <div className="h-8 w-24 bg-muted animate-pulse rounded" />
                   <div className="h-8 w-28 bg-muted animate-pulse rounded" />

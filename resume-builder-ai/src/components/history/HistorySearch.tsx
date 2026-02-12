@@ -92,7 +92,7 @@ export default function HistorySearch({
         placeholder={resolvedPlaceholder}
         value={localValue}
         onChange={handleInputChange}
-        className="pl-10 pr-10"
+        className="ps-10 pe-10"
         aria-label={t('ariaLabel')}
       />
 

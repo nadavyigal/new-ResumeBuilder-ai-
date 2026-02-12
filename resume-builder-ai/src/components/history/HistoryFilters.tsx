@@ -178,7 +178,7 @@ export default function HistoryFilters({
             <span>{formatDateRangeLabel()}</span>
             {filters.dateRange && (
               <X
-                className="h-3 w-3 ml-1"
+                className="h-3 w-3 ms-1"
                 onClick={handleClearDateRange}
               />
             )}

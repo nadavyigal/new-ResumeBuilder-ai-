@@ -55,9 +55,9 @@ export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
   return (
     <Button variant="outline" size="sm" data-testid={testId} onClick={handleShare}>
       {platform === "linkedin" ? (
-        <Linkedin className="w-4 h-4 mr-2" />
+        <Linkedin className="w-4 h-4 me-2" />
       ) : (
-        <Twitter className="w-4 h-4 mr-2" />
+        <Twitter className="w-4 h-4 me-2" />
       )}
       {t("label", { platform: t(`platform.${platform}`) })}
     </Button>

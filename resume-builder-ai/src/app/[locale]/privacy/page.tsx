@@ -44,14 +44,14 @@ export default async function PrivacyPolicy() {
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.infoCollect.title')}</h2>
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.infoCollect.provided.title')}</h3>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {infoProvidedItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.infoCollect.automatic.title')}</h3>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {infoAutoItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -59,7 +59,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.useInfo.title')}</h2>
         <p className="mb-4">{t('sections.useInfo.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {useInfoItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -67,7 +67,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.security.title')}</h2>
         <p className="mb-4">{t('sections.security.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {securityItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -79,7 +79,7 @@ export default async function PrivacyPolicy() {
 
         <div className="mb-6">
           <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.thirdParty.analytics.title')}</h3>
-          <ul className="list-disc pl-6 mb-4 space-y-2">
+          <ul className="list-disc ps-6 mb-4 space-y-2">
             {analyticsItems.map((item) => (
               <li key={item.name}>
                 <strong>{item.name}:</strong> {item.description}{' '}
@@ -89,7 +89,7 @@ export default async function PrivacyPolicy() {
           </ul>
 
           <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.thirdParty.core.title')}</h3>
-          <ul className="list-disc pl-6 mb-4 space-y-2">
+          <ul className="list-disc ps-6 mb-4 space-y-2">
             {coreItems.map((item) => (
               <li key={item.name}>
                 <strong>{item.name}:</strong> {item.description}{' '}
@@ -104,7 +104,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.rights.title')}</h2>
         <p className="mb-4">{t('sections.rights.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {rightsItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -118,7 +118,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.cookies.title')}</h2>
         <p className="mb-4">{t('sections.cookies.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {cookiesItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -149,7 +149,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.gdpr.title')}</h2>
         <p className="mb-4">{t('sections.gdpr.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {gdprItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -158,7 +158,7 @@ export default async function PrivacyPolicy() {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.ccpa.title')}</h2>
         <p className="mb-4">{t('sections.ccpa.intro')}</p>
-        <ul className="list-disc pl-6 mb-6 space-y-2">
+        <ul className="list-disc ps-6 mb-6 space-y-2">
           {ccpaItems.map((item) => (
             <li key={item}>{item}</li>
           ))}

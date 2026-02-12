@@ -15,12 +15,12 @@ export function HowItWorks() {
   const stepIcons = [Upload, FileSearch, Download];
 
   return (
-    <section className="py-16 md:py-24 bg-background">
+    <section className="py-16 md:py-24 bg-gradient-to-b from-accent/30 to-background">
       <div className="container px-4 mx-auto">
         {/* Section Header */}
-        <div className="max-w-3xl mx-auto mb-12 md:mb-16 text-center">
-          <h2 className="mb-4">{t("title")}</h2>
-          <p className="text-lg text-muted-foreground">
+        <div className="max-w-3xl mx-auto mb-12 md:mb-20 text-center">
+          <h2 className="mb-4 text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">{t("title")}</h2>
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             {t("subtitle")}
           </p>
         </div>
@@ -38,7 +38,7 @@ export function HowItWorks() {
                 className="border-2 border-border rounded-2xl mb-4 overflow-hidden bg-card"
               >
                 <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-muted/50 transition-colors touch-target">
-                  <div className="flex items-center gap-4 text-left">
+                  <div className="flex items-center gap-4 text-start">
                     {/* Icon Circle */}
                     <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-mobile-cta to-mobile-cta-hover flex items-center justify-center text-white font-bold text-lg shadow-lg">
                       {index + 1}
@@ -73,7 +73,7 @@ export function HowItWorks() {
             return (
             <div
               key={`step-${index + 1}`}
-              className="group relative rounded-3xl border-2 border-border bg-card p-8 space-y-6 transition-all duration-300 hover:shadow-2xl hover:scale-105"
+              className="group relative rounded-3xl border-2 border-border bg-card p-8 space-y-6 transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 animate-fade-in-up"
               style={{
                 animationDelay: `${index * 150}ms`,
               }}

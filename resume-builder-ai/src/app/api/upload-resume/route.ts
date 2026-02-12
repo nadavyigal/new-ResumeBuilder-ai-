@@ -225,9 +225,9 @@ export async function POST(req: NextRequest) {
         jobTitle: extractedTitle || 'Position',
       });
 
-      // Add timeout to prevent hanging (60 seconds)
+      // Add timeout to prevent hanging (15 seconds)
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ATS scoring timeout')), 60000)
+        setTimeout(() => reject(new Error('ATS scoring timeout')), 15000)
       );
 
       atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;

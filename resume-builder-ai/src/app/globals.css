@@ -1,29 +1,86 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(35 35% 94%);
-  --color-foreground: hsl(20 20% 10%);
+  /* Fresh palette — cool teal undertone with vibrant accents */
+  --color-background: hsl(200 28% 96%);
+  --color-foreground: hsl(220 30% 10%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(20 20% 10%);
+  --color-card-foreground: hsl(220 30% 10%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(20 20% 10%);
-  --color-primary: hsl(20 20% 10%);
-  --color-primary-foreground: hsl(35 35% 94%);
-  --color-secondary: hsl(190 40% 75%);
-  --color-secondary-foreground: hsl(20 20% 10%);
-  --color-muted: hsl(35 25% 88%);
-  --color-muted-foreground: hsl(20 10% 40%);
-  --color-accent: hsl(190 45% 85%);
-  --color-accent-foreground: hsl(20 20% 10%);
+  --color-popover-foreground: hsl(220 30% 10%);
+  --color-primary: hsl(220 32% 14%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(172 48% 50%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-muted: hsl(200 22% 92%);
+  --color-muted-foreground: hsl(220 16% 38%);
+  --color-accent: hsl(172 38% 90%);
+  --color-accent-foreground: hsl(220 30% 10%);
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(35 20% 85%);
-  --color-input: hsl(35 20% 85%);
-  --color-ring: hsl(20 20% 10%);
+  --color-border: hsl(200 20% 88%);
+  --color-input: hsl(200 20% 88%);
+  --color-ring: hsl(220 32% 14%);
+
+  /* Semantic status colors */
+  --color-success: hsl(142 76% 36%);
+  --color-success-foreground: hsl(0 0% 100%);
+  --color-success-muted: hsl(142 40% 94%);
+  --color-warning: hsl(45 100% 51%);
+  --color-warning-foreground: hsl(20 20% 10%);
+  --color-warning-muted: hsl(45 60% 94%);
+  --color-error: hsl(0 84% 60%);
+  --color-error-foreground: hsl(0 0% 100%);
+  --color-error-muted: hsl(0 50% 95%);
+
+  /* ATS score colors */
+  --color-score-high: hsl(142 76% 36%);
+  --color-score-medium: hsl(45 100% 45%);
+  --color-score-low: hsl(0 84% 60%);
 
   --radius-lg: 1.5rem;
   --radius-md: calc(1.5rem - 0.125rem);
   --radius-sm: calc(1.5rem - 0.25rem);
+}
+
+/* ─── Animation System ─── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes check-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Easing tokens */
+@theme {
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @layer base {
@@ -34,6 +91,16 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   [dir="rtl"] {
@@ -77,5 +144,45 @@
   }
   .pb-safe {
     padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  /* Animation utility classes */
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s var(--ease-out-quart) both;
+  }
+  .animate-fade-in {
+    animation: fade-in 0.4s var(--ease-out-quart) both;
+  }
+  .animate-slide-up {
+    animation: slide-up 0.4s var(--ease-out-expo) both;
+  }
+  .animate-scale-in {
+    animation: scale-in 0.3s var(--ease-out-quart) both;
+  }
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  .animate-shimmer {
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  /* Stagger delay utilities */
+  .stagger-1 { animation-delay: 75ms; }
+  .stagger-2 { animation-delay: 150ms; }
+  .stagger-3 { animation-delay: 225ms; }
+  .stagger-4 { animation-delay: 300ms; }
+  .stagger-5 { animation-delay: 375ms; }
+  .stagger-6 { animation-delay: 450ms; }
+
+  /* Button press micro-interaction */
+  .btn-press {
+    transition: transform 0.15s var(--ease-out-quart), box-shadow 0.15s var(--ease-out-quart);
+  }
+  .btn-press:active {
+    transform: scale(0.97);
   }
 }

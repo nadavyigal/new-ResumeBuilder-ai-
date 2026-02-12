@@ -84,7 +84,7 @@ export default function BulkActions({
             <Download className="h-4 w-4" />
             {t('exportSelected')}
             {selectedCount > 20 && (
-              <span className="text-xs text-destructive ml-1">{t('max20')}</span>
+              <span className="text-xs text-destructive ms-1">{t('max20')}</span>
             )}
           </Button>
 
@@ -100,7 +100,7 @@ export default function BulkActions({
             <Trash2 className="h-4 w-4" />
             {t('deleteSelected')}
             {selectedCount > 50 && (
-              <span className="text-xs ml-1">{t('max50')}</span>
+              <span className="text-xs ms-1">{t('max50')}</span>
             )}
           </Button>
         </div>

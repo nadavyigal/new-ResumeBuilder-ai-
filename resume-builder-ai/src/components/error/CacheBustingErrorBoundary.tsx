@@ -120,7 +120,7 @@ export class CacheBustingErrorBoundary extends Component<Props, State> {
                         className="w-full sm:w-auto"
                         size="lg"
                       >
-                        <RefreshCw className="mr-2 h-4 w-4" />
+                        <RefreshCw className="me-2 h-4 w-4" />
                         Hard Refresh (Ctrl+Shift+R)
                       </Button>
                       <p className="text-sm text-muted-foreground mt-2">
@@ -141,7 +141,7 @@ export class CacheBustingErrorBoundary extends Component<Props, State> {
                         className="w-full sm:w-auto"
                         size="lg"
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className="me-2 h-4 w-4" />
                         Clear Cache & Reload
                       </Button>
                       <p className="text-sm text-muted-foreground mt-2">
@@ -189,7 +189,7 @@ export class CacheBustingErrorBoundary extends Component<Props, State> {
             </div>
             <div className="flex gap-3">
               <Button onClick={this.handleHardRefresh} size="lg">
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="me-2 h-4 w-4" />
                 Refresh Page
               </Button>
             </div>

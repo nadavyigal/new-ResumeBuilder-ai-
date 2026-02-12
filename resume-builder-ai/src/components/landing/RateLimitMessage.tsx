@@ -49,7 +49,7 @@ export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
         </p>
       </div>
       <Button
-        className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
+        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0"
         onClick={() => router.push("/auth/signup")}
       >
         {t("cta")}

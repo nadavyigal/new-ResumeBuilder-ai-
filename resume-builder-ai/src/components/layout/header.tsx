@@ -18,7 +18,7 @@ export function Header() {
   };
 
   return (
-    <header className="w-full border-b-2 border-border bg-background py-4">
+    <header className="w-full border-b-2 border-border bg-background/90 backdrop-blur-md py-4">
       <div className="container flex items-center justify-between px-4">
         {/* Logo */}
         <Link href={ROUTES.home} className="flex items-center">

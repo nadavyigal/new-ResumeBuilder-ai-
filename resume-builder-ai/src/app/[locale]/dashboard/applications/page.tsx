@@ -128,7 +128,7 @@ export default function ApplicationsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && load()}
-              className="pl-10 h-11 bg-muted/80 border-2 border-border/70"
+              className="ps-10 h-11 bg-muted/80 border-2 border-border/70"
             />
           </div>
           {/* Add Job URL Input */}
@@ -144,7 +144,7 @@ export default function ApplicationsPage() {
             <Button
               onClick={createFromUrl}
               disabled={!createUrl.trim()}
-              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white disabled:opacity-50"
+              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 disabled:opacity-50"
             >
               {t("addUrl.addButton")}
             </Button>
@@ -187,7 +187,7 @@ export default function ApplicationsPage() {
               <Button
                 onClick={createFromUrl}
                 disabled={!createUrl.trim()}
-                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0"
               >
                 {t("addUrl.addJobButton")}
               </Button>
@@ -222,7 +222,7 @@ export default function ApplicationsPage() {
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               {t("empty.description")}
             </p>
-            <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover">
+            <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
               <Link href="/dashboard/resume">{t("empty.cta")}</Link>
             </Button>
           </div>
@@ -247,7 +247,7 @@ export default function ApplicationsPage() {
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b">
+                    <tr className="text-start border-b">
                       <th className="py-3">{t("table.headers.resume")}</th>
                       <th className="py-3">{t("table.headers.company")}</th>
                       <th className="py-3">{t("table.headers.jobTitle")}</th>
@@ -269,7 +269,7 @@ export default function ApplicationsPage() {
                         <td className="py-3">{cleanJobTitle(it.job_extraction?.job_title || it.job_title)}</td>
                         <td className="py-3">
                           {it.apply_clicked_at ? new Date(it.apply_clicked_at).toLocaleDateString() : new Date(it.applied_date).toLocaleDateString()}
-                          <span className="ml-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
+                          <span className="ms-2"><MarkAppliedButton id={it.id} onDone={load} /></span>
                         </td>
                         <td className="py-3">{it.ats_score != null ? Math.round(it.ats_score) : '-'}</td>
                         <td className="py-3">

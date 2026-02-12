@@ -186,11 +186,6 @@ export function FreeATSChecker() {
       data-testid="free-ats-checker"
       className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32"
     >
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-mobile-cta/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
-      </div>
-
       <div className="container px-4 mx-auto">
         <div className="max-w-6xl mx-auto">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start">
@@ -208,11 +203,11 @@ export function FreeATSChecker() {
               <div className="space-y-4">
                 <h1
                   data-testid="ats-checker-heading"
-                  className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
+                  className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-foreground leading-[1.1] tracking-tight"
                 >
                   {t("title")}
                 </h1>
-                <p className="text-lg text-foreground/80 leading-relaxed">
+                <p className="text-lg md:text-xl text-foreground/70 leading-relaxed">
                   {t("description")}
                 </p>
               </div>
@@ -254,7 +249,7 @@ export function FreeATSChecker() {
               </div>
             </div>
 
-            <div className="rounded-3xl border-2 border-border bg-card/95 p-6 md:p-8 shadow-xl shadow-mobile-cta/10">
+            <div className="rounded-3xl border-2 border-border bg-card p-6 md:p-8 shadow-2xl shadow-foreground/8">
               {step === "upload" && (
                 <UploadForm
                   onSubmit={handleSubmit}

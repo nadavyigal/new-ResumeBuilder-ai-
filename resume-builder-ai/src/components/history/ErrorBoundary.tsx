@@ -123,7 +123,7 @@ function ErrorBoundaryContent({
 
         {/* Error Details (Development Only) */}
         {process.env.NODE_ENV === 'development' && error && (
-          <div className="rounded-md bg-muted p-4 text-left">
+          <div className="rounded-md bg-muted p-4 text-start">
             <p className="text-xs font-mono text-destructive">
               {error.toString()}
             </p>

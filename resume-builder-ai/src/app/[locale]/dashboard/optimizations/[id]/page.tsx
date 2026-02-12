@@ -779,7 +779,7 @@ export default function OptimizationPage() {
                     {designSummaryLabel}
                   </p>
                 </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ms-4">
                 {t("design.atsFriendly")}
               </span>
             </div>
@@ -846,11 +846,11 @@ export default function OptimizationPage() {
           {/* Chat Modal Overlay */}
           {showChat && (
             <div
-              className="fixed inset-0 bg-black/50 z-40 print:hidden"
+              className="fixed inset-0 bg-black/50 z-[60] print:hidden animate-fade-in"
               onClick={() => setShowChat(false)}
             >
               <div
-                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
+                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-slide-up md:animate-scale-in"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="h-full flex flex-col">
@@ -916,7 +916,7 @@ export default function OptimizationPage() {
                     <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-2">
                       {t("jobSummary.quickSummary")}
                     </p>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-left">
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-start">
                       {jobDescriptionSummary.split('\n').map((line, idx) => {
                         const trimmedLine = line.trim();
                         if (!trimmedLine) return <div key={idx} className="h-2" />;
@@ -928,7 +928,7 @@ export default function OptimizationPage() {
                           return <p key={idx} className="text-sm text-gray-600 dark:text-gray-400 mb-2">{t("jobSummary.locationLine", { location })}</p>;
                         } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
                           const bulletText = trimmedLine.replace(/^[-*]\s*/, '');
-                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 ml-4 mb-1.5 leading-relaxed">- {bulletText}</p>;
+                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 ms-4 mb-1.5 leading-relaxed">- {bulletText}</p>;
                         } else {
                           return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 mb-1.5 leading-relaxed">{trimmedLine}</p>;
                         }

@@ -190,7 +190,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             </div>
 
             {error && (
-              <div className="p-4 rounded-3xl bg-destructive/10 border-2 border-destructive/30">
+              <div role="alert" className="p-4 rounded-3xl bg-destructive/10 border-2 border-destructive/30">
                 <p className="text-sm text-destructive text-center font-medium">
                   {error}
                 </p>
@@ -198,7 +198,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             )}
 
             {message && (
-              <div className="p-4 rounded-3xl bg-secondary/50 border-2 border-secondary">
+              <div role="status" aria-live="polite" className="p-4 rounded-3xl bg-secondary/50 border-2 border-secondary">
                 <p className="text-sm text-foreground text-center font-medium">
                   {message}
                 </p>
@@ -211,8 +211,8 @@ export function AuthForm({ mode }: AuthFormProps) {
               disabled={loading}
             >
               {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></span>
+                <span className="flex items-center gap-2" role="status">
+                  <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin" aria-hidden="true"></span>
                   {t("processing")}
                 </span>
               ) : (
