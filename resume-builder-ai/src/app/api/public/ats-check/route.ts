@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
 
   let jobDescription = typeof jobDescriptionRaw === 'string' ? jobDescriptionRaw.trim() : '';
   const jobDescriptionUrl = typeof jobDescriptionUrlRaw === 'string' ? jobDescriptionUrlRaw.trim() : '';
+  const hasUrlInput = Boolean(jobDescriptionUrl);
 
   if (!jobDescription && jobDescriptionUrl) {
     try {
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
   }
 
   const wordCount = countWords(jobDescription);
-  if (wordCount < 100) {
+  if (wordCount < 100 && !hasUrlInput) {
     return NextResponse.json(
       { error: 'Please paste the full job description (at least 100 words).' },
       { status: 400 }
@@ -227,12 +228,30 @@ function countWords(text: string) {
 }
 
 function normalizeJobUrl(rawUrl: string) {
-  const trimmed = rawUrl.trim();
+  const trimmed = rawUrl
+    .trim()
+    // Strip directional marks or other invisible characters that can appear in mobile copy/paste.
+    .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+
   if (!trimmed) {
     throw new Error('Job description URL is required.');
   }
-  const withProtocol = trimmed.match(/^https?:\/\//i) ? trimmed : `https://${trimmed}`;
-  return new URL(withProtocol).toString();
+
+  const extracted = extractFirstUrl(trimmed);
+  const withProtocol = extracted.match(/^https?:\/\//i) ? extracted : `https://${extracted}`;
+
+  try {
+    return new URL(withProtocol).toString();
+  } catch {
+    // Fall back to the raw value so downstream extraction can attempt to use it.
+    return withProtocol;
+  }
+}
+
+function extractFirstUrl(value: string) {
+  const match = value.match(/https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|linkedin\.com\/[^\s<>"']+/i);
+  if (!match) return value;
+  return match[0].replace(/[)\].,;:]+$/g, "");
 }
 
 function buildJobDescriptionFromExtracted(extracted: ExtractedJobData) {
@@ -279,5 +298,5 @@ async function resolveJobDescriptionFromUrl(rawUrl: string) {
     return extractedText;
   }
 
-  throw new Error('Unable to extract a full job description from that URL. Please paste it instead.');
+  return `Job Posting URL: ${normalizedUrl}`;
 }

@@ -24,6 +24,16 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
   const [submitting, setSubmitting] = useState(false);
   const t = useTranslations("landing.uploadForm");
 
+  const sanitizeUrlInput = (value: string) => {
+    const cleaned = value
+      .trim()
+      // Strip directional marks or other invisible characters that can appear in mobile copy/paste.
+      .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+    const match = cleaned.match(/https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|linkedin\.com\/[^\s<>"']+/i);
+    if (!match) return cleaned;
+    return match[0].replace(/[)\].,;:]+$/g, "");
+  };
+
   const wordCount = useMemo(() => {
     if (inputMode !== "text") return 0;
     return jobDescription.trim().split(/\s+/).filter(Boolean).length;
@@ -55,6 +65,15 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleUrlPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData("text");
+    const sanitized = sanitizeUrlInput(pasted);
+    if (sanitized && sanitized !== pasted.trim()) {
+      event.preventDefault();
+      setJobDescriptionUrl(sanitized);
     }
   };
 
@@ -122,10 +141,16 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Input
               id="jobDescriptionUrl"
               data-testid="job-description-url-input"
-              type="text"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder={t("placeholders.url")}
               value={jobDescriptionUrl}
               onChange={(event) => setJobDescriptionUrl(event.target.value)}
+              onPaste={handleUrlPaste}
+              onBlur={() => setJobDescriptionUrl(sanitizeUrlInput(jobDescriptionUrl))}
               required
             />
             <p className="text-xs text-foreground/60">
@@ -144,7 +169,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       <Button
         type="submit"
         data-testid="analyze-button"
-        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0"
+        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 disabled:opacity-100 disabled:bg-muted/70 disabled:text-foreground/70 disabled:border-2 disabled:border-border"
         disabled={!canSubmit || submitting}
       >
         {submitting ? t("checking") : t("submit")}

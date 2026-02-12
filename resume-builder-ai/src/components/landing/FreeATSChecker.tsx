@@ -59,6 +59,16 @@ export function FreeATSChecker() {
   const router = useRouter();
   const t = useTranslations("landing.atsChecker");
 
+  const sanitizeUrlInput = (value: string) => {
+    const cleaned = value
+      .trim()
+      // Strip directional marks or other invisible characters that can appear in mobile copy/paste.
+      .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+    const match = cleaned.match(/https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|linkedin\.com\/[^\s<>"']+/i);
+    if (!match) return cleaned;
+    return match[0].replace(/[)\].,;:]+$/g, "");
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_KEY);
     if (stored) {
@@ -112,7 +122,7 @@ export function FreeATSChecker() {
       localStorage.setItem(SESSION_KEY, activeSessionId);
     }
 
-    let normalizedUrl = jobDescriptionUrl.trim();
+    let normalizedUrl = sanitizeUrlInput(jobDescriptionUrl);
     if (inputMode === "url" && normalizedUrl && !normalizedUrl.match(/^https?:\/\//i)) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
