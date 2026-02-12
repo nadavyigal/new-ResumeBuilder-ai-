@@ -23,6 +23,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLocale, useTranslations } from "next-intl";
+import posthog from "posthog-js";
+import { RESUME_EVENTS, CHAT_EVENTS, DESIGN_EVENTS, APPLICATION_EVENTS } from "@/lib/analytics/events";
 
 
 // Disable static generation for this dynamic page
@@ -250,8 +252,21 @@ export default function OptimizationPage() {
       // Generate AI summary of job description
       generateJobDescriptionSummary(jdData as any);
 
+      // Track optimization view
+      posthog.capture(RESUME_EVENTS.OPTIMIZATION_VIEWED, {
+        optimization_id: idVal,
+        ats_score: (optimizationRow as any).ats_score_optimized ?? (optimizationRow as any).match_score ?? null,
+        is_demo: false,
+        has_ats_v2: (optimizationRow as any).ats_version === 2,
+      });
+
     } catch (error: any) {
       console.error('Error in fetchOptimizationData:', error);
+      posthog.capture(RESUME_EVENTS.OPTIMIZATION_ERROR, {
+        optimization_id: String(params.id || ''),
+        error_type: 'fetch_error',
+        error_message: error.message,
+      });
       setError(error.message);
     } finally {
       setLoading(false);
@@ -409,6 +424,12 @@ export default function OptimizationPage() {
       // Update design assignment - this will trigger DesignRenderer's useEffect
       setCurrentDesignAssignment(data.assignment || null);
       setShowDesignBrowser(false);
+
+      posthog.capture(DESIGN_EVENTS.SELECTED, {
+        optimization_id: params.id as string,
+        template_slug: data.assignment?.template?.slug || templateId,
+      });
+
       toast({
         title: t("design.toastAppliedTitle"),
         description: data.assignment?.template?.name || t("design.toastAppliedDescription")
@@ -512,6 +533,7 @@ export default function OptimizationPage() {
 
     try {
       await navigator.clipboard.writeText(plainText);
+      posthog.capture(RESUME_EVENTS.COPIED, { optimization_id: params.id });
       alert(t("copy.success"));
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -633,6 +655,12 @@ export default function OptimizationPage() {
         throw new Error(j.error || t("apply.saveFailure"));
       }
 
+      posthog.capture(APPLICATION_EVENTS.CREATED, {
+        optimization_id: String(params.id || ''),
+        has_job_url: !!jobDescription.source_url,
+        ats_score: atsScore,
+      });
+
       // Navigate to applications list after apply
       window.location.href = `/dashboard/applications`;
 
@@ -714,8 +742,11 @@ export default function OptimizationPage() {
             </Select>
           </div>
 
-            <Button 
-              onClick={() => setShowDesignBrowser(true)} 
+            <Button
+              onClick={() => {
+                posthog.capture(DESIGN_EVENTS.BROWSER_OPENED, { optimization_id: params.id as string });
+                setShowDesignBrowser(true);
+              }}
               variant="outline"
               className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
             >
@@ -810,7 +841,12 @@ export default function OptimizationPage() {
       {optimizedResume && (
         <>
           <button
-            onClick={() => setShowChat(!showChat)}
+            onClick={() => {
+              if (!showChat) {
+                posthog.capture(CHAT_EVENTS.OPENED, { optimization_id: params.id as string });
+              }
+              setShowChat(!showChat);
+            }}
             onPointerDown={(e) => {
               setDragging(true);
               dragOffset.current = {

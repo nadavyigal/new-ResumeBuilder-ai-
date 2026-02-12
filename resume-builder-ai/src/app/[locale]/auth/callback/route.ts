@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { captureServerEvent } from '@/lib/posthog-server';
+import { AUTH_EVENTS, ATS_CHECKER_EVENTS } from '@/lib/analytics/events';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 
 // This route handles the OAuth, magic link, and email confirmation callbacks
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (!error && data.user) {
       // Track successful authentication
-      await captureServerEvent(data.user.id, 'signup_completed', {
+      await captureServerEvent(data.user.id, AUTH_EVENTS.SIGNUP_COMPLETED, {
         method: 'email',
         source: 'email_confirmation',
         user_id: data.user.id,
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
               })
               .eq('id', anonScore.id);
 
-            await captureServerEvent(data.user.id, 'ats_checker_session_converted', {
+            await captureServerEvent(data.user.id, ATS_CHECKER_EVENTS.SESSION_CONVERTED, {
               sessionId,
               score: anonScore.ats_score,
               convertedAt: new Date().toISOString(),

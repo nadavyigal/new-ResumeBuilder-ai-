@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { createClientComponentClient } from "@/lib/supabase";
 import { posthog } from "@/lib/posthog";
+import { AUTH_EVENTS } from "@/lib/analytics/events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,7 +48,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     try {
       if (mode === "signup") {
         // Track signup started
-        posthog.capture('signup_started', {
+        posthog.capture(AUTH_EVENTS.SIGNUP_STARTED, {
           method: 'email',
           source: 'auth_form',
         });
@@ -94,7 +95,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           });
 
           // Track signup completed
-          posthog.capture('signup_completed', {
+          posthog.capture(AUTH_EVENTS.SIGNUP_COMPLETED, {
             method: 'email',
             source: 'auth_form',
             user_id: data.user.id,

@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/useToast';
+import posthog from 'posthog-js';
+import { ENGAGEMENT_EVENTS } from '@/lib/analytics/events';
 
 /**
  * Newsletter Signup Component - Integrated with Buttondown
@@ -65,12 +67,10 @@ export function NewsletterSignup() {
         });
         setEmail('');
 
-        // Track successful signup in PostHog if available
-        if (typeof window !== 'undefined' && (window as any).posthog) {
-          (window as any).posthog.capture('newsletter_signup', {
-            email_domain: email.split('@')[1],
-          });
-        }
+        // Track successful signup in PostHog
+        posthog.capture(ENGAGEMENT_EVENTS.NEWSLETTER_SIGNUP, {
+          email_domain: email.split('@')[1],
+        });
       } else {
         // Handle Buttondown error responses
         const errorText = await response.text();

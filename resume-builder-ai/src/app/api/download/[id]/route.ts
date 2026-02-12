@@ -5,6 +5,8 @@ import { resolvePdfDesignContext, type PdfDesignContext } from "@/lib/pdf-design
 import { callPDFService } from "@/lib/pdf-service-client";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { logger } from "@/lib/agent/utils/logger";
+import { captureServerEvent } from "@/lib/posthog-server";
+import { RESUME_EVENTS } from "@/lib/analytics/events";
 
 export const runtime = "nodejs";
 
@@ -139,6 +141,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       errorDetails.stack = error.stack;
     }
     logger.error('Error generating download file', errorDetails, error);
+
+    // Track download failure
+    captureServerEvent(user.id, RESUME_EVENTS.DOWNLOAD_ERROR, {
+      optimization_id: id,
+      format,
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
     throw error;
   }
 
@@ -160,6 +170,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     headers.set("X-Resume-Design-Assigned", pdfResult.usedDesignAssignment ? "1" : "0");
   }
+
+  // Track successful download
+  captureServerEvent(user.id, RESUME_EVENTS.DOWNLOADED, {
+    format,
+    optimization_id: id,
+    template_slug: pdfResult?.templateSlug || null,
+    renderer: pdfResult?.renderer || 'docx',
+    file_size_bytes: fileBuffer.length,
+  });
 
   logger.info('Sending download response', { optimizationId: id, filename, contentType });
   const body = fileBuffer as unknown as BodyInit;

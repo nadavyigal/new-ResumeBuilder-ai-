@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Linkedin, Twitter } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
+import { ATS_CHECKER_EVENTS } from "@/lib/analytics/events";
 import { Button } from "@/components/ui/button";
 
 export type SharePlatform = "linkedin" | "twitter";
@@ -45,7 +46,7 @@ export function SocialShareButton({ platform, score }: SocialShareButtonProps) {
     window.open(url, "_blank", "width=600,height=500");
 
     // Track share event
-    posthog.capture("ats_checker_share_clicked", {
+    posthog.capture(ATS_CHECKER_EVENTS.SHARE_CLICKED, {
       platform,
       score,
       utm_campaign: 'ats-checker',

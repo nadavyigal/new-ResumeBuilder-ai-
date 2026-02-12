@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { Sparkles, ShieldCheck } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
+import { ATS_CHECKER_EVENTS } from "@/lib/analytics/events";
 import { UploadForm } from "@/components/landing/UploadForm";
 import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
@@ -71,13 +72,13 @@ export function FreeATSChecker() {
   }, []);
 
   useEffect(() => {
-    posthog.capture("ats_checker_view");
+    posthog.capture(ATS_CHECKER_EVENTS.VIEW);
   }, []);
 
   useEffect(() => {
     if (!scoreData) return;
 
-    posthog.capture("ats_checker_score_displayed", {
+    posthog.capture(ATS_CHECKER_EVENTS.SCORE_DISPLAYED, {
       score: scoreData.score.overall,
       totalIssues: scoreData.preview.totalIssues,
       sessionId: scoreData.sessionId,
@@ -90,7 +91,7 @@ export function FreeATSChecker() {
   }, [scoreData, t]);
 
   const handleFileSelected = (file: File) => {
-    posthog.capture("ats_checker_file_uploaded", {
+    posthog.capture(ATS_CHECKER_EVENTS.FILE_UPLOADED, {
       fileSize: file.size,
       fileType: file.type || "unknown",
     });
@@ -116,7 +117,7 @@ export function FreeATSChecker() {
       normalizedUrl = `https://${normalizedUrl}`;
     }
 
-    posthog.capture("ats_checker_submitted", {
+    posthog.capture(ATS_CHECKER_EVENTS.SUBMITTED, {
       sessionId: activeSessionId,
       input_mode: inputMode,
       jobDescriptionLength: inputMode === "text" ? jobDescription.length : 0,
@@ -143,7 +144,7 @@ export function FreeATSChecker() {
       const payload = await response.json();
 
       if (response.status === 429) {
-        posthog.capture("ats_checker_rate_limited", {
+        posthog.capture(ATS_CHECKER_EVENTS.RATE_LIMITED, {
           checksUsed: 5,
           sessionId: activeSessionId,
         });
@@ -172,7 +173,7 @@ export function FreeATSChecker() {
 
   const handleSignup = () => {
     if (scoreData) {
-      posthog.capture("ats_checker_signup_clicked", {
+      posthog.capture(ATS_CHECKER_EVENTS.SIGNUP_CLICKED, {
         score: scoreData.score.overall,
         sessionId: scoreData.sessionId,
       });

@@ -19,6 +19,8 @@ import { refineSection, applyRefinement } from '@/lib/api/refine-section';
 import type { RefineSectionRequest } from '@/types/refine';
 import { logger } from '@/lib/agent/utils/logger';
 import { useTranslations } from 'next-intl';
+import posthog from 'posthog-js';
+import { CHAT_EVENTS } from '@/lib/analytics/events';
 
 /**
  * Validate and deduplicate pending changes
@@ -201,6 +203,12 @@ export function ChatSidebar({
       };
 
       setMessages((prev) => [...prev, tempUserMessage]);
+
+      posthog.capture(CHAT_EVENTS.MESSAGE_SENT, {
+        optimization_id: optimizationId,
+        message_count_in_session: messages.length + 1,
+        is_ats_suggestion: false,
+      });
 
       // Send message to API
       const response = await fetch('/api/v1/chat', {

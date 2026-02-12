@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ApplicationCard } from "@/components/mobile/application-card";
 import { useTranslations } from "next-intl";
+import posthog from "posthog-js";
+import { APPLICATION_EVENTS } from "@/lib/analytics/events";
 
 // Helper function to clean job titles (remove company name and LinkedIn suffix)
 function cleanJobTitle(title: string): string {
@@ -91,6 +93,7 @@ export default function ApplicationsPage() {
       });
 
       if (res.ok) {
+        posthog.capture(APPLICATION_EVENTS.ADDED_FROM_URL, { has_url: true });
         setCreateUrl("");
         await load();
         // Show success feedback
