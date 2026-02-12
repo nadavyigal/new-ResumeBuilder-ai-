@@ -144,7 +144,7 @@ export default function ApplicationsPage() {
             <Button
               onClick={createFromUrl}
               disabled={!createUrl.trim()}
-              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white disabled:opacity-50"
+              className="h-11 px-6 bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 disabled:opacity-50"
             >
               {t("addUrl.addButton")}
             </Button>
@@ -187,7 +187,7 @@ export default function ApplicationsPage() {
               <Button
                 onClick={createFromUrl}
                 disabled={!createUrl.trim()}
-                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+                className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0"
               >
                 {t("addUrl.addJobButton")}
               </Button>
@@ -222,7 +222,7 @@ export default function ApplicationsPage() {
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
               {t("empty.description")}
             </p>
-            <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover">
+            <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
               <Link href="/dashboard/resume">{t("empty.cta")}</Link>
             </Button>
           </div>

@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  /* Cool, contemporary palette — fresh off-white with slate undertones */
-  --color-background: hsl(210 20% 96%);
-  --color-foreground: hsl(220 25% 10%);
+  /* Fresh palette — cool teal undertone with vibrant accents */
+  --color-background: hsl(200 28% 96%);
+  --color-foreground: hsl(220 30% 10%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(220 25% 10%);
+  --color-card-foreground: hsl(220 30% 10%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(220 25% 10%);
-  --color-primary: hsl(220 25% 12%);
-  --color-primary-foreground: hsl(210 20% 96%);
-  --color-secondary: hsl(185 45% 72%);
-  --color-secondary-foreground: hsl(220 25% 10%);
-  --color-muted: hsl(210 18% 90%);
-  --color-muted-foreground: hsl(220 12% 44%);
-  --color-accent: hsl(185 40% 88%);
-  --color-accent-foreground: hsl(220 25% 10%);
+  --color-popover-foreground: hsl(220 30% 10%);
+  --color-primary: hsl(220 32% 14%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(172 48% 50%);
+  --color-secondary-foreground: hsl(0 0% 100%);
+  --color-muted: hsl(200 22% 92%);
+  --color-muted-foreground: hsl(220 16% 38%);
+  --color-accent: hsl(172 38% 90%);
+  --color-accent-foreground: hsl(220 30% 10%);
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(210 16% 87%);
-  --color-input: hsl(210 16% 87%);
-  --color-ring: hsl(220 25% 12%);
+  --color-border: hsl(200 20% 88%);
+  --color-input: hsl(200 20% 88%);
+  --color-ring: hsl(220 32% 14%);
 
   /* Semantic status colors */
   --color-success: hsl(142 76% 36%);

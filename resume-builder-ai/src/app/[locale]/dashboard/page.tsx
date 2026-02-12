@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white">
+                <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
                   <Link href={ROUTES.upload}>
                     {t("conversion.cta")}
                   </Link>
@@ -123,7 +123,7 @@ export default function DashboardPage() {
                       {t("actions.uploadDescription")}
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white shadow-lg shadow-mobile-cta/20 h-12 text-base font-bold">
+                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 shadow-lg shadow-mobile-cta/20 h-12 text-base font-bold">
                     {t("actions.getStarted")}
                   </Button>
                 </CardHeader>
@@ -131,12 +131,12 @@ export default function DashboardPage() {
             </Card>
 
             {/* Browse Templates */}
-            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/50 hover:-translate-y-1 animate-fade-in-up stagger-2">
+            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-purple-500/50 hover:-translate-y-1 bg-gradient-to-br from-purple-50/50 to-transparent dark:from-purple-900/10 animate-fade-in-up stagger-2">
               <Link href={ROUTES.templates} className="block h-full">
                 <CardHeader className="h-full flex flex-col justify-between p-4 md:p-6">
                   <div>
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-                      <Palette className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-2">
+                      <Palette className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
                     </div>
                     <CardTitle className="text-base md:text-xl">{t("actions.templatesTitle")}</CardTitle>
                   </div>

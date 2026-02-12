@@ -102,7 +102,7 @@ export function HistoryCard({ optimization, onApplyNow, isApplying = false }: Hi
           <Button
             asChild
             variant="default"
-            className="flex-1 h-11 bg-mobile-cta hover:bg-mobile-cta-hover text-white font-medium"
+            className="flex-1 h-11 bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 font-medium"
           >
             <Link href={`/dashboard/optimizations/${optimization.id}`}>
               <FileText className="w-4 h-4 me-2" />

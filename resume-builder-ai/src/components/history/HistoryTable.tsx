@@ -607,7 +607,7 @@ export default function HistoryTable() {
             <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto">
               {t('noResults.description')}
             </p>
-            <Button onClick={handleClearFilters} className="bg-mobile-cta hover:bg-mobile-cta-hover">
+            <Button onClick={handleClearFilters} className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
               {t('actions.clearFilters')}
             </Button>
           </div>

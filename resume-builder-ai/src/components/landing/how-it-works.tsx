@@ -15,7 +15,7 @@ export function HowItWorks() {
   const stepIcons = [Upload, FileSearch, Download];
 
   return (
-    <section className="py-16 md:py-24 bg-background">
+    <section className="py-16 md:py-24 bg-gradient-to-b from-accent/30 to-background">
       <div className="container px-4 mx-auto">
         {/* Section Header */}
         <div className="max-w-3xl mx-auto mb-12 md:mb-20 text-center">

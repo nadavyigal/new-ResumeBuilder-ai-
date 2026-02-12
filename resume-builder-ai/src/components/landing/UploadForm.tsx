@@ -144,7 +144,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       <Button
         type="submit"
         data-testid="analyze-button"
-        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white"
+        className="w-full bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0"
         disabled={!canSubmit || submitting}
       >
         {submitting ? t("checking") : t("submit")}
