@@ -143,7 +143,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     logger.error('Error generating download file', errorDetails, error);
 
     // Track download failure
-    captureServerEvent(user.id, RESUME_EVENTS.DOWNLOAD_ERROR, {
+    await captureServerEvent(user.id, RESUME_EVENTS.DOWNLOAD_ERROR, {
       optimization_id: id,
       format,
       error_message: error instanceof Error ? error.message : String(error),
@@ -172,7 +172,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   // Track successful download
-  captureServerEvent(user.id, RESUME_EVENTS.DOWNLOADED, {
+  await captureServerEvent(user.id, RESUME_EVENTS.DOWNLOADED, {
     format,
     optimization_id: id,
     template_slug: pdfResult?.templateSlug || null,
