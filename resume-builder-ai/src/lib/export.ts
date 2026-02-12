@@ -13,6 +13,7 @@ import { type DesignCustomizationLike } from "./design-manager/render-preview-ht
 import { callPDFService } from "./pdf-service-client";
 import { resolvePdfDesignContext, type PdfDesignContext } from "./pdf-design-context";
 import { logger } from "@/lib/agent/utils/logger";
+import { getPdfTemplate, selectPalette, applyCustomization, detectRTL } from "./pdf-templates";
 
 /**
  * Generate PDF from HTML using the Docker PDF service.
@@ -76,7 +77,7 @@ export async function generatePdfWithTemplate(
     logger.error('HTML-to-PDF generation failed, falling back', { templateId }, error);
 
     try {
-      const pdfBuffer = await generatePdfFromReact(resumeData);
+      const pdfBuffer = await generatePdfFromReact(resumeData, templateId);
       logger.info('PDF generated successfully with React PDF fallback', { templateId });
       return pdfBuffer;
     } catch (reactError) {
@@ -169,25 +170,49 @@ async function generatePdfFromExternalTemplate(
 
 /**
  * Generate PDF using React PDF renderer (serverless-compatible)
- * This works in Vercel without requiring Chrome/Puppeteer
+ * This works in Vercel without requiring Chrome/Puppeteer.
+ *
+ * When a templateSlug is provided and a styled template exists for it,
+ * the PDF will match the browser design. Otherwise falls back to the
+ * plain ResumePDF component.
  */
-async function generatePdfFromReact(resumeData: OptimizedResume): Promise<Buffer> {
+async function generatePdfFromReact(
+  resumeData: OptimizedResume,
+  templateSlug?: string | null,
+  customization?: DesignCustomizationLike | null,
+): Promise<Buffer> {
   try {
-    logger.info('Using @react-pdf/renderer for serverless PDF generation...');
-
     // Clean resume data before rendering
     const cleanedData = cleanResumeData(resumeData);
 
-    // Create React PDF document
-    const pdfDocument = React.createElement(ResumePDF, { resume: cleanedData }) as React.ReactElement;
+    // Try to use a styled template matching the browser design
+    const StyledTemplate = templateSlug ? getPdfTemplate(templateSlug) : null;
+
+    let pdfDocument: React.ReactElement;
+
+    if (StyledTemplate) {
+      const basePalette = selectPalette(templateSlug!);
+      const palette = applyCustomization(basePalette, customization);
+      const isRTL = detectRTL(cleanedData);
+
+      logger.info('Using styled React PDF template', { templateSlug, isRTL });
+      pdfDocument = React.createElement(StyledTemplate, {
+        resume: cleanedData,
+        palette,
+        isRTL,
+      }) as React.ReactElement;
+    } else {
+      logger.info('Using plain React PDF (no styled template for slug)', { templateSlug });
+      pdfDocument = React.createElement(ResumePDF, { resume: cleanedData }) as React.ReactElement;
+    }
 
     // Render to buffer
     const pdfBuffer = await renderToBuffer(pdfDocument);
 
-    logger.info('React PDF generated successfully', { size: pdfBuffer.length });
+    logger.info('React PDF generated successfully', { size: pdfBuffer.length, styled: !!StyledTemplate });
     return pdfBuffer;
   } catch (error) {
-    const errorDetails: Record<string, unknown> = { context: 'generatePdfFromReact' };
+    const errorDetails: Record<string, unknown> = { context: 'generatePdfFromReact', templateSlug };
     if (process.env.NODE_ENV === 'development' && error instanceof Error) {
       errorDetails.stack = error.stack;
     }
@@ -220,7 +245,7 @@ export async function generatePdf(resumeData: OptimizedResume | string): Promise
     logger.error('HTML-to-PDF generation failed in generatePdf', { inputType: typeof resumeData }, error);
 
     try {
-      const pdfBuffer = await generatePdfFromReact(resumeData);
+      const pdfBuffer = await generatePdfFromReact(resumeData, null, null);
       logger.info('PDF generated successfully with React PDF fallback', { inputType: typeof resumeData });
       return pdfBuffer;
     } catch (reactError) {
@@ -521,7 +546,7 @@ export async function generatePdfWithDesign(
     // For ats-safe or default templates, skip external rendering
     if (templateSlug === "ats-safe" || templateSlug === "default") {
       logger.info('Using React PDF for default template', { templateSlug });
-      const buffer = await generatePdfFromReact(cleanedData);
+      const buffer = await generatePdfFromReact(cleanedData, templateSlug, customization);
       return {
         buffer,
         renderer: "react-pdf",
@@ -581,14 +606,14 @@ export async function generatePdfWithDesign(
           usedDesignAssignment: false,
         };
       } catch (error) {
-        logger.warn('Default template render failed, falling back to React PDF', {
+        logger.warn('Default template render failed, falling back to styled React PDF', {
           templateSlug: defaultTemplateSlug,
         }, error);
-        const buffer = await generatePdfFromReact(cleanedData);
+        const buffer = await generatePdfFromReact(cleanedData, defaultTemplateSlug, null);
         return {
           buffer,
           renderer: "react-pdf",
-          templateSlug: null,
+          templateSlug: defaultTemplateSlug,
           usedDesignAssignment: false,
         };
       }
@@ -609,12 +634,12 @@ export async function generatePdfWithDesign(
         usedDesignAssignment,
       };
     } catch (error) {
-      logger.error('HTML template render failed, falling back to React PDF', { templateSlug }, error);
+      logger.error('HTML template render failed, falling back to styled React PDF', { templateSlug }, error);
     }
 
-    // Fallback 4: React PDF
-    const buffer = await generatePdfFromReact(cleanedData);
-    logger.info('React PDF fallback used', { templateSlug });
+    // Fallback 4: Styled React PDF
+    const buffer = await generatePdfFromReact(cleanedData, templateSlug, customization);
+    logger.info('Styled React PDF fallback used', { templateSlug });
     return {
       buffer,
       renderer: "react-pdf",
@@ -626,8 +651,8 @@ export async function generatePdfWithDesign(
     logger.error('All primary PDF methods failed, using ultimate fallback', { optimizationId }, error);
 
     try {
-      const buffer = await generatePdfFromReact(resumeData);
-      logger.info('React PDF generated successfully with React PDF fallback', { optimizationId });
+      const buffer = await generatePdfFromReact(resumeData, null, null);
+      logger.info('React PDF generated successfully with plain fallback', { optimizationId });
       return {
         buffer,
         renderer: "react-pdf",
