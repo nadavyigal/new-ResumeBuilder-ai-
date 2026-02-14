@@ -9,7 +9,7 @@ export function getFallbackATS(): {
     score: 0,
     missing_keywords: [],
     recommendations: [
-      "We could not compute ATS score due to a transient issue. Try again shortly.",
+      "ATS scoring is temporarily unavailable. Please retry in a moment.",
     ],
   };
 }

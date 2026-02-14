@@ -71,17 +71,11 @@ function getOpenAIClient(): OpenAI {
     throw new Error('OPENAI_API_KEY environment variable is not set');
   }
 
-  return new OpenAI({
-    apiKey,
-  });
+  return new OpenAI({ apiKey });
 }
 
 /**
  * Optimize a resume against a job description using OpenAI
- *
- * @param resumeText - Raw text extracted from the resume
- * @param jobDescription - Job description text
- * @returns Optimization result with structured resume data
  */
 export async function optimizeResume(
   resumeText: string,
@@ -90,55 +84,32 @@ export async function optimizeResume(
   try {
     const openai = getOpenAIClient();
 
-    // Detect if resume is in Hebrew
+    // Detect if resume or job description is in Hebrew.
     const hebrewPattern = /[\u0590-\u05FF]/;
     const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
 
-    // Language instruction
     const languageInstruction = isHebrew
-      ? `\n\n🔴 CRITICAL LANGUAGE REQUIREMENT - HEBREW (עברית) 🔴
-
-YOU MUST WRITE THE ENTIRE OPTIMIZED RESUME IN HEBREW LANGUAGE WITH RIGHT-TO-LEFT (RTL) TEXT DIRECTION.
-
-MANDATORY RULES:
-1. ALL text content MUST be in Hebrew (עברית) - summary, skills, achievements, job titles, descriptions, etc.
-2. Use ONLY Hebrew characters: א-ת, no English letters in Hebrew text
-3. Text direction: RIGHT-TO-LEFT (RTL) - Hebrew reads from right to left: ←
-4. Numbers: Use Western numerals (2024, 5, etc.) but maintain RTL flow
-5. Keep proper nouns in their original form (company names, software tools like "Excel", "Python")
-6. Dates: Use Hebrew month names or format: "ינואר 2024" or "2024-01"
-7. JSON structure: Field names stay in English ("summary", "skills"), but ALL VALUES in Hebrew
-
-TEXT DIRECTION EXAMPLES:
-✅ CORRECT RTL: "מנהל פיתוח עסקי בכיר עם 10+ שנות ניסיון בניהול צוותים"
-❌ WRONG LTR: "Manager Development Business senior with experience years 10+"
-
-CONTENT EXAMPLES:
-✅ CORRECT: "summary": "מנהל פיתוח עסקי מנוסה עם רקע חזק בניהול קשרי לקוחות ופיתוח אסטרטגיות עסקיות"
-✅ CORRECT: "title": "מנהל פיתוח עסקי"
-✅ CORRECT: "achievements": ["ניהול תיק לקוחות בהיקף של 5 מיליון שקל בשנה"]
-❌ WRONG: "summary": "Experienced Business Development Manager..."
-❌ WRONG: "title": "Business Development Manager"
-
-REMEMBER: Hebrew is written RIGHT-TO-LEFT (←). The optimized resume must read naturally in Hebrew RTL direction.
-
-DO NOT TRANSLATE TO ENGLISH. DO NOT USE ENGLISH TEXT WHERE HEBREW IS REQUIRED.`
+      ? `\n\nHEBREW OUTPUT REQUIREMENT:
+- Write all resume content values in Hebrew.
+- Keep JSON field names in English exactly as required by the schema.
+- Preserve natural right-to-left Hebrew phrasing.
+- Keep proper nouns (company names, product names, tools) in their original form when needed.
+- Use truthful, professional Hebrew and avoid unnecessary English text.`
       : '';
 
-    console.log('🌍 Language Detection:', {
+    console.log('Language Detection:', {
       isHebrew,
       resumeHasHebrew: hebrewPattern.test(resumeText),
       jobHasHebrew: hebrewPattern.test(jobDescription),
       resumePreview: resumeText.substring(0, 100),
-      jobPreview: jobDescription.substring(0, 100)
+      jobPreview: jobDescription.substring(0, 100),
     });
 
-    // Create the chat completion request
     const completion = await openai.chat.completions.create({
       model: OPTIMIZATION_CONFIG.model,
       temperature: OPTIMIZATION_CONFIG.temperature,
       max_tokens: OPTIMIZATION_CONFIG.maxTokens,
-      response_format: { type: 'json_object' }, // Ensure JSON response
+      response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
@@ -160,7 +131,6 @@ DO NOT TRANSLATE TO ENGLISH. DO NOT USE ENGLISH TEXT WHERE HEBREW IS REQUIRED.`
       };
     }
 
-    // Parse the JSON response
     const optimizedResume = JSON.parse(responseContent) as OptimizedResume;
 
     return {
@@ -172,7 +142,6 @@ DO NOT TRANSLATE TO ENGLISH. DO NOT USE ENGLISH TEXT WHERE HEBREW IS REQUIRED.`
     console.error('Error optimizing resume:', error);
     const err = error as { code?: string; message?: string; status?: number };
 
-    // Handle specific error types
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
       return {
         success: false,
@@ -202,29 +171,22 @@ DO NOT TRANSLATE TO ENGLISH. DO NOT USE ENGLISH TEXT WHERE HEBREW IS REQUIRED.`
 }
 
 /**
- * Calculate ATS match score between resume and job description
- * This is a simpler keyword-based approach as a fallback
- *
- * @param resumeText - Resume text
- * @param jobDescription - Job description text
- * @returns Match score from 0-100
+ * Calculate ATS match score between resume and job description.
+ * This is a simple keyword-based fallback.
  */
 export function calculateMatchScore(
   resumeText: string,
   jobDescription: string
 ): number {
-  // Extract keywords from job description (simple approach)
   const jdWords = jobDescription
     .toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(word => word.length > 3); // Filter short words
+    .filter(word => word.length > 3);
 
-  // Count how many JD keywords appear in resume
   const resumeLower = resumeText.toLowerCase();
   const matchedKeywords = jdWords.filter(word => resumeLower.includes(word));
 
-  // Calculate percentage
   const uniqueJdWords = [...new Set(jdWords)];
   const uniqueMatches = [...new Set(matchedKeywords)];
 
@@ -232,25 +194,18 @@ export function calculateMatchScore(
 }
 
 /**
- * Extract keywords from job description
- *
- * @param jobDescription - Job description text
- * @returns Array of important keywords
+ * Extract keywords from job description.
  */
 export function extractKeywords(jobDescription: string): string[] {
-  // Common technical and professional keywords patterns
   const keywords: string[] = [];
 
-  // Extract capitalized terms (likely proper nouns, technologies)
   const capitalizedPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
   const capitalized = jobDescription.match(capitalizedPattern) || [];
 
-  // Extract acronyms and technical terms
   const acronymPattern = /\b[A-Z]{2,}\b/g;
   const acronyms = jobDescription.match(acronymPattern) || [];
 
-  // Combine and deduplicate
   keywords.push(...capitalized, ...acronyms);
 
-  return [...new Set(keywords)].slice(0, 50); // Limit to top 50
+  return [...new Set(keywords)].slice(0, 50);
 }

@@ -37,7 +37,7 @@ export function buildQuickWinsPrompt(params: QuickWinsPromptParams): string {
   const truncatedResume = resume_text.slice(0, 2000);
   const resumeSuffix = resume_text.length > 2000 ? '...' : '';
 
-  return `You are an expert ATS (Applicant Tracking System) optimization specialist. Your task is to identify the TOP 3 most impactful improvements to this resume for the target job.
+  return `You are an ATS optimization specialist. Identify the 3 highest-impact resume improvements for the target job.
 
 **Current Resume**:
 ${truncatedResume}${resumeSuffix}
@@ -55,14 +55,15 @@ ${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
 **Missing Keywords**: ${missingKeywords.slice(0, 15).join(', ')}
 
 **Instructions**:
-1. Identify 3 specific sentences/bullet points in the resume that can be improved
-2. Rewrite each to maximize ATS score by:
-   - Adding relevant keywords from the job description naturally
-   - Quantifying achievements with metrics (%, $, #, timeframes)
-   - Using strong action verbs (led, optimized, increased, delivered)
-   - Aligning with job requirements while staying truthful
-3. Each improvement should target a different resume section when possible
-4. Focus on high-impact changes (5+ point score improvement each)
+1. Select 3 specific sentences or bullets from the resume that can be improved.
+2. Rewrite each one to improve ATS match while staying truthful.
+3. Prioritize:
+   - Relevant keywords from the job description
+   - Clear action + scope + outcome phrasing
+   - Quantification when it is supported by the source text
+4. If exact metrics are missing, use bracket placeholders like [X%], [N users], or [timeframe] instead of fabricating numbers.
+5. Target different resume sections when possible.
+6. Keep rationale short and practical.
 
 **Output Format** (strict JSON):
 {
@@ -82,25 +83,8 @@ ${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
   ]
 }
 
-**Example**:
-{
-  "quick_wins": [
-    {
-      "original_text": "Managed team projects and delivered results",
-      "optimized_text": "Led cross-functional team of 8 engineers to deliver 3 major product releases, increasing user engagement by 45% and reducing deployment time by 30%",
-      "improvement_type": "quantified_achievement",
-      "estimated_impact": 12,
-      "location": {
-        "section": "experience",
-        "subsection": "Senior Software Engineer at Tech Corp"
-      },
-      "rationale": "Added specific metrics (team size, deliverables, impact percentages) and action verb 'Led' to demonstrate quantifiable leadership impact",
-      "keywords_added": ["cross-functional", "product releases", "user engagement"]
-    }
-  ]
-}
-
-Generate exactly 3 quick wins. Return ONLY valid JSON.`;
+Generate exactly 3 quick wins.
+Return ONLY valid JSON (no markdown, no commentary).`;
 }
 
 /**

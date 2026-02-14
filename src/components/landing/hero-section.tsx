@@ -89,7 +89,7 @@ export function HeroSection() {
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-mobile-cta to-secondary border-2 border-background flex items-center justify-center text-white font-bold text-xs"
+                    className="w-8 h-8 rounded-full bg-foreground border-2 border-background flex items-center justify-center text-background font-bold text-xs"
                   >
                     {String.fromCharCode(64 + i)}
                   </div>
