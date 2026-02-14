@@ -110,7 +110,7 @@
       "items": [
         {
           "title": "Get Past Resume Robots",
-          "description": "75% of resumes never reach a human. Ours identifies the exact keywords that unlock ATS filters."
+          "description": "Most resumes never reach a human. We identify the exact keywords that unlock ATS filters."
         },
         {
           "title": "See Your Score Before You Apply",
@@ -125,8 +125,8 @@
           "description": "Recruiter-tested layouts that scan cleanly in every ATS. No graphics that confuse the robots."
         },
         {
-          "title": "3X More Responses",
-          "description": "Users who improve their match score from 60% to 90% see triple the callback rate."
+          "title": "Track Your Applications",
+          "description": "See which jobs you've applied to and which resumes you used. Keep everything organized."
         },
         {
           "title": "Your Data Stays Private",
@@ -135,16 +135,16 @@
       ],
       "stats": [
         {
-          "label": "Professionals Hired",
+          "label": "Resumes Checked",
           "value": "10K+"
         },
         {
-          "label": "Average Match Score",
-          "value": "92%"
+          "label": "Average User Score",
+          "value": "78%"
         },
         {
-          "label": "Callback Rate Increase",
-          "value": "3x"
+          "label": "Response Within",
+          "value": "30 sec"
         },
         {
           "label": "User Rating",
@@ -171,7 +171,7 @@
       ]
     },
     "hero": {
-      "badge": "Used by 10,000+ Job Seekers",
+      "badge": "Used by Job Seekers Worldwide",
       "titleLine1": "Turn Your Resume Into",
       "titleLine2": "Interview Invitations",
       "subtitle": "Your resume gets 6 seconds of attention. Make every second count. Our AI matches your experience to what recruiters actually search for.",
@@ -183,7 +183,7 @@
       "ctaPrimary": "Get My Free ATS Score",
       "ctaSecondary": "See a Sample Report",
       "socialProof": {
-        "resumesOptimized": "<strong>10,000+</strong> professionals hired",
+        "resumesOptimized": "<strong>10,000+</strong> resumes checked",
         "reviews": "<strong>4.9/5</strong> from 1,234 users",
         "atsApproved": "Beats ATS filters"
       }
