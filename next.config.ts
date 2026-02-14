@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from 'next-intl/plugin';
+import path from "node:path";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n.ts");
 
@@ -18,6 +19,7 @@ const contentSecurityPolicy = `
 `;
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(__dirname),
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,

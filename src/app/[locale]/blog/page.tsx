@@ -1,18 +1,28 @@
 import { getAllPosts } from '@/lib/blog';
 import { Metadata } from 'next';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { Link } from '@/navigation';
+import { type Locale } from '@/locales';
 
-export const metadata: Metadata = {
-  title: 'Resume Tips & Career Insights | Resumely Blog',
-  description: 'Learn how to beat ATS systems, optimize your resume, and land more interviews with AI-powered insights.',
-};
+interface BlogIndexPageProps {
+  params: Promise<{ locale: Locale }>;
+}
 
-export default async function BlogIndex() {
-  const posts = await getAllPosts();
-  const t = await getTranslations('blog.index');
-  const locale = await getLocale();
+export async function generateMetadata({ params }: BlogIndexPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.blog' });
+
+  return {
+    title: t('title'),
+    description: t('description'),
+  };
+}
+
+export default async function BlogIndex({ params }: BlogIndexPageProps) {
+  const { locale } = await params;
+  const posts = await getAllPosts(locale);
+  const t = await getTranslations({ locale, namespace: 'blog.index' });
   const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
   return (

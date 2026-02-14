@@ -1,107 +1,117 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { defaultLocale, locales, type Locale } from "@/locales";
 
-/**
- * Upgrade API Endpoint
- * Epic 5: FR-023 & FR-024 - Premium subscription with payment processing
- *
- * Creates Stripe checkout session for premium subscription
- */
+function normalizeLocale(locale?: string): Locale {
+  if (locale && locales.includes(locale as Locale)) {
+    return locale as Locale;
+  }
+  return defaultLocale;
+}
+
+function withLocalePath(pathname: string, locale: Locale) {
+  return locale === defaultLocale ? pathname : `/${locale}${pathname}`;
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, code: "UNAUTHORIZED", error: "Unauthorized" },
+      { status: 401 }
+    );
   }
 
   try {
-    const { plan } = await req.json();
-
+    const { plan, locale: rawLocale } = await req.json();
     if (plan !== "premium") {
-      return NextResponse.json({ error: "Invalid plan type" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, code: "INVALID_PLAN", error: "Invalid plan type" },
+        { status: 400 }
+      );
+    }
+    const locale = normalizeLocale(rawLocale);
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripePriceId = process.env.STRIPE_PRICE_ID_PREMIUM;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
+
+    if (!stripeSecretKey || !stripePriceId) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PAYMENT_NOT_CONFIGURED",
+          error: "Stripe is not configured for this environment"
+        },
+        { status: 503 }
+      );
     }
 
-    // FR-024: Payment processing integration
-    // TODO: Integrate with Stripe Checkout
-    // This is a placeholder implementation
-
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.warn("STRIPE_SECRET_KEY not configured - returning placeholder response");
-
-      // Development mode: Simulate immediate upgrade
-      if (process.env.NODE_ENV === "development") {
-        const { error: updateError } = await supabase
-          .from("profiles")
-          .update({ plan_type: "premium" })
-          .eq("user_id", user.id);
-
-        if (updateError) {
-          throw updateError;
-        }
-
-        return NextResponse.json({
-          success: true,
-          message: "Development mode: Upgraded to premium directly",
-          checkoutUrl: null,
-        });
-      }
-
-      return NextResponse.json({
-        error: "Payment processing not configured",
-        message: "Stripe integration pending",
-      }, { status: 503 });
+    const payload = new URLSearchParams();
+    payload.set("mode", "subscription");
+    payload.set("success_url", `${appUrl}${withLocalePath("/dashboard", locale)}?upgraded=true&session_id={CHECKOUT_SESSION_ID}`);
+    payload.set("cancel_url", `${appUrl}${withLocalePath("/pricing", locale)}?upgrade=cancelled`);
+    payload.set("line_items[0][price]", stripePriceId);
+    payload.set("line_items[0][quantity]", "1");
+    payload.set("client_reference_id", user.id);
+    payload.set("metadata[user_id]", user.id);
+    payload.set("metadata[plan]", "premium");
+    if (user.email) {
+      payload.set("customer_email", user.email);
     }
 
-    /**
-     * Production Stripe Integration (FR-024):
-     *
-     * const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-     *
-     * const session = await stripe.checkout.sessions.create({
-     *   customer_email: user.email,
-     *   client_reference_id: user.id,
-     *   payment_method_types: ['card'],
-     *   mode: 'subscription',
-     *   line_items: [{
-     *     price: process.env.STRIPE_PRICE_ID_PREMIUM,
-     *     quantity: 1,
-     *   }],
-     *   success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
-     *   cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgrade=cancelled`,
-     *   metadata: {
-     *     userId: user.id,
-     *     plan: 'premium',
-     *   },
-     * });
-     *
-     * return NextResponse.json({
-     *   success: true,
-     *   checkoutUrl: session.url,
-     *   sessionId: session.id,
-     * });
-     */
+    const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${stripeSecretKey}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: payload.toString()
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Stripe session creation failed:", errorText);
+      return NextResponse.json(
+        {
+          success: false,
+          code: "PAYMENT_PROVIDER_ERROR",
+          error: "Failed to create checkout session"
+        },
+        { status: 502 }
+      );
+    }
+
+    const session = (await response.json()) as { id?: string; url?: string };
+    if (!session.id || !session.url) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "INVALID_PROVIDER_RESPONSE",
+          error: "Invalid checkout session response"
+        },
+        { status: 502 }
+      );
+    }
 
     return NextResponse.json({
-      error: "Stripe integration pending",
-      message: "Payment processing will be available soon",
-    }, { status: 503 });
-
+      success: true,
+      checkoutUrl: session.url,
+      sessionId: session.id
+    });
   } catch (error: unknown) {
-    const err = error as { message?: string };
     console.error("Upgrade error:", error);
-
-    return NextResponse.json({
-      error: "Failed to create checkout session",
-      details: err.message || "Unknown error",
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        code: "INTERNAL_ERROR",
+        error: "Failed to create checkout session"
+      },
+      { status: 500 }
+    );
   }
 }
-
-/**
- * NOTE: Stripe webhook handler was removed from this file.
- * Webhooks should be handled at /api/webhooks/stripe route instead.
- *
- * Epic 5: FR-024 - Stripe webhook integration pending
- * See docs for implementation: https://stripe.com/docs/webhooks
- */

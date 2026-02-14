@@ -31,14 +31,14 @@ export function HeroSection() {
           </div>
 
           {/* Hero Title */}
-          <h1 className="text-center mb-6 animate-slideUp">
+          <h2 className="text-center mb-6 animate-slideUp">
             <span className="block text-4xl md:text-5xl lg:text-6xl text-foreground font-bold leading-tight mb-2">
               {t("titleLine1")}
             </span>
             <span className="block text-3xl md:text-4xl lg:text-5xl bg-gradient-to-r from-mobile-cta via-primary to-secondary bg-clip-text text-transparent font-bold leading-tight">
               {t("titleLine2")}
             </span>
-          </h1>
+          </h2>
 
           {/* Subtitle */}
           <p className="text-center text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-4 leading-relaxed animate-slideUp delay-100">

@@ -28,20 +28,35 @@ function mergeMessages(base: Messages, overrides: Messages): Messages {
   return result;
 }
 
+async function loadFunnelOverrides(locale: Locale): Promise<Messages> {
+  try {
+    return (await import(`./messages-overrides/funnel/${locale}.json`)).default as Messages;
+  } catch {
+    return {};
+  }
+}
+
 export default getRequestConfig(async ({ locale }) => {
   const resolvedLocale = isLocale(locale) ? locale : defaultLocale;
   const messages = (await import(`./messages/${resolvedLocale}.json`)).default as Messages;
+  const enOverrides = await loadFunnelOverrides(defaultLocale);
 
   if (resolvedLocale === 'he') {
     const fallback = (await import('./messages/en.json')).default as Messages;
+    const localeOverrides = await loadFunnelOverrides(resolvedLocale);
+    const fallbackWithOverrides = mergeMessages(fallback, enOverrides);
+    const merged = mergeMessages(fallbackWithOverrides, messages);
     return {
       locale: resolvedLocale,
-      messages: mergeMessages(fallback, messages),
+      messages: mergeMessages(merged, localeOverrides),
     };
   }
 
+  const localeOverrides = await loadFunnelOverrides(resolvedLocale);
+  const mergedWithEnOverrides = mergeMessages(messages, enOverrides);
+
   return {
     locale: resolvedLocale,
-    messages,
+    messages: mergeMessages(mergedWithEnOverrides, localeOverrides),
   };
 });

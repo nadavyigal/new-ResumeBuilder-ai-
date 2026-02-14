@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, Sparkles, Zap } from "@/lib/icons";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -28,6 +28,7 @@ interface UpgradeModalProps {
  */
 export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModalProps) {
   const t = useTranslations("dashboard.paywall");
+  const locale = useLocale();
   const [loading, setLoading] = useState(false);
   const handleUpgrade = async () => {
     setLoading(true);
@@ -37,7 +38,7 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
       const response = await fetch("/api/upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: "premium" }),
+        body: JSON.stringify({ plan: "premium", locale }),
       });
 
       const data = await response.json();

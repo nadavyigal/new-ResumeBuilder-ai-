@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { createClientComponentClient } from "@/lib/supabase";
 import { posthog } from "@/lib/posthog";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants";
+import { defaultLocale } from "@/locales";
 
 interface AuthFormProps {
   mode: "signin" | "signup";
@@ -25,6 +26,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [message, setMessage] = useState<string | null>(null);
   
   const t = useTranslations("auth.form");
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
@@ -54,12 +56,22 @@ export function AuthForm({ mode }: AuthFormProps) {
 
         // Get the current origin for the redirect URL
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const localePrefix = locale === defaultLocale ? '' : `/${locale}`;
         const storedSessionId = typeof window !== 'undefined'
           ? localStorage.getItem('ats_session_id')
           : null;
-        const redirectPath = storedSessionId
-          ? `/auth/callback?session_id=${encodeURIComponent(storedSessionId)}`
-          : '/auth/callback';
+        const nextParam = searchParams.get("next");
+        const callbackQuery = new URLSearchParams();
+        if (storedSessionId) {
+          callbackQuery.set("session_id", storedSessionId);
+        }
+        if (nextParam && nextParam.startsWith("/")) {
+          callbackQuery.set("next", nextParam);
+        }
+        const callbackPath = `${localePrefix}/auth/callback`;
+        const redirectPath = callbackQuery.size > 0
+          ? `${callbackPath}?${callbackQuery.toString()}`
+          : callbackPath;
 
         const { data, error } = await supabase.auth.signUp({
           email,

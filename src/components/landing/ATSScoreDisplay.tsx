@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Lock, Sparkles } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -7,10 +8,15 @@ import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/CountUp";
 import { IssueCard } from "@/components/landing/IssueCard";
 import { SocialShareButton } from "@/components/landing/SocialShareButton";
+import { ContextualSignupPopup } from "@/components/landing/ContextualSignupPopup";
 import { QuickWinsSection } from "@/components/ats/QuickWinsSection";
 import { MainIssuesSummary } from "@/components/ats/MainIssuesSummary";
 import type { ATSCheckerResponse } from "@/components/landing/FreeATSChecker";
 import type { QuickWinSuggestion } from "@/lib/ats/types";
+import { posthog } from "@/lib/posthog";
+
+const POPUP_DISMISS_KEY = "resumely_signup_popup_dismissed_at";
+const POPUP_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 interface ATSScoreDisplayProps {
   data: ATSCheckerResponse;
@@ -20,6 +26,7 @@ interface ATSScoreDisplayProps {
 }
 
 export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainingLabel }: ATSScoreDisplayProps) {
+  const [showPopup, setShowPopup] = useState(false);
   const score = data.score.overall;
   const { preview } = data;
   const t = useTranslations("landing.score");
@@ -27,6 +34,46 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
 
   const matchLabel =
     score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (preview.lockedCount <= 0) return;
+
+    const lastDismissedRaw = localStorage.getItem(POPUP_DISMISS_KEY);
+    const lastDismissed = lastDismissedRaw ? Number(lastDismissedRaw) : 0;
+    const isSuppressed = Number.isFinite(lastDismissed) && Date.now() - lastDismissed < POPUP_WINDOW_MS;
+    if (isSuppressed) return;
+
+    const timer = window.setTimeout(() => {
+      setShowPopup(true);
+      posthog.capture("signup_popup_viewed", {
+        source: "ats-score-display",
+        score
+      });
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [preview.lockedCount, score]);
+
+  const handlePopupState = (nextOpen: boolean) => {
+    setShowPopup(nextOpen);
+    if (!nextOpen && typeof window !== "undefined") {
+      localStorage.setItem(POPUP_DISMISS_KEY, String(Date.now()));
+      posthog.capture("signup_popup_dismissed", {
+        source: "ats-score-display",
+        score
+      });
+    }
+  };
+
+  const handlePrimaryPopupAction = () => {
+    posthog.capture("signup_popup_primary_clicked", {
+      source: "ats-score-display",
+      score
+    });
+    onSignup();
+    handlePopupState(false);
+  };
 
   return (
     <div data-testid="ats-score-display" className="space-y-6">
@@ -101,6 +148,11 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
           </Button>
         )}
       </div>
+      <ContextualSignupPopup
+        open={showPopup}
+        onOpenChange={handlePopupState}
+        onPrimaryAction={handlePrimaryPopupAction}
+      />
     </div>
   );
 }

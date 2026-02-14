@@ -1,19 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Heebo } from "next/font/google";
 import Script from "next/script";
-import { headers } from "next/headers";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Analytics } from "@vercel/analytics/react";
-import { defaultLocale, locales, type Locale } from "@/locales";
 import "./globals.css";
-
-// Force dynamic rendering to fix build error
-export const dynamic = "force-dynamic";
-export const dynamicParams = true;
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +26,11 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   metadataBase: new URL("https://resumelybuilderai.com"),
   title: {
-    default: "Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews",
+    default: "Resumely | ATS Resume Checker and Optimization",
     template: "%s | Resumely",
   },
   description:
-    "Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds. Join 10,000+ professionals landing more interviews.",
+    "Check how ATS systems read your resume, fix high-impact blockers, and continue with role-specific optimization.",
   keywords: [
     "resume optimizer",
     "ATS resume checker",
@@ -64,9 +56,9 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "https://resumelybuilderai.com",
     siteName: "Resumely",
-    title: "Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews",
+    title: "Resumely | ATS Resume Checker and Optimization",
     description:
-      "Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds.",
+      "Check how ATS systems read your resume and apply role-specific optimization.",
     images: [
       {
         url: "/images/og-image.jpg",
@@ -78,9 +70,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Resumely - AI Resume Optimizer | Beat ATS & Get 3X More Interviews",
+    title: "Resumely | ATS Resume Checker and Optimization",
     description:
-      "Optimize your resume for any job with AI-powered insights. Get a 92% average ATS match score in 30 seconds.",
+      "Check how ATS systems read your resume and apply role-specific optimization.",
     images: ["/images/og-image.jpg"],
     creator: "@resumelyai",
   },
@@ -102,18 +94,8 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const requestHeaders = await headers();
-  const headerLocale =
-    requestHeaders.get("X-NEXT-INTL-LOCALE") ||
-    requestHeaders.get("x-next-intl-locale");
-  const resolvedLocale =
-    headerLocale && locales.includes(headerLocale as Locale)
-      ? (headerLocale as Locale)
-      : defaultLocale;
-  const dir = resolvedLocale === "he" ? "rtl" : "ltr";
-
   return (
-    <html lang={resolvedLocale} dir={dir}>
+    <html lang="en" dir="ltr">
       <body className={`${geistSans.variable} ${geistMono.variable} ${heebo.variable} antialiased`}>
         {/* Google Analytics */}
         <Script

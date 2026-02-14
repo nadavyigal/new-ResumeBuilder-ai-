@@ -1,21 +1,33 @@
 import { notFound } from 'next/navigation';
 import { getAllPosts, getPostBySlug } from '@/lib/blog';
 import { Metadata } from 'next';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
 import DOMPurify from 'isomorphic-dompurify';
 import Image from 'next/image';
 import { Link } from '@/navigation';
+import { defaultLocale, locales, type Locale } from '@/locales';
 
-export async function generateStaticParams() {
-  const posts = await getAllPosts();
-  return posts.map((post) => ({
-    slug: post.slug,
-  }));
+interface BlogPostPageParams {
+  params: Promise<{ locale: Locale; slug: string }>;
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
-  const { slug } = await params;
-  const post = await getPostBySlug(slug);
+export async function generateStaticParams() {
+  const params = await Promise.all(
+    locales.map(async (locale) => {
+      const posts = await getAllPosts(locale);
+      return posts.map((post) => ({
+        locale,
+        slug: post.slug,
+      }));
+    })
+  );
+
+  return params.flat();
+}
+
+export async function generateMetadata({ params }: BlogPostPageParams): Promise<Metadata> {
+  const { slug, locale } = await params;
+  const post = await getPostBySlug(slug, locale);
 
   if (!post) {
     return {
@@ -40,19 +52,38 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description: post.excerpt,
       images: post.coverImage ? [post.coverImage] : [],
     },
+    alternates: {
+      canonical: locale === defaultLocale ? `/blog/${post.slug}` : `/${locale}/blog/${post.slug}`,
+    }
   };
 }
 
-export default async function BlogPost({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const post = await getPostBySlug(slug);
-  const t = await getTranslations('blog.post');
-  const locale = await getLocale();
+export default async function BlogPost({ params }: BlogPostPageParams) {
+  const { slug, locale } = await params;
+  const post = await getPostBySlug(slug, locale);
+  const t = await getTranslations({ locale, namespace: 'blog.post' });
   const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
   if (!post) {
     notFound();
   }
+
+  const pagePath = locale === defaultLocale ? `/blog/${post.slug}` : `/${locale}/blog/${post.slug}`;
+  const pageUrl = `https://resumelybuilderai.com${pagePath}`;
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt,
+    datePublished: post.date,
+    author: {
+      '@type': 'Person',
+      name: post.author,
+    },
+    inLanguage: locale === 'he' ? 'he-IL' : 'en-US',
+    mainEntityOfPage: pageUrl,
+    image: post.coverImage ? [post.coverImage] : undefined,
+  };
 
   return (
     <article className="container max-w-4xl mx-auto px-4 py-12">
@@ -112,6 +143,10 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
           {t('cta.button')}
         </Link>
       </div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
     </article>
   );
 }

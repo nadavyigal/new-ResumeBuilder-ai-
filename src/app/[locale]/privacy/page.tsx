@@ -1,13 +1,23 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { type Locale } from '@/locales';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy | Resumely',
-  description: 'Privacy policy for Resumely - AI Resume Optimizer',
-};
+interface PrivacyPageProps {
+  params: Promise<{ locale: Locale }>;
+}
 
-export default async function PrivacyPolicy() {
-  const t = await getTranslations('privacy');
+export async function generateMetadata({ params }: PrivacyPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.privacy' });
+  return {
+    title: t('title'),
+    description: t('description'),
+  };
+}
+
+export default async function PrivacyPolicy({ params }: PrivacyPageProps) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'privacy' });
 
   const infoProvidedItems = t.raw('sections.infoCollect.provided.items') as string[];
   const infoAutoItems = t.raw('sections.infoCollect.automatic.items') as string[];
