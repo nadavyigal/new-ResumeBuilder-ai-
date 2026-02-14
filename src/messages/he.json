@@ -37,7 +37,11 @@
       "loginLink": "התחבר",
       "errors": {
         "generic": "משהו השתבש. אנא נסה שוב.",
-        "connection": "לא הצלחנו להגיע לשרת. אנא נסה שוב."
+        "connection": "לא הצלחנו להגיע לשרת. אנא נסה שוב.",
+        "minimumWords": "מינימום 80 מילים.",
+        "invalidUrl": "הדבק פוסט עבודה או קישור.",
+        "invalidResume": "משהו השתבש. אנא נסה שוב.",
+        "jobDescriptionRequired": "הדבק פוסט עבודה או קישור."
       },
       "checksRemaining": "????? ??? {count} ?????? ????"
     },
@@ -57,7 +61,15 @@
       "wordCount": "{count} מילים",
       "urlHelper": "נביא את תיאור התפקיד מהקישור.",
       "checking": "בודק...",
-      "submit": "בדקו את ציון ההתאמה שלי"
+      "submit": "בדקו את ציון ההתאמה שלי",
+      "invalidUrl": "הדבק פוסט עבודה או קישור.",
+      "hints": {
+        "resumeRequired": "הוסף קורות חיים PDF כדי להתחיל.",
+        "jobDescriptionRequired": "הדבק פוסט עבודה או קישור.",
+        "jobUrlRequired": "הדבק פוסט עבודה או קישור.",
+        "minimumWords": "מינימום 80 מילים",
+        "validUrlRequired": "הדבק פוסט עבודה או קישור."
+      }
     },
     "loadingState": {
       "title": "מנתח את קורות החיים שלך",
@@ -67,7 +79,8 @@
         "keywords": "חילוץ מילות מפתח",
         "scoring": "חישוב ציון ATS",
         "improvements": "מציאת ניצחונות מהירים"
-      }
+      },
+      "progress": "{percent}%"
     },
     "rateLimit": {
       "title": "הגעת למגבלה בחינם",
@@ -78,7 +91,8 @@
         "minutes": "{count, plural, one {# דקה} other {# דקות}}",
         "hours": "{count, plural, one {# שעה} other {# שעות}}",
         "days": "{count, plural, one {# יום} other {# ימים}}"
-      }
+      },
+      "backToChecker": "חזרה לכניסה"
     },
     "score": {
       "match": {
@@ -154,7 +168,8 @@
             }
           }
         }
-      }
+      },
+      "checkAnother": "המשך באופטימיזציה"
     },
     "issueCard": {
       "points": "+{points} נקודות",

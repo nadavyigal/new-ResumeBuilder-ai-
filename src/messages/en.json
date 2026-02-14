@@ -21,25 +21,29 @@
   "landing": {
     "atsChecker": {
       "badge": "Free ATS Resume Check",
-      "title": "See How ATS Reads Your Resume in 30 Seconds",
-      "description": "Upload your resume, add a job description, and get the highest-impact fixes right away.",
+      "title": "Check Your Resume Against ATS in 30 Seconds",
+      "description": "Upload your resume, add the job description, and get prioritized fixes you can apply immediately.",
       "badges": {
         "atsSafe": "ATS-focused",
-        "topFixes": "Actionable fixes",
+        "topFixes": "Prioritized fixes",
         "weeklyChecks": "5 free checks/week"
       },
       "bullets": {
-        "v2Engine": "Job-specific analysis powered by our ATS v2 engine",
+        "v2Engine": "Role-specific analysis powered by our ATS v2 engine",
         "hashPrivacy": "Your resume data stays private",
-        "unlockFixes": "Create a free account to save and apply fixes"
+        "unlockFixes": "Create a free account to save and apply all fixes"
       },
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "connection": "We couldn't reach the server. Please try again."
+        "connection": "We couldn't reach the server. Please try again.",
+        "minimumWords": "Add at least 80 words in the job description to run the check.",
+        "invalidUrl": "Enter a valid job post URL.",
+        "invalidResume": "Upload a valid PDF resume file to continue.",
+        "jobDescriptionRequired": "Add a job description (text or URL) to continue."
       },
-      "checksRemaining": "You have {count} free checks remaining"
+      "checksRemaining": "{count} free checks remaining"
     },
     "uploadForm": {
       "resumeLabel": "Resume (PDF)",
@@ -53,32 +57,42 @@
         "description": "Paste the job description here...",
         "url": "https://"
       },
-      "minimumWords": "Minimum 80 words",
+      "minimumWords": "Minimum {count} words",
       "wordCount": "{count} words",
-      "urlHelper": "We'll fetch the job description from the link.",
-      "checking": "Checking...",
-      "submit": "Check my ATS score"
+      "urlHelper": "Paste a public job post URL and we'll fetch the description.",
+      "checking": "Running ATS check...",
+      "submit": "Get my ATS score",
+      "invalidUrl": "Enter a valid job post URL.",
+      "hints": {
+        "resumeRequired": "Upload your resume to start.",
+        "jobDescriptionRequired": "Paste the job description to continue.",
+        "jobUrlRequired": "Add a job post URL to continue.",
+        "minimumWords": "Job description must include at least {count} words.",
+        "validUrlRequired": "Add a valid job post URL."
+      }
     },
     "loadingState": {
       "title": "Analyzing your resume",
-      "subtitle": "This takes about 30 seconds",
+      "subtitle": "This usually takes 20-30 seconds",
       "steps": {
-        "parsing": "Parsing your resume",
-        "keywords": "Extracting keywords",
-        "scoring": "Calculating ATS score",
-        "improvements": "Finding quick wins"
-      }
+        "parsing": "Parsing resume content",
+        "keywords": "Extracting role keywords",
+        "scoring": "Calculating ATS match score",
+        "improvements": "Preparing top fixes"
+      },
+      "progress": "{percent}% complete"
     },
     "rateLimit": {
-      "title": "You've hit the free limit",
-      "description": "Try again in {time} or create a free account to unlock more checks.",
+      "title": "You have used your free checks for now",
+      "description": "You can run another check in {time}, or create a free account for more checks and saved results.",
       "cta": "Create free account",
       "time": {
         "soon": "soon",
         "minutes": "{count, plural, one {# minute} other {# minutes}}",
         "hours": "{count, plural, one {# hour} other {# hours}}",
         "days": "{count, plural, one {# day} other {# days}}"
-      }
+      },
+      "backToChecker": "Back to checker"
     },
     "score": {
       "match": {
@@ -86,10 +100,10 @@
         "good": "Good match",
         "needsImprovement": "Needs improvement"
       },
-      "topIssues": "Top issues to fix first",
-      "lockedTitle": "Unlock {count} more high-impact fixes",
-      "lockedDescription": "We found your biggest blockers. Create a free account to unlock the full issue list, tailored examples, and one-click improvements.",
-      "lockedCta": "Continue free",
+      "topIssues": "Highest-impact fixes",
+      "lockedTitle": "Unlock {count} additional high-impact fixes",
+      "lockedDescription": "Create a free account to unlock the full fix list, tailored examples, and one-click improvements.",
+      "lockedCta": "Create free account",
       "mainIssues": {
         "title": "Your 3 highest-impact issues",
         "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix these first for the fastest improvement.",
@@ -154,7 +168,8 @@
             }
           }
         }
-      }
+      },
+      "checkAnother": "Check another resume"
     },
     "issueCard": {
       "points": "+{points} pts",

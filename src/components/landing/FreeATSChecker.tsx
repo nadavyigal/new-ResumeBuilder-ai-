@@ -91,6 +91,15 @@ export function FreeATSChecker() {
     return t("checksRemaining", { count: scoreData.checksRemaining });
   }, [scoreData, t]);
 
+  const mapApiErrorToUi = (apiError?: string) => {
+    const normalized = String(apiError || "").toLowerCase();
+    if (normalized.includes("80") && normalized.includes("word")) return t("errors.minimumWords");
+    if (normalized.includes("url")) return t("errors.invalidUrl");
+    if (normalized.includes("pdf") || normalized.includes("resume")) return t("errors.invalidResume");
+    if (normalized.includes("job description")) return t("errors.jobDescriptionRequired");
+    return apiError || t("errors.generic");
+  };
+
   const handleFileSelected = (file: File) => {
     posthog.capture("ats_checker_file_uploaded", {
       fileSize: file.size,
@@ -155,7 +164,7 @@ export function FreeATSChecker() {
       }
 
       if (!response.ok) {
-        setErrorMessage(payload?.error || t("errors.generic"));
+        setErrorMessage(mapApiErrorToUi(payload?.error));
         setStep("upload");
         return;
       }
@@ -181,6 +190,12 @@ export function FreeATSChecker() {
     }
 
     router.push("/auth/signup");
+  };
+
+  const handleBackToChecker = () => {
+    setErrorMessage(null);
+    setRateLimitResetAt(null);
+    setStep("upload");
   };
 
   return (
@@ -269,11 +284,12 @@ export function FreeATSChecker() {
                 <ATSScoreDisplay
                   data={scoreData}
                   onSignup={handleSignup}
+                  onCheckAnother={handleBackToChecker}
                   checksRemainingLabel={checksRemainingLabel}
                 />
               )}
               {step === "rate-limited" && rateLimitResetAt && (
-                <RateLimitMessage resetAt={rateLimitResetAt} />
+                <RateLimitMessage resetAt={rateLimitResetAt} onBackToChecker={handleBackToChecker} />
               )}
             </div>
           </div>

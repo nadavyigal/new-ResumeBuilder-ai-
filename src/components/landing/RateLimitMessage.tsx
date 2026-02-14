@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 
 interface RateLimitMessageProps {
   resetAt: Date;
+  onBackToChecker?: () => void;
 }
 
-export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
+export function RateLimitMessage({ resetAt, onBackToChecker }: RateLimitMessageProps) {
   const router = useRouter();
   const t = useTranslations("landing.rateLimit");
   const timeUntilReset = useMemo(() => {
@@ -48,12 +49,19 @@ export function RateLimitMessage({ resetAt }: RateLimitMessageProps) {
           {t("description", { time: timeUntilReset })}
         </p>
       </div>
-      <Button
-        className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
-        onClick={() => router.push("/auth/signup")}
-      >
-        {t("cta")}
-      </Button>
+      <div className="space-y-2">
+        <Button
+          className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
+          onClick={() => router.push("/auth/signup")}
+        >
+          {t("cta")}
+        </Button>
+        {onBackToChecker && (
+          <Button variant="outline" className="w-full" onClick={onBackToChecker}>
+            {t("backToChecker")}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

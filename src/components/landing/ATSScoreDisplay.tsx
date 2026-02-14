@@ -15,10 +15,11 @@ import type { QuickWinSuggestion } from "@/lib/ats/types";
 interface ATSScoreDisplayProps {
   data: ATSCheckerResponse;
   onSignup: () => void;
+  onCheckAnother?: () => void;
   checksRemainingLabel?: string | null;
 }
 
-export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSScoreDisplayProps) {
+export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainingLabel }: ATSScoreDisplayProps) {
   const score = data.score.overall;
   const { preview } = data;
   const t = useTranslations("landing.score");
@@ -94,6 +95,11 @@ export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSSco
       <div className="flex flex-wrap items-center justify-center gap-3">
         <SocialShareButton platform="linkedin" score={score} />
         <SocialShareButton platform="twitter" score={score} />
+        {onCheckAnother && (
+          <Button variant="outline" onClick={onCheckAnother}>
+            {t("checkAnother")}
+          </Button>
+        )}
       </div>
     </div>
   );
