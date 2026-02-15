@@ -7,7 +7,7 @@
   },
   "footer": {
     "newsletterTitle": "טיפים שבועיים לקורות חיים שבאמת עובדים",
-    "newsletterDescription": "הצטרפו ל-10,000+ מחפשי עבודה שמקבלים אסטרטגיות מוכחות לעבור מסננים ולהגיע לראיונות.",
+    "newsletterDescription": "קבלו הנחיות פרקטיות ל-ATS, דוגמאות לניסוח הישגים ואסטרטגיית הגשה ממוקדת.",
     "newsletterNote": "זה הניוזלטר השבועי שלנו. כדי לבדוק קורות חיים מיד, <link>פתחו חשבון חינם</link>.",
     "copyright": "© {year} Resumely. בנוי למחפשי עבודה.",
     "privacy": "פרטיות",
@@ -135,20 +135,20 @@
       ],
       "stats": [
         {
-          "label": "קורות חיים נבדקו",
-          "value": "10K+"
+          "label": "בדיקות ATS לכל קו״ח",
+          "value": "8"
         },
         {
-          "label": "ציון משתמש ממוצע",
-          "value": "78%"
+          "label": "עומק התאמת מילות מפתח",
+          "value": "מעמיק"
         },
         {
-          "label": "תגובה תוך",
+          "label": "תוצאות תוך",
           "value": "30 שנ׳"
         },
         {
-          "label": "דירוג משתמשים",
-          "value": "4.9/5"
+          "label": "חינם להתחיל",
+          "value": "₪0"
         }
       ]
     },
@@ -183,9 +183,9 @@
       "ctaPrimary": "לקבל את ציון ההתאמה בחינם",
       "ctaSecondary": "לראות דוגמה",
       "socialProof": {
-        "resumesOptimized": "<strong>10,000+</strong> קורות חיים נבדקו",
-        "reviews": "<strong>4.9/5</strong> מ-1,234 משתמשים",
-        "atsApproved": "עוברים מסננים"
+        "resumesOptimized": "<strong>ניתוח ממוקד תפקיד</strong> לקורות חיים",
+        "reviews": "<strong>הנחיות ברורות</strong> לקריאת מגייסים",
+        "atsApproved": "מבוסס על עקרונות כתיבה בטוחים ל-ATS"
       }
     },
     "quickWins": {
