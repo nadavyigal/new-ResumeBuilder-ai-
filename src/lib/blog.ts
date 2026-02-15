@@ -4,11 +4,13 @@ import matter from 'gray-matter';
 import { remark } from 'remark';
 import html from 'remark-html';
 import { sanitizeBlogHtml } from './sanitize-html';
+import { defaultLocale, locales, type Locale } from '@/locales';
 
 const postsDirectory = path.join(process.cwd(), 'src/content/blog');
 
 export interface BlogPost {
   slug: string;
+  locale: Locale;
   title: string;
   date: string;
   excerpt: string;
@@ -19,30 +21,35 @@ export interface BlogPost {
   tags?: string[];
 }
 
-export async function getAllPosts(): Promise<BlogPost[]> {
-  if (!fs.existsSync(postsDirectory)) {
+function getLocalePostsDirectory(locale: Locale) {
+  return path.join(postsDirectory, locale);
+}
+
+function getLegacyPostPath(slug: string) {
+  return path.join(postsDirectory, `${slug}.md`);
+}
+
+function getLocalePostPath(locale: Locale, slug: string) {
+  return path.join(getLocalePostsDirectory(locale), `${slug}.md`);
+}
+
+function listLocaleSlugs(locale: Locale): string[] {
+  const localeDir = getLocalePostsDirectory(locale);
+  if (!fs.existsSync(localeDir)) {
     return [];
   }
 
-  const fileNames = fs.readdirSync(postsDirectory);
-  const allPosts = await Promise.all(
-    fileNames
-      .filter((fileName) => fileName.endsWith('.md'))
-      .map((fileName) => {
-        const slug = fileName.replace(/\.md$/, '');
-        return getPostBySlug(slug);
-      })
-  );
-
-  return allPosts
-    .filter((post): post is BlogPost => post !== null)
-    .sort((a, b) => (a.date > b.date ? -1 : 1));
+  return fs.readdirSync(localeDir)
+    .filter((fileName) => fileName.endsWith('.md'))
+    .map((fileName) => fileName.replace(/\.md$/, ''));
 }
 
-export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  try {
-    const fullPath = path.join(postsDirectory, `${slug}.md`);
+function isLocale(value: string): value is Locale {
+  return locales.includes(value as Locale);
+}
 
+async function parsePostFile(fullPath: string, slug: string, locale: Locale): Promise<BlogPost | null> {
+  try {
     if (!fs.existsSync(fullPath)) {
       return null;
     }
@@ -62,6 +69,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
 
     return {
       slug,
+      locale,
       title: data.title,
       date: data.date,
       excerpt: data.excerpt,
@@ -72,7 +80,58 @@ export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
       tags: data.tags || [],
     };
   } catch (error) {
-    console.error(`Error reading post ${slug}:`, error);
+    console.error(`Error reading post ${slug} (${locale}):`, error);
     return null;
   }
+}
+
+export async function getAllPosts(locale: Locale): Promise<BlogPost[]> {
+  const localeSlugs = listLocaleSlugs(locale);
+  const hasLocaleDirectory = fs.existsSync(getLocalePostsDirectory(locale));
+
+  const slugs = hasLocaleDirectory || locale !== defaultLocale
+    ? localeSlugs
+    : [
+      ...localeSlugs,
+      ...fs.readdirSync(postsDirectory)
+        .filter((fileName) => fileName.endsWith('.md'))
+        .map((fileName) => fileName.replace(/\.md$/, ''))
+    ];
+
+  const uniqueSlugs = [...new Set(slugs)];
+
+  const posts = await Promise.all(
+    uniqueSlugs.map((slug) => getPostBySlug(slug, locale))
+  );
+
+  return posts
+    .filter((post): post is BlogPost => post !== null)
+    .sort((a, b) => (a.date > b.date ? -1 : 1));
+}
+
+export async function getPostBySlug(slug: string, locale: Locale): Promise<BlogPost | null> {
+  const localePath = getLocalePostPath(locale, slug);
+  const localePost = await parsePostFile(localePath, slug, locale);
+  if (localePost) return localePost;
+
+  if (locale === defaultLocale) {
+    const legacyPath = getLegacyPostPath(slug);
+    return parsePostFile(legacyPath, slug, locale);
+  }
+
+  return null;
+}
+
+export async function getLocalizedPostMap(): Promise<Record<Locale, BlogPost[]>> {
+  const entries = await Promise.all(
+    locales.map(async (locale) => [locale, await getAllPosts(locale)] as const)
+  );
+
+  const map: Partial<Record<Locale, BlogPost[]>> = {};
+  for (const [locale, posts] of entries) {
+    if (!isLocale(locale)) continue;
+    map[locale] = posts;
+  }
+
+  return map as Record<Locale, BlogPost[]>;
 }

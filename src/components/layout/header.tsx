@@ -29,6 +29,11 @@ export function Header() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3">
+          <Link href={ROUTES.pricing} className="hidden sm:block">
+            <Button variant="ghost" size="sm">
+              {t("pricing")}
+            </Button>
+          </Link>
           <LanguageSwitcher />
           {user ? (
             <div className="flex items-center gap-3">

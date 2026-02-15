@@ -120,7 +120,7 @@ export function FeaturesBento() {
               key={index}
               className="text-center p-4 rounded-2xl bg-card border-2 border-border"
             >
-              <div className="text-2xl md:text-3xl font-bold text-mobile-cta mb-1">
+              <div className="text-2xl md:text-3xl font-bold text-foreground mb-1">
                 {stat.value}
               </div>
               <div className="text-xs md:text-sm text-muted-foreground">

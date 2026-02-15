@@ -7,9 +7,9 @@
   },
   "footer": {
     "newsletterTitle": "Get Resume Tips & Career Insights",
-    "newsletterDescription": "Join 10,000+ professionals getting weekly tips on ATS optimization, resume writing, and landing interviews.",
+    "newsletterDescription": "Get weekly, practical tips on ATS optimization, resume writing, and interview preparation.",
     "newsletterNote": "This is our weekly newsletter. To optimize your resume with AI, <link>sign up for free here</link>.",
-    "copyright": "\u00a9 {year} Resumely. Crafted with care.",
+    "copyright": "© {year} Resumely. Crafted with care.",
     "privacy": "Privacy",
     "terms": "Terms",
     "contact": "Contact"
@@ -20,26 +20,30 @@
   },
   "landing": {
     "atsChecker": {
-      "badge": "Free ATS Score Check",
-      "title": "Get Your Free ATS Score in 30 Seconds",
-      "description": "Upload your resume and get instant ATS match insights, top issues, and quick wins.",
+      "badge": "Free ATS Resume Check",
+      "title": "Check Your Resume Against ATS in 30 Seconds",
+      "description": "Upload your resume, add the job description, and get prioritized fixes you can apply immediately.",
       "badges": {
-        "atsSafe": "ATS-safe",
-        "topFixes": "Top fixes",
-        "weeklyChecks": "5 checks/week"
+        "atsSafe": "ATS-focused",
+        "topFixes": "Prioritized fixes",
+        "weeklyChecks": "5 free checks/week"
       },
       "bullets": {
-        "v2Engine": "Powered by our ATS v2 engine",
-        "hashPrivacy": "Resume data hashed and private",
-        "unlockFixes": "Unlock full fixes with a free account"
+        "v2Engine": "Role-specific analysis powered by our ATS v2 engine",
+        "hashPrivacy": "Your resume data stays private",
+        "unlockFixes": "Create a free account to save and apply all fixes"
       },
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "connection": "We couldn't reach the server. Please try again."
+        "connection": "We couldn't reach the server. Please try again.",
+        "minimumWords": "Add at least 80 words in the job description to run the check.",
+        "invalidUrl": "Enter a valid job post URL.",
+        "invalidResume": "Upload a valid PDF resume file to continue.",
+        "jobDescriptionRequired": "Add a job description (text or URL) to continue."
       },
-      "checksRemaining": "You have {count} checks remaining"
+      "checksRemaining": "{count} free checks remaining"
     },
     "uploadForm": {
       "resumeLabel": "Resume (PDF)",
@@ -53,32 +57,42 @@
         "description": "Paste the job description here...",
         "url": "https://"
       },
-      "minimumWords": "Minimum 80 words",
+      "minimumWords": "Minimum {count} words",
       "wordCount": "{count} words",
-      "urlHelper": "We'll fetch the job description from the link.",
-      "checking": "Checking...",
-      "submit": "Check my ATS score"
+      "urlHelper": "Paste a public job post URL and we'll fetch the description.",
+      "checking": "Running ATS check...",
+      "submit": "Get my ATS score",
+      "invalidUrl": "Enter a valid job post URL.",
+      "hints": {
+        "resumeRequired": "Upload your resume to start.",
+        "jobDescriptionRequired": "Paste the job description to continue.",
+        "jobUrlRequired": "Add a job post URL to continue.",
+        "minimumWords": "Job description must include at least {count} words.",
+        "validUrlRequired": "Add a valid job post URL."
+      }
     },
     "loadingState": {
       "title": "Analyzing your resume",
-      "subtitle": "This takes about 30 seconds",
+      "subtitle": "This usually takes 20-30 seconds",
       "steps": {
-        "parsing": "Parsing your resume",
-        "keywords": "Extracting keywords",
-        "scoring": "Calculating ATS score",
-        "improvements": "Finding quick wins"
-      }
+        "parsing": "Parsing resume content",
+        "keywords": "Extracting role keywords",
+        "scoring": "Calculating ATS match score",
+        "improvements": "Preparing top fixes"
+      },
+      "progress": "{percent}% complete"
     },
     "rateLimit": {
-      "title": "You've hit the free limit",
-      "description": "Try again in {time} or create a free account to unlock more checks.",
+      "title": "You have used your free checks for now",
+      "description": "You can run another check in {time}, or create a free account for more checks and saved results.",
       "cta": "Create free account",
       "time": {
         "soon": "soon",
         "minutes": "{count, plural, one {# minute} other {# minutes}}",
         "hours": "{count, plural, one {# hour} other {# hours}}",
         "days": "{count, plural, one {# day} other {# days}}"
-      }
+      },
+      "backToChecker": "Back to checker"
     },
     "score": {
       "match": {
@@ -86,21 +100,21 @@
         "good": "Good match",
         "needsImprovement": "Needs improvement"
       },
-      "topIssues": "Actionable fixes",
-      "lockedTitle": "Unlock {count} more high-impact fixes",
-      "lockedDescription": "We found your biggest blockers. Create a free account to unlock the full issue list, tailored examples, and one-click improvements.",
-      "lockedCta": "Continue free",
+      "topIssues": "Highest-impact fixes",
+      "lockedTitle": "Unlock {count} additional high-impact fixes",
+      "lockedDescription": "Create a free account to unlock the full fix list, tailored examples, and one-click improvements.",
+      "lockedCta": "Create free account",
       "mainIssues": {
-        "title": "Your 3 main issues",
-        "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix them first for the fastest lift.",
+        "title": "Your 3 highest-impact issues",
+        "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix these first for the fastest improvement.",
         "issueBadge": "Issue {index}",
         "pointsBadge": "+{points} pts",
         "whyLabel": "Why this matters",
-        "exampleLabel": "Copy-paste example",
+        "exampleLabel": "Example you can adapt",
         "copy": "Copy",
         "copied": "Copied",
-        "continueTitle": "Want the full analysis and fixes?",
-        "continueDescription": "Create a free account to unlock every issue, smarter examples, and one-click improvements.",
+        "continueTitle": "Want the full fix plan?",
+        "continueDescription": "Create a free account to unlock the full issue list, tailored examples, and one-click improvements.",
         "continueCta": "Continue free",
         "categories": {
           "keywords": {
@@ -154,7 +168,8 @@
             }
           }
         }
-      }
+      },
+      "checkAnother": "Check another resume"
     },
     "issueCard": {
       "points": "+{points} pts",
@@ -168,8 +183,8 @@
       }
     },
     "share": {
-      "messageLinkedIn": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
-      "messageTwitter": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
+      "messageLinkedIn": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
+      "messageTwitter": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
       "label": "Share on {platform}",
       "platform": {
         "linkedin": "LinkedIn",
@@ -177,109 +192,109 @@
       }
     },
     "features": {
-      "title": "Why Choose Our AI Resume Optimizer",
-      "subtitle": "Everything you need to create resumes that get you hired",
+      "title": "Why Job Seekers Use Resumely",
+      "subtitle": "Clear, practical tools to tailor your resume for each role",
       "items": [
         {
-          "title": "AI-Powered Optimization",
-          "description": "Advanced AI analyzes job descriptions and optimizes your resume automatically with intelligent keyword matching"
+          "title": "Targeted AI Rewrite",
+          "description": "AI identifies role requirements and suggests focused rewrites for your resume sections."
         },
         {
-          "title": "ATS-Optimized",
-          "description": "Get match scores and keyword optimization to pass applicant tracking systems"
+          "title": "ATS Readability Checks",
+          "description": "Spot parsing blockers and missing signals before recruiters ever see your resume."
         },
         {
-          "title": "Fast Results",
-          "description": "Generate optimized resumes in minutes"
+          "title": "Fast First Draft",
+          "description": "Get a strong first pass quickly, then refine what matters most."
         },
         {
           "title": "Professional Templates",
-          "description": "Choose from beautiful, ATS-friendly templates designed by experts"
+          "description": "Use clean, ATS-safe templates that are easy to export and send."
         },
         {
-          "title": "3x Interview Rate",
-          "description": "Our users see up to 3x more interview invitations on average"
+          "title": "Role-Focused Guidance",
+          "description": "Get recommendations tied to the exact role you are applying for."
         },
         {
-          "title": "Privacy First",
-          "description": "Your data is encrypted and never shared with third parties. We respect your privacy."
+          "title": "Privacy by Default",
+          "description": "Your data stays protected and is never sold to third parties."
         }
       ],
       "stats": [
         {
-          "label": "Resumes Optimized",
-          "value": "10K+"
+          "label": "Guided workflow",
+          "value": "Step-by-step"
         },
         {
-          "label": "Average Match Score",
-          "value": "92%"
+          "label": "Job-tailored analysis",
+          "value": "Role-specific"
         },
         {
-          "label": "Interview Rate Increase",
-          "value": "3x"
+          "label": "ATS-safe formatting",
+          "value": "Built in"
         },
         {
-          "label": "Satisfaction Rate",
-          "value": "4.9/5"
+          "label": "Actionable edits",
+          "value": "Ready to apply"
         }
       ]
     },
     "howItWorks": {
       "title": "How It Works",
-      "subtitle": "Three simple steps to your optimized resume",
+      "subtitle": "Three steps to a stronger, job-specific resume",
       "steps": [
         {
           "title": "Upload Your Resume",
-          "description": "Begin by uploading your current resume in PDF or Word format. Our system will instantly parse and analyze your professional experience, skills, and achievements to create a structured profile."
+          "description": "Upload your current resume (PDF or Word). We parse your experience, skills, and achievements into a clean structure."
         },
         {
           "title": "Add Job Description",
-          "description": "Simply paste the job description you're applying for, and our AI will extract key requirements, desired skills, and important keywords to understand exactly what the employer is seeking."
+          "description": "Paste the job description so we can identify required skills, keywords, and priorities for that role."
         },
         {
           "title": "Get Optimized Resume",
-          "description": "Receive your professionally optimized resume tailored to the specific job, complete with ATS match insights, keyword optimization, and strategic improvements to maximize your chances of landing an interview."
+          "description": "Get clear ATS insights and suggested rewrites you can apply immediately."
         }
       ]
     },
     "hero": {
-      "badge": "AI-Powered Resume Optimization",
-      "titleLine1": "Get 3X More Interviews",
-      "titleLine2": "With AI-Optimized Resumes",
-      "subtitle": "Beat ATS filters in minutes. Our AI tailors your resume for every job, tracks your applications, and helps you land interviews faster.",
+      "badge": "AI Resume Tailoring",
+      "titleLine1": "Tailor Every Resume",
+      "titleLine2": "To the Role You Want",
+      "subtitle": "Upload your resume, match it to a real job description, and get ATS-focused edits you can apply right away.",
       "benefits": [
-        "Beat the ATS Black Hole",
-        "92% Average Match Score",
-        "Optimize in 30 Seconds"
+        "Find ATS blockers before you apply",
+        "Get role-specific wording suggestions",
+        "Finish a strong first pass in about 30 seconds"
       ],
-      "ctaPrimary": "Start Free Optimization",
+      "ctaPrimary": "Start Free ATS Check",
       "ctaSecondary": "See How It Works",
       "socialProof": {
-        "resumesOptimized": "<strong>10,000+</strong> resumes optimized",
-        "reviews": "<strong>4.9</strong> (1,234 reviews)",
-        "atsApproved": "ATS-Approved"
+        "resumesOptimized": "<strong>Job-specific</strong> resume checks",
+        "reviews": "<strong>Clear</strong> ATS guidance",
+        "atsApproved": "ATS-safe best practices"
       }
     },
     "quickWins": {
-      "title": "{count} Quick Win Suggestions",
-      "potential": "+{points} pts potential",
-      "note": "These AI-generated suggestions show specific improvements to boost your ATS score. Copy and adapt them to your resume while staying truthful to your experience.",
+      "title": "{count} quick wins to apply",
+      "potential": "Up to +{points} pts potential",
+      "note": "These suggestions are AI-generated drafts. Edit the wording to match your real experience before using it.",
       "card": {
         "badge": "Quick Win #{index}",
         "points": "+{points} pts",
         "location": "Location: {section}",
         "locationWithSubsection": "Location: {section} - {subsection}",
         "before": "BEFORE",
-        "after": "AFTER (OPTIMIZED)",
+        "after": "AFTER (RECOMMENDED)",
         "copy": "Copy",
         "copied": "Copied",
-        "rationaleTitle": "Why this improves your score:",
+        "rationaleTitle": "Why this helps:",
         "keywords": "Keywords added:"
       },
       "types": {
         "keyword_optimization": "Keywords",
         "quantified_achievement": "Metrics",
-        "action_verb": "Action Verbs",
+        "action_verb": "Stronger verbs",
         "relevance_enhancement": "Relevance"
       }
     }
@@ -789,16 +804,16 @@
         "title": "Welcome back, {name}",
         "fallbackName": "there",
         "premium": "Premium",
-        "subtitle": "Here is your resume workspace."
+        "subtitle": "This is your resume workspace."
       },
       "conversion": {
         "title": "Your ATS score is {score}",
-        "description": "You have {count} suggestions ready to apply.",
+        "description": "You have {count} suggested edits ready to apply.",
         "cta": "Continue optimization"
       },
       "actions": {
         "uploadTitle": "Upload a resume",
-        "uploadDescription": "Start a new optimization with a job description.",
+        "uploadDescription": "Start a new optimization for a specific job description.",
         "getStarted": "Get started",
         "templatesTitle": "Templates",
         "templatesDescription": "Browse professional designs.",
@@ -807,7 +822,7 @@
       },
       "stats": {
         "averageScoreLabel": "Average ATS score",
-        "emptyHint": "Complete optimizations to see your stats."
+        "emptyHint": "Run your first optimization to see score trends here."
       },
       "howItWorks": {
         "title": "How it works",
@@ -1012,8 +1027,8 @@
         "failure": "Failed to copy."
       },
       "chat": {
-        "title": "AI Assistant",
-        "openLabel": "Open AI assistant"
+        "title": "AI Resume Assistant",
+        "openLabel": "Open AI resume assistant"
       },
       "jobSummary": {
         "titleLine": "{title} at {company}",
@@ -1262,8 +1277,8 @@
         }
       },
       "suggestions": {
-        "title": "ATS suggestions",
-        "count": "{count} suggestions",
+        "title": "Recommended ATS fixes",
+        "count": "{count} fixes",
         "quickWins": "Quick wins",
         "highImpact": "High impact",
         "otherImprovements": "Other improvements",
@@ -1271,7 +1286,7 @@
         "points": "+{points} pts",
         "apply": "Apply",
         "emptyTitle": "No suggestions yet",
-        "emptyDescription": "You are all set for now.",
+        "emptyDescription": "No urgent fixes right now.",
         "categories": {
           "keywords": "Keywords",
           "formatting": "Formatting",
@@ -1283,8 +1298,8 @@
     },
     "chat": {
       "header": {
-        "title": "AI Assistant",
-        "subtitle": "Get instant help improving your resume.",
+        "title": "AI Resume Assistant",
+        "subtitle": "Ask for rewrites, stronger bullets, or ATS-safe formatting help.",
         "endSession": "End session"
       },
       "errors": {
@@ -1300,7 +1315,7 @@
       "loading": "Loading...",
       "empty": {
         "title": "Start a conversation",
-        "description": "Ask for help improving your resume."
+        "description": "Ask for a rewrite, for example: \"Rewrite my summary for a Product Manager role.\""
       },
       "error": {
         "dismiss": "Dismiss"
@@ -1320,16 +1335,16 @@
         "selectionHint": "Selected <field></field> in <section></section>"
       },
       "suggestionsBanner": {
-        "title": "ATS quick wins",
+        "title": "ATS quick fixes",
         "tipLabel": "Tip {number}",
         "points": "+{points} pts",
         "quickWin": "Quick win",
-        "moreSuggestions": "+{count} more suggestions",
-        "cta": "Open the assistant to apply fixes and see the full plan.",
-        "collapsedPreview": "{count} quick wins available",
+        "moreSuggestions": "+{count} more fixes",
+        "cta": "Open the assistant to apply these fixes one by one.",
+        "collapsedPreview": "{count} high-impact fixes ready",
         "mainIssues": {
-          "title": "Your 3 main issues",
-          "subtitle": "These are the biggest blockers to ATS match and recruiter clarity. Fix them first for the fastest lift.",
+          "title": "Your 3 highest-impact issues",
+          "subtitle": "These issues block ATS matching and recruiter clarity. Fix these first for the fastest lift.",
           "issueBadge": "Issue {index}",
           "pointsBadge": "+{points} pts",
           "whyLabel": "Why this matters",
@@ -1394,7 +1409,7 @@
         }
       },
       "pendingChanges": {
-        "title": "Review suggested changes",
+        "title": "Review and approve suggested edits",
         "tipLabel": "Tip {number}",
         "changesLabel": "Proposed change:",
         "affectsLabel": "Affects",
@@ -1417,7 +1432,7 @@
       },
       "message": {
         "you": "You",
-        "assistant": "Assistant"
+        "assistant": "AI Assistant"
       }
     },
     "design": {

@@ -1,0 +1,291 @@
+{
+  "header": {
+    "dashboard": "Dashboard",
+    "signOut": "Sign Out",
+    "logIn": "Log In",
+    "signUp": "Create Free Account",
+    "pricing": "Pricing"
+  },
+  "footer": {
+    "newsletterTitle": "Weekly Resume & Job Search Brief",
+    "newsletterDescription": "Get practical ATS guidance, stronger bullet examples, and application strategy once a week.",
+    "newsletterNote": "This is our editorial newsletter. To optimize your resume with AI, <link>create a free account</link>.",
+    "copyright": "© {year} Resumely. Built for serious job search outcomes.",
+    "pricing": "Pricing",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contact": "Contact"
+  },
+  "newsletter": {
+    "note": "One concise email per week with ATS strategy, resume examples, and job search tactics. Unsubscribe anytime."
+  },
+  "landing": {
+    "atsChecker": {
+      "badge": "Free ATS Resume Check",
+      "title": "See How Recruiter Systems Read Your Resume",
+      "description": "Upload your resume, match it to a real job description, and get the most important fixes to apply first.",
+      "badges": {
+        "atsSafe": "ATS-safe guidance",
+        "topFixes": "Prioritized fixes",
+        "weeklyChecks": "Free weekly checks"
+      },
+      "bullets": {
+        "v2Engine": "Role-aware analysis tuned for ATS parsing and recruiter review",
+        "hashPrivacy": "Privacy-first handling with secure processing",
+        "unlockFixes": "Create a free account to unlock the full fix plan and save progress"
+      },
+      "existingAccount": "Already have an account?",
+      "loginLink": "Log in",
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "connection": "We could not reach the server. Please try again.",
+        "minimumWords": "Add at least 80 words in the job description to run the check.",
+        "invalidUrl": "Enter a valid job post URL.",
+        "invalidResume": "Upload a valid PDF resume file to continue.",
+        "jobDescriptionRequired": "Add a job description (text or URL) to continue."
+      },
+      "checksRemaining": "{count} free checks remaining"
+    },
+    "uploadForm": {
+      "resumeLabel": "Resume (PDF)",
+      "selectedFile": "Selected file: {fileName}",
+      "jobDescriptionLabel": "Job description",
+      "inputModes": {
+        "text": "Paste text",
+        "url": "From URL"
+      },
+      "placeholders": {
+        "description": "Paste the job description here...",
+        "url": "https://"
+      },
+      "minimumWords": "Minimum {count} words",
+      "wordCount": "{count} words",
+      "urlHelper": "Paste a public job post URL and we will fetch the description.",
+      "checking": "Running ATS check...",
+      "submit": "Get my ATS score",
+      "invalidUrl": "Enter a valid job post URL.",
+      "hints": {
+        "resumeRequired": "Upload your resume to start.",
+        "jobDescriptionRequired": "Paste the job description to continue.",
+        "jobUrlRequired": "Add a job post URL to continue.",
+        "minimumWords": "Job description must include at least {count} words.",
+        "validUrlRequired": "Add a valid job post URL."
+      }
+    },
+    "rateLimit": {
+      "title": "You have used your free checks for now",
+      "description": "You can run another check in {time}, or create a free account for more checks and saved results.",
+      "cta": "Create free account",
+      "time": {
+        "soon": "soon",
+        "minutes": "{count, plural, one {# minute} other {# minutes}}",
+        "hours": "{count, plural, one {# hour} other {# hours}}",
+        "days": "{count, plural, one {# day} other {# days}}"
+      },
+      "backToChecker": "Back to checker"
+    },
+    "issueCard": {
+      "points": "+{points} pts",
+      "quickWin": "Quick win",
+      "categories": {
+        "keywords": "Missing skills/keywords",
+        "metrics": "Missing metrics",
+        "content": "Role clarity",
+        "structure": "Core sections",
+        "formatting": "ATS formatting"
+      }
+    },
+    "loadingState": {
+      "title": "Analyzing your resume",
+      "subtitle": "This usually takes 20-30 seconds",
+      "steps": {
+        "parsing": "Parsing resume content",
+        "keywords": "Extracting role keywords",
+        "scoring": "Calculating ATS match score",
+        "improvements": "Preparing top fixes"
+      },
+      "progress": "{percent}% complete"
+    },
+    "share": {
+      "messageLinkedIn": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
+      "messageTwitter": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
+      "label": "Share on {platform}",
+      "platform": {
+        "linkedin": "LinkedIn",
+        "twitter": "X/Twitter"
+      }
+    },
+    "hero": {
+      "badge": "Job-Ready Resume Guidance",
+      "titleLine1": "Pass ATS Filters",
+      "titleLine2": "And Read Better to Recruiters",
+      "subtitle": "Get role-specific resume edits, clearer positioning, and stronger evidence of impact before you apply.",
+      "benefits": [
+        "Spot ATS blockers before submitting",
+        "Match role language without keyword stuffing",
+        "Improve clarity and relevance section by section"
+      ],
+      "ctaPrimary": "Run Free ATS Check",
+      "ctaSecondary": "See The Process",
+      "socialProof": {
+        "resumesOptimized": "<strong>Role-aware</strong> resume analysis",
+        "reviews": "<strong>Clear</strong> recruiter-facing guidance",
+        "atsApproved": "Built on ATS-safe writing principles"
+      }
+    },
+    "score": {
+      "topIssues": "Highest-impact fixes first",
+      "lockedTitle": "Unlock {count} more high-impact fixes",
+      "lockedDescription": "Create a free account to unlock the full action plan, editable examples, and one-click continuation.",
+      "lockedCta": "Create Free Account",
+      "checkAnother": "Check another resume"
+    }
+  },
+  "auth": {
+    "form": {
+      "title": {
+        "signup": "Create Your Free Account",
+        "signin": "Welcome Back"
+      },
+      "subtitle": {
+        "signup": "Save your ATS checks and continue with full optimization",
+        "signin": "Continue your resume optimization workflow"
+      },
+      "labels": {
+        "email": "Work Email"
+      },
+      "buttons": {
+        "createAccount": "Create Free Account",
+        "signIn": "Continue"
+      }
+    }
+  },
+  "dashboard": {
+    "home": {
+      "welcome": {
+        "subtitle": "This is your optimization workspace."
+      },
+      "conversion": {
+        "title": "Your latest ATS score: {score}",
+        "description": "You have {count} suggested edits ready to apply in your full workflow.",
+        "cta": "Continue to full optimization"
+      },
+      "actions": {
+        "uploadTitle": "Start Full Optimization",
+        "uploadDescription": "Upload your resume and apply guided, role-specific improvements.",
+        "getStarted": "Start optimization"
+      }
+    },
+    "paywall": {
+      "title": "Upgrade for Unlimited Optimization",
+      "usedFree": "You used {count} free optimization(s). Upgrade to continue without limits.",
+      "bestValue": "Premium",
+      "perMonth": "/month",
+      "cancelAnytime": "Cancel anytime",
+      "features": {
+        "unlimited": "Unlimited optimizations",
+        "templates": "Premium templates",
+        "priorityProcessing": "Priority processing",
+        "analytics": "Advanced analytics",
+        "exportFormats": "Export to PDF & DOCX",
+        "support": "Priority support"
+      },
+      "cta": "Upgrade to Premium",
+      "processing": "Processing...",
+      "securePayment": "Secure checkout via Stripe",
+      "maybeLater": "Maybe later",
+      "errors": {
+        "startUpgrade": "Failed to start upgrade. Please try again.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "optimization": {
+      "design": {
+        "changeDesign": "Change design"
+      }
+    }
+  },
+  "blog": {
+    "index": {
+      "title": "Resume Tips & Career Insights",
+      "subtitle": "Practical ATS, resume writing, and interview conversion strategies for active job seekers.",
+      "readingTime": "{minutes} min read",
+      "emptyState": "No blog posts yet. Check back soon."
+    },
+    "post": {
+      "readingTime": "{minutes} min read",
+      "cta": {
+        "title": "Ready to apply this to your resume?",
+        "description": "Run a free ATS check and get prioritized, role-specific fixes.",
+        "button": "Run Free ATS Check"
+      }
+    }
+  },
+  "contact": {
+    "title": "Contact Us",
+    "intro": "Questions, feedback, or partnership ideas? Reach out and we will get back to you quickly.",
+    "emailTitle": "Email",
+    "supportTitle": "Support",
+    "supportDescription": "For account or technical support, email us and include any screenshots or error details.",
+    "featureTitle": "Feature Requests",
+    "featureDescription": "Have an idea for a new feature? We are always looking to improve. Send us your suggestions.",
+    "quickLinksTitle": "Quick Links",
+    "quickLinks": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "blog": "Blog"
+    }
+  },
+  "pricingPage": {
+    "badge": "Simple Pricing",
+    "title": "Choose the plan for your job-search pace",
+    "subtitle": "Start free. Upgrade when you want unlimited optimizations, premium templates, and priority support.",
+    "free": {
+      "title": "Free",
+      "price": "$0",
+      "period": "/month",
+      "description": "Best for validating one role quickly",
+      "feature1": "Limited resume optimizations",
+      "feature2": "ATS match score and top issues",
+      "feature3": "Basic template access",
+      "cta": "Start Free"
+    },
+    "premium": {
+      "title": "Premium",
+      "price": "$9.99",
+      "period": "/month",
+      "description": "For active applicants optimizing across multiple roles",
+      "feature1": "Unlimited resume optimizations",
+      "feature2": "Premium templates and styling controls",
+      "feature3": "Priority processing and support",
+      "cta": "Upgrade to Premium"
+    },
+    "footnote": "Prices in USD. Taxes may apply based on your region."
+  },
+  "meta": {
+    "home": {
+      "title": "Resumely | ATS Resume Checker and Optimization",
+      "description": "Check how ATS systems read your resume, find high-impact blockers, and continue with role-specific optimization."
+    },
+    "pricing": {
+      "title": "Pricing | Resumely",
+      "description": "Compare Free and Premium plans for ATS resume optimization."
+    },
+    "blog": {
+      "title": "Blog | Resume Strategy and ATS Guidance",
+      "description": "Actionable resume strategy, ATS insights, and job-search execution guides."
+    },
+    "contact": {
+      "title": "Contact | Resumely",
+      "description": "Contact the Resumely team for support, feedback, and partnerships."
+    },
+    "privacy": {
+      "title": "Privacy Policy | Resumely",
+      "description": "How Resumely collects, uses, and protects your data."
+    },
+    "terms": {
+      "title": "Terms of Service | Resumely",
+      "description": "Terms governing the use of Resumely services."
+    }
+  }
+}

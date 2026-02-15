@@ -1,62 +1,66 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(35 35% 94%);
-  --color-foreground: hsl(20 20% 10%);
+  --color-background: hsl(210 30% 98%);
+  --color-foreground: hsl(215 28% 17%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(20 20% 10%);
+  --color-card-foreground: hsl(215 28% 17%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(20 20% 10%);
-  --color-primary: hsl(20 20% 10%);
-  --color-primary-foreground: hsl(35 35% 94%);
-  --color-secondary: hsl(190 40% 75%);
-  --color-secondary-foreground: hsl(20 20% 10%);
-  --color-muted: hsl(35 25% 88%);
-  --color-muted-foreground: hsl(20 10% 40%);
-  --color-accent: hsl(190 45% 85%);
-  --color-accent-foreground: hsl(20 20% 10%);
+  --color-popover-foreground: hsl(215 28% 17%);
+  --color-primary: hsl(216 65% 33%);
+  --color-primary-foreground: hsl(210 40% 99%);
+  --color-secondary: hsl(204 78% 94%);
+  --color-secondary-foreground: hsl(215 28% 17%);
+  --color-muted: hsl(212 30% 94%);
+  --color-muted-foreground: hsl(215 14% 40%);
+  --color-accent: hsl(156 53% 94%);
+  --color-accent-foreground: hsl(156 55% 21%);
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 98%);
-  --color-border: hsl(35 20% 85%);
-  --color-input: hsl(35 20% 85%);
-  --color-ring: hsl(20 20% 10%);
+  --color-border: hsl(214 26% 86%);
+  --color-input: hsl(214 26% 86%);
+  --color-ring: hsl(216 65% 33%);
+  --color-mobile-cta: hsl(216 65% 33%);
+  --color-mobile-cta-hover: hsl(216 65% 27%);
 
-  --radius-lg: 1.5rem;
-  --radius-md: calc(1.5rem - 0.125rem);
-  --radius-sm: calc(1.5rem - 0.25rem);
+  --radius-lg: 1.25rem;
+  --radius-md: calc(1.25rem - 0.125rem);
+  --radius-sm: calc(1.25rem - 0.25rem);
 }
 
 @layer base {
   * {
-    border-color: transparent;
+    border-color: var(--color-border);
   }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    font-family: var(--font-geist-sans), "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    line-height: 1.5;
   }
 
   [dir="rtl"] {
-    font-family: var(--font-heebo), var(--font-geist-sans), system-ui, sans-serif;
+    font-family: var(--font-heebo), var(--font-geist-sans), "Assistant", system-ui, sans-serif;
   }
 
-  /* Mobile-first typography scale */
   h1 {
-    @apply text-3xl md:text-5xl font-bold tracking-tight;
+    @apply text-3xl md:text-5xl font-bold tracking-tight leading-tight;
   }
   h2 {
-    @apply text-2xl md:text-3xl font-bold;
+    @apply text-2xl md:text-4xl font-bold tracking-tight;
   }
   h3 {
-    @apply text-xl md:text-2xl font-semibold;
+    @apply text-xl md:text-2xl font-semibold tracking-tight;
   }
 
-  /* Touch target utilities - minimum 44x44px for WCAG 2.1 AAA */
+  p {
+    text-wrap: pretty;
+  }
+
   .touch-target {
     @apply min-h-[44px] min-w-[44px];
   }
 
-  /* Ensure inputs don't zoom on iOS */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -65,10 +69,9 @@
   input[type="url"],
   textarea,
   select {
-    font-size: 16px; /* Prevents iOS zoom */
+    font-size: 16px;
   }
 
-  /* Safe area handling for notched devices */
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
@@ -77,5 +80,10 @@
   }
   .pb-safe {
     padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
   }
 }

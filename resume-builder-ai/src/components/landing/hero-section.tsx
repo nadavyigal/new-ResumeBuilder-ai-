@@ -48,7 +48,7 @@ export function HeroSection() {
             <Button
               asChild
               size="lg"
-              className="w-full sm:w-auto bg-mobile-cta hover:bg-mobile-cta-hover text-white shadow-xl shadow-mobile-cta/25 border-0 h-16 px-10 text-lg font-bold group btn-press"
+              className="w-full sm:w-auto bg-mobile-cta hover:bg-mobile-cta-hover text-foreground shadow-xl shadow-mobile-cta/25 border-0 h-16 px-10 text-lg font-bold group btn-press"
             >
               <Link href={ROUTES.auth.signUp} className="flex items-center gap-2">
                 {t("ctaPrimary")}

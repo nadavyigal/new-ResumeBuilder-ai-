@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { initPostHog, posthog } from '@/lib/posthog';
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const utmCapturedRef = useRef(false);
 
   useEffect(() => {
@@ -17,7 +16,9 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Capture UTM parameters on first visit
     if (utmCapturedRef.current) return;
-    if (typeof window === 'undefined' || !searchParams) return;
+    if (typeof window === 'undefined') return;
+
+    const searchParams = new URLSearchParams(window.location.search);
 
     const utmSource = searchParams.get('utm_source');
     const utmMedium = searchParams.get('utm_medium');
@@ -42,16 +43,16 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     }
 
     utmCapturedRef.current = true;
-  }, [searchParams]);
+  }, [pathname]);
 
   useEffect(() => {
     // Track pageviews on route change
-    if (pathname && posthog) {
+    if (pathname && posthog && typeof window !== 'undefined') {
       posthog.capture('$pageview', {
         $current_url: window.location.href,
       });
     }
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return <>{children}</>;
 }

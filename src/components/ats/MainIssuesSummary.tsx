@@ -351,15 +351,15 @@ export function MainIssuesSummary({
         })}
       </div>
 
-      <div className="rounded-xl border border-mobile-cta/30 bg-mobile-cta/5 p-3 space-y-1.5">
-        <p className="text-sm font-semibold text-foreground">{t('continueTitle')}</p>
-        <p className="text-xs text-foreground/80">{t('continueDescription')}</p>
-        {onContinue && (
+      {onContinue && (
+        <div className="rounded-xl border border-mobile-cta/30 bg-mobile-cta/5 p-3 space-y-1.5">
+          <p className="text-sm font-semibold text-foreground">{t('continueTitle')}</p>
+          <p className="text-xs text-foreground/80">{t('continueDescription')}</p>
           <Button size="sm" className="mt-1" onClick={onContinue}>
             {t('continueCta')}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

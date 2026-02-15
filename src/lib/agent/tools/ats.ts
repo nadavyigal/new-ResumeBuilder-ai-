@@ -23,7 +23,9 @@ export const ATS = {
       for (const kw of jdKeywords) {
         if (!present.has(kw)) missing_keywords.push(kw);
       }
-      const recommendations = missing_keywords.slice(0, 10).map((k) => `Consider adding keyword: ${k}`);
+      const recommendations = missing_keywords
+        .slice(0, 10)
+        .map((k) => `Add "${k}" where it truthfully fits (Skills, Summary, or a relevant achievement).`);
       return safeParseATSReport({ score, missing_keywords, recommendations });
     } catch (e: any) {
       log("tool_error", "ATS.score failed", { error: e?.message });

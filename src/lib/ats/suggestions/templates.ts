@@ -29,21 +29,21 @@ export interface SuggestionTemplate {
 export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
   keyword_exact: [
     {
-      text: "Add the missing skill '{keyword}' to Skills, and reference it in a recent achievement if accurate",
+      text: "Add the missing skill '{keyword}' to Skills and mention it in a recent, relevant achievement if accurate",
       estimatedGain: 8,
       quickWin: true,
       category: 'keywords',
       condition: (evidence) => evidence.missing && evidence.missing.length > 0,
     },
     {
-      text: "Prioritize {count} must-have skills in Skills and experience bullets: {keywords}",
+      text: "Prioritize these {count} must-have skills in Skills and experience bullets: {keywords}",
       estimatedGain: 12,
       quickWin: false,
       category: 'keywords',
       condition: (evidence) => evidence.mustHaveTotal - evidence.mustHaveMatched >= 3,
     },
     {
-      text: "If accurate, add these nice-to-have skills to Skills or tools list: {keywords}",
+      text: "If accurate, add these nice-to-have skills to Skills or your tools list: {keywords}",
       estimatedGain: 5,
       quickWin: true,
       category: 'keywords',
@@ -52,13 +52,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   keyword_phrase: [
     {
-      text: "Weave the concept '{phrase}' into an existing achievement using your own wording",
+      text: "Work the concept '{phrase}' into an existing achievement using your own wording",
       estimatedGain: 6,
       quickWin: true,
       category: 'content',
     },
     {
-      text: "Add 1-2 JD-relevant phrases to achievements or summary (use your own wording): {phrases}",
+      text: "Add 1-2 job-description phrases to achievements or summary (in your own wording): {phrases}",
       estimatedGain: 8,
       quickWin: false,
       category: 'content',
@@ -67,13 +67,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   semantic_relevance: [
     {
-      text: "Expand summary to better describe relevant experience",
+      text: "Update your summary to clearly describe relevant experience for this role",
       estimatedGain: 7,
       quickWin: false,
       category: 'content',
     },
     {
-      text: "Add context to achievements showing how skills were applied",
+      text: "Add context to achievements to show where and how your skills were applied",
       estimatedGain: 6,
       quickWin: false,
       category: 'content',
@@ -82,13 +82,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   title_alignment: [
     {
-      text: "Align your headline/summary with the target title '{targetTitle}' if it reflects your experience",
+      text: "Align your headline or summary with the target title '{targetTitle}' if it matches your experience",
       estimatedGain: 8,
       quickWin: true,
       category: 'content',
     },
     {
-      text: "Clarify seniority level ({seniority}) in your headline or summary without changing official titles",
+      text: "Clarify your seniority level ({seniority}) in the summary without changing official job titles",
       estimatedGain: 5,
       quickWin: false,
       category: 'content',
@@ -97,13 +97,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   metrics_presence: [
     {
-      text: "Quantify {count} achievements with outcomes (%, $, time, scale)",
+      text: "Quantify {count} achievements with concrete outcomes (percent, cost, time, or scale)",
       estimatedGain: 10,
       quickWin: false,
       category: 'metrics',
     },
     {
-      text: "Add at least one metric to your most recent role (time saved, revenue, users, efficiency)",
+      text: "Add at least one metric to your most recent role (for example: time saved, revenue, users, or efficiency)",
       estimatedGain: 7,
       quickWin: true,
       category: 'metrics',
@@ -118,13 +118,13 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   section_completeness: [
     {
-      text: "Add missing section: {section}",
+      text: "Add the missing section: {section}",
       estimatedGain: 12,
       quickWin: false,
       category: 'structure',
     },
     {
-      text: "Expand professional summary to 50-150 words",
+      text: "Expand your professional summary to 50-150 words with role-focused detail",
       estimatedGain: 5,
       quickWin: true,
       category: 'structure',
@@ -139,7 +139,7 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   format_parseability: [
     {
-      text: "Switch to ATS-safe template (single column, no graphics)",
+      text: "Switch to an ATS-safe template (single column, no graphics)",
       estimatedGain: 15,
       quickWin: true,
       category: 'formatting',
@@ -152,7 +152,7 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
       category: 'formatting',
     },
     {
-      text: "Remove images, logos, and graphics - ATS cannot read them",
+      text: "Remove images, logos, and graphics because ATS systems often cannot parse them",
       estimatedGain: 8,
       quickWin: true,
       category: 'formatting',
@@ -167,19 +167,19 @@ export const SUGGESTION_TEMPLATES: Record<SubScoreKey, SuggestionTemplate[]> = {
 
   recency_fit: [
     {
-      text: "Move recent relevant projects to latest role",
+      text: "Move recent, relevant projects closer to the top of your experience",
       estimatedGain: 6,
       quickWin: true,
       category: 'content',
     },
     {
-      text: "Highlight continuous skill development in recent roles",
+      text: "Highlight recent skill growth to show current relevance",
       estimatedGain: 5,
       quickWin: false,
       category: 'content',
     },
     {
-      text: "Add recent certifications or training to show current expertise",
+      text: "Add recent certifications or training to demonstrate current expertise",
       estimatedGain: 4,
       quickWin: true,
       category: 'content',

@@ -1,14 +1,24 @@
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/navigation';
+import { type Locale } from '@/locales';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service | Resumely',
-  description: 'Terms of service for Resumely - AI Resume Optimizer',
-};
+interface TermsPageProps {
+  params: Promise<{ locale: Locale }>;
+}
 
-export default async function TermsOfService() {
-  const t = await getTranslations('terms');
+export async function generateMetadata({ params }: TermsPageProps): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'meta.terms' });
+  return {
+    title: t('title'),
+    description: t('description'),
+  };
+}
+
+export default async function TermsOfService({ params }: TermsPageProps) {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'terms' });
 
   const serviceItems = t.raw('sections.service.items') as string[];
   const accountItems = t.raw('sections.accounts.creation.items') as string[];

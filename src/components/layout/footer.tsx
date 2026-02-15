@@ -29,6 +29,9 @@ export async function Footer() {
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-8 border-t border-border">
           <p className="text-sm text-foreground/60">{t("copyright", { year })}</p>
           <div className="flex items-center gap-6">
+            <Link href="/pricing" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
+              {t("pricing")}
+            </Link>
             <Link href="/privacy" className="text-foreground/60 hover:text-foreground transition-colors text-sm">
               {t("privacy")}
             </Link>

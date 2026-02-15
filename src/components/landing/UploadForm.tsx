@@ -7,6 +7,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
+const MIN_JOB_DESCRIPTION_WORDS = 80;
+
+function isLikelyJobUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const parsed = new URL(normalized);
+    return Boolean(parsed.hostname && parsed.hostname.includes("."));
+  } catch {
+    return false;
+  }
+}
+
 interface UploadFormProps {
   onSubmit: (
     file: File,
@@ -29,10 +45,28 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
     return jobDescription.trim().split(/\s+/).filter(Boolean).length;
   }, [jobDescription, inputMode]);
 
+  const hasValidWordCount = inputMode !== "text" || wordCount >= MIN_JOB_DESCRIPTION_WORDS;
+  const hasValidUrl = inputMode !== "url" || isLikelyJobUrl(jobDescriptionUrl);
+  const hasJobInput = inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim();
+
   const canSubmit = Boolean(
     resumeFile
-    && (inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim())
+    && hasJobInput
+    && hasValidWordCount
+    && hasValidUrl
   );
+
+  const submitHint = useMemo(() => {
+    if (submitting) return null;
+    if (!resumeFile) return t("hints.resumeRequired");
+    if (inputMode === "text" && !jobDescription.trim()) return t("hints.jobDescriptionRequired");
+    if (inputMode === "url" && !jobDescriptionUrl.trim()) return t("hints.jobUrlRequired");
+    if (inputMode === "text" && !hasValidWordCount) {
+      return t("hints.minimumWords", { count: MIN_JOB_DESCRIPTION_WORDS });
+    }
+    if (inputMode === "url" && !hasValidUrl) return t("hints.validUrlRequired");
+    return null;
+  }, [submitting, resumeFile, inputMode, jobDescription, jobDescriptionUrl, hasValidWordCount, hasValidUrl, t]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -109,8 +143,10 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
               required
             />
             <div className="flex items-center justify-between text-xs text-foreground/60">
-              <span>{t("minimumWords")}</span>
-              <span>{t("wordCount", { count: wordCount })}</span>
+              <span>{t("minimumWords", { count: MIN_JOB_DESCRIPTION_WORDS })}</span>
+              <span className={hasValidWordCount ? "" : "text-destructive"}>
+                {t("wordCount", { count: wordCount })}
+              </span>
             </div>
           </>
         ) : (
@@ -131,6 +167,9 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <p className="text-xs text-foreground/60">
               {t("urlHelper")}
             </p>
+            {!hasValidUrl && jobDescriptionUrl.trim() && (
+              <p className="text-xs text-destructive">{t("invalidUrl")}</p>
+            )}
           </>
         )}
       </div>
@@ -144,11 +183,16 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       <Button
         type="submit"
         data-testid="analyze-button"
-        className="w-full bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
+        className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)] disabled:opacity-100 disabled:bg-muted disabled:text-foreground/65 disabled:border-2 disabled:border-border"
         disabled={!canSubmit || submitting}
       >
         {submitting ? t("checking") : t("submit")}
       </Button>
+      {submitHint && (
+        <p className="text-xs text-foreground/65 text-center" role="status">
+          {submitHint}
+        </p>
+      )}
     </form>
   );
 }

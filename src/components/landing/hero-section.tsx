@@ -31,14 +31,14 @@ export function HeroSection() {
           </div>
 
           {/* Hero Title */}
-          <h1 className="text-center mb-6 animate-slideUp">
+          <h2 className="text-center mb-6 animate-slideUp">
             <span className="block text-4xl md:text-5xl lg:text-6xl text-foreground font-bold leading-tight mb-2">
               {t("titleLine1")}
             </span>
             <span className="block text-3xl md:text-4xl lg:text-5xl bg-gradient-to-r from-mobile-cta via-primary to-secondary bg-clip-text text-transparent font-bold leading-tight">
               {t("titleLine2")}
             </span>
-          </h1>
+          </h2>
 
           {/* Subtitle */}
           <p className="text-center text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto mb-4 leading-relaxed animate-slideUp delay-100">
@@ -89,7 +89,7 @@ export function HeroSection() {
                 {[1, 2, 3, 4].map((i) => (
                   <div
                     key={i}
-                    className="w-8 h-8 rounded-full bg-gradient-to-br from-mobile-cta to-secondary border-2 border-background flex items-center justify-center text-white font-bold text-xs"
+                    className="w-8 h-8 rounded-full bg-foreground border-2 border-background flex items-center justify-center text-background font-bold text-xs"
                   >
                     {String.fromCharCode(64 + i)}
                   </div>
