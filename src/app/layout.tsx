@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Heebo } from "next/font/google";
 import Script from "next/script";
+import { headers } from "next/headers";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Analytics } from "@vercel/analytics/react";
+import { defaultLocale, locales, type Locale } from "@/locales";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -94,9 +96,26 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const requestHeaders = await headers();
+  const headerLocale =
+    requestHeaders.get("X-NEXT-INTL-LOCALE") ||
+    requestHeaders.get("x-next-intl-locale");
+  const resolvedLocale =
+    headerLocale && locales.includes(headerLocale as Locale)
+      ? (headerLocale as Locale)
+      : defaultLocale;
+  const dir = resolvedLocale === "he" ? "rtl" : "ltr";
+
   return (
-    <html lang="en" dir="ltr">
+    <html lang={resolvedLocale} dir={dir}>
       <body className={`${geistSans.variable} ${geistMono.variable} ${heebo.variable} antialiased`}>
+        {/* Skip to main content link for keyboard navigation */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-background focus:text-foreground focus:border-2 focus:border-ring focus:rounded-md focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
         {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-QEC1MEVSCW"
