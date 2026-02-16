@@ -14,53 +14,25 @@ export default async function OGImage() {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          background: "linear-gradient(135deg, #151c2c 0%, #1a2640 40%, #1e3045 70%, #162535 100%)",
+          background: "linear-gradient(135deg, #0f172a, #1e293b)",
           position: "relative",
-          overflow: "hidden",
+          fontFamily: "system-ui, sans-serif",
         }}
       >
-        {/* Decorative gradient orbs */}
-        <div
-          style={{
-            position: "absolute",
-            top: "-80px",
-            right: "-60px",
-            width: "400px",
-            height: "400px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(45,185,140,0.25) 0%, transparent 70%)",
-            display: "flex",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            bottom: "-120px",
-            left: "-80px",
-            width: "500px",
-            height: "500px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(45,185,140,0.12) 0%, transparent 70%)",
-            display: "flex",
-          }}
-        />
-        {/* Subtle grid pattern overlay */}
+        {/* Accent bar at top */}
         <div
           style={{
             position: "absolute",
             top: 0,
             left: 0,
             right: 0,
-            bottom: 0,
-            backgroundImage:
-              "linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
+            height: "4px",
+            background: "linear-gradient(90deg, #22c55e, #2db98c, #0ea5e9)",
             display: "flex",
           }}
         />
 
-        {/* Main content area */}
+        {/* Main content */}
         <div
           style={{
             display: "flex",
@@ -69,45 +41,41 @@ export default async function OGImage() {
             justifyContent: "space-between",
             width: "100%",
             height: "100%",
-            padding: "60px 70px",
-            position: "relative",
-            zIndex: 1,
+            padding: "50px 60px",
           }}
         >
-          {/* Left column - Text content */}
+          {/* Left: Text */}
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
-              maxWidth: "620px",
-              gap: "20px",
+              maxWidth: "640px",
             }}
           >
-            {/* Logo / Brand */}
+            {/* Brand */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "12px",
-                marginBottom: "8px",
+                marginBottom: "28px",
               }}
             >
               <div
                 style={{
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "12px",
-                  background: "linear-gradient(135deg, #2db98c 0%, #22a07a 100%)",
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "10px",
+                  background: "#22c55e",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(45,185,140,0.4)",
+                  marginRight: "14px",
                 }}
               >
                 <svg
-                  width="24"
-                  height="24"
+                  width="22"
+                  height="22"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="white"
@@ -123,30 +91,23 @@ export default async function OGImage() {
               </div>
               <span
                 style={{
-                  fontSize: "28px",
+                  fontSize: "26px",
                   fontWeight: 700,
                   color: "white",
-                  letterSpacing: "-0.5px",
                 }}
               >
                 Resumely
               </span>
             </div>
 
-            {/* Headline */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "6px",
-              }}
-            >
+            {/* Title */}
+            <div style={{ display: "flex", flexDirection: "column" }}>
               <span
                 style={{
-                  fontSize: "48px",
+                  fontSize: "52px",
                   fontWeight: 800,
                   color: "white",
-                  lineHeight: 1.1,
+                  lineHeight: 1.15,
                   letterSpacing: "-1px",
                 }}
               >
@@ -154,10 +115,10 @@ export default async function OGImage() {
               </span>
               <span
                 style={{
-                  fontSize: "48px",
+                  fontSize: "52px",
                   fontWeight: 800,
-                  color: "#2db98c",
-                  lineHeight: 1.1,
+                  color: "#22c55e",
+                  lineHeight: 1.15,
                   letterSpacing: "-1px",
                 }}
               >
@@ -165,39 +126,37 @@ export default async function OGImage() {
               </span>
             </div>
 
-            {/* Subheading */}
+            {/* Subtitle */}
             <span
               style={{
                 fontSize: "20px",
-                color: "rgba(255,255,255,0.65)",
+                color: "#94a3b8",
                 lineHeight: 1.5,
-                maxWidth: "480px",
+                marginTop: "20px",
+                maxWidth: "460px",
               }}
             >
               Free ATS score, actionable fixes, and AI-powered optimization to land more interviews.
             </span>
 
-            {/* CTA badge */}
+            {/* CTA */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "16px",
-                marginTop: "8px",
+                marginTop: "28px",
               }}
             >
               <div
                 style={{
-                  background: "linear-gradient(135deg, #2db98c 0%, #22a07a 100%)",
+                  background: "#22c55e",
                   color: "white",
-                  padding: "12px 28px",
+                  padding: "14px 30px",
                   borderRadius: "10px",
                   fontSize: "18px",
                   fontWeight: 700,
-                  boxShadow: "0 4px 16px rgba(45,185,140,0.35)",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
                 }}
               >
                 Run Free ATS Check
@@ -206,10 +165,11 @@ export default async function OGImage() {
                   height="18"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="currentColor"
+                  stroke="white"
                   strokeWidth="2.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  style={{ marginLeft: "10px" }}
                 >
                   <line x1="5" y1="12" x2="19" y2="12" />
                   <polyline points="12 5 19 12 12 19" />
@@ -218,7 +178,8 @@ export default async function OGImage() {
               <span
                 style={{
                   fontSize: "15px",
-                  color: "rgba(255,255,255,0.45)",
+                  color: "#64748b",
+                  marginLeft: "18px",
                 }}
               >
                 resumelybuilderai.com
@@ -226,91 +187,80 @@ export default async function OGImage() {
             </div>
           </div>
 
-          {/* Right column - Visual element (score card mockup) */}
+          {/* Right: Score card */}
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              width: "380px",
-              flexShrink: 0,
+              width: "340px",
             }}
           >
-            {/* Score card */}
             <div
               style={{
-                background: "rgba(255,255,255,0.07)",
-                backdropFilter: "blur(20px)",
+                background: "#1e293b",
                 borderRadius: "24px",
-                border: "1px solid rgba(255,255,255,0.12)",
-                padding: "36px 40px",
+                border: "1px solid #334155",
+                padding: "32px 36px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: "20px",
-                boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-                width: "320px",
+                width: "300px",
+                boxShadow: "0 25px 50px rgba(0,0,0,0.5)",
               }}
             >
+              {/* Label */}
               <span
                 style={{
-                  fontSize: "15px",
-                  color: "rgba(255,255,255,0.5)",
+                  fontSize: "14px",
+                  color: "#64748b",
                   fontWeight: 600,
-                  letterSpacing: "1.5px",
-                  textTransform: "uppercase",
+                  letterSpacing: "2px",
+                  marginBottom: "18px",
                 }}
               >
-                ATS Score
+                ATS SCORE
               </span>
 
-              {/* Circular score */}
+              {/* Score ring */}
               <div
                 style={{
-                  position: "relative",
-                  width: "160px",
-                  height: "160px",
+                  width: "150px",
+                  height: "150px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  position: "relative",
                 }}
               >
-                {/* Score ring background */}
-                <svg
-                  width="160"
-                  height="160"
-                  viewBox="0 0 160 160"
-                  style={{ position: "absolute" }}
-                >
+                <svg width="150" height="150" viewBox="0 0 150 150">
                   <circle
-                    cx="80"
-                    cy="80"
-                    r="68"
+                    cx="75"
+                    cy="75"
+                    r="62"
                     fill="none"
-                    stroke="rgba(255,255,255,0.08)"
+                    stroke="#334155"
                     strokeWidth="10"
                   />
                   <circle
-                    cx="80"
-                    cy="80"
-                    r="68"
+                    cx="75"
+                    cy="75"
+                    r="62"
                     fill="none"
-                    stroke="#2db98c"
+                    stroke="#22c55e"
                     strokeWidth="10"
-                    strokeDasharray={`${2 * Math.PI * 68 * 0.87} ${2 * Math.PI * 68 * 0.13}`}
+                    strokeDasharray={`${2 * Math.PI * 62 * 0.87} ${2 * Math.PI * 62 * 0.13}`}
                     strokeLinecap="round"
-                    transform="rotate(-90 80 80)"
-                    style={{
-                      filter: "drop-shadow(0 0 8px rgba(45,185,140,0.5))",
-                    }}
+                    transform="rotate(-90 75 75)"
                   />
                 </svg>
                 <span
                   style={{
-                    fontSize: "56px",
+                    position: "absolute",
+                    fontSize: "52px",
                     fontWeight: 800,
-                    color: "#2db98c",
+                    color: "#22c55e",
                     letterSpacing: "-2px",
                   }}
                 >
@@ -318,56 +268,66 @@ export default async function OGImage() {
                 </span>
               </div>
 
-              {/* Score items */}
+              {/* Metrics */}
               <div
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: "10px",
                   width: "100%",
+                  marginTop: "20px",
                 }}
               >
-                {[
-                  { label: "Keywords Match", color: "#2db98c" },
-                  { label: "Format & Structure", color: "#2db98c" },
-                  { label: "Impact Bullets", color: "#e5a819" },
-                ].map((item) => (
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
                   <div
-                    key={item.label}
                     style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "#22c55e",
+                      marginRight: "10px",
                       display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
                     }}
-                  >
-                    <div
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        background: item.color,
-                        flexShrink: 0,
-                        display: "flex",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "14px",
-                        color: "rgba(255,255,255,0.6)",
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                  </div>
-                ))}
+                  />
+                  <span style={{ fontSize: "14px", color: "#94a3b8" }}>
+                    Keywords Match
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", marginBottom: "10px" }}>
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "#22c55e",
+                      marginRight: "10px",
+                      display: "flex",
+                    }}
+                  />
+                  <span style={{ fontSize: "14px", color: "#94a3b8" }}>
+                    Format & Structure
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "#eab308",
+                      marginRight: "10px",
+                      display: "flex",
+                    }}
+                  />
+                  <span style={{ fontSize: "14px", color: "#94a3b8" }}>
+                    Impact Bullets
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     ),
-    {
-      ...size,
-    }
+    { ...size }
   );
 }

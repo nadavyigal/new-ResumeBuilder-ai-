@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     creator: "@resumelyai",
     images: [
       {
-        url: "https://www.resumelybuilderai.com/twitter-image",
+        url: "https://www.resumelybuilderai.com/opengraph-image",
         width: 1200,
         height: 630,
         alt: "Resumely – ATS Resume Checker & Optimization",
