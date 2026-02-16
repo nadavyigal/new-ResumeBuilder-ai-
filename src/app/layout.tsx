@@ -9,6 +9,12 @@ import { Analytics } from "@vercel/analytics/react";
 import { defaultLocale, locales, type Locale } from "@/locales";
 import "./globals.css";
 
+// Force dynamic rendering to fix build error
+export const dynamic = "force-dynamic";
+export const dynamicParams = true;
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -26,7 +32,7 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://resumelybuilderai.com"),
+  metadataBase: new URL("https://www.resumelybuilderai.com"),
   title: {
     default: "Resumely | ATS Resume Checker and Optimization",
     template: "%s | Resumely",
@@ -56,27 +62,21 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://resumelybuilderai.com",
+    alternateLocale: "he_IL",
+    url: "https://www.resumelybuilderai.com",
     siteName: "Resumely",
     title: "Resumely | ATS Resume Checker and Optimization",
     description:
       "Check how ATS systems read your resume and apply role-specific optimization.",
-    images: [
-      {
-        url: "/images/og-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Resumely - AI Resume Optimizer",
-      },
-    ],
+    // images array removed - auto-discovered from opengraph-image.tsx
   },
   twitter: {
     card: "summary_large_image",
     title: "Resumely | ATS Resume Checker and Optimization",
     description:
       "Check how ATS systems read your resume and apply role-specific optimization.",
-    images: ["/images/og-image.jpg"],
     creator: "@resumelyai",
+    // images array removed - auto-discovered from twitter-image.tsx (or falls back to opengraph-image.tsx)
   },
   robots: {
     index: true,
