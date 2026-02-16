@@ -34,17 +34,17 @@ export async function generateMetadata({
       description: meta.description,
       locale: meta.locale,
       alternateLocale: locale === "he" ? "en_US" : "he_IL",
-      url: locale === "he" ? "https://resumelybuilderai.com/he" : "https://resumelybuilderai.com",
+      url: locale === "he" ? "https://www.resumelybuilderai.com/he" : "https://www.resumelybuilderai.com",
     },
     twitter: {
       title: meta.title,
       description: meta.description,
     },
     alternates: {
-      canonical: locale === "he" ? "https://resumelybuilderai.com/he" : "https://resumelybuilderai.com",
+      canonical: locale === "he" ? "https://www.resumelybuilderai.com/he" : "https://www.resumelybuilderai.com",
       languages: {
-        en: "https://resumelybuilderai.com",
-        he: "https://resumelybuilderai.com/he",
+        en: "https://www.resumelybuilderai.com",
+        he: "https://www.resumelybuilderai.com/he",
       },
     },
   };

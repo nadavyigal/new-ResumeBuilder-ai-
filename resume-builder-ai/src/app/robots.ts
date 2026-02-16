@@ -9,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/dashboard/', '/auth/'],
       },
     ],
-    sitemap: 'https://resumelybuilderai.com/sitemap.xml',
+    sitemap: 'https://www.resumelybuilderai.com/sitemap.xml',
   };
 }

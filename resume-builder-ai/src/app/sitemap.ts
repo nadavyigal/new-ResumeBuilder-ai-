@@ -3,7 +3,7 @@ import { getAllPosts } from "@/lib/blog";
 import { defaultLocale, locales } from "@/locales";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://resumelybuilderai.com";
+  const baseUrl = "https://www.resumelybuilderai.com";
 
   const withLocale = (path: string, locale: string) => {
     if (locale === defaultLocale) return path;
