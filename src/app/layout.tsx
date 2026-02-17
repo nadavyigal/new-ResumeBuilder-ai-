@@ -68,7 +68,15 @@ export const metadata: Metadata = {
     title: "Resumely | ATS Resume Checker and Optimization",
     description:
       "Check how ATS systems read your resume and apply role-specific optimization.",
-    // images array removed - auto-discovered from opengraph-image.tsx
+    images: [
+      {
+        url: "https://www.resumelybuilderai.com/api/og",
+        width: 1200,
+        height: 630,
+        alt: "Resumely – ATS Resume Checker & Optimization",
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -76,7 +84,14 @@ export const metadata: Metadata = {
     description:
       "Check how ATS systems read your resume and apply role-specific optimization.",
     creator: "@resumelyai",
-    // images array removed - auto-discovered from twitter-image.tsx (or falls back to opengraph-image.tsx)
+    images: [
+      {
+        url: "https://www.resumelybuilderai.com/api/og",
+        width: 1200,
+        height: 630,
+        alt: "Resumely – ATS Resume Checker & Optimization",
+      },
+    ],
   },
   robots: {
     index: true,

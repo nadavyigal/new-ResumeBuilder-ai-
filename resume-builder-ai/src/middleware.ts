@@ -99,5 +99,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api routes
+     * - _next (Next.js internals)
+     * - _vercel (Vercel internals)
+     * - files with extensions (e.g. .jpg, .png, .css)
+     * - Next.js metadata routes (opengraph-image, twitter-image, etc.)
+     */
+    "/((?!api|_next|_vercel|opengraph-image|twitter-image|icon|apple-icon|manifest|robots|sitemap|.*\\..*).*)",
+  ],
 };

@@ -70,7 +70,7 @@ export const metadata: Metadata = {
       "Check how ATS systems read your resume and apply role-specific optimization.",
     images: [
       {
-        url: "https://www.resumelybuilderai.com/opengraph-image",
+        url: "https://www.resumelybuilderai.com/api/og",
         width: 1200,
         height: 630,
         alt: "Resumely – ATS Resume Checker & Optimization",
@@ -86,7 +86,7 @@ export const metadata: Metadata = {
     creator: "@resumelyai",
     images: [
       {
-        url: "https://www.resumelybuilderai.com/opengraph-image",
+        url: "https://www.resumelybuilderai.com/api/og",
         width: 1200,
         height: 630,
         alt: "Resumely – ATS Resume Checker & Optimization",
