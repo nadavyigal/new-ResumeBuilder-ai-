@@ -26,6 +26,9 @@
   "exclude": [
     "node_modules",
     "tests",
+    "resume-builder-ai",
+    "pdf-service",
+    "scripts",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

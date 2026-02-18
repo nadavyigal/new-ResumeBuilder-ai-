@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
-import type { AdminFeedbackUpdate } from '@/types/feedback';
+import type { AdminFeedbackUpdate, FeedbackStatus } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
 
@@ -39,7 +39,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
   }
 
-  const update: Record<string, unknown> = {};
+  const update: { status?: FeedbackStatus; admin_notes?: string | null } = {};
   if (body.status) update.status = body.status;
   if (body.admin_notes !== undefined) update.admin_notes = body.admin_notes;
 

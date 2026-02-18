@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
+import type { TicketStatus, TicketCategory, TicketPriority } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
 
@@ -41,9 +42,9 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) query = query.eq('status', status);
-  if (category) query = query.eq('category', category);
-  if (priority) query = query.eq('priority', priority);
+  if (status) query = query.eq('status', status as TicketStatus);
+  if (category) query = query.eq('category', category as TicketCategory);
+  if (priority) query = query.eq('priority', priority as TicketPriority);
 
   const { data, error, count } = await query;
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
-import type { AdminTicketUpdate } from '@/types/feedback';
+import type { AdminTicketUpdate, TicketStatus, TicketPriority } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
 
@@ -44,7 +44,12 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid priority' }, { status: 400 });
   }
 
-  const update: Record<string, unknown> = {};
+  const update: {
+    status?: TicketStatus;
+    priority?: TicketPriority;
+    admin_notes?: string | null;
+    resolved_at?: string | null;
+  } = {};
   if (body.status) {
     update.status = body.status;
     if (body.status === 'resolved') update.resolved_at = new Date().toISOString();

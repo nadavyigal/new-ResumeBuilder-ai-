@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
+import type { FeedbackType, FeedbackStatus } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
 
@@ -47,8 +48,8 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (type) query = query.eq('type', type);
-  if (status) query = query.eq('status', status);
+  if (type) query = query.eq('type', type as FeedbackType);
+  if (status) query = query.eq('status', status as FeedbackStatus);
 
   const { data, error, count } = await query;
 
