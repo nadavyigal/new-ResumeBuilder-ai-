@@ -553,6 +553,94 @@ export interface Database {
       history: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       style_customization_history: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       ai_threads: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
+      feedback: Table<
+        {
+          id: string;
+          user_id: string | null;
+          session_id: string | null;
+          type: 'general' | 'bug' | 'feature_request' | 'nps' | 'rating';
+          rating: number | null;
+          message: string | null;
+          context: Json;
+          status: 'new' | 'reviewed' | 'actioned' | 'closed';
+          admin_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          user_id?: string | null;
+          session_id?: string | null;
+          type: 'general' | 'bug' | 'feature_request' | 'nps' | 'rating';
+          rating?: number | null;
+          message?: string | null;
+          context?: Json;
+          status?: 'new' | 'reviewed' | 'actioned' | 'closed';
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          user_id?: string | null;
+          session_id?: string | null;
+          type?: 'general' | 'bug' | 'feature_request' | 'nps' | 'rating';
+          rating?: number | null;
+          message?: string | null;
+          context?: Json;
+          status?: 'new' | 'reviewed' | 'actioned' | 'closed';
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
+      support_tickets: Table<
+        {
+          id: string;
+          user_id: string | null;
+          email: string;
+          name: string | null;
+          subject: string;
+          message: string;
+          category: 'billing' | 'technical' | 'account' | 'other';
+          status: 'open' | 'in_progress' | 'resolved' | 'closed';
+          priority: 'low' | 'medium' | 'high';
+          admin_notes: string | null;
+          resolved_at: string | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          user_id?: string | null;
+          email: string;
+          name?: string | null;
+          subject: string;
+          message: string;
+          category?: 'billing' | 'technical' | 'account' | 'other';
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+          priority?: 'low' | 'medium' | 'high';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          user_id?: string | null;
+          email?: string;
+          name?: string | null;
+          subject?: string;
+          message?: string;
+          category?: 'billing' | 'technical' | 'account' | 'other';
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed';
+          priority?: 'low' | 'medium' | 'high';
+          admin_notes?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
     };
     Views: {
       [_ in never]: never;
