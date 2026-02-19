@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { MobileHeader } from "@/components/mobile/mobile-header";
 import { BottomNav } from "@/components/mobile/bottom-nav";
 import { Header } from "@/components/layout/header";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -33,6 +34,9 @@ export function AppLayout({ children, user, title }: AppLayoutProps) {
 
       {/* Mobile Bottom Navigation - hidden on desktop */}
       {user && <BottomNav />}
+
+      {/* Global Feedback Widget */}
+      <FeedbackWidget />
     </div>
   );
 }
