@@ -3,13 +3,13 @@ import * as Sentry from "@sentry/nextjs";
 type ReplayIntegrationFactory = (options: {
   maskAllText?: boolean;
   blockAllMedia?: boolean;
-}) => Sentry.Integration;
+}) => unknown;
 
 const replayIntegration = (Sentry as unknown as {
   replayIntegration?: ReplayIntegrationFactory;
 }).replayIntegration;
 
-const integrations: Sentry.Integration[] = replayIntegration
+const integrations = replayIntegration
   ? [
       replayIntegration({
         maskAllText: true,
@@ -23,7 +23,7 @@ Sentry.init({
 
   // Replay is used to record user sessions for debugging
   // This can be privacy-sensitive, so consider carefully before enabling
-  integrations,
+  integrations: integrations as [],
 
   // Performance Monitoring
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
