@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { captureServerEvent } from "@/lib/posthog-server";
 import { defaultLocale, locales, type Locale } from "@/locales";
 
 function normalizeLocale(locale?: string): Locale {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { plan, locale: rawLocale } = await req.json();
+    const { plan, locale: rawLocale, source } = await req.json();
     if (plan !== "premium") {
       return NextResponse.json(
         { success: false, code: "INVALID_PLAN", error: "Invalid plan type" },
@@ -35,6 +36,8 @@ export async function POST(req: NextRequest) {
       );
     }
     const locale = normalizeLocale(rawLocale);
+
+    const checkoutSource = typeof source === "string" ? source : "direct";
 
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     const stripePriceId = process.env.STRIPE_PRICE_ID_PREMIUM;
@@ -53,13 +56,17 @@ export async function POST(req: NextRequest) {
 
     const payload = new URLSearchParams();
     payload.set("mode", "subscription");
-    payload.set("success_url", `${appUrl}${withLocalePath("/dashboard", locale)}?upgraded=true&session_id={CHECKOUT_SESSION_ID}`);
+    payload.set(
+      "success_url",
+      `${appUrl}${withLocalePath("/dashboard", locale)}?upgraded=true&session_id={CHECKOUT_SESSION_ID}&source=${encodeURIComponent(checkoutSource)}`
+    );
     payload.set("cancel_url", `${appUrl}${withLocalePath("/pricing", locale)}?upgrade=cancelled`);
     payload.set("line_items[0][price]", stripePriceId);
     payload.set("line_items[0][quantity]", "1");
     payload.set("client_reference_id", user.id);
     payload.set("metadata[user_id]", user.id);
     payload.set("metadata[plan]", "premium");
+    payload.set("metadata[source]", checkoutSource);
     if (user.email) {
       payload.set("customer_email", user.email);
     }
@@ -96,6 +103,12 @@ export async function POST(req: NextRequest) {
         },
         { status: 502 }
       );
+    }
+
+    if (checkoutSource === "expert_mode") {
+      await captureServerEvent(user.id, "upgrade_clicked_from_expert", {
+        source: checkoutSource,
+      });
     }
 
     return NextResponse.json({

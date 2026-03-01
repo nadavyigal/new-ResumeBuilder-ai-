@@ -11,6 +11,7 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { ExpertModesPanel } from "@/components/expert/ExpertModesPanel";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
@@ -66,6 +67,7 @@ export default function OptimizationPage() {
 
   // Pending changes for ATS tip highlighting
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [isPremium, setIsPremium] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -81,6 +83,33 @@ export default function OptimizationPage() {
     const vh = window.innerHeight;
     setFabPosition({ x: vw - 84, y: vh - 180 });
   }, []);
+
+  useEffect(() => {
+    const resolvePlan = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        if (!authUser) return;
+
+        const metadata = authUser.user_metadata || {};
+        if (metadata?.is_premium === true || metadata?.plan_type === "premium") {
+          setIsPremium(true);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan_type")
+          .eq("user_id", authUser.id)
+          .maybeSingle();
+        setIsPremium(profile?.plan_type === "premium");
+      } catch (planError) {
+        console.error("Failed to resolve premium status:", planError);
+      }
+    };
+
+    resolvePlan();
+  }, [supabase]);
 
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
@@ -782,6 +811,15 @@ export default function OptimizationPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Expert Modes Panel */}
+      <div className="mb-6 print:hidden">
+        <ExpertModesPanel
+          optimizationId={params.id as string}
+          isPremium={isPremium}
+          onApplied={handleChatMessageSent}
+        />
       </div>
 
       {/* Main Layout: Resume Preview (Full Width) */}

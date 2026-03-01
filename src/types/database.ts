@@ -446,6 +446,8 @@ export interface Database {
           created_at?: string;
         }
       >;
+      expert_workflow_runs: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
+      expert_workflow_artifacts: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       chat_sessions: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       chat_messages: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       amendment_requests: Table<

@@ -23,6 +23,8 @@ import { CHAT_CONFIG, TECHNICAL_KEYWORDS } from '@/lib/constants';
 import { detectIntentRegex } from '@/lib/agent/intents';
 import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
+import { runExpertWorkflow } from '@/lib/expert-workflows';
+import type { ExpertWorkflowType } from '@/lib/expert-workflows';
 import { ensureThread } from '@/lib/ai-assistant/thread-manager';
 import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
@@ -140,6 +142,38 @@ function applyAmendmentsToResume(
   }
 
   return updatedContent;
+}
+
+function detectExpertWorkflowType(message: string): ExpertWorkflowType | null {
+  const text = message.toLowerCase();
+  if (/(run|do|start|create|generate).*(expert)?.*(resume)?.*rewrite/.test(text)) {
+    return 'full_resume_rewrite';
+  }
+  if (/(quantify|quantifier|quantification|achievement).*(bullet|resume|experience)?/.test(text)) {
+    return 'achievement_quantifier';
+  }
+  if (/(generate|create|run).*(ats).*(report|analysis|optimization)/.test(text)) {
+    return 'ats_optimization_report';
+  }
+  if (/(create|generate|write).*(5|five).*(summary|summaries)|summary lab/.test(text)) {
+    return 'professional_summary_lab';
+  }
+  return null;
+}
+
+async function isPremiumUser(supabase: any, user: any): Promise<boolean> {
+  const metadata = user?.user_metadata || {};
+  if (metadata.is_premium === true || metadata.plan_type === 'premium') {
+    return true;
+  }
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('plan_type')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  return data?.plan_type === 'premium';
 }
 
 export async function POST(request: NextRequest) {
@@ -375,6 +409,90 @@ export async function POST(request: NextRequest) {
 
     // NEW: Detect intent and route to appropriate handler (Spec 008 features)
     const intent = detectIntentRegex(message);
+    const expertWorkflowType = detectExpertWorkflowType(message);
+
+    if (expertWorkflowType) {
+      const premium = await isPremiumUser(supabase, user);
+      if (!premium) {
+        const upgradeText = 'Expert Modes are available on Premium. Upgrade to run this workflow.';
+        const { data: aiMessage } = await supabase
+          .from('chat_messages')
+          .insert({
+            session_id: chatSession.id,
+            sender: 'ai',
+            content: upgradeText,
+            metadata: {
+              intent: 'expert_workflow',
+              workflow_type: expertWorkflowType,
+              code: 'PREMIUM_REQUIRED',
+            },
+          })
+          .select()
+          .maybeSingle();
+
+        return NextResponse.json({
+          session_id: chatSession.id,
+          message_id: aiMessage?.id,
+          ai_response: upgradeText,
+          expert_workflow_type: expertWorkflowType,
+          expert_workflow_status: 'failed',
+        });
+      }
+
+      const runResult = await runExpertWorkflow({
+        supabase,
+        userId: user.id,
+        optimizationId: optimization_id,
+        workflowType: expertWorkflowType,
+        options: {},
+        evidenceInputs: {},
+      });
+
+      const preview = (() => {
+        if (expertWorkflowType === 'professional_summary_lab' && Array.isArray((runResult.output as any).summary_options)) {
+          return `Generated ${(runResult.output as any).summary_options.length} summary options.`;
+        }
+        if (expertWorkflowType === 'achievement_quantifier' && Array.isArray((runResult.output as any).bullet_rewrites)) {
+          return `Prepared ${(runResult.output as any).bullet_rewrites.length} quantified bullet rewrites.`;
+        }
+        if (expertWorkflowType === 'ats_optimization_report' && (runResult.output as any).ats_report) {
+          return 'Generated ATS optimization report with keyword and formatting guidance.';
+        }
+        return 'Expert workflow completed. Open Expert Modes panel to review and apply.';
+      })();
+
+      const aiText =
+        runResult.status === 'needs_user_input'
+          ? `Expert workflow completed with follow-up questions. ${preview}`
+          : `Expert workflow completed. ${preview}`;
+
+      const { data: aiMessage } = await supabase
+        .from('chat_messages')
+        .insert({
+          session_id: chatSession.id,
+          sender: 'ai',
+          content: aiText,
+          metadata: {
+            intent: 'expert_workflow',
+            workflow_type: expertWorkflowType,
+            run_id: runResult.run_id,
+            run_status: runResult.status,
+          },
+        })
+        .select()
+        .maybeSingle();
+
+      return NextResponse.json({
+        session_id: chatSession.id,
+        message_id: aiMessage?.id,
+        ai_response: aiText,
+        expert_workflow_run_id: runResult.run_id,
+        expert_workflow_type: expertWorkflowType,
+        expert_workflow_status: runResult.status,
+        expert_missing_evidence: runResult.missing_evidence,
+        expert_output_preview: preview,
+      });
+    }
 
     // Handle tip implementation
     if (intent === 'tip_implementation') {

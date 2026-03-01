@@ -177,14 +177,15 @@
       }
     },
     "paywall": {
-      "title": "Upgrade for Unlimited Optimization",
-      "usedFree": "You used {count} free optimization(s). Upgrade to continue without limits.",
+      "title": "Upgrade for Interview-Ready Optimization",
+      "usedFree": "You used {count} free optimization(s). Upgrade to unlock Expert Modes and continue without limits.",
       "bestValue": "Premium",
       "perMonth": "/month",
       "cancelAnytime": "Cancel anytime",
       "features": {
         "unlimited": "Unlimited optimizations",
         "templates": "Premium templates",
+        "expertModes": "Expert Modes: rewrite, quantifier, ATS report, summary lab",
         "priorityProcessing": "Priority processing",
         "analytics": "Advanced analytics",
         "exportFormats": "Export to PDF & DOCX",
@@ -239,7 +240,7 @@
   "pricingPage": {
     "badge": "Simple Pricing",
     "title": "Choose the plan for your job-search pace",
-    "subtitle": "Start free. Upgrade when you want unlimited optimizations, premium templates, and priority support.",
+    "subtitle": "Start free. Upgrade for Interview-Ready Expert Modes, unlimited optimizations, and premium templates.",
     "free": {
       "title": "Free",
       "price": "$0",
@@ -254,10 +255,10 @@
       "title": "Premium",
       "price": "$9.99",
       "period": "/month",
-      "description": "For active applicants optimizing across multiple roles",
+      "description": "For active applicants who want interview-ready positioning, not just ATS diagnostics",
       "feature1": "Unlimited resume optimizations",
-      "feature2": "Premium templates and styling controls",
-      "feature3": "Priority processing and support",
+      "feature2": "Expert Modes: rewrite, quantifier, ATS report, summary lab",
+      "feature3": "Premium templates and priority support",
       "cta": "Upgrade to Premium"
     },
     "footnote": "Prices in USD. Taxes may apply based on your region."
