@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     const serviceClient = createServiceRoleClient();
-    const { data: feedback, error } = await serviceClient
+    const { data: feedback, error } = await (serviceClient as any)
       .from('feedback')
       .insert({
         user_id: user?.id ?? null,

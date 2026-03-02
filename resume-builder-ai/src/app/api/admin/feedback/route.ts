@@ -3,6 +3,7 @@ import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabas
 import type { FeedbackType, FeedbackStatus } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
+type FeedbackStatRow = { type: string | null; rating: number | null; status: string | null };
 
 async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
   const supabase = await createRouteHandlerClient();
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') ?? '0');
 
   const serviceClient = createServiceRoleClient();
-  let query = serviceClient
+  let query = (serviceClient as any)
     .from('feedback')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -59,11 +60,12 @@ export async function GET(request: NextRequest) {
   }
 
   // Compute stats
-  const { data: stats } = await serviceClient
+  const { data: stats } = await (serviceClient as any)
     .from('feedback')
     .select('type, rating, status');
+  const statsRows: FeedbackStatRow[] = Array.isArray(stats) ? stats : [];
 
-  const npsEntries = (stats ?? []).filter((f) => f.type === 'nps' && f.rating != null);
+  const npsEntries = statsRows.filter((f) => f.type === 'nps' && f.rating != null);
   const avgNps = npsEntries.length
     ? Math.round((npsEntries.reduce((sum, f) => sum + (f.rating ?? 0), 0) / npsEntries.length) * 10) / 10
     : null;
@@ -72,15 +74,15 @@ export async function GET(request: NextRequest) {
     data,
     total: count,
     stats: {
-      total: stats?.length ?? 0,
-      new: stats?.filter((f) => f.status === 'new').length ?? 0,
+      total: statsRows.length,
+      new: statsRows.filter((f) => f.status === 'new').length,
       avg_nps: avgNps,
       by_type: {
-        general: stats?.filter((f) => f.type === 'general').length ?? 0,
-        bug: stats?.filter((f) => f.type === 'bug').length ?? 0,
-        feature_request: stats?.filter((f) => f.type === 'feature_request').length ?? 0,
+        general: statsRows.filter((f) => f.type === 'general').length,
+        bug: statsRows.filter((f) => f.type === 'bug').length,
+        feature_request: statsRows.filter((f) => f.type === 'feature_request').length,
         nps: npsEntries.length,
-        rating: stats?.filter((f) => f.type === 'rating').length ?? 0,
+        rating: statsRows.filter((f) => f.type === 'rating').length,
       },
     },
   });

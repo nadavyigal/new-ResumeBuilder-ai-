@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,12 @@ import { Upload, Palette, Briefcase, TrendingUp, Sparkles, CheckCircle } from "@
 import { ROUTES } from "@/lib/constants";
 import { createClientComponentClient } from "@/lib/supabase";
 import { useTranslations } from "next-intl";
+import { posthog } from "@/lib/posthog";
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard.home");
   const { user, loading } = useAuth();
+  const searchParams = useSearchParams();
   const [convertedScore, setConvertedScore] = useState<any | null>(null);
   const suggestionsCount = useMemo(() => {
     if (!convertedScore || !Array.isArray(convertedScore.ats_suggestions)) return 0;
@@ -42,12 +45,23 @@ export default function DashboardPage() {
     loadConvertedScore();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const upgraded = searchParams.get("upgraded");
+    const source = searchParams.get("source");
+    if (upgraded === "true" && source === "expert_mode") {
+      posthog.capture("upgrade_completed_from_expert", {
+        source,
+      });
+    }
+  }, [searchParams, user]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background animate-fade-in">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
-          <div className="text-lg text-foreground/60 animate-pulse-soft">{t("loading")}</div>
+          <div className="w-12 h-12 border-4 border-foreground border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-lg text-foreground/60">{t("loading")}</div>
         </div>
       </div>
     );
@@ -64,14 +78,14 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-6 md:py-12 pb-24 md:pb-12">
         <div className="max-w-6xl mx-auto space-y-6 md:space-y-12">
           {/* Welcome Section - Mobile Optimized */}
-          <div className="space-y-3 md:text-center animate-fade-in-up">
+          <div className="space-y-3 md:text-center">
             <div className="flex items-center gap-2 md:justify-center">
               <h1 className="text-2xl md:text-5xl font-bold text-foreground">
                 {t("welcome.title", { name: displayName })}
               </h1>
               {user.user_metadata?.is_premium && (
                 <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 border-0 hidden md:inline-flex">
-                  <Sparkles className="w-3 h-3 me-1" />
+                  <Sparkles className="w-3 h-3 mr-1" />
                   {t("welcome.premium")}
                 </Badge>
               )}
@@ -82,7 +96,7 @@ export default function DashboardPage() {
           </div>
 
           {convertedScore && (
-            <Card className="border-2 border-mobile-cta/40 bg-mobile-cta/5 animate-fade-in-up">
+            <Card className="border-2 border-mobile-cta/40 bg-mobile-cta/5">
               <CardHeader className="space-y-3">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-white border-2 border-border flex items-center justify-center">
@@ -99,7 +113,7 @@ export default function DashboardPage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <Button asChild className="bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0">
+                <Button asChild className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
                   <Link href={ROUTES.upload}>
                     {t("conversion.cta")}
                   </Link>
@@ -111,19 +125,19 @@ export default function DashboardPage() {
           {/* Bento Grid - Quick Actions */}
           <div className="grid gap-3 md:gap-6 grid-cols-2 md:grid-cols-4 auto-rows-[minmax(140px,auto)] md:auto-rows-[minmax(200px,auto)]">
             {/* Upload Resume - Large Card (spans 2 columns on mobile, 2 cols on desktop) */}
-            <Card className="col-span-2 md:col-span-2 md:row-span-2 hover:shadow-2xl hover:shadow-mobile-cta/10 transition-all duration-300 border-2 hover:border-mobile-cta/50 hover:-translate-y-1.5 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-900/10 group cursor-pointer animate-fade-in-up stagger-1">
+            <Card className="col-span-2 md:col-span-2 md:row-span-2 hover:shadow-lg transition-all duration-300 border-2 hover:border-mobile-cta/50 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-900/10 group cursor-pointer">
               <Link href={ROUTES.upload} className="block h-full">
                 <CardHeader className="h-full flex flex-col justify-between">
                   <div>
-                    <div className="w-14 h-14 md:w-18 md:h-18 rounded-2xl bg-mobile-cta/10 border-2 border-mobile-cta/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                      <Upload className="w-7 h-7 md:w-9 md:h-9 text-mobile-cta" />
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-white border-2 border-border flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6 md:w-8 md:h-8 text-foreground" />
                     </div>
-                    <CardTitle className="text-xl md:text-3xl mb-2 text-foreground font-extrabold">{t("actions.uploadTitle")}</CardTitle>
-                    <CardDescription className="text-sm md:text-base text-foreground/60">
+                    <CardTitle className="text-lg md:text-3xl mb-2 text-foreground">{t("actions.uploadTitle")}</CardTitle>
+                    <CardDescription className="text-xs md:text-base text-foreground/70">
                       {t("actions.uploadDescription")}
                     </CardDescription>
                   </div>
-                  <Button className="w-full md:w-auto mt-4 bg-mobile-cta hover:bg-mobile-cta-hover text-white border-0 shadow-lg shadow-mobile-cta/20 h-12 text-base font-bold">
+                  <Button className="w-full md:w-auto mt-4 bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
                     {t("actions.getStarted")}
                   </Button>
                 </CardHeader>
@@ -131,12 +145,12 @@ export default function DashboardPage() {
             </Card>
 
             {/* Browse Templates */}
-            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-purple-500/50 hover:-translate-y-1 bg-gradient-to-br from-purple-50/50 to-transparent dark:from-purple-900/10 animate-fade-in-up stagger-2">
+            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/50">
               <Link href={ROUTES.templates} className="block h-full">
                 <CardHeader className="h-full flex flex-col justify-between p-4 md:p-6">
                   <div>
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-2">
-                      <Palette className="w-5 h-5 md:w-6 md:h-6 text-purple-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+                      <Palette className="w-5 h-5 md:w-6 md:h-6 text-primary" />
                     </div>
                     <CardTitle className="text-base md:text-xl">{t("actions.templatesTitle")}</CardTitle>
                   </div>
@@ -148,7 +162,7 @@ export default function DashboardPage() {
             </Card>
 
             {/* Applications */}
-            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-blue-500/50 hover:-translate-y-1 animate-fade-in-up stagger-3">
+            <Card className="col-span-1 md:col-span-1 hover:shadow-lg transition-all duration-300 border-2 hover:border-blue-500/50">
               <Link href={ROUTES.dashboard + "/applications"} className="block h-full">
                 <CardHeader className="h-full flex flex-col justify-between p-4 md:p-6">
                   <div>
@@ -165,7 +179,7 @@ export default function DashboardPage() {
             </Card>
 
             {/* Stats Card - Placeholder */}
-            <Card className="col-span-2 md:col-span-2 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-900/10 border-2 animate-fade-in-up stagger-4">
+            <Card className="col-span-2 md:col-span-2 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-900/10 border-2">
               <CardHeader className="p-4 md:p-6">
                 <div className="flex items-center justify-between">
                   <div>

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     const serviceClient = createServiceRoleClient();
-    const { data: ticket, error } = await serviceClient
+    const { data: ticket, error } = await (serviceClient as any)
       .from('support_tickets')
       .insert({
         user_id: user?.id ?? null,
