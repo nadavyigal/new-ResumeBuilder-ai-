@@ -22,6 +22,18 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     '    "score_estimate": {"before": number|null, "after": number|null},',
     '    "recommended_keywords_to_add": ["string"]',
     '  },',
+    '  "report": {',
+    '    "headline": "string",',
+    '    "executive_summary": "string",',
+    '    "priority_actions": ["string"],',
+    '    "evidence_gaps": ["string"],',
+    '    "ats_impact_estimate": {',
+    '      "before": number|null,',
+    '      "after": number|null,',
+    '      "delta": number|null,',
+    '      "confidence_note": "string"',
+    '    }',
+    '  },',
     '  "missing_evidence": ["string"]',
     '}',
   ].join('\n');
@@ -39,6 +51,7 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     context.job_description_text,
     '',
     'Generate a recruiter-readable ATS optimization report with concrete actions.',
+    'Focus on what changed, why it matters for screening, and what to verify.',
   ].join('\n');
 
   return {

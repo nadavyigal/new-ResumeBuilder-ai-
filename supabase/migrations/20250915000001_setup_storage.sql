@@ -3,89 +3,28 @@
 -- Migration: 20250915000001_setup_storage.sql
 -- =====================================================
 
--- Insert buckets for file storage (compatible with multiple storage schema versions)
-DO $$
-DECLARE
-    has_public BOOLEAN;
-    has_avif BOOLEAN;
-    has_allowed BOOLEAN;
-    has_file_size BOOLEAN;
-BEGIN
-    SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'storage'
-          AND table_name = 'buckets'
-          AND column_name = 'public'
-    ) INTO has_public;
-
-    SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'storage'
-          AND table_name = 'buckets'
-          AND column_name = 'avif_autodetection'
-    ) INTO has_avif;
-
-    SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'storage'
-          AND table_name = 'buckets'
-          AND column_name = 'allowed_mime_types'
-    ) INTO has_allowed;
-
-    SELECT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_schema = 'storage'
-          AND table_name = 'buckets'
-          AND column_name = 'file_size_limit'
-    ) INTO has_file_size;
-
-    INSERT INTO storage.buckets (id, name)
-    VALUES
-        ('resume-uploads', 'resume-uploads'),
-        ('resume-exports', 'resume-exports')
-    ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name;
-
-    IF has_public THEN
-        UPDATE storage.buckets
-        SET public = false
-        WHERE id IN ('resume-uploads', 'resume-exports');
-    END IF;
-
-    IF has_allowed THEN
-        UPDATE storage.buckets
-        SET allowed_mime_types = CASE
-            WHEN id = 'resume-uploads' THEN ARRAY[
-                'application/pdf',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/msword'
-            ]
-            WHEN id = 'resume-exports' THEN ARRAY[
-                'application/pdf',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ]
-            ELSE allowed_mime_types
-        END
-        WHERE id IN ('resume-uploads', 'resume-exports');
-    END IF;
-
-    IF has_file_size THEN
-        UPDATE storage.buckets
-        SET file_size_limit = 10485760
-        WHERE id IN ('resume-uploads', 'resume-exports');
-    END IF;
-
-    IF has_avif THEN
-        UPDATE storage.buckets
-        SET avif_autodetection = false
-        WHERE id IN ('resume-uploads', 'resume-exports');
-    END IF;
-END $$;
-
+-- Insert buckets for file storage
+INSERT INTO storage.buckets (id, name, public, allowed_mime_types, file_size_limit, avif_autodetection)
+VALUES
+    (
+        'resume-uploads',
+        'resume-uploads',
+        false, -- private bucket
+        ARRAY['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'],
+        10485760, -- 10MB limit
+        false
+    ),
+    (
+        'resume-exports',
+        'resume-exports',
+        false, -- private bucket
+        ARRAY['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        10485760, -- 10MB limit
+        false
+    )
+ON CONFLICT (id) DO UPDATE SET
+    allowed_mime_types = EXCLUDED.allowed_mime_types,
+    file_size_limit = EXCLUDED.file_size_limit;
 -- =====================================================
 -- STORAGE POLICIES FOR RESUME UPLOADS
 -- =====================================================
@@ -96,37 +35,33 @@ ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
     bucket_id = 'resume-uploads'
-    AND auth.uid()::text = split_part(name, '/', 1)
-    AND lower(reverse(split_part(reverse(name), '.', 1))) IN ('pdf', 'docx', 'doc')
+    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND (storage.extension(name)) IN ('pdf', 'docx', 'doc')
 );
-
 -- Allow users to view their own uploaded files
 CREATE POLICY "Users can view own resume uploads"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
     bucket_id = 'resume-uploads'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to update their own files (for re-uploads)
 CREATE POLICY "Users can update own resume uploads"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
     bucket_id = 'resume-uploads'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to delete their own files
 CREATE POLICY "Users can delete own resume uploads"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
     bucket_id = 'resume-uploads'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- =====================================================
 -- STORAGE POLICIES FOR RESUME EXPORTS
 -- =====================================================
@@ -137,37 +72,33 @@ ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (
     bucket_id = 'resume-exports'
-    AND auth.uid()::text = split_part(name, '/', 1)
-    AND lower(reverse(split_part(reverse(name), '.', 1))) IN ('pdf', 'docx')
+    AND auth.uid()::text = (storage.foldername(name))[1]
+    AND (storage.extension(name)) IN ('pdf', 'docx')
 );
-
 -- Allow users to view their own exported files
 CREATE POLICY "Users can view own resume exports"
 ON storage.objects FOR SELECT
 TO authenticated
 USING (
     bucket_id = 'resume-exports'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to update their own export files
 CREATE POLICY "Users can update own resume exports"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (
     bucket_id = 'resume-exports'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to delete their own export files
 CREATE POLICY "Users can delete own resume exports"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (
     bucket_id = 'resume-exports'
-    AND auth.uid()::text = split_part(name, '/', 1)
+    AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- =====================================================
 -- HELPER FUNCTIONS FOR FILE MANAGEMENT
 -- =====================================================
@@ -202,7 +133,6 @@ BEGIN
     RETURN user_uuid::text || '/' || file_type || '_' || clean_filename || '_' || timestamp_suffix || '.' || file_extension;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Function to clean up old files (for maintenance)
 CREATE OR REPLACE FUNCTION public.cleanup_old_files(
     bucket_name TEXT,
@@ -222,7 +152,6 @@ BEGIN
     RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- VALIDATION AND TESTING
 -- =====================================================
@@ -244,7 +173,6 @@ BEGIN
         RAISE EXCEPTION '❌ Storage buckets not created properly';
     END IF;
 END $$;
-
 -- Verify storage policies exist
 DO $$
 DECLARE
@@ -262,7 +190,6 @@ BEGIN
         RAISE WARNING '⚠️  Expected 8+ storage policies, found %', policy_count;
     END IF;
 END $$;
-
 -- =====================================================
 -- USAGE EXAMPLES AND DOCUMENTATION
 -- =====================================================

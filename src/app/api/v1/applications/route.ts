@@ -191,6 +191,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q") || "";
   const from = searchParams.get("from");
   const to = searchParams.get("to");
+  const optimizationId = searchParams.get("optimization_id");
   const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
 
   try {
@@ -203,6 +204,7 @@ export async function GET(req: NextRequest) {
 
     if (from) query = query.gte("applied_date", from);
     if (to) query = query.lte("applied_date", to);
+    if (optimizationId) query = query.eq("optimization_id", optimizationId);
 
     if (q) {
       // Use ILIKE on job_title and company_name for simplicity
@@ -212,12 +214,14 @@ export async function GET(req: NextRequest) {
     let { data, error } = await query;
     if (error && /column .* does not exist/i.test(error.message)) {
       // Fallback to legacy selection before migrations are applied
-      const fallback = await supabase
+      let fallbackQuery = supabase
         .from("applications")
         .select("id, job_title, company_name, applied_date, ats_score, contact, resume_html_path, resume_json_path, optimization_id, job_extraction")
         .eq("user_id", user.id)
         .order("applied_date", { ascending: false })
         .limit(limit);
+      if (optimizationId) fallbackQuery = fallbackQuery.eq("optimization_id", optimizationId);
+      const fallback = await fallbackQuery;
       data = fallback.data as any;
       error = fallback.error as any;
     }

@@ -446,8 +446,195 @@ export interface Database {
           created_at?: string;
         }
       >;
-      expert_workflow_runs: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
-      expert_workflow_artifacts: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
+      expert_workflow_runs: Table<
+        {
+          id: string;
+          user_id: string;
+          optimization_id: string;
+          workflow_type:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          status: 'completed' | 'needs_user_input' | 'failed';
+          input_json: Json;
+          output_json: Json;
+          missing_evidence_json: Json;
+          created_at: string;
+          updated_at: string;
+          applied_at: string | null;
+          ats_score_before: number | null;
+          ats_score_after: number | null;
+          updated_fields_json: Json;
+          apply_mode: string | null;
+          selection_index: number | null;
+        },
+        {
+          id?: string;
+          user_id: string;
+          optimization_id: string;
+          workflow_type:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          status?: 'completed' | 'needs_user_input' | 'failed';
+          input_json?: Json;
+          output_json?: Json;
+          missing_evidence_json?: Json;
+          created_at?: string;
+          updated_at?: string;
+          applied_at?: string | null;
+          ats_score_before?: number | null;
+          ats_score_after?: number | null;
+          updated_fields_json?: Json;
+          apply_mode?: string | null;
+          selection_index?: number | null;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          optimization_id?: string;
+          workflow_type?:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          status?: 'completed' | 'needs_user_input' | 'failed';
+          input_json?: Json;
+          output_json?: Json;
+          missing_evidence_json?: Json;
+          created_at?: string;
+          updated_at?: string;
+          applied_at?: string | null;
+          ats_score_before?: number | null;
+          ats_score_after?: number | null;
+          updated_fields_json?: Json;
+          apply_mode?: string | null;
+          selection_index?: number | null;
+        },
+        [
+          {
+            foreignKeyName: 'expert_workflow_runs_optimization_id_fkey';
+            columns: ['optimization_id'];
+            referencedRelation: 'optimizations';
+            referencedColumns: ['id'];
+          }
+        ]
+      >;
+      expert_workflow_artifacts: Table<
+        {
+          id: string;
+          run_id: string;
+          artifact_type: string;
+          artifact_json: Json;
+          created_at: string;
+        },
+        {
+          id?: string;
+          run_id: string;
+          artifact_type: string;
+          artifact_json?: Json;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          run_id?: string;
+          artifact_type?: string;
+          artifact_json?: Json;
+          created_at?: string;
+        },
+        [
+          {
+            foreignKeyName: 'expert_workflow_artifacts_run_id_fkey';
+            columns: ['run_id'];
+            referencedRelation: 'expert_workflow_runs';
+            referencedColumns: ['id'];
+          }
+        ]
+      >;
+      application_expert_reports: Table<
+        {
+          id: string;
+          application_id: string;
+          run_id: string;
+          user_id: string;
+          optimization_id: string;
+          workflow_type:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          report_title: string;
+          report_summary: string;
+          report_json: Json;
+          ats_score_before: number | null;
+          ats_score_after: number | null;
+          ats_score_delta: number | null;
+          saved_at: string;
+          created_at: string;
+        },
+        {
+          id?: string;
+          application_id: string;
+          run_id: string;
+          user_id: string;
+          optimization_id: string;
+          workflow_type:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          report_title?: string;
+          report_summary?: string;
+          report_json?: Json;
+          ats_score_before?: number | null;
+          ats_score_after?: number | null;
+          ats_score_delta?: number | null;
+          saved_at?: string;
+          created_at?: string;
+        },
+        {
+          id?: string;
+          application_id?: string;
+          run_id?: string;
+          user_id?: string;
+          optimization_id?: string;
+          workflow_type?:
+            | 'full_resume_rewrite'
+            | 'achievement_quantifier'
+            | 'ats_optimization_report'
+            | 'professional_summary_lab';
+          report_title?: string;
+          report_summary?: string;
+          report_json?: Json;
+          ats_score_before?: number | null;
+          ats_score_after?: number | null;
+          ats_score_delta?: number | null;
+          saved_at?: string;
+          created_at?: string;
+        },
+        [
+          {
+            foreignKeyName: 'application_expert_reports_application_id_fkey';
+            columns: ['application_id'];
+            referencedRelation: 'applications';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'application_expert_reports_run_id_fkey';
+            columns: ['run_id'];
+            referencedRelation: 'expert_workflow_runs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'application_expert_reports_optimization_id_fkey';
+            columns: ['optimization_id'];
+            referencedRelation: 'optimizations';
+            referencedColumns: ['id'];
+          }
+        ]
+      >;
       chat_sessions: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       chat_messages: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       amendment_requests: Table<

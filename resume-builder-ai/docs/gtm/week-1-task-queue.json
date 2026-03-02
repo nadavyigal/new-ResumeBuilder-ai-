@@ -1,0 +1,53 @@
+{
+  "week_id": "week1_launch",
+  "date_range": {
+    "start": "2026-02-16",
+    "end": "2026-02-20"
+  },
+  "tasks": [
+    {
+      "id": "publish_blog_en_week1",
+      "type": "content_publish",
+      "locale": "en",
+      "asset": "src/content/blog/en/ats-baseline-mistakes-2026.md",
+      "due_date": "2026-02-16",
+      "status": "pending"
+    },
+    {
+      "id": "publish_blog_he_week1",
+      "type": "content_publish",
+      "locale": "he",
+      "asset": "src/content/blog/he/ats-baseline-mistakes-2026.md",
+      "due_date": "2026-02-16",
+      "status": "pending"
+    },
+    {
+      "id": "social_distribution_week1",
+      "type": "social_batch",
+      "asset": "docs/gtm/week-1-social-publishing-sheet.csv",
+      "due_date": "2026-02-16",
+      "status": "pending"
+    },
+    {
+      "id": "newsletter_week1",
+      "type": "newsletter_send",
+      "asset": "docs/gtm/week-1-newsletter-issue.md",
+      "due_date": "2026-02-18",
+      "status": "pending"
+    },
+    {
+      "id": "email_lifecycle_d0_d2_week1",
+      "type": "email_sequence",
+      "asset": "docs/gtm/week-1-email-assets.md",
+      "due_date": "2026-02-20",
+      "status": "pending"
+    },
+    {
+      "id": "cro_experiment_01_week1",
+      "type": "cro_experiment",
+      "asset": "docs/gtm/week-1-cro-experiment-01.md",
+      "due_date": "2026-02-20",
+      "status": "pending"
+    }
+  ]
+}

@@ -18,13 +18,13 @@ function isExpertWorkflowType(value: string): value is ExpertWorkflowType {
 function getLockedPreview(workflowType: ExpertWorkflowType) {
   const previews: Record<ExpertWorkflowType, string> = {
     full_resume_rewrite:
-      'Preview: we will rewrite your summary and experience bullets for role fit with ATS-safe structure.',
+      'Preview: your summary and experience bullets will be rewritten for role fit with ATS-safe structure.',
     achievement_quantifier:
-      'Preview: we will turn weak bullets into stronger outcomes and ask only for missing evidence.',
+      'Preview: weak bullets will be upgraded into outcome-focused statements with clear evidence checks.',
     ats_optimization_report:
-      'Preview: you will get keyword coverage, section compliance, and ATS format guidance.',
+      'Preview: you will get keyword coverage insights, section compliance checks, and ATS format guidance.',
     professional_summary_lab:
-      'Preview: you will receive 5 targeted summary options with a recommended choice.',
+      'Preview: you will receive 5 targeted summary options with one recommended direction.',
   };
   return previews[workflowType];
 }

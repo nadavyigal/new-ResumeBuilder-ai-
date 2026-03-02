@@ -36,7 +36,6 @@ BEGIN
     RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Function to get user subscription status with limits
 CREATE OR REPLACE FUNCTION public.get_user_subscription_status(user_uuid UUID)
 RETURNS JSONB AS $$
@@ -79,7 +78,6 @@ BEGIN
     RETURN result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- OPTIMIZATION TRACKING FUNCTIONS
 -- =====================================================
@@ -147,7 +145,6 @@ BEGIN
     RETURN optimization_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Function to complete an optimization
 CREATE OR REPLACE FUNCTION public.complete_optimization(
     optimization_uuid UUID,
@@ -196,7 +193,6 @@ BEGIN
     RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Function to mark optimization as failed
 CREATE OR REPLACE FUNCTION public.fail_optimization(
     optimization_uuid UUID,
@@ -245,7 +241,6 @@ BEGIN
     RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- ANALYTICS AND REPORTING FUNCTIONS
 -- =====================================================
@@ -298,7 +293,6 @@ BEGIN
     RETURN stats || jsonb_build_object('recent_activity', COALESCE(recent_activity, '[]'::jsonb));
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- MAINTENANCE AND CLEANUP FUNCTIONS
 -- =====================================================
@@ -337,7 +331,6 @@ BEGIN
     RETURN cleanup_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Create events table if it doesn't exist (for analytics)
 CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -346,26 +339,20 @@ CREATE TABLE IF NOT EXISTS events (
     payload_data JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Enable RLS on events table
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
-
 -- Events policies
 CREATE POLICY IF NOT EXISTS "Users can insert own events" ON events
     FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-
 CREATE POLICY IF NOT EXISTS "Users can view own events" ON events
     FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
-
 -- Service role can manage all events for analytics
 CREATE POLICY IF NOT EXISTS "Service role can manage all events" ON events
     FOR ALL TO service_role USING (true);
-
 -- Create index for events
 CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
 CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at DESC);
-
 -- =====================================================
 -- VALIDATION AND TESTING
 -- =====================================================

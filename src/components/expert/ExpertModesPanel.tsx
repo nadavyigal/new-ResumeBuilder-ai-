@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -13,72 +13,154 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { posthog } from "@/lib/posthog";
+import { AlertCircle, CheckCircle, Sparkles, Target, TrendingUp } from "@/lib/icons";
 import type { ExpertWorkflowType } from "@/lib/expert-workflows";
+import { useLocale, useTranslations } from "next-intl";
+
+type WorkflowStatus = "completed" | "needs_user_input" | "failed";
+
+type ReportEnvelope = {
+  headline: string;
+  executive_summary: string;
+  priority_actions: string[];
+  evidence_gaps: string[];
+  ats_impact_estimate: {
+    before: number | null;
+    after: number | null;
+    delta: number | null;
+    confidence_note?: string;
+  };
+};
 
 type RunResponse = {
   run_id: string;
-  status: "completed" | "needs_user_input" | "failed";
+  status: WorkflowStatus;
   output: Record<string, unknown>;
   needs_user_input: boolean;
   missing_evidence: string[];
+};
+
+type ApplyResponse = {
+  success: boolean;
+  updated_fields: string[];
+  ats_impact: {
+    before: number | null;
+    after: number | null;
+    delta: number | null;
+  };
+  apply_mode: string;
+  selection_index: number | null;
+  new_ats_score?: number | null;
+};
+
+type ApplicationOption = {
+  id: string;
+  job_title: string | null;
+  company_name: string | null;
+  applied_date: string | null;
 };
 
 interface ExpertModesPanelProps {
   optimizationId: string;
   isPremium: boolean;
   onApplied?: () => void;
+  onAtsImpact?: (impact: { before: number | null; after: number | null; delta: number | null }) => void;
 }
 
 const WORKFLOWS: Array<{
   type: ExpertWorkflowType;
-  title: string;
-  description: string;
-  preview: string;
+  icon: typeof Sparkles;
 }> = [
   {
     type: "full_resume_rewrite",
-    title: "Full Resume Rewrite",
-    description: "Role-targeted rewrite with ATS-safe structure and stronger action-oriented bullets.",
-    preview: "Summary + experience rewritten for role fit with truth-first constraints.",
+    icon: Sparkles,
   },
   {
     type: "achievement_quantifier",
-    title: "Achievement Quantifier",
-    description: "Converts weak bullets into stronger, evidence-backed results statements.",
-    preview: "Before/after bullet upgrades with missing-evidence prompts when needed.",
+    icon: TrendingUp,
   },
   {
     type: "ats_optimization_report",
-    title: "ATS Optimization Report",
-    description: "Keyword placement strategy, heading compliance, and ATS formatting guidance.",
-    preview: "Keyword match table + ATS-safe format recommendations.",
+    icon: Target,
   },
   {
     type: "professional_summary_lab",
-    title: "Professional Summary Lab",
-    description: "Generates 5 summary options and recommends the best fit for the target role.",
-    preview: "5 summary angles (leadership, technical, results, industry, vision).",
+    icon: CheckCircle,
   },
 ];
 
-function formatWorkflowType(type: ExpertWorkflowType): string {
-  return type.replace(/_/g, " ");
+function toReportEnvelope(value: unknown): ReportEnvelope | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const report = value as Record<string, unknown>;
+  const impact =
+    report.ats_impact_estimate &&
+    typeof report.ats_impact_estimate === "object" &&
+    !Array.isArray(report.ats_impact_estimate)
+      ? (report.ats_impact_estimate as Record<string, unknown>)
+      : {};
+
+  const priority = Array.isArray(report.priority_actions)
+    ? report.priority_actions.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+  const evidence = Array.isArray(report.evidence_gaps)
+    ? report.evidence_gaps.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+
+  return {
+    headline: String(report.headline || "Expert report"),
+    executive_summary: String(report.executive_summary || ""),
+    priority_actions: priority,
+    evidence_gaps: evidence,
+    ats_impact_estimate: {
+      before: typeof impact.before === "number" ? impact.before : null,
+      after: typeof impact.after === "number" ? impact.after : null,
+      delta: typeof impact.delta === "number" ? impact.delta : null,
+      confidence_note: typeof impact.confidence_note === "string" ? impact.confidence_note : undefined,
+    },
+  };
 }
 
-export function ExpertModesPanel({ optimizationId, isPremium, onApplied }: ExpertModesPanelProps) {
-  const [open, setOpen] = useState(false);
-  const [activeWorkflow, setActiveWorkflow] = useState<ExpertWorkflowType | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<RunResponse | null>(null);
-  const [selectionIndex, setSelectionIndex] = useState<number | null>(null);
-  const [lockedMessage, setLockedMessage] = useState<string | null>(null);
+function formatScore(value: number | null): string {
+  if (value === null || Number.isNaN(value)) return "--";
+  return `${Math.round(value)}%`;
+}
 
-  const workflowMeta = useMemo(
-    () => WORKFLOWS.find((workflow) => workflow.type === activeWorkflow) || null,
-    [activeWorkflow]
-  );
+export function ExpertModesPanel({
+  optimizationId,
+  isPremium,
+  onApplied,
+  onAtsImpact,
+}: ExpertModesPanelProps) {
+  const t = useTranslations("dashboard.optimization.expert");
+  const locale = useLocale();
+
+  const [activeWorkflow, setActiveWorkflow] = useState<ExpertWorkflowType>(WORKFLOWS[0].type);
+  const [runLoading, setRunLoading] = useState(false);
+  const [applyLoading, setApplyLoading] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [lockedMessage, setLockedMessage] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<RunResponse | null>(null);
+  const [applyResult, setApplyResult] = useState<ApplyResponse | null>(null);
+  const [selectionIndex, setSelectionIndex] = useState<number | null>(null);
+
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [applications, setApplications] = useState<ApplicationOption[]>([]);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string>("");
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+
+  const workflowMeta = useMemo(() => {
+    return WORKFLOWS.find((workflow) => workflow.type === activeWorkflow) || WORKFLOWS[0];
+  }, [activeWorkflow]);
+
+  const summaryOptions =
+    activeWorkflow === "professional_summary_lab" &&
+    runResult?.output &&
+    Array.isArray((runResult.output as any).summary_options)
+      ? ((runResult.output as any).summary_options as Array<Record<string, unknown>>)
+      : [];
+
+  const report = runResult ? toReportEnvelope((runResult.output as any).report) : null;
 
   useEffect(() => {
     posthog.capture("expert_mode_viewed", {
@@ -87,13 +169,14 @@ export function ExpertModesPanel({ optimizationId, isPremium, onApplied }: Exper
     });
   }, [optimizationId, isPremium]);
 
-  const openWorkflow = (workflowType: ExpertWorkflowType) => {
+  const resetForMode = (workflowType: ExpertWorkflowType) => {
     setActiveWorkflow(workflowType);
-    setOpen(true);
-    setResult(null);
+    setRunResult(null);
+    setApplyResult(null);
     setError(null);
-    setSelectionIndex(null);
     setLockedMessage(null);
+    setSelectionIndex(null);
+    setSaveSuccessMessage(null);
     posthog.capture("expert_mode_clicked", {
       workflow_type: workflowType,
       optimization_id: optimizationId,
@@ -102,10 +185,11 @@ export function ExpertModesPanel({ optimizationId, isPremium, onApplied }: Exper
   };
 
   const runWorkflow = async () => {
-    if (!activeWorkflow) return;
-    setLoading(true);
+    setRunLoading(true);
     setError(null);
     setLockedMessage(null);
+    setApplyResult(null);
+    setSaveSuccessMessage(null);
 
     try {
       const response = await fetch("/api/v1/expert-workflows/run", {
@@ -118,50 +202,43 @@ export function ExpertModesPanel({ optimizationId, isPremium, onApplied }: Exper
           evidence_inputs: {},
         }),
       });
+
       const payload = await response.json();
 
       if (response.status === 402) {
-        setLockedMessage(
-          payload.locked_preview || "Premium is required for this Expert Mode."
-        );
-        posthog.capture("expert_mode_locked", {
-          workflow_type: activeWorkflow,
-          optimization_id: optimizationId,
-        });
+        setLockedMessage(payload.locked_preview || t("locked.default"));
         return;
       }
 
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to run Expert Mode.");
+        throw new Error(payload.error || t("errors.run"));
       }
 
       const runPayload = payload as RunResponse;
-      setResult(runPayload);
+      setRunResult(runPayload);
+
       if (activeWorkflow === "professional_summary_lab") {
         const recommendedIndex = Number((runPayload.output as any).recommended_index);
         if (!Number.isNaN(recommendedIndex)) {
           setSelectionIndex(recommendedIndex);
         }
       }
-      posthog.capture("expert_run_completed", {
-        workflow_type: activeWorkflow,
-        optimization_id: optimizationId,
-        run_id: runPayload.run_id,
-      });
     } catch (runError) {
-      setError(runError instanceof Error ? runError.message : "Failed to run workflow.");
+      setError(runError instanceof Error ? runError.message : t("errors.run"));
     } finally {
-      setLoading(false);
+      setRunLoading(false);
     }
   };
 
-  const applyResult = async () => {
-    if (!result?.run_id) return;
-    setApplying(true);
+  const applyWorkflow = async () => {
+    if (!runResult?.run_id) return;
+
+    setApplyLoading(true);
     setError(null);
+    setSaveSuccessMessage(null);
 
     try {
-      const response = await fetch(`/api/v1/expert-workflows/runs/${result.run_id}/apply`, {
+      const response = await fetch(`/api/v1/expert-workflows/runs/${runResult.run_id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,171 +249,370 @@ export function ExpertModesPanel({ optimizationId, isPremium, onApplied }: Exper
 
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to apply workflow output.");
+        throw new Error(payload.error || t("errors.apply"));
       }
 
-      posthog.capture("expert_apply_clicked", {
-        workflow_type: activeWorkflow,
-        optimization_id: optimizationId,
-        run_id: result.run_id,
-      });
-      setOpen(false);
-      if (onApplied) onApplied();
+      const applyPayload = payload as ApplyResponse;
+      setApplyResult(applyPayload);
+
+      if (onAtsImpact) {
+        onAtsImpact(applyPayload.ats_impact);
+      }
+
+      if (onApplied) {
+        onApplied();
+      }
     } catch (applyError) {
-      setError(applyError instanceof Error ? applyError.message : "Failed to apply workflow output.");
+      setError(applyError instanceof Error ? applyError.message : t("errors.apply"));
     } finally {
-      setApplying(false);
+      setApplyLoading(false);
     }
   };
 
-  const summaryOptions =
-    activeWorkflow === "professional_summary_lab" &&
-    result?.output &&
-    Array.isArray((result.output as any).summary_options)
-      ? ((result.output as any).summary_options as Array<Record<string, unknown>>)
-      : [];
+  const openSaveDialog = async () => {
+    if (!runResult?.run_id || !applyResult?.success) return;
+
+    setSaveDialogOpen(true);
+    setError(null);
+    setSaveSuccessMessage(null);
+
+    try {
+      const response = await fetch(
+        `/api/v1/applications?optimization_id=${encodeURIComponent(optimizationId)}&limit=50`,
+        { cache: "no-store" }
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || t("errors.loadApplications"));
+      }
+
+      const options = Array.isArray(payload.applications)
+        ? (payload.applications as ApplicationOption[])
+        : [];
+
+      setApplications(options);
+      setSelectedApplicationId(options[0]?.id || "");
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : t("errors.loadApplications"));
+      setApplications([]);
+      setSelectedApplicationId("");
+    }
+  };
+
+  const saveReportToApplication = async () => {
+    if (!runResult?.run_id || !selectedApplicationId) return;
+
+    setSaveLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/v1/applications/${selectedApplicationId}/expert-reports`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: runResult.run_id }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || t("errors.save"));
+      }
+
+      setSaveDialogOpen(false);
+      setSaveSuccessMessage(t("save.success"));
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : t("errors.save"));
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   return (
-    <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-xl font-semibold">Expert Modes</h3>
-          <p className="text-sm text-muted-foreground">
-            Advanced workflows for interview-ready positioning.
-          </p>
-        </div>
-        <Badge variant={isPremium ? "default" : "secondary"}>
-          {isPremium ? "Premium Active" : "Premium"}
-        </Badge>
-      </div>
+    <section className="mx-auto max-w-6xl space-y-4">
+      <Card className="border border-border/70 bg-gradient-to-br from-card via-card to-muted/30">
+        <CardHeader className="space-y-3 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl md:text-2xl">{t("title")}</CardTitle>
+              <CardDescription>{t("subtitle")}</CardDescription>
+            </div>
+            <Badge variant={isPremium ? "default" : "secondary"}>
+              {isPremium ? t("premium.active") : t("premium.locked")}
+            </Badge>
+          </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        {WORKFLOWS.map((workflow) => (
-          <Card key={workflow.type} className="border border-border/70">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{workflow.title}</CardTitle>
-              <CardDescription>{workflow.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">{workflow.preview}</p>
-              <Button
-                onClick={() => openWorkflow(workflow.type)}
-                variant={isPremium ? "default" : "outline"}
-                className="w-full"
-              >
-                {isPremium ? "Open Workflow" : "Preview & Unlock"}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+          <div className="grid gap-2 md:grid-cols-4">
+            {WORKFLOWS.map((workflow) => {
+              const Icon = workflow.icon;
+              const isActive = workflow.type === activeWorkflow;
+              return (
+                <button
+                  key={workflow.type}
+                  onClick={() => resetForMode(workflow.type)}
+                  className={`rounded-xl border px-3 py-3 text-left transition ${
+                    isActive
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border/70 bg-background hover:border-primary/40"
+                  }`}
+                  type="button"
+                >
+                  <div className="mb-2 flex items-center gap-2">
+                    <Icon className="h-4 w-4" />
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t(`modes.${workflow.type}.label`)}
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold leading-snug">{t(`modes.${workflow.type}.title`)}</p>
+                </button>
+              );
+            })}
+          </div>
+        </CardHeader>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{workflowMeta?.title || "Expert Mode"}</DialogTitle>
-            <DialogDescription>
-              {workflowMeta?.description || formatWorkflowType(activeWorkflow || "full_resume_rewrite")}
-            </DialogDescription>
-          </DialogHeader>
+        <CardContent className="space-y-5">
+          <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{t(`modes.${workflowMeta.type}.title`)}</p>
+              <p className="text-sm text-muted-foreground">{t(`modes.${workflowMeta.type}.description`)}</p>
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">{t(`modes.${workflowMeta.type}.preview`)}</p>
 
-          {!result && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {workflowMeta?.preview}
-              </p>
-              {lockedMessage && (
-                <Card className="border-amber-300 bg-amber-50">
-                  <CardContent className="pt-4 space-y-3">
-                    <p className="text-sm text-amber-900">{lockedMessage}</p>
-                    <Button
-                      className="w-full"
-                      onClick={() => {
-                        posthog.capture("upgrade_clicked_from_expert", {
-                          workflow_type: activeWorkflow,
-                          optimization_id: optimizationId,
-                        });
-                        window.location.href = "/pricing";
-                      }}
-                    >
-                      Upgrade to Premium
-                    </Button>
-                  </CardContent>
-                </Card>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {!isPremium ? (
+                <>
+                  <Button
+                    onClick={() => {
+                      posthog.capture("upgrade_clicked_from_expert", {
+                        workflow_type: activeWorkflow,
+                        optimization_id: optimizationId,
+                      });
+                      window.location.href = "/pricing";
+                    }}
+                  >
+                    {t("actions.upgrade")}
+                  </Button>
+                  <Button variant="outline" onClick={runWorkflow} disabled={runLoading}>
+                    {runLoading ? t("actions.running") : t("actions.preview")}
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={runWorkflow} disabled={runLoading}>
+                  {runLoading ? t("actions.running") : t("actions.run")}
+                </Button>
               )}
-              {!lockedMessage && (
-                <Button onClick={runWorkflow} disabled={loading} className="w-full">
-                  {loading ? "Running workflow..." : "Run Expert Workflow"}
+
+              {runResult && (
+                <Button onClick={applyWorkflow} disabled={applyLoading} variant="secondary">
+                  {applyLoading ? t("actions.applying") : t("actions.apply")}
+                </Button>
+              )}
+
+              {runResult && applyResult?.success && (
+                <Button onClick={openSaveDialog} variant="outline">
+                  {t("actions.save")}
                 </Button>
               )}
             </div>
-          )}
 
-          {result && (
+            {lockedMessage && (
+              <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">{lockedMessage}</p>
+            )}
+          </div>
+
+          {runResult && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge variant={result.status === "completed" ? "default" : "secondary"}>
-                  {result.status.replace(/_/g, " ")}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={runResult.status === "completed" ? "default" : "secondary"}>
+                  {t(`status.${runResult.status}`)}
                 </Badge>
-                <span className="text-xs text-muted-foreground">Run ID: {result.run_id}</span>
+                <span className="text-xs text-muted-foreground">{t("runId")}: {runResult.run_id}</span>
               </div>
 
-              {result.missing_evidence.length > 0 && (
-                <Card className="border-orange-300 bg-orange-50">
+              {report ? (
+                <Card className="border border-border/70">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">{report.headline}</CardTitle>
+                    <CardDescription>{report.executive_summary}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-sm font-semibold">{t("report.priorityActions")}</p>
+                      {report.priority_actions.length > 0 ? (
+                        <ul className="space-y-2 text-sm">
+                          {report.priority_actions.map((action, idx) => (
+                            <li key={`priority-${idx}`} className="rounded-md border border-border/60 bg-muted/40 px-3 py-2">
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{t("report.none")}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-sm font-semibold">{t("report.evidenceGaps")}</p>
+                      {report.evidence_gaps.length > 0 ? (
+                        <ul className="space-y-2 text-sm">
+                          {report.evidence_gaps.map((item, idx) => (
+                            <li key={`gap-${idx}`} className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">{t("report.none")}</p>
+                      )}
+                    </div>
+
+                    <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                      <p className="text-sm font-semibold">{t("report.estimatedImpact")}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {formatScore(report.ats_impact_estimate.before)}
+                        {" -> "}
+                        {formatScore(report.ats_impact_estimate.after)}
+                        {report.ats_impact_estimate.delta !== null ? ` (${report.ats_impact_estimate.delta >= 0 ? "+" : ""}${Math.round(report.ats_impact_estimate.delta)}%)` : ""}
+                      </p>
+                      {report.ats_impact_estimate.confidence_note && (
+                        <p className="mt-1 text-xs text-muted-foreground">{report.ats_impact_estimate.confidence_note}</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border border-dashed border-border/70">
+                  <CardContent className="pt-6">
+                    <p className="text-sm text-muted-foreground">{t("report.unavailable")}</p>
+                    <details className="mt-3 text-xs">
+                      <summary className="cursor-pointer text-muted-foreground">{t("report.debug")}</summary>
+                      <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3">
+                        {JSON.stringify(runResult.output, null, 2)}
+                      </pre>
+                    </details>
+                  </CardContent>
+                </Card>
+              )}
+
+              {summaryOptions.length > 0 && (
+                <Card className="border border-border/70">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Missing Evidence Needed</CardTitle>
+                    <CardTitle className="text-base">{t("summaryOptions.title")}</CardTitle>
+                    <CardDescription>{t("summaryOptions.description")}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    {result.missing_evidence.map((item, index) => (
-                      <p key={`${item}-${index}`} className="text-sm text-orange-900">
-                        • {item}
-                      </p>
+                    {summaryOptions.map((option, index) => (
+                      <label
+                        key={`summary-option-${index}`}
+                        className="block cursor-pointer rounded-md border border-border/70 p-3 hover:bg-muted/40"
+                      >
+                        <div className="mb-1 flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="summary-option"
+                            checked={selectionIndex === index}
+                            onChange={() => setSelectionIndex(index)}
+                          />
+                          <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                            {String(option.angle || t("summaryOptions.defaultLabel"))}
+                          </span>
+                        </div>
+                        <p className="text-sm">{String(option.summary || "")}</p>
+                      </label>
                     ))}
                   </CardContent>
                 </Card>
               )}
-
-              {summaryOptions.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Summary Options</p>
-                  {summaryOptions.map((option, index) => (
-                    <label
-                      key={`summary-option-${index}`}
-                      className="block rounded-md border p-3 cursor-pointer hover:bg-muted/40"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <input
-                          type="radio"
-                          name="summary-option"
-                          checked={selectionIndex === index}
-                          onChange={() => setSelectionIndex(index)}
-                        />
-                        <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                          {String(option.angle || "option")}
-                        </span>
-                      </div>
-                      <p className="text-sm">{String(option.summary || "")}</p>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <pre className="max-h-[320px] overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
-                  {JSON.stringify(result.output, null, 2)}
-                </pre>
-              )}
             </div>
           )}
 
+          {applyResult?.success && (
+            <Card className="border border-emerald-300 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
+                  {t("applied.title")}
+                </CardTitle>
+                <CardDescription className="text-emerald-800/80 dark:text-emerald-200/80">
+                  {t("applied.description", { count: applyResult.updated_fields.length })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                  {t("applied.impact")}: {formatScore(applyResult.ats_impact.before)}
+                  {" -> "}
+                  {formatScore(applyResult.ats_impact.after)}
+                  {applyResult.ats_impact.delta !== null
+                    ? ` (${applyResult.ats_impact.delta >= 0 ? "+" : ""}${Math.round(applyResult.ats_impact.delta)}%)`
+                    : ""}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {saveSuccessMessage && (
+            <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
+              {saveSuccessMessage}
+            </p>
+          )}
+
           {error && (
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
+              {error}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("save.title")}</DialogTitle>
+            <DialogDescription>{t("save.description")}</DialogDescription>
+          </DialogHeader>
+
+          {applications.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("save.noApplications")}</p>
+          ) : (
+            <div className="max-h-72 space-y-2 overflow-auto">
+              {applications.map((application) => {
+                const company = application.company_name || t("save.unknownCompany");
+                const title = application.job_title || t("save.unknownRole");
+                const date = application.applied_date
+                  ? new Date(application.applied_date).toLocaleDateString(locale === "he" ? "he-IL" : "en-US")
+                  : t("save.unknownDate");
+
+                return (
+                  <label
+                    key={application.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-md border border-border/70 p-3"
+                  >
+                    <input
+                      type="radio"
+                      name="application-select"
+                      checked={selectedApplicationId === application.id}
+                      onChange={() => setSelectedApplicationId(application.id)}
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{title}</p>
+                      <p className="text-xs text-muted-foreground">{company}</p>
+                      <p className="text-xs text-muted-foreground">{date}</p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
           )}
 
           <DialogFooter>
-            {result ? (
-              <Button onClick={applyResult} disabled={applying}>
-                {applying ? "Applying..." : "Apply to Resume"}
-              </Button>
-            ) : null}
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              {t("actions.cancel")}
+            </Button>
+            <Button
+              onClick={saveReportToApplication}
+              disabled={saveLoading || !selectedApplicationId}
+            >
+              {saveLoading ? t("actions.saving") : t("actions.confirmSave")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

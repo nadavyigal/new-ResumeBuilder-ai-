@@ -2,6 +2,19 @@ import { describe, expect, it } from '@jest/globals';
 import { safeJsonObjectParse, validateWorkflowOutput } from '@/lib/expert-workflows/validators';
 
 describe('Expert workflow validators', () => {
+  const report = {
+    headline: 'Test report',
+    executive_summary: 'Summary',
+    priority_actions: ['Action 1'],
+    evidence_gaps: [],
+    ats_impact_estimate: {
+      before: 62,
+      after: 71,
+      delta: 9,
+      confidence_note: 'Estimated',
+    },
+  };
+
   it('parses JSON object safely', () => {
     const parsed = safeJsonObjectParse('{"rewritten_resume":{"summary":"ok"}}');
     expect(parsed).not.toBeNull();
@@ -18,6 +31,7 @@ describe('Expert workflow validators', () => {
           missing_evidence_questions: ['What was baseline cycle time?'],
         },
       ],
+      report,
       missing_evidence: [],
     });
 
@@ -34,9 +48,22 @@ describe('Expert workflow validators', () => {
       ],
       recommended_index: 1,
       recommended_reason: 'Best fit',
+      report,
       missing_evidence: [],
     });
 
     expect(result.valid).toBe(true);
+  });
+
+  it('rejects output when report envelope is missing', () => {
+    const result = validateWorkflowOutput('full_resume_rewrite', {
+      rewritten_resume: {
+        summary: 'Updated',
+      },
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('report');
   });
 });

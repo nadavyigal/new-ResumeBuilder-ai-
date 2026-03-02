@@ -1,0 +1,10 @@
+{
+  "summary": "Cloud engineer AWS and Terraform.",
+  "contact": { "name": "J", "email": "j@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["AWS", "Terraform"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

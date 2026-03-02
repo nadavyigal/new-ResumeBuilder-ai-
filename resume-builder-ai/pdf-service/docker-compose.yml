@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  pdf-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: resume-pdf-service:latest
+    container_name: resume-pdf-service
+    restart: unless-stopped
+    ports:
+      - "3002:3001"
+    environment:
+      # Application settings
+      - NODE_ENV=production
+      - PORT=3001
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+      # Security
+      - PDF_SERVICE_SECRET=${PDF_SERVICE_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+
+      # Puppeteer configuration
+      - PUPPETEER_MAX_PAGES=5
+      - PUPPETEER_TIMEOUT_MS=30000
+      - PUPPETEER_HEADLESS=true
+
+      # Performance tuning
+      - NODE_OPTIONS=--max-old-space-size=1536
+
+    volumes:
+      # Mount templates for hot-reload in development
+      - ./templates:/app/templates:ro
+
+      # Persist logs outside container
+      - ./logs:/app/logs
+
+      # Shared memory for Chromium (prevents crashes)
+      - /dev/shm:/dev/shm
+
+    networks:
+      - resume-network
+
+    # Resource limits (prevent runaway processes)
+    mem_limit: 2g           # Hard limit: kill if exceeded
+    mem_reservation: 1g     # Soft limit: try to stay below
+    cpus: 2                 # Max 2 CPU cores
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    labels:
+      - "com.resume-builder.service=pdf-generator"
+      - "com.resume-builder.environment=production"
+
+networks:
+  resume-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

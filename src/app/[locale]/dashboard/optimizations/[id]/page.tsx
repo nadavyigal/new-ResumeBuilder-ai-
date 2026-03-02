@@ -482,6 +482,20 @@ export default function OptimizationPage() {
     }
   };
 
+  const handleExpertAtsImpact = useCallback((impact: { before: number | null; after: number | null; delta: number | null }) => {
+    setAtsV2Data((prev: any) => ({
+      ats_score_original: impact.before ?? prev?.ats_score_original ?? null,
+      ats_score_optimized: impact.after ?? prev?.ats_score_optimized ?? null,
+      subscores: prev?.subscores ?? null,
+      subscores_original: prev?.subscores_original ?? null,
+      confidence: prev?.confidence ?? null,
+    }));
+
+    if (impact.after !== null) {
+      setMatchScore(impact.after);
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-muted/50 flex items-center justify-center">
@@ -814,11 +828,12 @@ export default function OptimizationPage() {
       </div>
 
       {/* Expert Modes Panel */}
-      <div className="mb-6 print:hidden">
+      <div className="mb-6 print:hidden flex justify-center">
         <ExpertModesPanel
           optimizationId={params.id as string}
           isPremium={isPremium}
           onApplied={handleChatMessageSent}
+          onAtsImpact={handleExpertAtsImpact}
         />
       </div>
 
