@@ -44,7 +44,14 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
     '      "missing_evidence_questions": ["string"]',
     '    }',
     '  ],',
-    '  "missing_evidence": ["string"]',
+    '  "missing_evidence": ["string"],',
+    '  "report": {',
+    '    "headline": "one-line summary (e.g. 8 bullets quantified, 3 need evidence)",',
+    '    "executive_summary": "2-3 sentences on which bullets improved most and what evidence would unlock further gains",',
+    '    "priority_actions": ["action the candidate should take to provide missing evidence"],',
+    '    "evidence_gaps": ["specific metric or context that would enable a stronger bullet"],',
+    '    "ats_impact_estimate": { "before": null, "after": null, "delta": null, "confidence_note": "Quantified bullets improve ATS keyword density" }',
+    '  }',
     '}',
   ].join('\n');
 
@@ -66,6 +73,6 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
     user,
     model: 'gpt-4o-mini',
     temperature: 0.1,
-    max_tokens: 2200,
+    max_tokens: 2600,
   };
 }

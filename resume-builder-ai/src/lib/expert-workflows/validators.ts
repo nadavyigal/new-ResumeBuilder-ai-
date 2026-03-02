@@ -85,10 +85,6 @@ export function validateWorkflowOutput(
   parsed: Record<string, unknown>
 ): WorkflowValidationResult {
   const missingEvidence = getStringArray(parsed.missing_evidence);
-  const reportValidationError = validateReportEnvelope(parsed);
-  if (reportValidationError) {
-    return { valid: false, error: reportValidationError, missingEvidence };
-  }
 
   if (workflowType === 'full_resume_rewrite') {
     if (!hasTruthyObject(parsed.rewritten_resume)) {

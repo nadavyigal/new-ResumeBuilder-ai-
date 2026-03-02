@@ -22,7 +22,14 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     '    "score_estimate": {"before": number|null, "after": number|null},',
     '    "recommended_keywords_to_add": ["string"]',
     '  },',
-    '  "missing_evidence": ["string"]',
+    '  "missing_evidence": ["string"],',
+    '  "report": {',
+    '    "headline": "one-line outcome (e.g. ATS report: 12 keyword gaps and 3 format issues found)",',
+    '    "executive_summary": "2-3 sentences on the most impactful ATS findings and recommended priority fixes",',
+    '    "priority_actions": ["highest-impact ATS fix the candidate should apply first"],',
+    '    "evidence_gaps": ["resume content that is missing but would improve ATS score"],',
+    '    "ats_impact_estimate": { "before": null, "after": null, "delta": null, "confidence_note": "Estimates derived from keyword and format analysis" }',
+    '  }',
     '}',
   ].join('\n');
 
@@ -46,6 +53,6 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     user,
     model: 'gpt-4o-mini',
     temperature: 0.15,
-    max_tokens: 2200,
+    max_tokens: 2600,
   };
 }
