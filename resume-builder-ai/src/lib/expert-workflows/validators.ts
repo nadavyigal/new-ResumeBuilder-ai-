@@ -1,4 +1,4 @@
-import type { ExpertWorkflowType } from './types';
+﻿import type { ExpertWorkflowType } from './types';
 
 export interface WorkflowValidationResult {
   valid: boolean;
@@ -43,6 +43,31 @@ function hasTruthyObject(value: unknown): boolean {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function validateReportEnvelope(parsed: Record<string, unknown>): string | null {
+  if (!hasTruthyObject(parsed.report)) {
+    return 'report is required';
+  }
+
+  const report = parsed.report as Record<string, unknown>;
+  if (typeof report.headline !== 'string' || !report.headline.trim()) {
+    return 'report.headline is required';
+  }
+  if (typeof report.executive_summary !== 'string' || !report.executive_summary.trim()) {
+    return 'report.executive_summary is required';
+  }
+  if (!Array.isArray(report.priority_actions)) {
+    return 'report.priority_actions must be an array';
+  }
+  if (!Array.isArray(report.evidence_gaps)) {
+    return 'report.evidence_gaps must be an array';
+  }
+  if (!hasTruthyObject(report.ats_impact_estimate)) {
+    return 'report.ats_impact_estimate is required';
+  }
+
+  return null;
+}
+
 function detectPotentialFabrication(
   original: string,
   optimized: string,
@@ -60,6 +85,10 @@ export function validateWorkflowOutput(
   parsed: Record<string, unknown>
 ): WorkflowValidationResult {
   const missingEvidence = getStringArray(parsed.missing_evidence);
+  const reportValidationError = validateReportEnvelope(parsed);
+  if (reportValidationError) {
+    return { valid: false, error: reportValidationError, missingEvidence };
+  }
 
   if (workflowType === 'full_resume_rewrite') {
     if (!hasTruthyObject(parsed.rewritten_resume)) {

@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+﻿import OpenAI from 'openai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { scoreOptimization } from '@/lib/ats/integration';
 import { buildRewritePrompt } from './prompts/rewrite';
@@ -7,7 +7,10 @@ import { buildATSReportPrompt } from './prompts/ats-report';
 import { buildSummaryLabPrompt } from './prompts/summary-lab';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
 import type {
+  ApplicationExpertReport,
+  ExpertAtsImpact,
   ExpertApplyResult,
+  ExpertReport,
   ExpertRunResult,
   ExpertWorkflowContext,
   ExpertWorkflowType,
@@ -42,6 +45,12 @@ type RunRow = {
   input_json: Record<string, unknown>;
   output_json: Record<string, unknown>;
   missing_evidence_json: string[];
+  applied_at?: string | null;
+  ats_score_before?: number | null;
+  ats_score_after?: number | null;
+  updated_fields_json?: string[] | null;
+  apply_mode?: string | null;
+  selection_index?: number | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -50,6 +59,78 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9\s]/gi, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function toNullableNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function defaultReportHeadline(workflowType: ExpertWorkflowType): string {
+  switch (workflowType) {
+    case 'full_resume_rewrite':
+      return 'Full resume rewrite completed';
+    case 'achievement_quantifier':
+      return 'Achievement quantifier report';
+    case 'ats_optimization_report':
+      return 'ATS optimization report';
+    case 'professional_summary_lab':
+      return 'Professional summary lab report';
+    default:
+      return 'Expert workflow report';
+  }
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'string' ? item.trim() : ''))
+    .filter(Boolean);
+}
+
+function getReportFromOutput(
+  output: Record<string, unknown>,
+  workflowType: ExpertWorkflowType
+): ExpertReport {
+  if (isRecord(output.report)) {
+    const report = output.report as Record<string, unknown>;
+    const estimate = isRecord(report.ats_impact_estimate)
+      ? (report.ats_impact_estimate as Record<string, unknown>)
+      : {};
+
+    return {
+      headline: String(report.headline || defaultReportHeadline(workflowType)),
+      executive_summary: String(
+        report.executive_summary || 'Review the prioritized actions before your next application.'
+      ),
+      priority_actions: normalizeStringArray(report.priority_actions),
+      evidence_gaps: normalizeStringArray(report.evidence_gaps),
+      ats_impact_estimate: {
+        before: toNullableNumber(estimate.before),
+        after: toNullableNumber(estimate.after),
+        delta: toNullableNumber(estimate.delta),
+        confidence_note:
+          typeof estimate.confidence_note === 'string' ? estimate.confidence_note : undefined,
+      },
+    };
+  }
+
+  const missingEvidence = normalizeStringArray(output.missing_evidence);
+  return {
+    headline: defaultReportHeadline(workflowType),
+    executive_summary: 'This report was generated before the structured report schema was available.',
+    priority_actions: [],
+    evidence_gaps: missingEvidence,
+    ats_impact_estimate: {
+      before: null,
+      after: null,
+      delta: null,
+    },
+  };
 }
 
 function extractPromptBundle(context: ExpertWorkflowContext): PromptBundle {
@@ -393,7 +474,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
 
   const { data: optimization, error: optimizationError } = await params.supabase
     .from('optimizations')
-    .select('id, rewrite_data, resume_id, jd_id')
+    .select('id, rewrite_data, resume_id, jd_id, ats_score_optimized, match_score')
     .eq('id', runRow.optimization_id)
     .eq('user_id', params.userId)
     .maybeSingle();
@@ -405,6 +486,13 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   let updatedResume = resolveCurrentResume(optimization.rewrite_data);
   const updatedFields: string[] = [];
   const applyMode = params.applyMode || 'default';
+  const selectionIndex =
+    typeof params.selectionIndex === 'number' && Number.isFinite(params.selectionIndex)
+      ? params.selectionIndex
+      : null;
+  const previousAtsScore = toNullableNumber(
+    optimization.ats_score_optimized ?? optimization.match_score ?? null
+  );
 
   if (runRow.workflow_type === 'full_resume_rewrite') {
     if (isRecord(output.rewritten_resume)) {
@@ -419,62 +507,223 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     applyATSReportOutput(updatedResume, output, applyMode, updatedFields);
   }
 
-  if (updatedFields.length === 0) {
-    return { success: true, updated_fields: [] };
-  }
+  if (updatedFields.length > 0) {
+    const { error: updateError } = await params.supabase
+      .from('optimizations')
+      .update({ rewrite_data: updatedResume })
+      .eq('id', optimization.id);
 
-  const { error: updateError } = await params.supabase
-    .from('optimizations')
-    .update({ rewrite_data: updatedResume })
-    .eq('id', optimization.id);
-
-  if (updateError) {
-    throw new Error(updateError.message || 'Failed to apply expert workflow output.');
+    if (updateError) {
+      throw new Error(updateError.message || 'Failed to apply expert workflow output.');
+    }
   }
 
   let newAtsScore: number | null = null;
-  try {
-    const [resumeResult, jdResult] = await Promise.all([
-      params.supabase.from('resumes').select('raw_text').eq('id', optimization.resume_id).maybeSingle(),
-      params.supabase.from('job_descriptions').select('raw_text, clean_text, title').eq('id', optimization.jd_id).maybeSingle(),
-    ]);
+  if (updatedFields.length > 0) {
+    try {
+      const [resumeResult, jdResult] = await Promise.all([
+        params.supabase.from('resumes').select('raw_text').eq('id', optimization.resume_id).maybeSingle(),
+        params.supabase
+          .from('job_descriptions')
+          .select('raw_text, clean_text, title')
+          .eq('id', optimization.jd_id)
+          .maybeSingle(),
+      ]);
 
-    if (resumeResult.data && jdResult.data) {
-      const scoreResult = await scoreOptimization({
-        resumeOriginalText: resumeResult.data.raw_text || '',
-        resumeOptimizedJson: updatedResume,
-        jobDescriptionText: jdResult.data.clean_text || jdResult.data.raw_text || '',
-        jobTitle: jdResult.data.title || 'Position',
-      });
+      if (resumeResult.data && jdResult.data) {
+        const scoreResult = await scoreOptimization({
+          resumeOriginalText: resumeResult.data.raw_text || '',
+          resumeOptimizedJson: updatedResume,
+          jobDescriptionText: jdResult.data.clean_text || jdResult.data.raw_text || '',
+          jobTitle: jdResult.data.title || 'Position',
+        });
 
-      newAtsScore = scoreResult.ats_score_optimized;
+        newAtsScore = scoreResult.ats_score_optimized;
 
-      await params.supabase
-        .from('optimizations')
-        .update({
-          ats_score_original: scoreResult.ats_score_original,
-          ats_score_optimized: scoreResult.ats_score_optimized,
-          ats_subscores: scoreResult.subscores,
-          ats_subscores_original: scoreResult.subscores_original,
-          ats_suggestions: scoreResult.suggestions,
-          ats_confidence: scoreResult.confidence,
-          match_score: scoreResult.ats_score_optimized,
-        })
-        .eq('id', optimization.id);
+        await params.supabase
+          .from('optimizations')
+          .update({
+            ats_score_original: scoreResult.ats_score_original,
+            ats_score_optimized: scoreResult.ats_score_optimized,
+            ats_subscores: scoreResult.subscores,
+            ats_subscores_original: scoreResult.subscores_original,
+            ats_suggestions: scoreResult.suggestions,
+            ats_confidence: scoreResult.confidence,
+            match_score: scoreResult.ats_score_optimized,
+          })
+          .eq('id', optimization.id);
+      }
+    } catch {
+      // Keep successful apply behavior even when ATS recomputation fails.
     }
-  } catch {
-    // Keep successful apply behavior even when ATS recomputation fails.
+  }
+
+  const finalAtsScore = newAtsScore ?? previousAtsScore;
+  const atsImpact: ExpertAtsImpact = {
+    before: previousAtsScore,
+    after: finalAtsScore,
+    delta:
+      previousAtsScore !== null && finalAtsScore !== null
+        ? Number((finalAtsScore - previousAtsScore).toFixed(2))
+        : null,
+  };
+
+  if (finalAtsScore !== null) {
+    await params.supabase
+      .from('applications')
+      .update({ ats_score: finalAtsScore })
+      .eq('user_id', params.userId)
+      .eq('optimization_id', optimization.id);
   }
 
   await db
     .from('expert_workflow_runs')
-    .update({ status: 'completed' })
+    .update({
+      status: 'completed',
+      applied_at: new Date().toISOString(),
+      ats_score_before: atsImpact.before,
+      ats_score_after: atsImpact.after,
+      updated_fields_json: updatedFields,
+      apply_mode: applyMode,
+      selection_index: selectionIndex,
+    })
     .eq('id', runRow.id)
     .eq('user_id', params.userId);
 
   return {
     success: true,
     updated_fields: updatedFields,
-    new_ats_score: newAtsScore,
+    ats_impact: atsImpact,
+    apply_mode: applyMode,
+    selection_index: selectionIndex,
+    new_ats_score: finalAtsScore,
   };
+}
+
+type SaveAppliedRunParams = {
+  supabase: any;
+  userId: string;
+  applicationId: string;
+  runId: string;
+};
+
+type ListApplicationReportsParams = {
+  supabase: any;
+  userId: string;
+  applicationId: string;
+};
+
+function resolveRunAtsImpact(runRow: RunRow): ExpertAtsImpact {
+  const before = toNullableNumber(runRow.ats_score_before);
+  const after = toNullableNumber(runRow.ats_score_after);
+  return {
+    before,
+    after,
+    delta: before !== null && after !== null ? Number((after - before).toFixed(2)) : null,
+  };
+}
+
+function asNonEmptyText(value: unknown, fallback: string): string {
+  if (typeof value === 'string' && value.trim().length > 0) return value.trim();
+  return fallback;
+}
+
+export async function saveAppliedRunToApplication(
+  params: SaveAppliedRunParams
+): Promise<ApplicationExpertReport> {
+  const db = params.supabase as any;
+
+  const { data: application, error: appError } = await db
+    .from('applications')
+    .select('id, user_id, optimization_id')
+    .eq('id', params.applicationId)
+    .eq('user_id', params.userId)
+    .maybeSingle();
+
+  if (appError || !application) {
+    throw new Error('Application not found or access denied.');
+  }
+
+  const { data: run, error: runError } = await db
+    .from('expert_workflow_runs')
+    .select('*')
+    .eq('id', params.runId)
+    .eq('user_id', params.userId)
+    .maybeSingle();
+
+  if (runError || !run) {
+    throw new Error('Expert workflow run not found.');
+  }
+
+  const runRow = run as RunRow;
+  if (String(application.optimization_id) !== String(runRow.optimization_id)) {
+    throw new Error('Run and application must belong to the same optimization.');
+  }
+
+  if (!runRow.applied_at && runRow.status !== 'completed') {
+    throw new Error('Run must be applied before saving to an application.');
+  }
+
+  const output = isRecord(runRow.output_json) ? runRow.output_json : {};
+  const report = getReportFromOutput(output, runRow.workflow_type);
+  const atsImpact = resolveRunAtsImpact(runRow);
+  const reportJson = {
+    ...report,
+    workflow_type: runRow.workflow_type,
+    run_id: runRow.id,
+    run_status: runRow.status,
+    applied_at: runRow.applied_at ?? null,
+    updated_fields: Array.isArray(runRow.updated_fields_json) ? runRow.updated_fields_json : [],
+    apply_mode: runRow.apply_mode ?? null,
+    selection_index: runRow.selection_index ?? null,
+  };
+
+  const { data: savedReport, error: saveError } = await db
+    .from('application_expert_reports')
+    .upsert(
+      {
+        application_id: params.applicationId,
+        run_id: runRow.id,
+        user_id: params.userId,
+        optimization_id: runRow.optimization_id,
+        workflow_type: runRow.workflow_type,
+        report_title: asNonEmptyText(report.headline, defaultReportHeadline(runRow.workflow_type)),
+        report_summary: asNonEmptyText(
+          report.executive_summary,
+          'Expert workflow report saved to this application.'
+        ),
+        report_json: reportJson,
+        ats_score_before: atsImpact.before,
+        ats_score_after: atsImpact.after,
+        ats_score_delta: atsImpact.delta,
+        saved_at: new Date().toISOString(),
+      },
+      { onConflict: 'application_id,run_id' }
+    )
+    .select('*')
+    .maybeSingle();
+
+  if (saveError || !savedReport) {
+    throw new Error(saveError?.message || 'Failed to save expert report to application.');
+  }
+
+  return savedReport as ApplicationExpertReport;
+}
+
+export async function listApplicationExpertReports(
+  params: ListApplicationReportsParams
+): Promise<ApplicationExpertReport[]> {
+  const db = params.supabase as any;
+  const { data: reports, error } = await db
+    .from('application_expert_reports')
+    .select('*')
+    .eq('application_id', params.applicationId)
+    .eq('user_id', params.userId)
+    .order('saved_at', { ascending: false });
+
+  if (error) {
+    throw new Error(error.message || 'Failed to load saved expert reports.');
+  }
+
+  return (reports || []) as ApplicationExpertReport[];
 }

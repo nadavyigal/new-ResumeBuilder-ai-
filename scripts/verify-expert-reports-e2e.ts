@@ -196,23 +196,23 @@ async function main() {
 
     const applyResult = await applyExpertWorkflowRun({
       supabase,
-      userId: cleanup.userId,
-      runId: cleanup.runId,
+      userId: cleanup.userId!,
+      runId: cleanup.runId!,
       applyMode: 'default',
       selectionIndex: 1,
     });
 
     const savedReport = await saveAppliedRunToApplication({
       supabase,
-      userId: cleanup.userId,
-      applicationId: cleanup.applicationId,
-      runId: cleanup.runId,
+      userId: cleanup.userId!,
+      applicationId: cleanup.applicationId!,
+      runId: cleanup.runId!,
     });
 
     const reports = await listApplicationExpertReports({
       supabase,
-      userId: cleanup.userId,
-      applicationId: cleanup.applicationId,
+      userId: cleanup.userId!,
+      applicationId: cleanup.applicationId!,
     });
 
     const optimizationAfter = await supabase

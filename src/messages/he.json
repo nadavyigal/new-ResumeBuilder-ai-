@@ -858,25 +858,25 @@
         "atsMatchLabel": "התאמת ATS",
         "downloadHtml": "הורד HTML",
         "downloadJson": "הורד JSON",
-        "loadError": "Failed to load application details.",
-        "cumulativeAts": "Current ATS score",
-        "latestDelta": "Latest saved expert report impact: {delta} points",
-        "contactTitle": "Saved contact snapshot",
+        "loadError": "נכשל בטעינת פרטי המועמדות.",
+        "cumulativeAts": "ציון ATS נוכחי",
+        "latestDelta": "השפעת דוח המומחה האחרון שנשמר: {delta} נקודות",
+        "contactTitle": "תמונת מצב של פרטי קשר שמורה",
         "reports": {
-          "title": "Saved Expert Reports",
-          "subtitle": "Applied expert runs saved to this application",
-          "empty": "No expert reports saved for this application yet.",
-          "fallbackTitle": "Expert workflow report",
-          "atsImpact": "ATS impact",
-          "expand": "Show report details",
-          "priorityActions": "Priority actions",
-          "evidenceGaps": "Evidence gaps"
+          "title": "דוחות מומחה שמורים",
+          "subtitle": "הרצות מומחה שהוחלו ונשמרו למועמדות זו",
+          "empty": "עדיין לא נשמרו דוחות מומחה למועמדות זו.",
+          "fallbackTitle": "דוח תהליך מומחה",
+          "atsImpact": "השפעת ATS",
+          "expand": "הצג פרטי דוח",
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות"
         },
         "workflow": {
-          "full_resume_rewrite": "Full Resume Rewrite",
-          "achievement_quantifier": "Achievement Quantifier",
-          "ats_optimization_report": "ATS Optimization Report",
-          "professional_summary_lab": "Professional Summary Lab"
+          "full_resume_rewrite": "כתיבה מחדש מלאה של קורות חיים",
+          "achievement_quantifier": "כמת הישגים",
+          "ats_optimization_report": "דוח אופטימיזציה ל-ATS",
+          "professional_summary_lab": "מעבדת סיכום מקצועי"
         }
       },
       "compare": {
@@ -930,91 +930,91 @@
         "toastApplyFailedDescription": "נכשל בהחלת התבנית."
       },
       "expert": {
-        "title": "Expert Modes Command Center",
-        "subtitle": "Run high-impact workflows, apply improvements, and save validated reports to an application.",
+        "title": "מרכז פקודות מצבי מומחה",
+        "subtitle": "הפעל תהליכי עבודה בעלי השפעה גבוהה, החל שיפורים ושמור דוחות מאומתים למועמדות.",
         "premium": {
-          "active": "Premium Active",
-          "locked": "Premium"
+          "active": "פרימיום פעיל",
+          "locked": "פרימיום"
         },
         "modes": {
           "full_resume_rewrite": {
-            "label": "Rewrite",
-            "title": "Full Resume Rewrite",
-            "description": "Generate a complete role-targeted rewrite with ATS-safe structure.",
-            "preview": "Rewrites your summary and experience bullets for role fit and recruiter readability."
+            "label": "כתיבה מחדש",
+            "title": "כתיבה מחדש מלאה של קורות החיים",
+            "description": "צור כתיבה מחדש מלאה המכוונת לתפקיד עם מבנה תואם ATS.",
+            "preview": "כותב מחדש את הסיכום ונקודות הניסיון שלך להתאמה לתפקיד וקריאות למגייסים."
           },
           "achievement_quantifier": {
-            "label": "Quantifier",
-            "title": "Achievement Quantifier",
-            "description": "Upgrade weak bullets into clearer, evidence-backed impact statements.",
-            "preview": "Produces stronger bullet rewrites and flags missing evidence before applying."
+            "label": "כמות הישגים",
+            "title": "כמת הישגים",
+            "description": "שדרג נקודות חלשות להצהרות השפעה ברורות ומגובות בראיות.",
+            "preview": "מייצר כתיבות מחדש חזקות יותר לנקודות ומסמן ראיות חסרות לפני ההחלה."
           },
           "ats_optimization_report": {
-            "label": "ATS Report",
-            "title": "ATS Optimization Report",
-            "description": "Analyze keyword coverage and ATS-friendly formatting strategy.",
-            "preview": "Delivers priority ATS actions and can apply keyword recommendations to skills."
+            "label": "דוח ATS",
+            "title": "דוח אופטימיזציה ל-ATS",
+            "description": "נתח כיסוי מילות מפתח ואסטרטגיית פורמט ידידותית ל-ATS.",
+            "preview": "מספק פעולות ATS בעדיפות עליונה ויכול להחיל המלצות מילות מפתח על מיומנויות."
           },
           "professional_summary_lab": {
-            "label": "Summary Lab",
-            "title": "Professional Summary Lab",
-            "description": "Generate five summary directions and apply the strongest one.",
-            "preview": "Compares multiple summary angles and highlights the recommended option."
+            "label": "מעבדת סיכום",
+            "title": "מעבדת סיכום מקצועי",
+            "description": "צור חמישה כיווני סיכום והחל את החזק ביותר.",
+            "preview": "משווה מספר זוויות סיכום ומדגיש את האפשרות המומלצת."
           }
         },
         "locked": {
-          "default": "Premium is required to run this Expert Mode."
+          "default": "נדרש פרימיום כדי להפעיל מצב מומחה זה."
         },
         "actions": {
-          "upgrade": "Upgrade to Premium",
-          "preview": "Preview workflow",
-          "run": "Run workflow",
-          "running": "Running workflow...",
-          "apply": "Apply to optimized resume",
-          "applying": "Applying updates...",
-          "save": "Save report to application",
-          "cancel": "Cancel",
-          "saving": "Saving report...",
-          "confirmSave": "Save report"
+          "upgrade": "שדרג לפרימיום",
+          "preview": "תצוגה מקדימה של תהליך",
+          "run": "הפעל תהליך",
+          "running": "מריץ תהליך...",
+          "apply": "החל על קורות חיים מותאמים",
+          "applying": "מחיל עדכונים...",
+          "save": "שמור דוח למועמדות",
+          "cancel": "ביטול",
+          "saving": "שומר דוח...",
+          "confirmSave": "שמור דוח"
         },
         "status": {
-          "completed": "Completed",
-          "needs_user_input": "Needs evidence",
-          "failed": "Failed"
+          "completed": "הושלם",
+          "needs_user_input": "נדרשות ראיות",
+          "failed": "נכשל"
         },
-        "runId": "Run ID",
+        "runId": "מזהה הרצה",
         "report": {
-          "priorityActions": "Priority actions",
-          "evidenceGaps": "Evidence gaps to close",
-          "estimatedImpact": "Estimated ATS impact",
-          "none": "No additional items in this section.",
-          "unavailable": "Structured report content was unavailable for this run.",
-          "debug": "Debug output"
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות לסגירה",
+          "estimatedImpact": "השפעת ATS משוערת",
+          "none": "אין פריטים נוספים בסעיף זה.",
+          "unavailable": "תוכן הדוח המובנה לא היה זמין להרצה זו.",
+          "debug": "פלט דיבוג"
         },
         "summaryOptions": {
-          "title": "Choose summary option",
-          "description": "Pick which summary should be applied.",
-          "defaultLabel": "Option"
+          "title": "בחר אפשרות סיכום",
+          "description": "בחר איזה סיכום יוחל.",
+          "defaultLabel": "אפשרות"
         },
         "applied": {
-          "title": "Workflow applied to optimized resume",
-          "description": "Updated {count} resume fields.",
-          "impact": "Observed ATS impact"
+          "title": "תהליך הוחל על קורות חיים מותאמים",
+          "description": "עודכנו {count} שדות בקורות החיים.",
+          "impact": "השפעת ATS שנצפתה"
         },
         "errors": {
-          "run": "Failed to run expert workflow.",
-          "apply": "Failed to apply workflow output.",
-          "loadApplications": "Failed to load linked applications.",
-          "save": "Failed to save expert report."
+          "run": "נכשל בהפעלת תהליך מומחה.",
+          "apply": "נכשל בהחלת פלט התהליך.",
+          "loadApplications": "נכשל בטעינת מועמדויות מקושרות.",
+          "save": "נכשל בשמירת דוח מומחה."
         },
         "save": {
-          "title": "Save Report to Application",
-          "description": "Select which linked application should store this applied report.",
-          "noApplications": "No linked applications were found for this optimized resume.",
-          "unknownCompany": "Unknown company",
-          "unknownRole": "Untitled role",
-          "unknownDate": "Unknown date",
-          "success": "Expert report saved to application."
+          "title": "שמור דוח למועמדות",
+          "description": "בחר לאיזו מועמדות מקושרת לשמור את הדוח המיושם.",
+          "noApplications": "לא נמצאו מועמדויות מקושרות לקורות חיים המותאמים.",
+          "unknownCompany": "חברה לא ידועה",
+          "unknownRole": "תפקיד ללא שם",
+          "unknownDate": "תאריך לא ידוע",
+          "success": "דוח מומחה נשמר למועמדות."
         }
       },
       "atsUnavailable": {

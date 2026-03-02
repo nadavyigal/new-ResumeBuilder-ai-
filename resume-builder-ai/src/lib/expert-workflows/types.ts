@@ -1,4 +1,4 @@
-import type { OptimizedResume } from '@/lib/ai-optimizer';
+﻿import type { OptimizedResume } from '@/lib/ai-optimizer';
 
 export type ExpertWorkflowType =
   | 'full_resume_rewrite'
@@ -38,10 +38,48 @@ export interface ExpertRunResult {
   missing_evidence: string[];
 }
 
+export interface ExpertAtsImpact {
+  before: number | null;
+  after: number | null;
+  delta: number | null;
+}
+
 export interface ExpertApplyResult {
   success: boolean;
   updated_fields: string[];
+  ats_impact: ExpertAtsImpact;
+  apply_mode: string;
+  selection_index: number | null;
   new_ats_score?: number | null;
+}
+
+export interface ExpertReport {
+  headline: string;
+  executive_summary: string;
+  priority_actions: string[];
+  evidence_gaps: string[];
+  ats_impact_estimate: {
+    before: number | null;
+    after: number | null;
+    delta: number | null;
+    confidence_note?: string;
+  };
+}
+
+export interface ApplicationExpertReport {
+  id: string;
+  application_id: string;
+  run_id: string;
+  user_id: string;
+  optimization_id: string;
+  workflow_type: ExpertWorkflowType;
+  report_title: string;
+  report_summary: string;
+  report_json: Record<string, unknown>;
+  ats_score_before: number | null;
+  ats_score_after: number | null;
+  ats_score_delta: number | null;
+  saved_at: string;
 }
 
 export interface PromptBundle {
