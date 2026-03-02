@@ -13,7 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { posthog } from "@/lib/posthog";
-import { AlertCircle, CheckCircle, Sparkles, Target, TrendingUp } from "@/lib/icons";
+import {
+  AlertCircle,
+  CheckCircle,
+  CheckSquare,
+  Copy,
+  FileText,
+  Sparkles,
+  Target,
+  TrendingUp,
+} from "@/lib/icons";
 import type { ExpertWorkflowType } from "@/lib/expert-workflows";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -42,6 +51,7 @@ type RunResponse = {
 
 type ApplyResponse = {
   success: boolean;
+  workflow_type?: ExpertWorkflowType;
   updated_fields: string[];
   ats_impact: {
     before: number | null;
@@ -50,6 +60,7 @@ type ApplyResponse = {
   };
   apply_mode: string;
   selection_index: number | null;
+  applied_assets: string[];
   new_ats_score?: number | null;
 };
 
@@ -58,6 +69,21 @@ type ApplicationOption = {
   job_title: string | null;
   company_name: string | null;
   applied_date: string | null;
+};
+
+type CoverLetterVariant = {
+  angle: "concise" | "narrative" | "impact";
+  title: string;
+  opening_paragraph: string;
+  letter: string;
+  rationale: string;
+};
+
+type ScreeningAnswer = {
+  question: string;
+  answer: string;
+  evidence_used: string[];
+  confidence_note: string;
 };
 
 interface ExpertModesPanelProps {
@@ -87,6 +113,21 @@ const WORKFLOWS: Array<{
     type: "professional_summary_lab",
     icon: CheckCircle,
   },
+  {
+    type: "cover_letter_architect",
+    icon: FileText,
+  },
+  {
+    type: "screening_answer_studio",
+    icon: CheckSquare,
+  },
+];
+
+const NON_RESUME_WORKFLOWS: ExpertWorkflowType[] = [
+  "cover_letter_architect",
+  "screening_answer_studio",
+  "recruiter_outreach_kit",
+  "interview_story_bank",
 ];
 
 function toReportEnvelope(value: unknown): ReportEnvelope | null {
@@ -143,6 +184,7 @@ export function ExpertModesPanel({
   const [runResult, setRunResult] = useState<RunResponse | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResponse | null>(null);
   const [selectionIndex, setSelectionIndex] = useState<number | null>(null);
+  const [selectedScreeningIndices, setSelectedScreeningIndices] = useState<number[]>([]);
 
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [applications, setApplications] = useState<ApplicationOption[]>([]);
@@ -159,6 +201,19 @@ export function ExpertModesPanel({
     Array.isArray((runResult.output as any).summary_options)
       ? ((runResult.output as any).summary_options as Array<Record<string, unknown>>)
       : [];
+  const coverLetterVariants =
+    activeWorkflow === "cover_letter_architect" &&
+    runResult?.output &&
+    Array.isArray((runResult.output as any).cover_letter_variants)
+      ? ((runResult.output as any).cover_letter_variants as CoverLetterVariant[])
+      : [];
+  const screeningAnswers =
+    activeWorkflow === "screening_answer_studio" &&
+    runResult?.output &&
+    Array.isArray((runResult.output as any).screening_answers)
+      ? ((runResult.output as any).screening_answers as ScreeningAnswer[])
+      : [];
+  const isNonResumeWorkflow = NON_RESUME_WORKFLOWS.includes(activeWorkflow);
 
   const report = runResult ? toReportEnvelope((runResult.output as any).report) : null;
 
@@ -176,6 +231,7 @@ export function ExpertModesPanel({
     setError(null);
     setLockedMessage(null);
     setSelectionIndex(null);
+    setSelectedScreeningIndices([]);
     setSaveSuccessMessage(null);
     posthog.capture("expert_mode_clicked", {
       workflow_type: workflowType,
@@ -222,6 +278,18 @@ export function ExpertModesPanel({
         if (!Number.isNaN(recommendedIndex)) {
           setSelectionIndex(recommendedIndex);
         }
+      } else if (activeWorkflow === "cover_letter_architect") {
+        const recommendedIndex = Number((runPayload.output as any).recommended_index);
+        if (!Number.isNaN(recommendedIndex)) {
+          setSelectionIndex(recommendedIndex);
+        } else {
+          setSelectionIndex(0);
+        }
+      } else if (activeWorkflow === "screening_answer_studio") {
+        const answers = Array.isArray((runPayload.output as any).screening_answers)
+          ? ((runPayload.output as any).screening_answers as unknown[])
+          : [];
+        setSelectedScreeningIndices(answers.map((_, index) => index));
       }
     } catch (runError) {
       setError(runError instanceof Error ? runError.message : t("errors.run"));
@@ -238,13 +306,30 @@ export function ExpertModesPanel({
     setSaveSuccessMessage(null);
 
     try {
+      const applyMode =
+        activeWorkflow === "ats_optimization_report"
+          ? "skills_only"
+          : activeWorkflow === "cover_letter_architect"
+            ? "select_cover_letter_variant"
+            : activeWorkflow === "screening_answer_studio"
+              ? "select_screening_answers"
+              : "default";
+
+      const body: Record<string, unknown> = {
+        apply_mode: applyMode,
+      };
+
+      if (activeWorkflow === "professional_summary_lab" || activeWorkflow === "cover_letter_architect") {
+        body.selection_index = selectionIndex ?? undefined;
+      }
+      if (activeWorkflow === "screening_answer_studio") {
+        body.selected_indices = selectedScreeningIndices;
+      }
+
       const response = await fetch(`/api/v1/expert-workflows/runs/${runResult.run_id}/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apply_mode: activeWorkflow === "ats_optimization_report" ? "skills_only" : "default",
-          selection_index: selectionIndex ?? undefined,
-        }),
+        body: JSON.stringify(body),
       });
 
       const payload = await response.json();
@@ -327,6 +412,21 @@ export function ExpertModesPanel({
     }
   };
 
+  const copyText = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setSaveSuccessMessage(t("copy.success"));
+    } catch {
+      setError(t("copy.failed"));
+    }
+  };
+
+  const toggleScreeningAnswer = (index: number) => {
+    setSelectedScreeningIndices((prev) =>
+      prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index].sort((a, b) => a - b)
+    );
+  };
+
   return (
     <section className="mx-auto max-w-6xl space-y-4">
       <Card className="border border-border/70 bg-gradient-to-br from-card via-card to-muted/30">
@@ -402,8 +502,20 @@ export function ExpertModesPanel({
               )}
 
               {runResult && (
-                <Button onClick={applyWorkflow} disabled={applyLoading} variant="secondary">
-                  {applyLoading ? t("actions.applying") : t("actions.apply")}
+                <Button
+                  onClick={applyWorkflow}
+                  disabled={
+                    applyLoading ||
+                    (activeWorkflow === "screening_answer_studio" &&
+                      selectedScreeningIndices.length === 0)
+                  }
+                  variant="secondary"
+                >
+                  {applyLoading
+                    ? t("actions.applying")
+                    : isNonResumeWorkflow
+                      ? t("actions.saveSelection")
+                      : t("actions.apply")}
                 </Button>
               )}
 
@@ -523,6 +635,119 @@ export function ExpertModesPanel({
                   </CardContent>
                 </Card>
               )}
+
+              {coverLetterVariants.length > 0 && (
+                <Card className="border border-border/70">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{t("coverLetter.title")}</CardTitle>
+                    <CardDescription>{t("coverLetter.description")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid gap-2 md:grid-cols-3">
+                      {coverLetterVariants.map((variant, index) => (
+                        <label
+                          key={`cover-letter-variant-${index}`}
+                          className="block cursor-pointer rounded-md border border-border/70 p-3 hover:bg-muted/40"
+                        >
+                          <div className="mb-1 flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="cover-letter-variant"
+                              checked={selectionIndex === index}
+                              onChange={() => setSelectionIndex(index)}
+                            />
+                            <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                              {variant.angle}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium">{variant.title}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{variant.rationale}</p>
+                        </label>
+                      ))}
+                    </div>
+
+                    {typeof selectionIndex === "number" && coverLetterVariants[selectionIndex] && (
+                      <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-semibold">{t("coverLetter.preview")}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyText(String(coverLetterVariants[selectionIndex].letter || ""))}
+                          >
+                            <Copy className="mr-1 h-4 w-4" />
+                            {t("copy.button")}
+                          </Button>
+                        </div>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                          {String(coverLetterVariants[selectionIndex].letter || "")}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {screeningAnswers.length > 0 && (
+                <Card className="border border-border/70">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{t("screening.title")}</CardTitle>
+                    <CardDescription>{t("screening.description")}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        {t("screening.selected", { count: selectedScreeningIndices.length })}
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          copyText(
+                            screeningAnswers
+                              .filter((_, index) => selectedScreeningIndices.includes(index))
+                              .map((row) => `Q: ${row.question}\nA: ${row.answer}`)
+                              .join("\n\n")
+                          )
+                        }
+                      >
+                        <Copy className="mr-1 h-4 w-4" />
+                        {t("screening.copyAll")}
+                      </Button>
+                    </div>
+
+                    {screeningAnswers.map((row, index) => (
+                      <details
+                        key={`screening-answer-${index}`}
+                        className="rounded-md border border-border/70 bg-background px-3 py-2"
+                      >
+                        <summary className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                          <input
+                            type="checkbox"
+                            checked={selectedScreeningIndices.includes(index)}
+                            onChange={() => toggleScreeningAnswer(index)}
+                            onClick={(event) => event.stopPropagation()}
+                          />
+                          <span>{row.question}</span>
+                        </summary>
+                        <div className="mt-2 space-y-2 pl-5">
+                          <p className="text-sm leading-relaxed">{row.answer}</p>
+                          {Array.isArray(row.evidence_used) && row.evidence_used.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {t("screening.evidence")}: {row.evidence_used.join(", ")}
+                            </p>
+                          )}
+                          {row.confidence_note && (
+                            <p className="text-xs text-muted-foreground">
+                              {t("screening.confidence")}: {row.confidence_note}
+                            </p>
+                          )}
+                        </div>
+                      </details>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
 
@@ -530,21 +755,29 @@ export function ExpertModesPanel({
             <Card className="border border-emerald-300 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/20">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base text-emerald-900 dark:text-emerald-100">
-                  {t("applied.title")}
+                  {isNonResumeWorkflow ? t("applied.assetTitle") : t("applied.title")}
                 </CardTitle>
                 <CardDescription className="text-emerald-800/80 dark:text-emerald-200/80">
-                  {t("applied.description", { count: applyResult.updated_fields.length })}
+                  {isNonResumeWorkflow
+                    ? t("applied.assetDescription", { count: applyResult.applied_assets.length })
+                    : t("applied.description", { count: applyResult.updated_fields.length })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-emerald-900 dark:text-emerald-100">
-                  {t("applied.impact")}: {formatScore(applyResult.ats_impact.before)}
-                  {" -> "}
-                  {formatScore(applyResult.ats_impact.after)}
-                  {applyResult.ats_impact.delta !== null
-                    ? ` (${applyResult.ats_impact.delta >= 0 ? "+" : ""}${Math.round(applyResult.ats_impact.delta)}%)`
-                    : ""}
-                </p>
+                {isNonResumeWorkflow ? (
+                  <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                    {t("applied.notApplicable")}
+                  </p>
+                ) : (
+                  <p className="text-sm text-emerald-900 dark:text-emerald-100">
+                    {t("applied.impact")}: {formatScore(applyResult.ats_impact.before)}
+                    {" -> "}
+                    {formatScore(applyResult.ats_impact.after)}
+                    {applyResult.ats_impact.delta !== null
+                      ? ` (${applyResult.ats_impact.delta >= 0 ? "+" : ""}${Math.round(applyResult.ats_impact.delta)}%)`
+                      : ""}
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

@@ -385,7 +385,7 @@ export default function OptimizationPage() {
   const handleExpertApplied = useCallback(async () => {
     const idVal = String(params.id || "");
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 2500));
       const { data: row } = await supabase
         .from("optimizations")
         .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original")

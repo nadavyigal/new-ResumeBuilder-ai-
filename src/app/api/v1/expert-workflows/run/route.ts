@@ -9,6 +9,10 @@ const EXPERT_WORKFLOW_TYPES: ExpertWorkflowType[] = [
   'achievement_quantifier',
   'ats_optimization_report',
   'professional_summary_lab',
+  'cover_letter_architect',
+  'screening_answer_studio',
+  'recruiter_outreach_kit',
+  'interview_story_bank',
 ];
 
 function isExpertWorkflowType(value: string): value is ExpertWorkflowType {
@@ -25,6 +29,14 @@ function getLockedPreview(workflowType: ExpertWorkflowType) {
       'Preview: you will get keyword coverage insights, section compliance checks, and ATS format guidance.',
     professional_summary_lab:
       'Preview: you will receive 5 targeted summary options with one recommended direction.',
+    cover_letter_architect:
+      'Preview: Dear Hiring Team, I am excited to apply for this role because my recent work aligns directly with your priorities. Unlock Premium to generate all 3 tailored variants and save one to your application.',
+    screening_answer_studio:
+      'Preview: you will receive role-specific screening answers with evidence notes and confidence guidance.',
+    recruiter_outreach_kit:
+      'Preview: you will get ready-to-send outreach drafts for LinkedIn, follow-up, and recruiter email.',
+    interview_story_bank:
+      'Preview: you will get STAR stories mapped to likely interview themes from the job description.',
   };
   return previews[workflowType];
 }
@@ -74,17 +86,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const premium = await isPremiumUser(supabase, user.id, user);
+    await captureServerEvent(user.id, 'expert_mode_run_started', {
+      workflow_type: workflowType,
+      optimization_id: optimizationId,
+      source: 'api_v1_expert_workflows_run',
+      is_premium: premium,
+    });
     await captureServerEvent(user.id, 'expert_run_started', {
       workflow_type: workflowType,
       optimization_id: optimizationId,
       source: 'api_v1_expert_workflows_run',
+      is_premium: premium,
     });
-
-    const premium = await isPremiumUser(supabase, user.id, user);
     if (!premium) {
       await captureServerEvent(user.id, 'expert_mode_locked', {
         workflow_type: workflowType,
         optimization_id: optimizationId,
+        is_premium: false,
       });
 
       return NextResponse.json(
@@ -106,12 +125,21 @@ export async function POST(request: NextRequest) {
       evidenceInputs,
     });
 
+    await captureServerEvent(user.id, 'expert_mode_run_completed', {
+      workflow_type: workflowType,
+      optimization_id: optimizationId,
+      run_id: result.run_id,
+      status: result.status,
+      needs_user_input: result.needs_user_input,
+      is_premium: true,
+    });
     await captureServerEvent(user.id, 'expert_run_completed', {
       workflow_type: workflowType,
       optimization_id: optimizationId,
       run_id: result.run_id,
       status: result.status,
       needs_user_input: result.needs_user_input,
+      is_premium: true,
     });
 
     return NextResponse.json(result);

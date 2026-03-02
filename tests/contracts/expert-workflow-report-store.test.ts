@@ -206,4 +206,50 @@ describe('application expert report store contract', () => {
 
     expect(rows.length).toBe(2);
   });
+
+  it('saves selected cover letter asset snapshot for application rendering', async () => {
+    const supabase = buildSupabaseMock({
+      applicationResult: { data: { id: 'app-1', optimization_id: 'opt-a' }, error: null },
+      runResult: {
+        data: {
+          id: 'run-cover',
+          optimization_id: 'opt-a',
+          workflow_type: 'cover_letter_architect',
+          status: 'completed',
+          applied_at: '2026-03-02T12:00:00.000Z',
+          apply_mode: 'select_cover_letter_variant',
+          selection_index: 1,
+          applied_assets_json: ['cover_letter_variant:1'],
+          output_json: {
+            cover_letter_variants: [
+              { angle: 'concise', title: 'A', opening_paragraph: 'A', letter: 'L1', rationale: 'R1' },
+              { angle: 'narrative', title: 'B', opening_paragraph: 'B', letter: 'L2', rationale: 'R2' },
+              { angle: 'impact', title: 'C', opening_paragraph: 'C', letter: 'L3', rationale: 'R3' },
+            ],
+            recommended_index: 1,
+            report: {
+              headline: 'Cover letter variants',
+              executive_summary: 'Choose one variant to save.',
+              priority_actions: ['Pick final variant'],
+              evidence_gaps: [],
+              ats_impact_estimate: { before: null, after: null, delta: null },
+            },
+          },
+        },
+        error: null,
+      },
+    });
+
+    await saveAppliedRunToApplication({
+      supabase,
+      userId: 'user-1',
+      applicationId: 'app-1',
+      runId: 'run-cover',
+    });
+
+    const payload = (supabase as any).getUpsertPayload();
+    expect(payload?.asset_type).toBe('cover_letter');
+    expect(payload?.asset_json?.selected_index).toBe(1);
+    expect(payload?.asset_json?.selected_variant?.letter).toBe('L2');
+  });
 });

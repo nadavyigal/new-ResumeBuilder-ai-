@@ -876,7 +876,27 @@
           "full_resume_rewrite": "כתיבה מחדש מלאה של קורות חיים",
           "achievement_quantifier": "כמת הישגים",
           "ats_optimization_report": "דוח אופטימיזציה ל-ATS",
-          "professional_summary_lab": "מעבדת סיכום מקצועי"
+          "professional_summary_lab": "מעבדת סיכום מקצועי",
+          "cover_letter_architect": "אדריכל מכתב מקדים",
+          "screening_answer_studio": "סטודיו תשובות סינון",
+          "recruiter_outreach_kit": "ערכת פנייה למגייס",
+          "interview_story_bank": "מאגר סיפורי ריאיון"
+        },
+        "assets": {
+          "title": "נכסי מועמדות",
+          "subtitle": "מכתבים מקדימים ותשובות סינון שנשמרו מתהליכי מומחה",
+          "empty": "עדיין לא נשמרו נכסים עבור מועמדות זו.",
+          "unknown": "נכס לא ידוע",
+          "unknownQuestion": "שאלה ללא כותרת",
+          "coverLetter": "מכתב מקדים שמור",
+          "screeningAnswers": "תשובות סינון שמורות",
+          "copy": "העתק",
+          "type": {
+            "cover_letter": "מכתב מקדים",
+            "screening_answers": "תשובות סינון",
+            "outreach_kit": "ערכת פנייה",
+            "story_bank": "מאגר סיפורים"
+          }
         }
       },
       "compare": {
@@ -930,8 +950,8 @@
         "toastApplyFailedDescription": "נכשל בהחלת התבנית."
       },
       "expert": {
-        "title": "מרכז פקודות מצבי מומחה",
-        "subtitle": "הפעל תהליכי עבודה בעלי השפעה גבוהה, החל שיפורים ושמור דוחות מאומתים למועמדות.",
+        "title": "מרכז איכות המועמדות",
+        "subtitle": "הפעל תהליכי מומחה, שמור תוצרים מאומתים והוסף נכסים ישירות למועמדות.",
         "premium": {
           "active": "פרימיום פעיל",
           "locked": "פרימיום"
@@ -960,6 +980,18 @@
             "title": "מעבדת סיכום מקצועי",
             "description": "צור חמישה כיווני סיכום והחל את החזק ביותר.",
             "preview": "משווה מספר זוויות סיכום ומדגיש את האפשרות המומלצת."
+          },
+          "cover_letter_architect": {
+            "label": "מכתב מקדים",
+            "title": "אדריכל מכתב מקדים",
+            "description": "יוצר שלוש גרסאות מכתב מקדים מבוססות ראיות לתפקיד הספציפי.",
+            "preview": "מפיק גרסאות קצרה, נרטיבית ומבוססת השפעה עם המלצה ברורה."
+          },
+          "screening_answer_studio": {
+            "label": "שאלות סינון",
+            "title": "סטודיו תשובות סינון",
+            "description": "מייצר תשובות איכותיות לשאלות סינון עם ציון ראיות ורמת ביטחון.",
+            "preview": "מפיק טיוטות תשובה מותאמות תפקיד שניתן לבדוק ולשמור."
           }
         },
         "locked": {
@@ -975,7 +1007,8 @@
           "save": "שמור דוח למועמדות",
           "cancel": "ביטול",
           "saving": "שומר דוח...",
-          "confirmSave": "שמור דוח"
+          "confirmSave": "שמור דוח",
+          "saveSelection": "שמור תוצר נבחר"
         },
         "status": {
           "completed": "הושלם",
@@ -999,7 +1032,10 @@
         "applied": {
           "title": "תהליך הוחל על קורות חיים מותאמים",
           "description": "עודכנו {count} שדות בקורות החיים.",
-          "impact": "השפעת ATS שנצפתה"
+          "impact": "השפעת ATS שנצפתה",
+          "assetTitle": "התוצר הנבחר נשמר",
+          "assetDescription": "נשמרו {count} נכסים עבור הרצת התהליך.",
+          "notApplicable": "השפעת ATS אינה רלוונטית לתוצר זה."
         },
         "errors": {
           "run": "נכשל בהפעלת תהליך מומחה.",
@@ -1015,6 +1051,24 @@
           "unknownRole": "תפקיד ללא שם",
           "unknownDate": "תאריך לא ידוע",
           "success": "דוח מומחה נשמר למועמדות."
+        },
+        "copy": {
+          "button": "העתק",
+          "success": "הועתק ללוח.",
+          "failed": "ההעתקה נכשלה."
+        },
+        "coverLetter": {
+          "title": "בחר גרסת מכתב מקדים",
+          "description": "בחר את הגרסה לשמירה ולשיוך למועמדות.",
+          "preview": "תצוגה מקדימה של המכתב"
+        },
+        "screening": {
+          "title": "תשובות לשאלות סינון",
+          "description": "בחר אילו תשובות יישמרו יחד עם ההרצה.",
+          "selected": "נבחרו {count} תשובות",
+          "copyAll": "העתק תשובות נבחרות",
+          "evidence": "ראיות",
+          "confidence": "רמת ביטחון"
         }
       },
       "atsUnavailable": {

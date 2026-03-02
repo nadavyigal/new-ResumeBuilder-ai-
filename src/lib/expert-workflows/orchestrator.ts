@@ -5,6 +5,10 @@ import { buildRewritePrompt } from './prompts/rewrite';
 import { buildQuantifierPrompt } from './prompts/quantifier';
 import { buildATSReportPrompt } from './prompts/ats-report';
 import { buildSummaryLabPrompt } from './prompts/summary-lab';
+import { buildCoverLetterPrompt } from './prompts/cover-letter';
+import { buildScreeningAnswersPrompt } from './prompts/screening-answers';
+import { buildOutreachKitPrompt } from './prompts/outreach-kit';
+import { buildStoryBankPrompt } from './prompts/story-bank';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
 import type {
   ApplicationExpertReport,
@@ -34,6 +38,7 @@ type ApplyWorkflowParams = {
   runId: string;
   applyMode?: string;
   selectionIndex?: number;
+  selectedIndices?: number[];
 };
 
 type RunRow = {
@@ -51,6 +56,7 @@ type RunRow = {
   updated_fields_json?: string[] | null;
   apply_mode?: string | null;
   selection_index?: number | null;
+  applied_assets_json?: string[] | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -80,6 +86,14 @@ function defaultReportHeadline(workflowType: ExpertWorkflowType): string {
       return 'ATS optimization report';
     case 'professional_summary_lab':
       return 'Professional summary lab report';
+    case 'cover_letter_architect':
+      return 'Cover letter architect report';
+    case 'screening_answer_studio':
+      return 'Screening answer studio report';
+    case 'recruiter_outreach_kit':
+      return 'Recruiter outreach kit report';
+    case 'interview_story_bank':
+      return 'Interview story bank report';
     default:
       return 'Expert workflow report';
   }
@@ -143,6 +157,14 @@ function extractPromptBundle(context: ExpertWorkflowContext): PromptBundle {
       return buildATSReportPrompt(context);
     case 'professional_summary_lab':
       return buildSummaryLabPrompt(context);
+    case 'cover_letter_architect':
+      return buildCoverLetterPrompt(context);
+    case 'screening_answer_studio':
+      return buildScreeningAnswersPrompt(context);
+    case 'recruiter_outreach_kit':
+      return buildOutreachKitPrompt(context);
+    case 'interview_story_bank':
+      return buildStoryBankPrompt(context);
     default:
       return buildRewritePrompt(context);
   }
@@ -282,6 +304,42 @@ function extractArtifacts(
         artifact_json: output.ats_report,
       },
     ];
+  }
+
+  if (workflowType === 'cover_letter_architect' && Array.isArray(output.cover_letter_variants)) {
+    return output.cover_letter_variants
+      .filter(isRecord)
+      .map((variant, index) => ({
+        artifact_type: 'cover_letter_variant',
+        artifact_json: { ...variant, index },
+      }));
+  }
+
+  if (workflowType === 'screening_answer_studio' && Array.isArray(output.screening_answers)) {
+    return output.screening_answers
+      .filter(isRecord)
+      .map((answer, index) => ({
+        artifact_type: 'screening_answer',
+        artifact_json: { ...answer, index },
+      }));
+  }
+
+  if (workflowType === 'recruiter_outreach_kit' && isRecord(output.outreach_kit)) {
+    return [
+      {
+        artifact_type: 'outreach_kit',
+        artifact_json: output.outreach_kit,
+      },
+    ];
+  }
+
+  if (workflowType === 'interview_story_bank' && Array.isArray(output.story_bank)) {
+    return output.story_bank
+      .filter(isRecord)
+      .map((story, index) => ({
+        artifact_type: 'story',
+        artifact_json: { ...story, index },
+      }));
   }
 
   return [];
@@ -485,14 +543,25 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
 
   let updatedResume = resolveCurrentResume(optimization.rewrite_data);
   const updatedFields: string[] = [];
-  const applyMode = params.applyMode || 'default';
+  const applyMode =
+    params.applyMode ||
+    (runRow.workflow_type === 'cover_letter_architect'
+      ? 'select_cover_letter_variant'
+      : runRow.workflow_type === 'screening_answer_studio'
+        ? 'select_screening_answers'
+        : 'default');
   const selectionIndex =
     typeof params.selectionIndex === 'number' && Number.isFinite(params.selectionIndex)
       ? params.selectionIndex
       : null;
-  const previousAtsScore = toNullableNumber(
-    optimization.ats_score_optimized ?? optimization.match_score ?? null
-  );
+  const previousAtsScore =
+    runRow.workflow_type === 'cover_letter_architect' ||
+    runRow.workflow_type === 'screening_answer_studio' ||
+    runRow.workflow_type === 'recruiter_outreach_kit' ||
+    runRow.workflow_type === 'interview_story_bank'
+      ? null
+      : toNullableNumber(optimization.ats_score_optimized ?? optimization.match_score ?? null);
+  const appliedAssets: string[] = [];
 
   if (runRow.workflow_type === 'full_resume_rewrite') {
     if (isRecord(output.rewritten_resume)) {
@@ -505,6 +574,42 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     applySummaryLabOutput(updatedResume, output, params.selectionIndex, updatedFields);
   } else if (runRow.workflow_type === 'ats_optimization_report') {
     applyATSReportOutput(updatedResume, output, applyMode, updatedFields);
+  } else if (runRow.workflow_type === 'cover_letter_architect') {
+    const variants = Array.isArray(output.cover_letter_variants)
+      ? output.cover_letter_variants.filter(isRecord)
+      : [];
+    if (variants.length > 0) {
+      const recommendedIndex = Number(output.recommended_index);
+      const targetIndex =
+        typeof selectionIndex === 'number' && selectionIndex >= 0 && selectionIndex < variants.length
+          ? selectionIndex
+          : Number.isInteger(recommendedIndex) && recommendedIndex >= 0 && recommendedIndex < variants.length
+            ? recommendedIndex
+            : 0;
+      appliedAssets.push(`cover_letter_variant:${targetIndex}`);
+    }
+  } else if (runRow.workflow_type === 'screening_answer_studio') {
+    const answers = Array.isArray(output.screening_answers)
+      ? output.screening_answers.filter(isRecord)
+      : [];
+    const selected = Array.isArray(params.selectedIndices)
+      ? Array.from(
+          new Set(
+            params.selectedIndices.filter(
+              (index) => Number.isInteger(index) && index >= 0 && index < answers.length
+            )
+          )
+        )
+      : [];
+    const effective = selected.length > 0 ? selected : answers.map((_, index) => index);
+    effective.forEach((index) => appliedAssets.push(`screening_answer:${index}`));
+  } else if (runRow.workflow_type === 'recruiter_outreach_kit') {
+    if (isRecord(output.outreach_kit)) {
+      appliedAssets.push('outreach_kit:default');
+    }
+  } else if (runRow.workflow_type === 'interview_story_bank') {
+    const stories = Array.isArray(output.story_bank) ? output.story_bank.filter(isRecord) : [];
+    stories.forEach((_, index) => appliedAssets.push(`story:${index}`));
   }
 
   if (updatedFields.length > 0) {
@@ -519,7 +624,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   }
 
   let newAtsScore: number | null = null;
-  if (updatedFields.length > 0) {
+  if (updatedFields.length > 0 && previousAtsScore !== null) {
     try {
       const [resumeResult, jdResult] = await Promise.all([
         params.supabase.from('resumes').select('raw_text').eq('id', optimization.resume_id).maybeSingle(),
@@ -558,7 +663,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     }
   }
 
-  const finalAtsScore = newAtsScore ?? previousAtsScore;
+  const finalAtsScore = previousAtsScore === null ? null : newAtsScore ?? previousAtsScore;
   const atsImpact: ExpertAtsImpact = {
     before: previousAtsScore,
     after: finalAtsScore,
@@ -568,7 +673,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
         : null,
   };
 
-  if (finalAtsScore !== null) {
+  if (finalAtsScore !== null && previousAtsScore !== null) {
     await params.supabase
       .from('applications')
       .update({ ats_score: finalAtsScore })
@@ -586,16 +691,19 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
       updated_fields_json: updatedFields,
       apply_mode: applyMode,
       selection_index: selectionIndex,
+      applied_assets_json: appliedAssets,
     })
     .eq('id', runRow.id)
     .eq('user_id', params.userId);
 
   return {
     success: true,
+    workflow_type: runRow.workflow_type,
     updated_fields: updatedFields,
     ats_impact: atsImpact,
     apply_mode: applyMode,
     selection_index: selectionIndex,
+    applied_assets: appliedAssets,
     new_ats_score: finalAtsScore,
   };
 }
@@ -626,6 +734,100 @@ function resolveRunAtsImpact(runRow: RunRow): ExpertAtsImpact {
 function asNonEmptyText(value: unknown, fallback: string): string {
   if (typeof value === 'string' && value.trim().length > 0) return value.trim();
   return fallback;
+}
+
+function parseAppliedIndexes(prefix: string, appliedAssets: string[]): number[] {
+  return Array.from(
+    new Set(
+      appliedAssets
+        .filter((asset) => asset.startsWith(`${prefix}:`))
+        .map((asset) => Number(asset.split(':')[1]))
+        .filter((index) => Number.isInteger(index) && index >= 0)
+    )
+  );
+}
+
+function resolveAssetSnapshot(
+  runRow: RunRow,
+  output: Record<string, unknown>
+): {
+  asset_type: 'cover_letter' | 'screening_answers' | 'outreach_kit' | 'story_bank' | null;
+  asset_json: Record<string, unknown> | null;
+} {
+  const appliedAssets = Array.isArray(runRow.applied_assets_json)
+    ? runRow.applied_assets_json
+    : [];
+
+  if (runRow.workflow_type === 'cover_letter_architect') {
+    const variants = Array.isArray(output.cover_letter_variants)
+      ? output.cover_letter_variants.filter(isRecord)
+      : [];
+    if (variants.length === 0) return { asset_type: null, asset_json: null };
+
+    const selectedByAsset = parseAppliedIndexes('cover_letter_variant', appliedAssets);
+    const recommendedIndex = Number(output.recommended_index);
+    const selectedIndex =
+      selectedByAsset[0] ??
+      (typeof runRow.selection_index === 'number'
+        ? runRow.selection_index
+        : Number.isInteger(recommendedIndex)
+          ? recommendedIndex
+          : 0);
+    const clampedIndex =
+      selectedIndex >= 0 && selectedIndex < variants.length ? selectedIndex : 0;
+
+    return {
+      asset_type: 'cover_letter',
+      asset_json: {
+        selected_index: clampedIndex,
+        selected_variant: variants[clampedIndex],
+        variants,
+      },
+    };
+  }
+
+  if (runRow.workflow_type === 'screening_answer_studio') {
+    const answers = Array.isArray(output.screening_answers)
+      ? output.screening_answers.filter(isRecord)
+      : [];
+    const selectedByAsset = parseAppliedIndexes('screening_answer', appliedAssets);
+    const selectedIndexes =
+      selectedByAsset.length > 0 ? selectedByAsset : answers.map((_, index) => index);
+
+    return {
+      asset_type: 'screening_answers',
+      asset_json: {
+        selected_indexes: selectedIndexes,
+        selected_answers: selectedIndexes
+          .map((index) => answers[index])
+          .filter(isRecord),
+        all_answers: answers,
+      },
+    };
+  }
+
+  if (runRow.workflow_type === 'recruiter_outreach_kit' && isRecord(output.outreach_kit)) {
+    return {
+      asset_type: 'outreach_kit',
+      asset_json: {
+        ...output.outreach_kit,
+      },
+    };
+  }
+
+  if (runRow.workflow_type === 'interview_story_bank' && Array.isArray(output.story_bank)) {
+    return {
+      asset_type: 'story_bank',
+      asset_json: {
+        stories: output.story_bank.filter(isRecord),
+      },
+    };
+  }
+
+  return {
+    asset_type: null,
+    asset_json: null,
+  };
 }
 
 export async function saveAppliedRunToApplication(
@@ -667,6 +869,7 @@ export async function saveAppliedRunToApplication(
   const output = isRecord(runRow.output_json) ? runRow.output_json : {};
   const report = getReportFromOutput(output, runRow.workflow_type);
   const atsImpact = resolveRunAtsImpact(runRow);
+  const assetSnapshot = resolveAssetSnapshot(runRow, output);
   const reportJson = {
     ...report,
     workflow_type: runRow.workflow_type,
@@ -676,6 +879,9 @@ export async function saveAppliedRunToApplication(
     updated_fields: Array.isArray(runRow.updated_fields_json) ? runRow.updated_fields_json : [],
     apply_mode: runRow.apply_mode ?? null,
     selection_index: runRow.selection_index ?? null,
+    applied_assets: Array.isArray(runRow.applied_assets_json) ? runRow.applied_assets_json : [],
+    asset_type: assetSnapshot.asset_type,
+    asset_json: assetSnapshot.asset_json,
   };
 
   const { data: savedReport, error: saveError } = await db
@@ -693,6 +899,8 @@ export async function saveAppliedRunToApplication(
           'Expert workflow report saved to this application.'
         ),
         report_json: reportJson,
+        asset_type: assetSnapshot.asset_type,
+        asset_json: assetSnapshot.asset_json,
         ats_score_before: atsImpact.before,
         ats_score_after: atsImpact.after,
         ats_score_delta: atsImpact.delta,

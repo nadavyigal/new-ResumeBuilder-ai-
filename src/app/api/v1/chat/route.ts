@@ -158,6 +158,18 @@ function detectExpertWorkflowType(message: string): ExpertWorkflowType | null {
   if (/(create|generate|write).*(5|five).*(summary|summaries)|summary lab/.test(text)) {
     return 'professional_summary_lab';
   }
+  if (/(cover letter|motivation letter|application letter).*(generate|create|write|draft)?/.test(text)) {
+    return 'cover_letter_architect';
+  }
+  if (/(screening answer|screening question|application question|pre-screen).*(generate|create|draft|write)?/.test(text)) {
+    return 'screening_answer_studio';
+  }
+  if (/(recruiter outreach|linkedin message|follow up message).*(generate|create|write|draft)?/.test(text)) {
+    return 'recruiter_outreach_kit';
+  }
+  if (/(interview story|star story|story bank).*(generate|create|write|draft)?/.test(text)) {
+    return 'interview_story_bank';
+  }
   return null;
 }
 
@@ -457,6 +469,12 @@ export async function POST(request: NextRequest) {
         }
         if (expertWorkflowType === 'ats_optimization_report' && (runResult.output as any).ats_report) {
           return 'Generated ATS optimization report with keyword and formatting guidance.';
+        }
+        if (expertWorkflowType === 'cover_letter_architect' && Array.isArray((runResult.output as any).cover_letter_variants)) {
+          return `Generated ${(runResult.output as any).cover_letter_variants.length} tailored cover letter variants.`;
+        }
+        if (expertWorkflowType === 'screening_answer_studio' && Array.isArray((runResult.output as any).screening_answers)) {
+          return `Prepared ${(runResult.output as any).screening_answers.length} screening answers.`;
         }
         return 'Expert workflow completed. Open Expert Modes panel to review and apply.';
       })();

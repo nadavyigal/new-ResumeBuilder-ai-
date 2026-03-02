@@ -4,7 +4,11 @@ export type ExpertWorkflowType =
   | 'full_resume_rewrite'
   | 'achievement_quantifier'
   | 'ats_optimization_report'
-  | 'professional_summary_lab';
+  | 'professional_summary_lab'
+  | 'cover_letter_architect'
+  | 'screening_answer_studio'
+  | 'recruiter_outreach_kit'
+  | 'interview_story_bank';
 
 export type ExpertWorkflowStatus = 'completed' | 'needs_user_input' | 'failed';
 
@@ -46,10 +50,12 @@ export interface ExpertAtsImpact {
 
 export interface ExpertApplyResult {
   success: boolean;
+  workflow_type: ExpertWorkflowType;
   updated_fields: string[];
   ats_impact: ExpertAtsImpact;
   apply_mode: string;
   selection_index: number | null;
+  applied_assets: string[];
   new_ats_score?: number | null;
 }
 
@@ -76,6 +82,8 @@ export interface ApplicationExpertReport {
   report_title: string;
   report_summary: string;
   report_json: Record<string, unknown>;
+  asset_type: 'cover_letter' | 'screening_answers' | 'outreach_kit' | 'story_bank' | null;
+  asset_json: Record<string, unknown> | null;
   ats_score_before: number | null;
   ats_score_after: number | null;
   ats_score_delta: number | null;
@@ -103,4 +111,19 @@ export interface SummaryOption {
   angle: 'leadership' | 'technical' | 'results' | 'industry' | 'vision';
   summary: string;
   rationale: string;
+}
+
+export interface CoverLetterVariant {
+  angle: 'concise' | 'narrative' | 'impact';
+  title: string;
+  opening_paragraph: string;
+  letter: string;
+  rationale: string;
+}
+
+export interface ScreeningAnswer {
+  question: string;
+  answer: string;
+  evidence_used: string[];
+  confidence_note: string;
 }

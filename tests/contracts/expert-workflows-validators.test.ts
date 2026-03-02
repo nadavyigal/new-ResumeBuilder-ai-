@@ -66,4 +66,51 @@ describe('Expert workflow validators', () => {
     expect(result.valid).toBe(false);
     expect(result.error).toContain('report');
   });
+
+  it('accepts cover letter output with exactly 3 variants', () => {
+    const result = validateWorkflowOutput('cover_letter_architect', {
+      cover_letter_variants: [
+        {
+          angle: 'concise',
+          title: 'Concise',
+          opening_paragraph: 'A',
+          letter: 'A',
+          rationale: 'A',
+        },
+        {
+          angle: 'narrative',
+          title: 'Narrative',
+          opening_paragraph: 'B',
+          letter: 'B',
+          rationale: 'B',
+        },
+        {
+          angle: 'impact',
+          title: 'Impact',
+          opening_paragraph: 'C',
+          letter: 'C',
+          rationale: 'C',
+        },
+      ],
+      recommended_index: 1,
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects screening answer output with fewer than 5 rows', () => {
+    const result = validateWorkflowOutput('screening_answer_studio', {
+      screening_answers: [
+        { question: 'Q1', answer: 'A1', evidence_used: [], confidence_note: 'high' },
+        { question: 'Q2', answer: 'A2', evidence_used: [], confidence_note: 'high' },
+      ],
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('at least 5');
+  });
 });

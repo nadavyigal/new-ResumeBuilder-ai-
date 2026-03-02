@@ -455,7 +455,11 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           status: 'completed' | 'needs_user_input' | 'failed';
           input_json: Json;
           output_json: Json;
@@ -468,6 +472,7 @@ export interface Database {
           updated_fields_json: Json;
           apply_mode: string | null;
           selection_index: number | null;
+          applied_assets_json: Json | null;
         },
         {
           id?: string;
@@ -477,7 +482,11 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           status?: 'completed' | 'needs_user_input' | 'failed';
           input_json?: Json;
           output_json?: Json;
@@ -490,6 +499,7 @@ export interface Database {
           updated_fields_json?: Json;
           apply_mode?: string | null;
           selection_index?: number | null;
+          applied_assets_json?: Json | null;
         },
         {
           id?: string;
@@ -499,7 +509,11 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           status?: 'completed' | 'needs_user_input' | 'failed';
           input_json?: Json;
           output_json?: Json;
@@ -512,6 +526,7 @@ export interface Database {
           updated_fields_json?: Json;
           apply_mode?: string | null;
           selection_index?: number | null;
+          applied_assets_json?: Json | null;
         },
         [
           {
@@ -564,10 +579,21 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           report_title: string;
           report_summary: string;
           report_json: Json;
+          asset_type:
+            | 'cover_letter'
+            | 'screening_answers'
+            | 'outreach_kit'
+            | 'story_bank'
+            | null;
+          asset_json: Json | null;
           ats_score_before: number | null;
           ats_score_after: number | null;
           ats_score_delta: number | null;
@@ -584,10 +610,21 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           report_title?: string;
           report_summary?: string;
           report_json?: Json;
+          asset_type?:
+            | 'cover_letter'
+            | 'screening_answers'
+            | 'outreach_kit'
+            | 'story_bank'
+            | null;
+          asset_json?: Json | null;
           ats_score_before?: number | null;
           ats_score_after?: number | null;
           ats_score_delta?: number | null;
@@ -604,10 +641,21 @@ export interface Database {
             | 'full_resume_rewrite'
             | 'achievement_quantifier'
             | 'ats_optimization_report'
-            | 'professional_summary_lab';
+            | 'professional_summary_lab'
+            | 'cover_letter_architect'
+            | 'screening_answer_studio'
+            | 'recruiter_outreach_kit'
+            | 'interview_story_bank';
           report_title?: string;
           report_summary?: string;
           report_json?: Json;
+          asset_type?:
+            | 'cover_letter'
+            | 'screening_answers'
+            | 'outreach_kit'
+            | 'story_bank'
+            | null;
+          asset_json?: Json | null;
           ats_score_before?: number | null;
           ats_score_after?: number | null;
           ats_score_delta?: number | null;

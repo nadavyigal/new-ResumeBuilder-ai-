@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Link } from "@/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Copy } from "@/lib/icons";
 import { useLocale, useTranslations } from "next-intl";
 
 type ApplicationDetail = {
@@ -36,6 +38,8 @@ type SavedExpertReport = {
       confidence_note?: string;
     };
   };
+  asset_type: "cover_letter" | "screening_answers" | "outreach_kit" | "story_bank" | null;
+  asset_json: Record<string, unknown> | null;
   ats_score_before: number | null;
   ats_score_after: number | null;
   ats_score_delta: number | null;
@@ -51,6 +55,16 @@ function workflowLabel(t: ReturnType<typeof useTranslations>, workflowType: stri
   const key = `workflow.${workflowType}`;
   const value = t(key);
   return value === key ? workflowType.replace(/_/g, " ") : value;
+}
+
+function assetTypeLabel(
+  t: ReturnType<typeof useTranslations>,
+  assetType: SavedExpertReport["asset_type"]
+): string {
+  if (!assetType) return t("assets.unknown");
+  const key = `assets.type.${assetType}`;
+  const value = t(key);
+  return value === key ? assetType.replace(/_/g, " ") : value;
 }
 
 export default function ApplicationDetailPage() {
@@ -106,6 +120,18 @@ export default function ApplicationDetailPage() {
   }, [params.id, t]);
 
   const latestReport = useMemo(() => reports[0] || null, [reports]);
+  const assetReports = useMemo(
+    () => reports.filter((report) => report.asset_type && report.asset_json),
+    [reports]
+  );
+
+  const copyText = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch (error) {
+      console.error("Failed to copy asset text:", error);
+    }
+  };
 
   if (loading) return <div className="p-6">{t("loading")}</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
@@ -236,6 +262,114 @@ export default function ApplicationDetailPage() {
                           )}
                         </div>
                       </details>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/70">
+        <CardHeader>
+          <CardTitle>{t("assets.title")}</CardTitle>
+          <CardDescription>{t("assets.subtitle")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assetReports.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t("assets.empty")}</p>
+          ) : (
+            <div className="space-y-4">
+              {assetReports.map((report) => {
+                const assetJson =
+                  report.asset_json && typeof report.asset_json === "object"
+                    ? (report.asset_json as Record<string, unknown>)
+                    : {};
+
+                const coverLetter =
+                  report.asset_type === "cover_letter" &&
+                  assetJson.selected_variant &&
+                  typeof assetJson.selected_variant === "object"
+                    ? (assetJson.selected_variant as Record<string, unknown>)
+                    : null;
+
+                const screeningAnswers =
+                  report.asset_type === "screening_answers" &&
+                  Array.isArray(assetJson.selected_answers)
+                    ? (assetJson.selected_answers as Array<Record<string, unknown>>)
+                    : [];
+
+                return (
+                  <Card key={`asset-${report.id}`} className="border border-border/60 bg-muted/20">
+                    <CardHeader className="pb-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <CardTitle className="text-base">
+                            {report.report_title || t("reports.fallbackTitle")}
+                          </CardTitle>
+                          <CardDescription>{assetTypeLabel(t, report.asset_type)}</CardDescription>
+                        </div>
+                        <Badge variant="outline">
+                          {new Date(report.saved_at).toLocaleDateString(dateLocale)}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3 text-sm">
+                      {report.asset_type === "cover_letter" && coverLetter && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-semibold">{t("assets.coverLetter")}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => copyText(String(coverLetter.letter || ""))}
+                            >
+                              <Copy className="mr-1 h-4 w-4" />
+                              {t("assets.copy")}
+                            </Button>
+                          </div>
+                          <p className="whitespace-pre-wrap leading-relaxed">
+                            {String(coverLetter.letter || "")}
+                          </p>
+                        </div>
+                      )}
+
+                      {report.asset_type === "screening_answers" && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="font-semibold">{t("assets.screeningAnswers")}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                copyText(
+                                  screeningAnswers
+                                    .map(
+                                      (answer) =>
+                                        `Q: ${String(answer.question || "")}\nA: ${String(answer.answer || "")}`
+                                    )
+                                    .join("\n\n")
+                                )
+                              }
+                            >
+                              <Copy className="mr-1 h-4 w-4" />
+                              {t("assets.copy")}
+                            </Button>
+                          </div>
+                          {screeningAnswers.map((answer, index) => (
+                            <details
+                              key={`asset-answer-${report.id}-${index}`}
+                              className="rounded-md border border-border/60 bg-background p-3"
+                            >
+                              <summary className="cursor-pointer font-medium">
+                                {String(answer.question || t("assets.unknownQuestion"))}
+                              </summary>
+                              <p className="mt-2 leading-relaxed">{String(answer.answer || "")}</p>
+                            </details>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

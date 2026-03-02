@@ -553,8 +553,9 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
           })
           .eq('id', optimization.id);
       }
-    } catch {
-      // Keep successful apply behavior even when ATS recomputation fails.
+    } catch (atsErr) {
+      console.error('[expert-workflow] ATS rescoring failed after apply:', atsErr);
+      // Apply still succeeds — ATS score will refresh on next page load.
     }
   }
 
@@ -576,7 +577,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
       .eq('optimization_id', optimization.id);
   }
 
-  await db
+  const { error: runUpdateError } = await db
     .from('expert_workflow_runs')
     .update({
       status: 'completed',
@@ -589,6 +590,10 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     })
     .eq('id', runRow.id)
     .eq('user_id', params.userId);
+
+  if (runUpdateError) {
+    console.error('[expert-workflow] Failed to update run apply metadata:', runUpdateError.message);
+  }
 
   return {
     success: true,

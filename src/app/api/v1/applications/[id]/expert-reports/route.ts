@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { captureServerEvent } from '@/lib/posthog-server';
 import {
   listApplicationExpertReports,
   saveAppliedRunToApplication,
@@ -73,6 +74,20 @@ export async function POST(
       userId: user.id,
       applicationId: id,
       runId,
+    });
+
+    await captureServerEvent(user.id, 'expert_mode_asset_saved', {
+      application_id: id,
+      run_id: runId,
+      workflow_type: report.workflow_type,
+      asset_type: report.asset_type,
+      has_saved_application: true,
+      selection_index:
+        report.report_json &&
+        typeof report.report_json === 'object' &&
+        typeof (report.report_json as any).selection_index === 'number'
+          ? (report.report_json as any).selection_index
+          : null,
     });
 
     return NextResponse.json({ success: true, report });
