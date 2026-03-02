@@ -1,6 +1,29 @@
 -- Expert Workflows (Resume Core) tables
 -- Adds run history and artifacts for advanced expert modes.
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname = 'handle_updated_at'
+      and pg_get_function_identity_arguments(p.oid) = ''
+  ) then
+    create function public.handle_updated_at()
+    returns trigger
+    language plpgsql
+    as $fn$
+    begin
+      new.updated_at = now();
+      return new;
+    end;
+    $fn$;
+  end if;
+end
+$$;
+
 create table if not exists public.expert_workflow_runs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
