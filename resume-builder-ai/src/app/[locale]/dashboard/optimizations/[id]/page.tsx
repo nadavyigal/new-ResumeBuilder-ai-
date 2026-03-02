@@ -381,6 +381,39 @@ export default function OptimizationPage() {
     }
   };
 
+  // Lightweight refresh after expert workflow apply (re-fetches ATS + resume, skips design)
+  const handleExpertApplied = useCallback(async () => {
+    const idVal = String(params.id || "");
+    try {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      const { data: row } = await supabase
+        .from("optimizations")
+        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original")
+        .eq("id", idVal)
+        .maybeSingle();
+
+      if (row) {
+        if ((row as any).rewrite_data) {
+          setOptimizedResume(JSON.parse(JSON.stringify((row as any).rewrite_data)));
+        }
+        const r = row as any;
+        if (r.ats_score_optimized !== null || r.ats_score_original !== null) {
+          setAtsV2Data({
+            ats_score_original: r.ats_score_original,
+            ats_score_optimized: r.ats_score_optimized,
+            subscores: r.ats_subscores,
+            subscores_original: r.ats_subscores_original,
+            confidence: atsV2Data?.confidence ?? null,
+          });
+          if (r.ats_score_optimized !== null) setMatchScore(r.ats_score_optimized);
+        }
+        setRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Failed to refresh after expert apply:", err);
+    }
+  }, [params.id, supabase, atsV2Data]);
+
   // Fetch design assignment - BUT ONLY if user has explicitly selected a design
   // By default, show natural design (no template)
   useEffect(() => {
@@ -818,7 +851,7 @@ export default function OptimizationPage() {
         <ExpertModesPanel
           optimizationId={params.id as string}
           isPremium={isPremium}
-          onApplied={handleChatMessageSent}
+          onApplied={handleExpertApplied}
         />
       </div>
 
