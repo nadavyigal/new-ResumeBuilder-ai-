@@ -136,5 +136,57 @@ export function validateWorkflowOutput(
     return { valid: true, missingEvidence };
   }
 
+  if (workflowType === 'cover_letter_architect') {
+    const variants = Array.isArray(parsed.cover_letter_variants) ? parsed.cover_letter_variants : [];
+    const recommendedIndex = Number(parsed.recommended_index);
+    if (variants.length !== 3) {
+      return { valid: false, error: 'cover_letter_variants must include exactly 3 variants', missingEvidence };
+    }
+    if (Number.isNaN(recommendedIndex) || recommendedIndex < 0 || recommendedIndex >= variants.length) {
+      return { valid: false, error: 'recommended_index is invalid', missingEvidence };
+    }
+    return { valid: true, missingEvidence };
+  }
+
+  if (workflowType === 'screening_answer_studio') {
+    const rows = Array.isArray(parsed.screening_answers) ? parsed.screening_answers : [];
+    if (rows.length < 5) {
+      return { valid: false, error: 'screening_answers must include at least 5 answers', missingEvidence };
+    }
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      const item = row as Record<string, unknown>;
+      const question = String(item.question || '').trim();
+      const answer = String(item.answer || '').trim();
+      if (!question || !answer) {
+        return { valid: false, error: 'screening answers require question and answer', missingEvidence };
+      }
+    }
+    return { valid: true, missingEvidence };
+  }
+
+  if (workflowType === 'recruiter_outreach_kit') {
+    if (!hasTruthyObject(parsed.outreach_kit)) {
+      return { valid: false, error: 'outreach_kit is required', missingEvidence };
+    }
+    const kit = parsed.outreach_kit as Record<string, unknown>;
+    if (
+      typeof kit.linkedin_connect_note !== 'string' ||
+      typeof kit.follow_up_message !== 'string' ||
+      typeof kit.recruiter_email !== 'string'
+    ) {
+      return { valid: false, error: 'outreach_kit fields are invalid', missingEvidence };
+    }
+    return { valid: true, missingEvidence };
+  }
+
+  if (workflowType === 'interview_story_bank') {
+    const stories = Array.isArray(parsed.story_bank) ? parsed.story_bank : [];
+    if (stories.length < 3) {
+      return { valid: false, error: 'story_bank must include at least 3 stories', missingEvidence };
+    }
+    return { valid: true, missingEvidence };
+  }
+
   return { valid: false, error: 'Unknown workflow type', missingEvidence };
 }

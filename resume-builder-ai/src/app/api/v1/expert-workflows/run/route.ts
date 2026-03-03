@@ -9,6 +9,10 @@ const EXPERT_WORKFLOW_TYPES: ExpertWorkflowType[] = [
   'achievement_quantifier',
   'ats_optimization_report',
   'professional_summary_lab',
+  'cover_letter_architect',
+  'screening_answer_studio',
+  'recruiter_outreach_kit',
+  'interview_story_bank',
 ];
 
 function isExpertWorkflowType(value: string): value is ExpertWorkflowType {
@@ -25,6 +29,14 @@ function getLockedPreview(workflowType: ExpertWorkflowType) {
       'Preview: you will get keyword coverage, section compliance, and ATS format guidance.',
     professional_summary_lab:
       'Preview: you will receive 5 targeted summary options with a recommended choice.',
+    cover_letter_architect:
+      'Preview: you will receive 3 tailored cover letter drafts — concise, narrative, and impact-focused.',
+    screening_answer_studio:
+      'Preview: you will receive confident, evidence-backed answers to common screening questions.',
+    recruiter_outreach_kit:
+      'Preview: you will receive a LinkedIn connect note, follow-up message, and recruiter email draft.',
+    interview_story_bank:
+      'Preview: you will receive 3+ interview stories structured using the STAR method.',
   };
   return previews[workflowType];
 }

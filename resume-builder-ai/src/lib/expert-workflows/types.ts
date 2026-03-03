@@ -4,7 +4,11 @@ export type ExpertWorkflowType =
   | 'full_resume_rewrite'
   | 'achievement_quantifier'
   | 'ats_optimization_report'
-  | 'professional_summary_lab';
+  | 'professional_summary_lab'
+  | 'cover_letter_architect'
+  | 'screening_answer_studio'
+  | 'recruiter_outreach_kit'
+  | 'interview_story_bank';
 
 export type ExpertWorkflowStatus = 'completed' | 'needs_user_input' | 'failed';
 

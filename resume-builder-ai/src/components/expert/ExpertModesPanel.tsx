@@ -16,6 +16,8 @@ import {
   TrendingUp,
   Target,
   PenLine,
+  Mail,
+  MessageSquare,
   CheckCircle2,
   AlertTriangle,
   BookmarkCheck,
@@ -107,6 +109,22 @@ const WORKFLOWS: Array<{
     description:
       "Generates 5 summary directions — leadership, technical, results-driven, industry-specific, and visionary — then recommends the best fit for the target role.",
     Icon: PenLine,
+  },
+  {
+    type: "cover_letter_architect",
+    label: "Cover Letter",
+    tagline: "3 tailored cover letter drafts, ready to send",
+    description:
+      "Generates three cover letter angles — concise, narrative, and impact-focused — each tailored to the job description. Pick your favorite and attach it to your application.",
+    Icon: Mail,
+  },
+  {
+    type: "screening_answer_studio",
+    label: "Screening Answers",
+    tagline: "Smart answers to common screening questions",
+    description:
+      "Crafts confident, evidence-backed answers to the screening questions most likely asked for this role. Each answer draws from your actual resume experience.",
+    Icon: MessageSquare,
   },
 ];
 
@@ -256,6 +274,30 @@ function ReportDisplay({
         );
       })()}
 
+      {/* Mode-specific: Screening Answer Studio */}
+      {workflowType === "screening_answer_studio" && (() => {
+        const answers = (output as any).screening_answers as Array<{
+          question: string;
+          answer: string;
+          confidence_note?: string;
+        }> | undefined;
+        if (!answers?.length) return null;
+        return (
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-muted-foreground">Screening Answers</p>
+            {answers.map((qa, i) => (
+              <div key={i} className="rounded-lg border p-3 space-y-1.5">
+                <p className="text-sm font-semibold">{qa.question}</p>
+                <p className="text-sm">{qa.answer}</p>
+                {qa.confidence_note && (
+                  <p className="text-xs text-muted-foreground italic">{qa.confidence_note}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Mode-specific: ATS Deep Scan keyword table */}
       {workflowType === "ats_optimization_report" && (() => {
         const atsReport = (output as any).ats_report as Record<string, unknown> | undefined;
@@ -365,6 +407,18 @@ export function ExpertModesPanel({
         }>)
       : [];
 
+  const coverLetterVariants =
+    activeTab === "cover_letter_architect" &&
+    activeResult?.output &&
+    Array.isArray((activeResult.output as any).cover_letter_variants)
+      ? ((activeResult.output as any).cover_letter_variants as Array<{
+          angle: string;
+          title: string;
+          letter: string;
+          rationale: string;
+        }>)
+      : [];
+
   useEffect(() => {
     posthog.capture("expert_mode_viewed", {
       optimization_id: optimizationId,
@@ -417,7 +471,10 @@ export function ExpertModesPanel({
       const runPayload = payload as RunResponse;
       setResults((prev) => new Map(prev).set(activeTab, runPayload));
 
-      if (activeTab === "professional_summary_lab") {
+      if (
+        activeTab === "professional_summary_lab" ||
+        activeTab === "cover_letter_architect"
+      ) {
         const recommendedIndex = Number((runPayload.output as any).recommended_index);
         if (!Number.isNaN(recommendedIndex)) {
           setSelectionMap((prev) => new Map(prev).set(activeTab, recommendedIndex));
@@ -571,7 +628,7 @@ export function ExpertModesPanel({
       {/* ── Tab Strip ── */}
       <div
         role="tablist"
-        className="grid grid-cols-2 sm:grid-cols-4 gap-1 rounded-xl bg-muted p-1"
+        className="grid grid-cols-3 sm:grid-cols-6 gap-1 rounded-xl bg-muted p-1"
       >
         {WORKFLOWS.map(({ type, label, Icon }) => (
           <button
@@ -747,6 +804,46 @@ export function ExpertModesPanel({
                       <p className="text-sm">{option.summary}</p>
                       {option.rationale && (
                         <p className="text-xs text-muted-foreground mt-1">{option.rationale}</p>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Cover Letter Architect: variant selector */}
+              {coverLetterVariants.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Pick a Cover Letter Version</p>
+                  {coverLetterVariants.map((variant, index) => (
+                    <label
+                      key={`cl-variant-${index}`}
+                      className={cn(
+                        "block rounded-lg border p-3 cursor-pointer transition-colors",
+                        selectionMap.get(activeTab) === index
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/40"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <input
+                          type="radio"
+                          name="cover-letter-variant"
+                          checked={selectionMap.get(activeTab) === index}
+                          onChange={() =>
+                            setSelectionMap((prev) => new Map(prev).set(activeTab, index))
+                          }
+                          className="shrink-0"
+                        />
+                        <span className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">
+                          {variant.angle}
+                        </span>
+                        {variant.title && (
+                          <span className="text-xs font-medium truncate">{variant.title}</span>
+                        )}
+                      </div>
+                      <p className="text-sm whitespace-pre-line line-clamp-3">{variant.letter}</p>
+                      {variant.rationale && (
+                        <p className="text-xs text-muted-foreground mt-1">{variant.rationale}</p>
                       )}
                     </label>
                   ))}
