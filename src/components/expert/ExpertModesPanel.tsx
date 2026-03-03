@@ -441,7 +441,7 @@ export function ExpertModesPanel({
             </Badge>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
             {WORKFLOWS.map((workflow) => {
               const Icon = workflow.icon;
               const isActive = workflow.type === activeWorkflow;
