@@ -596,12 +596,14 @@ export function ExpertModesPanel({
                 <Card className="border border-dashed border-border/70">
                   <CardContent className="pt-6">
                     <p className="text-sm text-muted-foreground">{t("report.unavailable")}</p>
-                    <details className="mt-3 text-xs">
-                      <summary className="cursor-pointer text-muted-foreground">{t("report.debug")}</summary>
-                      <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3">
-                        {JSON.stringify(runResult.output, null, 2)}
-                      </pre>
-                    </details>
+                    {process.env.NODE_ENV === "development" && (
+                      <details className="mt-3 text-xs">
+                        <summary className="cursor-pointer text-muted-foreground">{t("report.debug")}</summary>
+                        <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded-md bg-muted p-3">
+                          {JSON.stringify(runResult.output, null, 2)}
+                        </pre>
+                      </details>
+                    )}
                   </CardContent>
                 </Card>
               )}
