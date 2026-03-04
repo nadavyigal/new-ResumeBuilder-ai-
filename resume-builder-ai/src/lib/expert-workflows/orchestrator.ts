@@ -5,6 +5,8 @@ import { buildRewritePrompt } from './prompts/rewrite';
 import { buildQuantifierPrompt } from './prompts/quantifier';
 import { buildATSReportPrompt } from './prompts/ats-report';
 import { buildSummaryLabPrompt } from './prompts/summary-lab';
+import { buildCoverLetterPrompt } from './prompts/cover-letter';
+import { buildScreeningAnswersPrompt } from './prompts/screening-answers';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
 import type {
   ApplicationExpertReport,
@@ -143,6 +145,10 @@ function extractPromptBundle(context: ExpertWorkflowContext): PromptBundle {
       return buildATSReportPrompt(context);
     case 'professional_summary_lab':
       return buildSummaryLabPrompt(context);
+    case 'cover_letter_architect':
+      return buildCoverLetterPrompt(context);
+    case 'screening_answer_studio':
+      return buildScreeningAnswersPrompt(context);
     default:
       return buildRewritePrompt(context);
   }
@@ -280,6 +286,24 @@ function extractArtifacts(
       {
         artifact_type: 'ats_report',
         artifact_json: output.ats_report,
+      },
+    ];
+  }
+
+  if (workflowType === 'cover_letter_architect' && Array.isArray(output.cover_letter_variants)) {
+    return output.cover_letter_variants
+      .filter(isRecord)
+      .map((variant, index) => ({
+        artifact_type: 'cover_letter_variant',
+        artifact_json: { ...variant, index },
+      }));
+  }
+
+  if (workflowType === 'screening_answer_studio' && Array.isArray(output.screening_answers)) {
+    return [
+      {
+        artifact_type: 'screening_answers',
+        artifact_json: { answers: output.screening_answers },
       },
     ];
   }
@@ -506,6 +530,8 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   } else if (runRow.workflow_type === 'ats_optimization_report') {
     applyATSReportOutput(updatedResume, output, applyMode, updatedFields);
   }
+  // cover_letter_architect and screening_answer_studio: no resume fields to update —
+  // their value comes from saving the run to an application via the save flow.
 
   if (updatedFields.length > 0) {
     const { error: updateError } = await params.supabase

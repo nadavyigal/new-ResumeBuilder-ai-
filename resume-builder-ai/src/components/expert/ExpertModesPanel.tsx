@@ -607,7 +607,7 @@ export function ExpertModesPanel({
   const isAlreadySaved = activeResult ? savedRuns.has(activeResult.run_id) : false;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-4" dir="ltr">
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -860,8 +860,14 @@ export function ExpertModesPanel({
                   {isApplying ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Applying to resume…
+                      {activeTab === "cover_letter_architect" || activeTab === "screening_answer_studio"
+                        ? "Saving output…"
+                        : "Applying to resume…"}
                     </>
+                  ) : activeTab === "cover_letter_architect" ? (
+                    "Save Selected Cover Letter"
+                  ) : activeTab === "screening_answer_studio" ? (
+                    "Save Screening Answers"
                   ) : (
                     "Apply to Optimized Resume"
                   )}
@@ -874,7 +880,11 @@ export function ExpertModesPanel({
                   {/* Real ATS delta */}
                   <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 space-y-1">
                     <p className="text-sm font-semibold text-green-900 dark:text-green-100">
-                      Applied to your resume
+                      {activeTab === "cover_letter_architect"
+                        ? "Cover letter saved"
+                        : activeTab === "screening_answer_studio"
+                        ? "Screening answers saved"
+                        : "Applied to your resume"}
                     </p>
                     <ATSImpactRow
                       impact={activeApplyResult.ats_impact}
