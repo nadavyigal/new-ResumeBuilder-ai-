@@ -21,6 +21,7 @@ export {
   Download,
   ExternalLink,
   Eye,
+  FilePen,
   FileSearch,
   FileText,
   Filter,

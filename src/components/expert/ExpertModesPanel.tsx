@@ -18,6 +18,7 @@ import {
   CheckCircle,
   CheckSquare,
   Copy,
+  FilePen,
   FileText,
   Sparkles,
   Target,
@@ -25,6 +26,8 @@ import {
 } from "@/lib/icons";
 import type { ExpertWorkflowType } from "@/lib/expert-workflows";
 import { useLocale, useTranslations } from "next-intl";
+import { Link } from "@/navigation";
+import { cn } from "@/lib/utils";
 
 type WorkflowStatus = "completed" | "needs_user_input" | "failed";
 
@@ -96,30 +99,37 @@ interface ExpertModesPanelProps {
 const WORKFLOWS: Array<{
   type: ExpertWorkflowType;
   icon: typeof Sparkles;
+  category: "resume" | "document";
 }> = [
   {
     type: "full_resume_rewrite",
     icon: Sparkles,
+    category: "resume",
   },
   {
     type: "achievement_quantifier",
     icon: TrendingUp,
+    category: "resume",
   },
   {
     type: "ats_optimization_report",
     icon: Target,
+    category: "resume",
   },
   {
     type: "professional_summary_lab",
     icon: CheckCircle,
+    category: "resume",
   },
   {
     type: "cover_letter_architect",
     icon: FileText,
+    category: "document",
   },
   {
     type: "screening_answer_studio",
     icon: CheckSquare,
+    category: "document",
   },
 ];
 
@@ -190,6 +200,7 @@ export function ExpertModesPanel({
   const [applications, setApplications] = useState<ApplicationOption[]>([]);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string>("");
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
+  const [savedAppId, setSavedAppId] = useState<string | null>(null);
 
   const workflowMeta = useMemo(() => {
     return WORKFLOWS.find((workflow) => workflow.type === activeWorkflow) || WORKFLOWS[0];
@@ -403,6 +414,7 @@ export function ExpertModesPanel({
         throw new Error(payload.error || t("errors.save"));
       }
 
+      setSavedAppId(selectedApplicationId);
       setSaveDialogOpen(false);
       setSaveSuccessMessage(t("save.success"));
     } catch (saveError) {
@@ -463,6 +475,18 @@ export function ExpertModesPanel({
                     </span>
                   </div>
                   <p className="text-sm font-semibold leading-snug">{t(`modes.${workflow.type}.title`)}</p>
+                  <span className={cn(
+                    "hidden sm:flex items-center gap-0.5 text-[10px] font-normal leading-none mt-1.5",
+                    workflow.category === "resume"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-blue-500 dark:text-blue-400"
+                  )}>
+                    {workflow.category === "resume" ? (
+                      <><FilePen className="w-2.5 h-2.5" /> Resume</>
+                    ) : (
+                      <><FileText className="w-2.5 h-2.5 opacity-70" /> Document</>
+                    )}
+                  </span>
                 </button>
               );
             })}
@@ -787,6 +811,17 @@ export function ExpertModesPanel({
           {saveSuccessMessage && (
             <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-100">
               {saveSuccessMessage}
+              {savedAppId && (
+                <>
+                  {" — "}
+                  <Link
+                    href={`/dashboard/applications/${savedAppId}`}
+                    className="underline underline-offset-2 font-medium hover:opacity-80"
+                  >
+                    View on application page →
+                  </Link>
+                </>
+              )}
             </p>
           )}
 

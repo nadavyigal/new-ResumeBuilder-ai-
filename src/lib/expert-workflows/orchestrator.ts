@@ -655,11 +655,13 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
             ats_suggestions: scoreResult.suggestions,
             ats_confidence: scoreResult.confidence,
             match_score: scoreResult.ats_score_optimized,
+            ats_version: 2,
           })
           .eq('id', optimization.id);
       }
-    } catch {
+    } catch (atsErr) {
       // Keep successful apply behavior even when ATS recomputation fails.
+      console.error('[expert-workflow] ATS rescoring failed for optimization', optimization.id, atsErr);
     }
   }
 

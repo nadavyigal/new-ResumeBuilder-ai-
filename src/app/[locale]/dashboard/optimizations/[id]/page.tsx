@@ -265,7 +265,7 @@ export default function OptimizationPage() {
 
       // Set ATS v2 data if available
       const row = optimizationRow as any;
-      if (row.ats_version === 2 && row.ats_score_optimized !== null) {
+      if (row.ats_score_optimized !== null) {
         setAtsV2Data({
           ats_score_original: row.ats_score_original,
           ats_score_optimized: row.ats_score_optimized,
