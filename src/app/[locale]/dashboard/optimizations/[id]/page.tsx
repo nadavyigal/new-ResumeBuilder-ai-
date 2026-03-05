@@ -11,6 +11,7 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { ExpertModesPanel } from "@/components/expert/ExpertModesPanel";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
@@ -66,6 +67,7 @@ export default function OptimizationPage() {
 
   // Pending changes for ATS tip highlighting
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [isPremium, setIsPremium] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -81,6 +83,33 @@ export default function OptimizationPage() {
     const vh = window.innerHeight;
     setFabPosition({ x: vw - 84, y: vh - 180 });
   }, []);
+
+  useEffect(() => {
+    const resolvePlan = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        if (!authUser) return;
+
+        const metadata = authUser.user_metadata || {};
+        if (metadata?.is_premium === true || metadata?.plan_type === "premium") {
+          setIsPremium(true);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan_type")
+          .eq("user_id", authUser.id)
+          .maybeSingle();
+        setIsPremium(profile?.plan_type === "premium");
+      } catch (planError) {
+        console.error("Failed to resolve premium status:", planError);
+      }
+    };
+
+    resolvePlan();
+  }, [supabase]);
 
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
@@ -234,9 +263,9 @@ export default function OptimizationPage() {
       setOptimizedResume((optimizationRow as any).rewrite_data);
       setMatchScore((optimizationRow as any).match_score);
 
-      // Set ATS v2 data if available
+      // Set ATS v2 data if available (accept any version that has a score computed)
       const row = optimizationRow as any;
-      if (row.ats_version === 2 && row.ats_score_optimized !== null) {
+      if (row.ats_score_optimized !== null) {
         setAtsV2Data({
           ats_score_original: row.ats_score_original,
           ats_score_optimized: row.ats_score_optimized,
@@ -351,6 +380,39 @@ export default function OptimizationPage() {
       console.error('Failed to refresh after chat:', error);
     }
   };
+
+  // Lightweight refresh after expert workflow apply (re-fetches ATS + resume, skips design)
+  const handleExpertApplied = useCallback(async () => {
+    const idVal = String(params.id || "");
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const { data: row } = await supabase
+        .from("optimizations")
+        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original")
+        .eq("id", idVal)
+        .maybeSingle();
+
+      if (row) {
+        if ((row as any).rewrite_data) {
+          setOptimizedResume(JSON.parse(JSON.stringify((row as any).rewrite_data)));
+        }
+        const r = row as any;
+        if (r.ats_score_optimized !== null || r.ats_score_original !== null) {
+          setAtsV2Data({
+            ats_score_original: r.ats_score_original,
+            ats_score_optimized: r.ats_score_optimized,
+            subscores: r.ats_subscores,
+            subscores_original: r.ats_subscores_original,
+            confidence: atsV2Data?.confidence ?? null,
+          });
+          if (r.ats_score_optimized !== null) setMatchScore(r.ats_score_optimized);
+        }
+        setRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Failed to refresh after expert apply:", err);
+    }
+  }, [params.id, supabase, atsV2Data]);
 
   // Fetch design assignment - BUT ONLY if user has explicitly selected a design
   // By default, show natural design (no template)
@@ -782,6 +844,15 @@ export default function OptimizationPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Expert Modes Panel */}
+      <div className="mb-6 print:hidden">
+        <ExpertModesPanel
+          optimizationId={params.id as string}
+          isPremium={isPremium}
+          onApplied={handleExpertApplied}
+        />
       </div>
 
       {/* Main Layout: Resume Preview (Full Width) */}
