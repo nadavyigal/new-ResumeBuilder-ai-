@@ -1,0 +1,634 @@
+openapi: 3.0.3
+info:
+  title: Resume Design API
+  description: API for selecting and customizing resume designs with AI assistance
+  version: 1.0.0
+  contact:
+    name: AI Resume Optimizer
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://resume-optimizer.vercel.app/api/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Templates
+    description: Browse and preview design templates
+  - name: Assignments
+    description: Manage resume design assignments
+  - name: Customization
+    description: AI-powered design customization
+  - name: Recommendation
+    description: AI template recommendation
+
+paths:
+  /design/templates:
+    get:
+      tags: [Templates]
+      summary: List all available design templates
+      description: Returns all design templates accessible to the authenticated user (FR-002, FR-023)
+      operationId: listTemplates
+      parameters:
+        - name: category
+          in: query
+          description: Filter templates by category
+          required: false
+          schema:
+            type: string
+            enum: [modern, traditional, creative, corporate]
+      responses:
+        '200':
+          description: List of design templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DesignTemplate'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/templates/{templateId}/preview:
+    get:
+      tags: [Templates]
+      summary: Generate template preview with sample or user data
+      description: Renders a design template with provided resume data (FR-003, FR-007)
+      operationId: previewTemplate
+      parameters:
+        - name: templateId
+          in: path
+          required: true
+          description: Design template ID or slug
+          schema:
+            type: string
+        - name: optimizationId
+          in: query
+          required: false
+          description: Use user's actual resume data if provided
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rendered HTML preview
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <!DOCTYPE html>
+                <html>...</html>
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: Caching header (public, max-age=3600)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/recommend:
+    post:
+      tags: [Recommendation]
+      summary: Get AI-recommended template for resume
+      description: Uses GPT-4 to recommend a design template based on resume content (FR-001)
+      operationId: recommendTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - optimizationId
+              properties:
+                optimizationId:
+                  type: string
+                  format: uuid
+                  description: Optimization ID to analyze
+      responses:
+        '200':
+          description: Template recommendation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recommendedTemplate:
+                    $ref: '#/components/schemas/DesignTemplate'
+                  reasoning:
+                    type: string
+                    example: "Recommended 'Card Layout' because your design background benefits from visual emphasis"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/{optimizationId}:
+    get:
+      tags: [Assignments]
+      summary: Get current design assignment for optimization
+      description: Returns the current design template and customizations (FR-016)
+      operationId: getDesignAssignment
+      parameters:
+        - name: optimizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Current design assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DesignAssignment'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags: [Assignments]
+      summary: Update design template selection
+      description: Switches to a different template, resets customizations (FR-004)
+      operationId: updateDesignTemplate
+      parameters:
+        - name: optimizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - templateId
+              properties:
+                templateId:
+                  type: string
+                  format: uuid
+                  description: New template ID to apply
+      responses:
+        '200':
+          description: Updated design assignment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DesignAssignment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/{optimizationId}/customize:
+    post:
+      tags: [Customization]
+      summary: Apply AI-interpreted design customization
+      description: Uses GPT-4 to interpret natural language design change request (FR-008, FR-009, FR-010)
+      operationId: customizeDesign
+      parameters:
+        - name: optimizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - changeRequest
+              properties:
+                changeRequest:
+                  type: string
+                  description: Natural language design change request
+                  example: "make headers dark blue and use a more compact layout"
+      responses:
+        '200':
+          description: Customization applied successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customization:
+                    $ref: '#/components/schemas/DesignCustomization'
+                  preview:
+                    type: string
+                    description: Rendered HTML preview with changes
+                  changes:
+                    type: object
+                    description: Diff of what changed
+                    properties:
+                      color_scheme:
+                        type: object
+                      font_family:
+                        type: object
+                      spacing_settings:
+                        type: object
+                  reasoning:
+                    type: string
+                    example: "Changed primary color to dark blue (#1e3a8a) and enabled compact spacing"
+        '400':
+          description: ATS validation failed or unclear request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "ats_violation"
+                  message:
+                    type: string
+                    example: "Background images break ATS parsing"
+                  validationErrors:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ATSValidationError'
+                  clarificationNeeded:
+                    type: string
+                    example: "Which specific blue shade did you want? (light blue, navy blue, royal blue)"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/{optimizationId}/undo:
+    post:
+      tags: [Customization]
+      summary: Undo last design change
+      description: Reverts to previous customization state (FR-011, FR-017)
+      operationId: undoDesignChange
+      parameters:
+        - name: optimizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully reverted to previous state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  customization:
+                    $ref: '#/components/schemas/DesignCustomization'
+                  preview:
+                    type: string
+                    description: Rendered HTML preview of reverted state
+        '400':
+          description: No previous state to revert to
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "no_previous_state"
+                  message:
+                    type: string
+                    example: "No previous customization to undo"
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /design/{optimizationId}/revert:
+    post:
+      tags: [Customization]
+      summary: Revert to original recommended template
+      description: Resets design to initial AI-recommended template with no customizations (FR-018)
+      operationId: revertDesign
+      parameters:
+        - name: optimizationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successfully reverted to original template
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  template:
+                    $ref: '#/components/schemas/DesignTemplate'
+                  preview:
+                    type: string
+                    description: Rendered HTML preview of original template
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT token from auth.session
+
+  schemas:
+    DesignTemplate:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - category
+        - description
+        - is_premium
+        - ats_compatibility_score
+        - supported_customizations
+        - default_config
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: "Minimal Modern"
+        slug:
+          type: string
+          example: "minimal-ssr"
+        category:
+          type: string
+          enum: [modern, traditional, creative, corporate]
+        description:
+          type: string
+          example: "Clean, text-focused layout. Best for conservative industries."
+        file_path:
+          type: string
+          example: "minimal-ssr/Resume.jsx"
+        preview_thumbnail_url:
+          type: string
+          format: uri
+          nullable: true
+        is_premium:
+          type: boolean
+          example: false
+        ats_compatibility_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 100
+        supported_customizations:
+          type: object
+          properties:
+            colors:
+              type: boolean
+            fonts:
+              type: boolean
+            layout:
+              type: boolean
+        default_config:
+          $ref: '#/components/schemas/DesignConfig'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    DesignConfig:
+      type: object
+      required:
+        - color_scheme
+        - font_family
+        - spacing_settings
+      properties:
+        color_scheme:
+          type: object
+          properties:
+            primary:
+              type: string
+              pattern: '^#[0-9a-fA-F]{6}$'
+              example: "#2563eb"
+            secondary:
+              type: string
+              pattern: '^#[0-9a-fA-F]{6}$'
+              example: "#64748b"
+            accent:
+              type: string
+              pattern: '^#[0-9a-fA-F]{6}$'
+              example: "#0ea5e9"
+        font_family:
+          type: object
+          properties:
+            headings:
+              type: string
+              example: "Arial"
+            body:
+              type: string
+              example: "Arial"
+        spacing_settings:
+          type: object
+          properties:
+            compact:
+              type: boolean
+              example: false
+            lineHeight:
+              type: number
+              minimum: 1.0
+              maximum: 2.0
+              example: 1.5
+        layout_variant:
+          type: string
+          nullable: true
+          example: "two-column"
+
+    DesignCustomization:
+      type: object
+      required:
+        - id
+        - template_id
+        - color_scheme
+        - font_family
+        - spacing_settings
+        - is_ats_safe
+      properties:
+        id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        color_scheme:
+          $ref: '#/components/schemas/DesignConfig/properties/color_scheme'
+        font_family:
+          $ref: '#/components/schemas/DesignConfig/properties/font_family'
+        spacing_settings:
+          $ref: '#/components/schemas/DesignConfig/properties/spacing_settings'
+        layout_variant:
+          type: string
+          nullable: true
+        custom_css:
+          type: string
+          nullable: true
+        is_ats_safe:
+          type: boolean
+        ats_validation_errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ATSValidationError'
+        created_at:
+          type: string
+          format: date-time
+
+    DesignAssignment:
+      type: object
+      required:
+        - id
+        - user_id
+        - optimization_id
+        - template_id
+        - original_template_id
+        - is_active
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        optimization_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        customization_id:
+          type: string
+          format: uuid
+          nullable: true
+        previous_customization_id:
+          type: string
+          format: uuid
+          nullable: true
+        original_template_id:
+          type: string
+          format: uuid
+        is_active:
+          type: boolean
+        finalized_at:
+          type: string
+          format: date-time
+          nullable: true
+        template:
+          $ref: '#/components/schemas/DesignTemplate'
+        customization:
+          $ref: '#/components/schemas/DesignCustomization'
+          nullable: true
+        original_template:
+          $ref: '#/components/schemas/DesignTemplate'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ATSValidationError:
+      type: object
+      required:
+        - property
+        - value
+        - reason
+      properties:
+        property:
+          type: string
+          example: "background-image"
+        value:
+          type: string
+          example: "url(image.jpg)"
+        reason:
+          type: string
+          example: "Background images break ATS parsing"
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: "bad_request"
+        message:
+          type: string
+          example: "Invalid template ID"
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "bad_request"
+            message: "Invalid template ID"
+
+    Unauthorized:
+      description: Missing or invalid authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "unauthorized"
+            message: "Invalid or expired token"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "not_found"
+            message: "Design assignment not found"
+
+    InternalServerError:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "internal_server_error"
+            message: "An unexpected error occurred"

@@ -15,12 +15,10 @@ create table public.anonymous_ats_scores (
   created_at timestamptz not null default now(),
   expires_at timestamptz not null default (now() + interval '7 days')
 );
-
 create index idx_anon_scores_session on public.anonymous_ats_scores (session_id);
 create index idx_anon_scores_ip on public.anonymous_ats_scores (ip_address, created_at);
 create index idx_anon_scores_expiry on public.anonymous_ats_scores (expires_at);
 create index idx_anon_scores_user on public.anonymous_ats_scores (user_id) where user_id is not null;
-
 create table public.rate_limits (
   id bigserial primary key,
   identifier text not null,
@@ -29,9 +27,7 @@ create table public.rate_limits (
   window_start timestamptz not null default now(),
   constraint rate_limits_unique unique (identifier, endpoint)
 );
-
 create index idx_rate_limits_lookup on public.rate_limits (identifier, endpoint, window_start);
-
 alter table public.anonymous_ats_scores enable row level security;
 create policy "Allow anonymous insert" on public.anonymous_ats_scores
   for insert with check (true);
@@ -40,7 +36,6 @@ create policy "Users can view converted scores" on public.anonymous_ats_scores
 create policy "Users can attach scores" on public.anonymous_ats_scores
   for update using (user_id is null)
   with check (user_id = auth.uid());
-
 alter table public.rate_limits enable row level security;
 create policy "System can manage rate limits" on public.rate_limits
   for all using (true) with check (true);

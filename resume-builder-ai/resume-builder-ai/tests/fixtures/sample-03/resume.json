@@ -1,0 +1,10 @@
+{
+  "summary": "Data engineer using Python and Airflow.",
+  "contact": { "name": "C", "email": "c@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["Python", "Airflow"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

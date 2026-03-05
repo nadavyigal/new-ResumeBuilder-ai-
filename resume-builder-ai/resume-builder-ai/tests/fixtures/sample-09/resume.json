@@ -1,0 +1,10 @@
+{
+  "summary": "Frontend dev Vue and TypeScript.",
+  "contact": { "name": "I", "email": "i@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["Vue", "TypeScript"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

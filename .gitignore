@@ -55,3 +55,4 @@ ResumeBuilder AI/
 # Windows reserved filenames
 nul
 resume-builder-ai/nul
+.env*.local

@@ -3,6 +3,7 @@ import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabas
 import type { TicketStatus, TicketCategory, TicketPriority } from '@/types/feedback';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'resumebuilderaiteam@gmail.com';
+type TicketStatRow = { status: string | null; priority: string | null };
 
 async function requireAdmin(): Promise<true | NextResponse> {
   const supabase = await createRouteHandlerClient();
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') ?? '0');
 
   const serviceClient = createServiceRoleClient();
-  let query = serviceClient
+  let query = (serviceClient as any)
     .from('support_tickets')
     .select('*', { count: 'exact' })
     .order('created_at', { ascending: false })
@@ -54,19 +55,20 @@ export async function GET(request: NextRequest) {
   }
 
   // Ticket stats
-  const { data: allTickets } = await serviceClient
+  const { data: allTickets } = await (serviceClient as any)
     .from('support_tickets')
     .select('status, priority');
+  const ticketRows: TicketStatRow[] = Array.isArray(allTickets) ? allTickets : [];
 
   return NextResponse.json({
     data,
     total: count,
     stats: {
-      total: allTickets?.length ?? 0,
-      open: allTickets?.filter((t) => t.status === 'open').length ?? 0,
-      in_progress: allTickets?.filter((t) => t.status === 'in_progress').length ?? 0,
-      resolved: allTickets?.filter((t) => t.status === 'resolved').length ?? 0,
-      high_priority: allTickets?.filter((t) => t.priority === 'high').length ?? 0,
+      total: ticketRows.length,
+      open: ticketRows.filter((t) => t.status === 'open').length,
+      in_progress: ticketRows.filter((t) => t.status === 'in_progress').length,
+      resolved: ticketRows.filter((t) => t.status === 'resolved').length,
+      high_priority: ticketRows.filter((t) => t.priority === 'high').length,
     },
   });
 }

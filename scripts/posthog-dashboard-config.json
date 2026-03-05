@@ -1,0 +1,184 @@
+{
+  "name": "Week 1 Launch Metrics",
+  "description": "Critical metrics for launch week: Track ATS checks, signups, traffic sources, and conversions",
+  "pinned": true,
+  "tiles": [
+    {
+      "name": "Anonymous ATS Checks (Trend)",
+      "type": "TRENDS",
+      "color": "blue",
+      "filters": {
+        "events": [
+          {
+            "id": "ats_check_anonymous",
+            "name": "ATS Check Started",
+            "type": "events",
+            "math": "total"
+          }
+        ],
+        "date_from": "-7d",
+        "interval": "day",
+        "display": "ActionsLineGraph"
+      },
+      "description": "Daily anonymous ATS checks. Goal: 200+ by end of Week 1"
+    },
+    {
+      "name": "Signup Funnel",
+      "type": "FUNNELS",
+      "color": "green",
+      "filters": {
+        "events": [
+          {
+            "id": "ats_check_anonymous",
+            "name": "ATS Check Started",
+            "type": "events",
+            "order": 0
+          },
+          {
+            "id": "$pageview",
+            "name": "Viewed Signup Page",
+            "type": "events",
+            "order": 1,
+            "properties": [
+              {
+                "key": "$current_url",
+                "operator": "icontains",
+                "value": "/auth/signup",
+                "type": "event"
+              }
+            ]
+          },
+          {
+            "id": "user_signed_up",
+            "name": "Completed Signup",
+            "type": "events",
+            "order": 2
+          }
+        ],
+        "date_from": "-7d",
+        "funnel_window_days": 1,
+        "breakdown_type": "event",
+        "breakdown": "$referring_domain"
+      },
+      "description": "Conversion funnel: Check → Signup page → Complete. Target: 20%+ conversion"
+    },
+    {
+      "name": "Traffic Sources",
+      "type": "TRENDS",
+      "color": "purple",
+      "filters": {
+        "events": [
+          {
+            "id": "$pageview",
+            "name": "Page View",
+            "type": "events",
+            "math": "total"
+          }
+        ],
+        "breakdown": "utm_source",
+        "breakdown_type": "event",
+        "date_from": "-7d",
+        "interval": "day",
+        "display": "ActionsLineGraph"
+      },
+      "description": "Traffic by UTM source. Which channels drive most visits?"
+    },
+    {
+      "name": "Social Shares",
+      "type": "TRENDS",
+      "color": "orange",
+      "filters": {
+        "events": [
+          {
+            "id": "social_share_clicked",
+            "name": "Social Share Clicked",
+            "type": "events",
+            "math": "total"
+          }
+        ],
+        "breakdown": "platform",
+        "breakdown_type": "event",
+        "date_from": "-7d",
+        "display": "ActionsBarValue"
+      },
+      "description": "Social shares by platform. Goal: 10+ shares (5%+ share rate)"
+    },
+    {
+      "name": "Newsletter Signups",
+      "type": "TRENDS",
+      "color": "cyan",
+      "filters": {
+        "events": [
+          {
+            "id": "newsletter_subscribed",
+            "name": "Newsletter Subscribed",
+            "type": "events",
+            "math": "total"
+          }
+        ],
+        "date_from": "-7d",
+        "display": "BoldNumber",
+        "compare": true
+      },
+      "description": "Total newsletter subscribers. Goal: 20+"
+    },
+    {
+      "name": "Top Pages",
+      "type": "TRENDS",
+      "color": "indigo",
+      "filters": {
+        "events": [
+          {
+            "id": "$pageview",
+            "name": "Page View",
+            "type": "events",
+            "math": "total"
+          }
+        ],
+        "breakdown": "$current_url",
+        "breakdown_type": "event",
+        "date_from": "-7d",
+        "display": "ActionsTable",
+        "properties": [
+          {
+            "key": "$current_url",
+            "operator": "not_icontains",
+            "value": "/api/",
+            "type": "event"
+          },
+          {
+            "key": "$current_url",
+            "operator": "not_icontains",
+            "value": "/assets/",
+            "type": "event"
+          }
+        ]
+      },
+      "description": "Most visited pages. Is traffic going where you expect?"
+    },
+    {
+      "name": "Average Session Duration",
+      "type": "TRENDS",
+      "color": "pink",
+      "filters": {
+        "events": [
+          {
+            "id": "$pageview",
+            "name": "Page View",
+            "type": "events",
+            "math": "avg",
+            "math_property": "$session_duration"
+          }
+        ],
+        "date_from": "-7d",
+        "interval": "day",
+        "display": "ActionsLineGraph"
+      },
+      "description": "Average time per session. Target: >2 minutes (engaged users)"
+    }
+  ],
+  "filters": {
+    "date_from": "-7d"
+  },
+  "refresh_interval": 300
+}

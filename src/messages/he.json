@@ -857,7 +857,47 @@
         "appliedDate": "הוגש ב-{date}",
         "atsMatchLabel": "התאמת ATS",
         "downloadHtml": "הורד HTML",
-        "downloadJson": "הורד JSON"
+        "downloadJson": "הורד JSON",
+        "loadError": "נכשל בטעינת פרטי המועמדות.",
+        "cumulativeAts": "ציון ATS נוכחי",
+        "latestDelta": "השפעת דוח המומחה האחרון שנשמר: {delta} נקודות",
+        "contactTitle": "תמונת מצב של פרטי קשר שמורה",
+        "reports": {
+          "title": "דוחות מומחה שמורים",
+          "subtitle": "הרצות מומחה שהוחלו ונשמרו למועמדות זו",
+          "empty": "עדיין לא נשמרו דוחות מומחה למועמדות זו.",
+          "fallbackTitle": "דוח תהליך מומחה",
+          "atsImpact": "השפעת ATS",
+          "expand": "הצג פרטי דוח",
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות"
+        },
+        "workflow": {
+          "full_resume_rewrite": "כתיבה מחדש מלאה של קורות חיים",
+          "achievement_quantifier": "כמת הישגים",
+          "ats_optimization_report": "דוח אופטימיזציה ל-ATS",
+          "professional_summary_lab": "מעבדת סיכום מקצועי",
+          "cover_letter_architect": "אדריכל מכתב מקדים",
+          "screening_answer_studio": "סטודיו תשובות סינון",
+          "recruiter_outreach_kit": "ערכת פנייה למגייס",
+          "interview_story_bank": "מאגר סיפורי ריאיון"
+        },
+        "assets": {
+          "title": "נכסי מועמדות",
+          "subtitle": "מכתבים מקדימים ותשובות סינון שנשמרו מתהליכי מומחה",
+          "empty": "עדיין לא נשמרו נכסים עבור מועמדות זו.",
+          "unknown": "נכס לא ידוע",
+          "unknownQuestion": "שאלה ללא כותרת",
+          "coverLetter": "מכתב מקדים שמור",
+          "screeningAnswers": "תשובות סינון שמורות",
+          "copy": "העתק",
+          "type": {
+            "cover_letter": "מכתב מקדים",
+            "screening_answers": "תשובות סינון",
+            "outreach_kit": "ערכת פנייה",
+            "story_bank": "מאגר סיפורים"
+          }
+        }
       },
       "compare": {
         "loading": "טוען השוואה...",
@@ -908,6 +948,128 @@
         "toastAppliedDescription": "תבנית הוחלה",
         "toastApplyFailedTitle": "העיצוב נכשל",
         "toastApplyFailedDescription": "נכשל בהחלת התבנית."
+      },
+      "expert": {
+        "title": "מרכז איכות המועמדות",
+        "subtitle": "הפעל תהליכי AI, החל את התוצאות על קורות החיים שלך ושמור הכל למועמדות — במקום אחד.",
+        "premium": {
+          "active": "פרימיום פעיל",
+          "locked": "פרימיום"
+        },
+        "modes": {
+          "full_resume_rewrite": {
+            "label": "כתיבה מחדש",
+            "title": "כתיבה מחדש מלאה של קורות החיים",
+            "description": "צור כתיבה מחדש מלאה המכוונת לתפקיד עם מבנה תואם ATS.",
+            "preview": "כותב מחדש את הסיכום ונקודות הניסיון שלך להתאמה לתפקיד וקריאות למגייסים."
+          },
+          "achievement_quantifier": {
+            "label": "כימות הישגים",
+            "title": "כימות הישגים",
+            "description": "שדרג נקודות חלשות להצהרות השפעה ברורות ומגובות בראיות.",
+            "preview": "מייצר כתיבות מחדש חזקות יותר לנקודות ומסמן ראיות חסרות לפני ההחלה."
+          },
+          "ats_optimization_report": {
+            "label": "דוח ATS",
+            "title": "דוח אופטימיזציה ל-ATS",
+            "description": "נתח כיסוי מילות מפתח ואסטרטגיית פורמט ידידותית ל-ATS.",
+            "preview": "מספק פעולות ATS בעדיפות עליונה ויכול להחיל המלצות מילות מפתח על מיומנויות."
+          },
+          "professional_summary_lab": {
+            "label": "מעבדת סיכום",
+            "title": "מעבדת סיכום מקצועי",
+            "description": "צור חמישה כיווני סיכום והחל את החזק ביותר.",
+            "preview": "משווה מספר זוויות סיכום ומדגיש את האפשרות המומלצת."
+          },
+          "cover_letter_architect": {
+            "label": "מכתב מקדים",
+            "title": "אדריכל המכתב המקדים",
+            "description": "יוצר שלוש גרסאות מכתב מקדים מבוססות ראיות לתפקיד הספציפי.",
+            "preview": "מפיק גרסאות קצרה, נרטיבית ומבוססת השפעה עם המלצה ברורה."
+          },
+          "screening_answer_studio": {
+            "label": "שאלות סינון",
+            "title": "סטודיו תשובות לסינון",
+            "description": "מייצר תשובות איכותיות לשאלות סינון עם ציון ראיות ורמת ביטחון.",
+            "preview": "מפיק טיוטות תשובה מותאמות תפקיד שניתן לבדוק ולשמור."
+          }
+        },
+        "locked": {
+          "default": "שדרג לפרימיום כדי לפתוח מצב מומחה זה."
+        },
+        "actions": {
+          "upgrade": "שדרג לפרימיום",
+          "preview": "הצג תצוגה מקדימה",
+          "run": "הפעל תהליך",
+          "running": "מריץ תהליך...",
+          "apply": "החל שינויים על קורות החיים",
+          "applying": "מחיל שינויים...",
+          "save": "שמור למועמדות",
+          "cancel": "ביטול",
+          "saving": "שומר...",
+          "confirmSave": "שמור דוח",
+          "saveSelection": "שמור תוצר נבחר"
+        },
+        "status": {
+          "completed": "הושלם",
+          "needs_user_input": "נדרשות ראיות",
+          "failed": "נכשל"
+        },
+        "runId": "מזהה הרצה",
+        "report": {
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות לסגירה",
+          "estimatedImpact": "השפעת ATS משוערת",
+          "none": "אין פריטים נוספים בסעיף זה.",
+          "unavailable": "הדוח לא נטען עבור הרצה זו.",
+          "debug": "פלט דיבוג"
+        },
+        "summaryOptions": {
+          "title": "בחר אפשרות סיכום",
+          "description": "בחר את כיוון הסיכום שיוחל על קורות החיים שלך.",
+          "defaultLabel": "אפשרות"
+        },
+        "applied": {
+          "title": "השינויים הוחלו על קורות החיים שלך",
+          "description": "עודכנו {count} שדות בקורות החיים.",
+          "impact": "השפעת ATS שנצפתה",
+          "assetTitle": "התוצר נשמר למועמדות",
+          "assetDescription": "נשמרו {count} פריטים למועמדות שלך.",
+          "notApplicable": "מעקב ציון ATS לא רלוונטי לסוג תהליך זה."
+        },
+        "errors": {
+          "run": "לא ניתן היה להפעיל את התהליך. נסה שוב.",
+          "apply": "לא ניתן היה להחיל את השינויים. נסה שוב.",
+          "loadApplications": "לא ניתן היה לטעון את המועמדויות המקושרות.",
+          "save": "לא ניתן היה לשמור את הדוח. נסה שוב."
+        },
+        "save": {
+          "title": "שמור דוח למועמדות",
+          "description": "בחר לאיזו מועמדות לצרף את הדוח הזה.",
+          "noApplications": "עדיין לא קושרה מועמדות לאופטימיזציה זו.",
+          "unknownCompany": "חברה לא ידועה",
+          "unknownRole": "תפקיד ללא שם",
+          "unknownDate": "תאריך לא ידוע",
+          "success": "הדוח נשמר למועמדות."
+        },
+        "copy": {
+          "button": "העתק",
+          "success": "הועתק ללוח.",
+          "failed": "לא ניתן היה להעתיק ללוח."
+        },
+        "coverLetter": {
+          "title": "בחר גרסה של המכתב המקדים",
+          "description": "בחר את הגרסה שברצונך לשמור ולצרף למועמדות.",
+          "preview": "תצוגה מקדימה של המכתב"
+        },
+        "screening": {
+          "title": "תשובות לשאלות סינון",
+          "description": "בחר אילו תשובות לשמור עם ההרצה.",
+          "selected": "נבחרו {count} תשובות",
+          "copyAll": "העתק תשובות נבחרות",
+          "evidence": "ראיות בשימוש",
+          "confidence": "רמת ביטחון"
+        }
       },
       "atsUnavailable": {
         "title": "פרטי ATS אינם זמינים",

@@ -62,7 +62,7 @@ export async function PATCH(
   }
 
   const serviceClient = createServiceRoleClient();
-  const { data, error } = await serviceClient
+  const { data, error } = await (serviceClient as any)
     .from('support_tickets')
     .update(update)
     .eq('id', id)

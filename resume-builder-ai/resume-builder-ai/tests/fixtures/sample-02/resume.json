@@ -1,0 +1,10 @@
+{
+  "summary": "Backend developer with Node.js and PostgreSQL.",
+  "contact": { "name": "B", "email": "b@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["Node.js", "PostgreSQL"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

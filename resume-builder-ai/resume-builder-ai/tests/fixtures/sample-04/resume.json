@@ -1,0 +1,10 @@
+{
+  "summary": "Fullstack developer with React and Node.",
+  "contact": { "name": "D", "email": "d@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["React", "Node"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

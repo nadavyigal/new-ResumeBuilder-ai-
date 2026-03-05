@@ -1,0 +1,114 @@
+# Technical Architecture – AI Resume Optimizer
+
+## 0. Overview
+- **Frontend:** Next.js 14 (TS, Tailwind, shadcn/ui) on Vercel.
+- **Backend:** Next.js Route Handlers + Supabase Edge Functions.
+- **Database & Auth:** Supabase (Postgres + RLS).
+- **AI:** OpenAI (LLM + embeddings).
+- **Storage:** Supabase Storage.
+- **Analytics:** PostHog, Sentry.
+- **Payments:** Stripe.
+- **Exports:** Puppeteer (PDF), `docx` lib (Word).
+
+---
+
+## 1. Core Modules
+1. **Resume Ingestion**
+   - Parse PDF/DOCX → canonical JSON schema.
+2. **JD Scraper & Cleaner**
+   - Extract job role, requirements.
+3. **AI Optimization Engine**
+   - Rewrites resume sections truthfully.
+   - Outputs structured JSON.
+4. **ATS Scoring**
+   - Keyword + embedding coverage.
+   - Match % score.
+5. **Design Engine**
+   - Templates: ATS-Safe + Modern.
+   - HTML → PDF, DOCX output.
+6. **Export**
+   - Secure download links.
+7. **Application Tracker (Phase 2)**
+   - Store applications + resume used.
+
+---
+
+## 2. Data Model (Supabase)
+
+### `profiles`
+- user_id (pk, ref auth)
+- full_name, role
+- created_at
+
+### `resumes`
+- id, user_id
+- filename, storage_path
+- raw_text, canonical JSON
+- embeddings (vector)
+- created_at
+
+### `job_descriptions`
+- id, user_id
+- source_url, title, company
+- raw_text, clean_text, extracted JSON
+- embeddings (vector)
+- created_at
+
+### `optimizations`
+- id, user_id
+- resume_id, jd_id
+- match_score, gaps JSON
+- rewrite JSON
+- template_key
+- output paths (PDF, DOCX)
+- status
+- created_at
+
+### `templates`
+- key, name, family (ats/modern), config JSON
+
+### `events`
+- id, user_id, type, payload JSON, created_at
+
+---
+
+## 3. API Endpoints
+- `POST /api/upload-resume` → resume_id
+- `POST /api/ingest-jd` → jd_id
+- `POST /api/optimize` → optimization_id
+- `GET /api/score/:id`
+- `GET /api/download/:id?fmt=pdf|docx`
+- `GET /api/templates`
+
+---
+
+## 4. Processing Flow
+1. Upload resume → parsed → DB.
+2. Ingest JD → scrape/clean → DB.
+3. Optimize → AI rewrite + score.
+4. Render → template → PDF/DOCX.
+5. Download → signed URLs.
+
+---
+
+## 5. Prompting Strategy
+- **System Prompt:** Enforce honesty, ATS-safety.
+- **Few-shots:** Examples of bullet rewrites.
+- **Output:** Always valid JSON schema.
+
+---
+
+## 6. Security
+- Supabase RLS on all tables.
+- Signed URLs for file downloads.
+- Delete raw files after processing.
+- Rate limiting (Upstash Redis or Supabase).
+- Secrets via env vars.
+
+---
+
+## 7. Roadmap (Build Order)
+- **Sprint 1:** Auth, resume upload/parse, JD ingest.
+- **Sprint 2:** AI optimization, ATS score, basic template export.
+- **Sprint 3:** Diff view, template picker, Stripe paywall.
+- **Phase 2:** Application tracker, LinkedIn sync.

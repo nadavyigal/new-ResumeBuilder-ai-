@@ -859,7 +859,27 @@
         "appliedDate": "Applied {date}",
         "atsMatchLabel": "Match score",
         "downloadHtml": "Download HTML",
-        "downloadJson": "Download JSON"
+        "downloadJson": "Download JSON",
+        "loadError": "Couldn't load application details.",
+        "cumulativeAts": "Current ATS score",
+        "latestDelta": "Latest saved expert report impact: {delta} points",
+        "contactTitle": "Saved contact snapshot",
+        "reports": {
+          "title": "Saved Expert Reports",
+          "subtitle": "Applied expert runs saved to this application",
+          "empty": "No expert reports saved for this application yet.",
+          "fallbackTitle": "Expert workflow report",
+          "atsImpact": "ATS impact",
+          "expand": "Show report details",
+          "priorityActions": "Priority actions",
+          "evidenceGaps": "Evidence gaps"
+        },
+        "workflow": {
+          "full_resume_rewrite": "Full Resume Rewrite",
+          "achievement_quantifier": "Achievement Quantifier",
+          "ats_optimization_report": "ATS Optimization Report",
+          "professional_summary_lab": "Professional Summary Lab"
+        }
       },
       "compare": {
         "loading": "Loading...",
@@ -910,6 +930,94 @@
         "toastAppliedDescription": "Your resume now uses this template.",
         "toastApplyFailedTitle": "Couldn't apply",
         "toastApplyFailedDescription": "Template didn't load. Try again."
+      },
+      "expert": {
+        "title": "Expert Modes Command Center",
+        "subtitle": "Run high-impact workflows, apply improvements, and save validated reports to an application.",
+        "premium": {
+          "active": "Premium Active",
+          "locked": "Premium"
+        },
+        "modes": {
+          "full_resume_rewrite": {
+            "label": "Rewrite",
+            "title": "Full Resume Rewrite",
+            "description": "Generate a complete role-targeted rewrite with ATS-safe structure.",
+            "preview": "Rewrites your summary and experience bullets for role fit and recruiter readability."
+          },
+          "achievement_quantifier": {
+            "label": "Quantifier",
+            "title": "Achievement Quantifier",
+            "description": "Upgrade weak bullets into clearer, evidence-backed impact statements.",
+            "preview": "Produces stronger bullet rewrites and flags missing evidence before applying."
+          },
+          "ats_optimization_report": {
+            "label": "ATS Report",
+            "title": "ATS Optimization Report",
+            "description": "Analyze keyword coverage and ATS-friendly formatting strategy.",
+            "preview": "Delivers priority ATS actions and can apply keyword recommendations to skills."
+          },
+          "professional_summary_lab": {
+            "label": "Summary Lab",
+            "title": "Professional Summary Lab",
+            "description": "Generate five summary directions and apply the strongest one.",
+            "preview": "Compares multiple summary angles and highlights the recommended option."
+          }
+        },
+        "locked": {
+          "default": "Premium is required to run this Expert Mode."
+        },
+        "actions": {
+          "upgrade": "Upgrade to Premium",
+          "preview": "Preview workflow",
+          "run": "Run workflow",
+          "running": "Running workflow...",
+          "apply": "Apply to optimized resume",
+          "applying": "Applying updates...",
+          "save": "Save report to application",
+          "cancel": "Cancel",
+          "saving": "Saving report...",
+          "confirmSave": "Save report"
+        },
+        "status": {
+          "completed": "Completed",
+          "needs_user_input": "Needs evidence",
+          "failed": "Failed"
+        },
+        "runId": "Run ID",
+        "report": {
+          "priorityActions": "Priority actions",
+          "evidenceGaps": "Evidence gaps to close",
+          "estimatedImpact": "Estimated ATS impact",
+          "none": "No additional items in this section.",
+          "unavailable": "Structured report content was unavailable for this run.",
+          "debug": "Debug output"
+        },
+        "summaryOptions": {
+          "title": "Choose summary option",
+          "description": "Pick which summary should be applied.",
+          "defaultLabel": "Option"
+        },
+        "applied": {
+          "title": "Workflow applied to optimized resume",
+          "description": "Updated {count} resume fields.",
+          "impact": "Observed ATS impact"
+        },
+        "errors": {
+          "run": "Failed to run expert workflow.",
+          "apply": "Failed to apply workflow output.",
+          "loadApplications": "Failed to load linked applications.",
+          "save": "Failed to save expert report."
+        },
+        "save": {
+          "title": "Save Report to Application",
+          "description": "Select which linked application should store this applied report.",
+          "noApplications": "No linked applications were found for this optimized resume.",
+          "unknownCompany": "Unknown company",
+          "unknownRole": "Untitled role",
+          "unknownDate": "Unknown date",
+          "success": "Expert report saved to application."
+        }
       },
       "atsUnavailable": {
         "title": "Score unavailable",

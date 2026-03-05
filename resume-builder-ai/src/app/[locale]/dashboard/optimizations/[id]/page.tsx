@@ -11,6 +11,7 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { ExpertModesPanel } from "@/components/expert/ExpertModesPanel";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
@@ -23,8 +24,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLocale, useTranslations } from "next-intl";
-import posthog from "posthog-js";
-import { RESUME_EVENTS, CHAT_EVENTS, DESIGN_EVENTS, APPLICATION_EVENTS } from "@/lib/analytics/events";
 
 
 // Disable static generation for this dynamic page
@@ -68,6 +67,7 @@ export default function OptimizationPage() {
 
   // Pending changes for ATS tip highlighting
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [isPremium, setIsPremium] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -85,9 +85,36 @@ export default function OptimizationPage() {
   }, []);
 
   useEffect(() => {
+    const resolvePlan = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        if (!authUser) return;
+
+        const metadata = authUser.user_metadata || {};
+        if (metadata?.is_premium === true || metadata?.plan_type === "premium") {
+          setIsPremium(true);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan_type")
+          .eq("user_id", authUser.id)
+          .maybeSingle();
+        setIsPremium(profile?.plan_type === "premium");
+      } catch (planError) {
+        console.error("Failed to resolve premium status:", planError);
+      }
+    };
+
+    resolvePlan();
+  }, [supabase]);
+
+  useEffect(() => {
     const handleMove = (e: PointerEvent) => {
       if (!dragging) return;
-      setFabPosition(prev => ({
+      setFabPosition(() => ({
         x: Math.min(Math.max(12, e.clientX - dragOffset.current.x), window.innerWidth - 72),
         y: Math.min(Math.max(12, e.clientY - dragOffset.current.y), window.innerHeight - 72),
       }));
@@ -103,7 +130,7 @@ export default function OptimizationPage() {
     };
   }, [dragging]);
 
-  const generateJobDescriptionSummary = (jdData: any) => {
+  const generateJobDescriptionSummary = useCallback((jdData: any) => {
     try {
       const parts: string[] = [];
 
@@ -155,9 +182,9 @@ export default function OptimizationPage() {
         : t("jobSummary.detailsFallback");
       setJobDescriptionSummary(fallback);
     }
-  };
+  }, [t]);
 
-  const fetchOptimizationData = async () => {
+  const fetchOptimizationData = useCallback(async () => {
     try {
       const idVal = String(params.id || "");
 
@@ -252,30 +279,17 @@ export default function OptimizationPage() {
       // Generate AI summary of job description
       generateJobDescriptionSummary(jdData as any);
 
-      // Track optimization view
-      posthog.capture(RESUME_EVENTS.OPTIMIZATION_VIEWED, {
-        optimization_id: idVal,
-        ats_score: (optimizationRow as any).ats_score_optimized ?? (optimizationRow as any).match_score ?? null,
-        is_demo: false,
-        has_ats_v2: (optimizationRow as any).ats_version === 2,
-      });
-
     } catch (error: any) {
       console.error('Error in fetchOptimizationData:', error);
-      posthog.capture(RESUME_EVENTS.OPTIMIZATION_ERROR, {
-        optimization_id: String(params.id || ''),
-        error_type: 'fetch_error',
-        error_message: error.message,
-      });
       setError(error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id, supabase, t, generateJobDescriptionSummary]);
 
   useEffect(() => {
     fetchOptimizationData();
-  }, [params, supabase]);
+  }, [fetchOptimizationData]);
 
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async () => {
@@ -367,6 +381,39 @@ export default function OptimizationPage() {
     }
   };
 
+  // Lightweight refresh after expert workflow apply (re-fetches ATS + resume, skips design)
+  const handleExpertApplied = useCallback(async () => {
+    const idVal = String(params.id || "");
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const { data: row } = await supabase
+        .from("optimizations")
+        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original")
+        .eq("id", idVal)
+        .maybeSingle();
+
+      if (row) {
+        if ((row as any).rewrite_data) {
+          setOptimizedResume(JSON.parse(JSON.stringify((row as any).rewrite_data)));
+        }
+        const r = row as any;
+        if (r.ats_score_optimized !== null || r.ats_score_original !== null) {
+          setAtsV2Data({
+            ats_score_original: r.ats_score_original,
+            ats_score_optimized: r.ats_score_optimized,
+            subscores: r.ats_subscores,
+            subscores_original: r.ats_subscores_original,
+            confidence: atsV2Data?.confidence ?? null,
+          });
+          if (r.ats_score_optimized !== null) setMatchScore(r.ats_score_optimized);
+        }
+        setRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error("Failed to refresh after expert apply:", err);
+    }
+  }, [params.id, supabase, atsV2Data]);
+
   // Fetch design assignment - BUT ONLY if user has explicitly selected a design
   // By default, show natural design (no template)
   useEffect(() => {
@@ -424,12 +471,6 @@ export default function OptimizationPage() {
       // Update design assignment - this will trigger DesignRenderer's useEffect
       setCurrentDesignAssignment(data.assignment || null);
       setShowDesignBrowser(false);
-
-      posthog.capture(DESIGN_EVENTS.SELECTED, {
-        optimization_id: params.id as string,
-        template_slug: data.assignment?.template?.slug || templateId,
-      });
-
       toast({
         title: t("design.toastAppliedTitle"),
         description: data.assignment?.template?.name || t("design.toastAppliedDescription")
@@ -450,7 +491,7 @@ export default function OptimizationPage() {
       setPendingTemplateId(null);
       console.log('Design change complete');
     }
-  }, [params.id, designLoading, toast]);
+  }, [params.id, designLoading, t, toast]);
 
   const handleDesignUpdate = async () => {
     // Refresh design assignment after customization
@@ -521,9 +562,6 @@ export default function OptimizationPage() {
     window.location.href = `/api/download/${params.id}?fmt=pdf`;
   };
 
-  const handleDownloadDOCX = () => {
-    window.location.href = `/api/download/${params.id}?fmt=docx`;
-  };
 
   const handleCopyText = async () => {
     if (!optimizedResume) return;
@@ -533,7 +571,6 @@ export default function OptimizationPage() {
 
     try {
       await navigator.clipboard.writeText(plainText);
-      posthog.capture(RESUME_EVENTS.COPIED, { optimization_id: params.id });
       alert(t("copy.success"));
     } catch (err) {
       console.error('Failed to copy:', err);
@@ -655,12 +692,6 @@ export default function OptimizationPage() {
         throw new Error(j.error || t("apply.saveFailure"));
       }
 
-      posthog.capture(APPLICATION_EVENTS.CREATED, {
-        optimization_id: String(params.id || ''),
-        has_job_url: !!jobDescription.source_url,
-        ats_score: atsScore,
-      });
-
       // Navigate to applications list after apply
       window.location.href = `/dashboard/applications`;
 
@@ -742,11 +773,8 @@ export default function OptimizationPage() {
             </Select>
           </div>
 
-            <Button
-              onClick={() => {
-                posthog.capture(DESIGN_EVENTS.BROWSER_OPENED, { optimization_id: params.id as string });
-                setShowDesignBrowser(true);
-              }}
+            <Button 
+              onClick={() => setShowDesignBrowser(true)} 
               variant="outline"
               className="w-full sm:w-auto h-10 md:h-9 text-xs md:text-sm px-3 md:px-4"
             >
@@ -810,12 +838,21 @@ export default function OptimizationPage() {
                     {designSummaryLabel}
                   </p>
                 </div>
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ms-4">
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-xs rounded-full font-medium whitespace-nowrap ml-4">
                 {t("design.atsFriendly")}
               </span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Expert Modes Panel */}
+      <div className="mb-6 print:hidden">
+        <ExpertModesPanel
+          optimizationId={params.id as string}
+          isPremium={isPremium}
+          onApplied={handleExpertApplied}
+        />
       </div>
 
       {/* Main Layout: Resume Preview (Full Width) */}
@@ -841,12 +878,7 @@ export default function OptimizationPage() {
       {optimizedResume && (
         <>
           <button
-            onClick={() => {
-              if (!showChat) {
-                posthog.capture(CHAT_EVENTS.OPENED, { optimization_id: params.id as string });
-              }
-              setShowChat(!showChat);
-            }}
+            onClick={() => setShowChat(!showChat)}
             onPointerDown={(e) => {
               setDragging(true);
               dragOffset.current = {
@@ -882,11 +914,11 @@ export default function OptimizationPage() {
           {/* Chat Modal Overlay */}
           {showChat && (
             <div
-              className="fixed inset-0 bg-black/50 z-[60] print:hidden animate-fade-in"
+              className="fixed inset-0 bg-black/50 z-40 print:hidden"
               onClick={() => setShowChat(false)}
             >
               <div
-                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden animate-slide-up md:animate-scale-in"
+                className="fixed bottom-0 right-0 md:bottom-6 md:right-6 w-full md:w-[450px] md:max-w-[90vw] h-[80vh] md:h-[600px] bg-background rounded-t-2xl md:rounded-2xl shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="h-full flex flex-col">
@@ -952,7 +984,7 @@ export default function OptimizationPage() {
                     <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-2">
                       {t("jobSummary.quickSummary")}
                     </p>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-start">
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-left">
                       {jobDescriptionSummary.split('\n').map((line, idx) => {
                         const trimmedLine = line.trim();
                         if (!trimmedLine) return <div key={idx} className="h-2" />;
@@ -964,7 +996,7 @@ export default function OptimizationPage() {
                           return <p key={idx} className="text-sm text-gray-600 dark:text-gray-400 mb-2">{t("jobSummary.locationLine", { location })}</p>;
                         } else if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
                           const bulletText = trimmedLine.replace(/^[-*]\s*/, '');
-                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 ms-4 mb-1.5 leading-relaxed">- {bulletText}</p>;
+                          return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 ml-4 mb-1.5 leading-relaxed">- {bulletText}</p>;
                         } else {
                           return <p key={idx} className="text-sm text-gray-700 dark:text-gray-300 mb-1.5 leading-relaxed">{trimmedLine}</p>;
                         }

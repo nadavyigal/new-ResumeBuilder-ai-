@@ -859,7 +859,27 @@
         "appliedDate": "הוגש ב-{date}",
         "atsMatchLabel": "התאמת ATS",
         "downloadHtml": "הורד HTML",
-        "downloadJson": "הורד JSON"
+        "downloadJson": "הורד JSON",
+        "loadError": "נכשל בטעינת פרטי המועמדות.",
+        "cumulativeAts": "ציון ATS נוכחי",
+        "latestDelta": "השפעת דוח המומחה האחרון שנשמר: {delta} נקודות",
+        "contactTitle": "תמונת מצב של פרטי קשר שמורה",
+        "reports": {
+          "title": "דוחות מומחה שמורים",
+          "subtitle": "הרצות מומחה שהוחלו ונשמרו למועמדות זו",
+          "empty": "עדיין לא נשמרו דוחות מומחה למועמדות זו.",
+          "fallbackTitle": "דוח תהליך מומחה",
+          "atsImpact": "השפעת ATS",
+          "expand": "הצג פרטי דוח",
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות"
+        },
+        "workflow": {
+          "full_resume_rewrite": "כתיבה מחדש מלאה של קורות חיים",
+          "achievement_quantifier": "כמת הישגים",
+          "ats_optimization_report": "דוח אופטימיזציה ל-ATS",
+          "professional_summary_lab": "מעבדת סיכום מקצועי"
+        }
       },
       "compare": {
         "loading": "טוען השוואה...",
@@ -910,6 +930,94 @@
         "toastAppliedDescription": "תבנית הוחלה",
         "toastApplyFailedTitle": "העיצוב נכשל",
         "toastApplyFailedDescription": "נכשל בהחלת התבנית."
+      },
+      "expert": {
+        "title": "מרכז פקודות מצבי מומחה",
+        "subtitle": "הפעל תהליכי עבודה בעלי השפעה גבוהה, החל שיפורים ושמור דוחות מאומתים למועמדות.",
+        "premium": {
+          "active": "פרימיום פעיל",
+          "locked": "פרימיום"
+        },
+        "modes": {
+          "full_resume_rewrite": {
+            "label": "כתיבה מחדש",
+            "title": "כתיבה מחדש מלאה של קורות החיים",
+            "description": "צור כתיבה מחדש מלאה המכוונת לתפקיד עם מבנה תואם ATS.",
+            "preview": "כותב מחדש את הסיכום ונקודות הניסיון שלך להתאמה לתפקיד וקריאות למגייסים."
+          },
+          "achievement_quantifier": {
+            "label": "כמות הישגים",
+            "title": "כמת הישגים",
+            "description": "שדרג נקודות חלשות להצהרות השפעה ברורות ומגובות בראיות.",
+            "preview": "מייצר כתיבות מחדש חזקות יותר לנקודות ומסמן ראיות חסרות לפני ההחלה."
+          },
+          "ats_optimization_report": {
+            "label": "דוח ATS",
+            "title": "דוח אופטימיזציה ל-ATS",
+            "description": "נתח כיסוי מילות מפתח ואסטרטגיית פורמט ידידותית ל-ATS.",
+            "preview": "מספק פעולות ATS בעדיפות עליונה ויכול להחיל המלצות מילות מפתח על מיומנויות."
+          },
+          "professional_summary_lab": {
+            "label": "מעבדת סיכום",
+            "title": "מעבדת סיכום מקצועי",
+            "description": "צור חמישה כיווני סיכום והחל את החזק ביותר.",
+            "preview": "משווה מספר זוויות סיכום ומדגיש את האפשרות המומלצת."
+          }
+        },
+        "locked": {
+          "default": "נדרש פרימיום כדי להפעיל מצב מומחה זה."
+        },
+        "actions": {
+          "upgrade": "שדרג לפרימיום",
+          "preview": "תצוגה מקדימה של תהליך",
+          "run": "הפעל תהליך",
+          "running": "מריץ תהליך...",
+          "apply": "החל על קורות חיים מותאמים",
+          "applying": "מחיל עדכונים...",
+          "save": "שמור דוח למועמדות",
+          "cancel": "ביטול",
+          "saving": "שומר דוח...",
+          "confirmSave": "שמור דוח"
+        },
+        "status": {
+          "completed": "הושלם",
+          "needs_user_input": "נדרשות ראיות",
+          "failed": "נכשל"
+        },
+        "runId": "מזהה הרצה",
+        "report": {
+          "priorityActions": "פעולות בעדיפות עליונה",
+          "evidenceGaps": "פערי ראיות לסגירה",
+          "estimatedImpact": "השפעת ATS משוערת",
+          "none": "אין פריטים נוספים בסעיף זה.",
+          "unavailable": "תוכן הדוח המובנה לא היה זמין להרצה זו.",
+          "debug": "פלט דיבוג"
+        },
+        "summaryOptions": {
+          "title": "בחר אפשרות סיכום",
+          "description": "בחר איזה סיכום יוחל.",
+          "defaultLabel": "אפשרות"
+        },
+        "applied": {
+          "title": "תהליך הוחל על קורות חיים מותאמים",
+          "description": "עודכנו {count} שדות בקורות החיים.",
+          "impact": "השפעת ATS שנצפתה"
+        },
+        "errors": {
+          "run": "נכשל בהפעלת תהליך מומחה.",
+          "apply": "נכשל בהחלת פלט התהליך.",
+          "loadApplications": "נכשל בטעינת מועמדויות מקושרות.",
+          "save": "נכשל בשמירת דוח מומחה."
+        },
+        "save": {
+          "title": "שמור דוח למועמדות",
+          "description": "בחר לאיזו מועמדות מקושרת לשמור את הדוח המיושם.",
+          "noApplications": "לא נמצאו מועמדויות מקושרות לקורות חיים המותאמים.",
+          "unknownCompany": "חברה לא ידועה",
+          "unknownRole": "תפקיד ללא שם",
+          "unknownDate": "תאריך לא ידוע",
+          "success": "דוח מומחה נשמר למועמדות."
+        }
       },
       "atsUnavailable": {
         "title": "פרטי ATS אינם זמינים",

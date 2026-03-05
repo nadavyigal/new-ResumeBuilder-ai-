@@ -25,7 +25,6 @@ VALUES
 ON CONFLICT (id) DO UPDATE SET
     allowed_mime_types = EXCLUDED.allowed_mime_types,
     file_size_limit = EXCLUDED.file_size_limit;
-
 -- =====================================================
 -- STORAGE POLICIES FOR RESUME UPLOADS
 -- =====================================================
@@ -39,7 +38,6 @@ WITH CHECK (
     AND auth.uid()::text = (storage.foldername(name))[1]
     AND (storage.extension(name)) IN ('pdf', 'docx', 'doc')
 );
-
 -- Allow users to view their own uploaded files
 CREATE POLICY "Users can view own resume uploads"
 ON storage.objects FOR SELECT
@@ -48,7 +46,6 @@ USING (
     bucket_id = 'resume-uploads'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to update their own files (for re-uploads)
 CREATE POLICY "Users can update own resume uploads"
 ON storage.objects FOR UPDATE
@@ -57,7 +54,6 @@ USING (
     bucket_id = 'resume-uploads'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to delete their own files
 CREATE POLICY "Users can delete own resume uploads"
 ON storage.objects FOR DELETE
@@ -66,7 +62,6 @@ USING (
     bucket_id = 'resume-uploads'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- =====================================================
 -- STORAGE POLICIES FOR RESUME EXPORTS
 -- =====================================================
@@ -80,7 +75,6 @@ WITH CHECK (
     AND auth.uid()::text = (storage.foldername(name))[1]
     AND (storage.extension(name)) IN ('pdf', 'docx')
 );
-
 -- Allow users to view their own exported files
 CREATE POLICY "Users can view own resume exports"
 ON storage.objects FOR SELECT
@@ -89,7 +83,6 @@ USING (
     bucket_id = 'resume-exports'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to update their own export files
 CREATE POLICY "Users can update own resume exports"
 ON storage.objects FOR UPDATE
@@ -98,7 +91,6 @@ USING (
     bucket_id = 'resume-exports'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- Allow users to delete their own export files
 CREATE POLICY "Users can delete own resume exports"
 ON storage.objects FOR DELETE
@@ -107,7 +99,6 @@ USING (
     bucket_id = 'resume-exports'
     AND auth.uid()::text = (storage.foldername(name))[1]
 );
-
 -- =====================================================
 -- HELPER FUNCTIONS FOR FILE MANAGEMENT
 -- =====================================================
@@ -142,7 +133,6 @@ BEGIN
     RETURN user_uuid::text || '/' || file_type || '_' || clean_filename || '_' || timestamp_suffix || '.' || file_extension;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Function to clean up old files (for maintenance)
 CREATE OR REPLACE FUNCTION public.cleanup_old_files(
     bucket_name TEXT,
@@ -162,7 +152,6 @@ BEGIN
     RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- VALIDATION AND TESTING
 -- =====================================================
@@ -184,7 +173,6 @@ BEGIN
         RAISE EXCEPTION '❌ Storage buckets not created properly';
     END IF;
 END $$;
-
 -- Verify storage policies exist
 DO $$
 DECLARE
@@ -202,7 +190,6 @@ BEGIN
         RAISE WARNING '⚠️  Expected 8+ storage policies, found %', policy_count;
     END IF;
 END $$;
-
 -- =====================================================
 -- USAGE EXAMPLES AND DOCUMENTATION
 -- =====================================================

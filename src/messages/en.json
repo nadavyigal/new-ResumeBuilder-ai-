@@ -857,7 +857,47 @@
         "appliedDate": "Applied {date}",
         "atsMatchLabel": "Match score",
         "downloadHtml": "Download HTML",
-        "downloadJson": "Download JSON"
+        "downloadJson": "Download JSON",
+        "loadError": "Couldn't load application details.",
+        "cumulativeAts": "Current ATS score",
+        "latestDelta": "Latest saved expert report impact: {delta} points",
+        "contactTitle": "Saved contact snapshot",
+        "reports": {
+          "title": "Saved Expert Reports",
+          "subtitle": "Applied expert runs saved to this application",
+          "empty": "No expert reports saved for this application yet.",
+          "fallbackTitle": "Expert workflow report",
+          "atsImpact": "ATS impact",
+          "expand": "Show report details",
+          "priorityActions": "Priority actions",
+          "evidenceGaps": "Evidence gaps"
+        },
+        "workflow": {
+          "full_resume_rewrite": "Full Resume Rewrite",
+          "achievement_quantifier": "Achievement Quantifier",
+          "ats_optimization_report": "ATS Optimization Report",
+          "professional_summary_lab": "Professional Summary Lab",
+          "cover_letter_architect": "Cover Letter Architect",
+          "screening_answer_studio": "Screening Answer Studio",
+          "recruiter_outreach_kit": "Recruiter Outreach Kit",
+          "interview_story_bank": "Interview Story Bank"
+        },
+        "assets": {
+          "title": "Application Assets",
+          "subtitle": "Saved cover letters and screening answers from expert workflows",
+          "empty": "No application assets saved yet for this application.",
+          "unknown": "Unknown asset",
+          "unknownQuestion": "Untitled question",
+          "coverLetter": "Saved cover letter",
+          "screeningAnswers": "Saved screening answers",
+          "copy": "Copy",
+          "type": {
+            "cover_letter": "Cover letter",
+            "screening_answers": "Screening answers",
+            "outreach_kit": "Outreach kit",
+            "story_bank": "Story bank"
+          }
+        }
       },
       "compare": {
         "loading": "Loading...",
@@ -908,6 +948,128 @@
         "toastAppliedDescription": "Your resume now uses this template.",
         "toastApplyFailedTitle": "Couldn't apply",
         "toastApplyFailedDescription": "Template didn't load. Try again."
+      },
+      "expert": {
+        "title": "Application Quality Command Center",
+        "subtitle": "Run AI-powered workflows, apply the results to your resume, and save everything to your application — all in one place.",
+        "premium": {
+          "active": "Premium Active",
+          "locked": "Premium"
+        },
+        "modes": {
+          "full_resume_rewrite": {
+            "label": "Rewrite",
+            "title": "Full Resume Rewrite",
+            "description": "Generate a complete role-targeted rewrite with ATS-safe structure.",
+            "preview": "Rewrites your summary and experience bullets for role fit and recruiter readability."
+          },
+          "achievement_quantifier": {
+            "label": "Quantifier",
+            "title": "Achievement Quantifier",
+            "description": "Upgrade weak bullets into clearer, evidence-backed impact statements.",
+            "preview": "Produces stronger bullet rewrites and flags missing evidence before applying."
+          },
+          "ats_optimization_report": {
+            "label": "ATS Report",
+            "title": "ATS Optimization Report",
+            "description": "Analyze keyword coverage and ATS-friendly formatting strategy.",
+            "preview": "Delivers priority ATS actions and can apply keyword recommendations to skills."
+          },
+          "professional_summary_lab": {
+            "label": "Summary Lab",
+            "title": "Professional Summary Lab",
+            "description": "Generate five summary directions and apply the strongest one.",
+            "preview": "Compares multiple summary angles and highlights the recommended option."
+          },
+          "cover_letter_architect": {
+            "label": "Cover Letter",
+            "title": "Cover Letter Architect",
+            "description": "Generate three evidence-grounded cover letter variants for this specific role.",
+            "preview": "Creates concise, narrative, and impact variants with a recommended option."
+          },
+          "screening_answer_studio": {
+            "label": "Screening Q&A",
+            "title": "Screening Answer Studio",
+            "description": "Draft high-quality screening answers with evidence notes and confidence guidance.",
+            "preview": "Produces role-specific question-and-answer drafts you can review and save."
+          }
+        },
+        "locked": {
+          "default": "Unlock this Expert Mode with a Premium plan."
+        },
+        "actions": {
+          "upgrade": "Upgrade to Premium",
+          "preview": "Preview workflow",
+          "run": "Run workflow",
+          "running": "Running workflow...",
+          "apply": "Apply changes to resume",
+          "applying": "Applying changes...",
+          "save": "Save to application",
+          "cancel": "Cancel",
+          "saving": "Saving...",
+          "confirmSave": "Save report",
+          "saveSelection": "Save selected output"
+        },
+        "status": {
+          "completed": "Completed",
+          "needs_user_input": "Needs evidence",
+          "failed": "Failed"
+        },
+        "runId": "Run ID",
+        "report": {
+          "priorityActions": "Priority actions",
+          "evidenceGaps": "Evidence gaps to close",
+          "estimatedImpact": "Estimated ATS impact",
+          "none": "No additional items in this section.",
+          "unavailable": "Report data couldn't be loaded for this run.",
+          "debug": "Debug output"
+        },
+        "summaryOptions": {
+          "title": "Choose summary option",
+          "description": "Choose which summary direction to apply to your resume.",
+          "defaultLabel": "Option"
+        },
+        "applied": {
+          "title": "Changes applied to your resume",
+          "description": "Updated {count} resume fields.",
+          "impact": "Observed ATS impact",
+          "assetTitle": "Output saved to application",
+          "assetDescription": "Saved {count} items to your application.",
+          "notApplicable": "ATS score tracking doesn't apply to this workflow type."
+        },
+        "errors": {
+          "run": "Couldn't run this workflow. Please try again.",
+          "apply": "Couldn't apply the changes. Please try again.",
+          "loadApplications": "Couldn't load your linked applications.",
+          "save": "Couldn't save the report. Please try again."
+        },
+        "save": {
+          "title": "Save Report to Application",
+          "description": "Choose which application to attach this report to.",
+          "noApplications": "This optimization isn't linked to any application yet.",
+          "unknownCompany": "Unknown company",
+          "unknownRole": "Untitled role",
+          "unknownDate": "Unknown date",
+          "success": "Report saved to application."
+        },
+        "copy": {
+          "button": "Copy",
+          "success": "Copied to clipboard.",
+          "failed": "Couldn't copy to clipboard."
+        },
+        "coverLetter": {
+          "title": "Choose a cover letter variant",
+          "description": "Pick the version you'd like to save and attach to your application.",
+          "preview": "Cover letter preview"
+        },
+        "screening": {
+          "title": "Screening answers",
+          "description": "Choose which answers to save with this run.",
+          "selected": "{count} answers selected",
+          "copyAll": "Copy selected answers",
+          "evidence": "Evidence used",
+          "confidence": "Confidence"
+        }
       },
       "atsUnavailable": {
         "title": "Score unavailable",

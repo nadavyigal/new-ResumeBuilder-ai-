@@ -1,0 +1,300 @@
+
+> resume-builder-ai@0.1.0 prebuild
+> npm run sync-templates
+
+
+> resume-builder-ai@0.1.0 sync-templates
+> tsx scripts/sync-external-templates.ts
+
+🔄 Starting template sync...
+
+📂 Source: C:\Users\nadav\OneDrive\מסמכים\AI\cursor\cursor playground\AI Travel Club\resume-style-bank\react
+📁 Target: C:\Users\nadav\OneDrive\מסמכים\AI\cursor\cursor playground\ResumeBuilder AI\resume-builder-ai\src\lib\templates\external
+
+📋 Processing template: minimal-ssr
+  📄 Copied: Resume.jsx
+✅ Synced 1 files for minimal-ssr
+
+📋 Processing template: card-ssr
+  📄 Copied: Resume.jsx
+✅ Synced 1 files for card-ssr
+
+📋 Processing template: sidebar-ssr
+  📄 Copied: Resume.jsx
+✅ Synced 1 files for sidebar-ssr
+
+📋 Processing template: timeline-ssr
+  📄 Copied: Resume.jsx
+✅ Synced 1 files for timeline-ssr
+
+
+📝 Generating template registry...
+✅ Registry generated: C:\Users\nadav\OneDrive\מסמכים\AI\cursor\cursor playground\ResumeBuilder AI\resume-builder-ai\src\lib\templates\external\index.ts
+
+✨ Template sync complete! 4 templates synced.
+
+✅ Template sync completed successfully!
+
+> resume-builder-ai@0.1.0 build
+> next build
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\nadav\package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * C:\Users\nadav\OneDrive\מסמכים\AI\cursor\cursor playground\ResumeBuilder AI\resume-builder-ai\package-lock.json
+   * C:\Users\nadav\OneDrive\package-lock.json
+
+   ▲ Next.js 15.5.7
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · serverActions
+     · optimizePackageImports
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 89s
+   Linting and checking validity of types ...
+
+Failed to compile.
+
+./src/app/api/applications/route.ts
+17:27  Warning: 'req' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/public/ats-check/route.ts
+261:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+274:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/upload-resume/route.ts
+4:10  Warning: 'cookies' is defined but never used.  @typescript-eslint/no-unused-vars
+87:16  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/v1/applications/route.ts
+335:20  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+340:14  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/v1/chat/route.ts
+57:11  Warning: 'description' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+288:19  Warning: 'userMessage' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+676:11  Warning: 'errorDetails' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/v1/chat/sessions/[id]/apply/route.ts
+11:10  Warning: 'processMessage' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/auth/confirm-email/page.tsx
+73:6  Warning: React Hook useEffect has missing dependencies: 'error', 'handleConfirmation', 'loading', and 'success'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/app/blog/page.tsx
+34:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/blog/[slug]/page.tsx
+56:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/contact/page.tsx
+51:17  Error: Do not use an `<a>` element to navigate to `/blog/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+./src/app/dashboard/applications/compare/page.tsx
+27:6  Warning: React Hook useEffect has a missing dependency: 'ids'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+27:7  Warning: React Hook useEffect has a complex expression in the dependency array. Extract it to a separate variable so it can be statically checked.  react-hooks/exhaustive-deps
+
+./src/app/dashboard/applications/page.tsx
+5:40  Warning: 'FileText' is defined but never used.  @typescript-eslint/no-unused-vars
+9:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+26:10  Warning: 'hasEasyApply' is defined but never used.  @typescript-eslint/no-unused-vars
+79:6  Warning: React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+304:10  Warning: 'OpenResumeButton' is defined but never used.  @typescript-eslint/no-unused-vars
+325:10  Warning: 'OpenOptimizedButton' is defined but never used.  @typescript-eslint/no-unused-vars
+327:10  Warning: 'url' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+327:15  Warning: 'setUrl' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+355:10  Warning: 'OpenOptimizedCircle' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/dashboard/optimizations/[id]/page.tsx
+83:22  Warning: 'prev' is defined but never used.  @typescript-eslint/no-unused-vars
+260:6  Warning: React Hook useEffect has a missing dependency: 'fetchOptimizationData'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+500:9  Warning: 'handleDownloadDOCX' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+758:55  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/app/dashboard/resume/page.tsx
+125:15  Warning: 'resumeId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+125:25  Warning: 'jobDescriptionId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/not-found.tsx
+8:22  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+8:43  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+9:7  Error: Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages  @next/next/no-html-link-for-pages
+
+./src/app/privacy/page.tsx
+113:65  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/app/templates/page.tsx
+54:6  Warning: React Hook useEffect has a missing dependency: 'fetchTemplates'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/applications/applications-dashboard.tsx
+20:3  Warning: 'Plus' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/ats/CompactATSScoreCard.tsx
+7:17  Warning: 'useState' is defined but never used.  @typescript-eslint/no-unused-vars
+8:15  Warning: 'ATSScoreOutput' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/chat/ATSSuggestionsBanner.tsx
+58:48  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+90:89  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+90:97  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+95:65  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+95:91  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./src/components/chat/ChatInput.tsx
+14:3  Warning: 'sessionId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/chat/ChatSidebar.tsx
+10:46  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+102:6  Warning: React Hook useEffect has missing dependencies: 'loadSession' and 'sessionId'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/design/DesignBrowser.tsx
+79:6  Warning: React Hook useEffect has a missing dependency: 'fetchTemplates'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+125:57  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/design/DesignPreview.tsx
+26:3  Warning: 'optimizationId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/design/DesignRenderer.tsx
+456:11  Warning: 'directionClass' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/design/TemplateCard.tsx
+61:3  Warning: 'optimizationId' is defined but never used.  @typescript-eslint/no-unused-vars
+69:9  Warning: 'handlePreview' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+110:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/error/CacheBustingErrorBoundary.tsx
+137:68  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+161:64  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+161:88  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./src/components/history/EmptyState.tsx
+25:18  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/history/HistoryFilters.tsx
+29:3  Warning: 'countActiveFilters' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/landing/how-it-works.tsx
+50:31  Warning: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/mobile/application-card.tsx
+7:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+23:10  Warning: 'getScoreBadgeVariant' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/mobile/history-card.tsx
+3:10  Warning: 'useState' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/paywall/upgrade-modal.tsx
+31:9  Warning: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+79:16  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/providers/posthog-provider.tsx
+39:6  Warning: React Hook useEffect has a missing dependency: 'searchParams'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/templates/template-selector.tsx
+16:9  Warning: 'supabase' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/ui/calendar.tsx
+57:25  Warning: 'props' is defined but never used.  @typescript-eslint/no-unused-vars
+58:26  Warning: 'props' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/hooks/useOptimizations.ts
+175:6  Warning: React Hook useEffect has a missing dependency: 'params'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useSectionSelection.tsx
+24:5  Warning: React Hook useMemo has a missing dependency: 'clearSelection'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useToast.ts
+15:7  Warning: 'actionTypes' is assigned a value but only used as a type.  @typescript-eslint/no-unused-vars
+
+./src/lib/agent/fontValidator.ts
+188:15  Warning: 'key' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/agent/handlers/handleTipImplementation.ts
+6:15  Warning: 'ModificationOperation' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/agent/index.ts
+8:10  Warning: 'SkillsMiner' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/agent/utils/logger.ts
+94:3  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+129:5  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+132:5  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+135:5  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+
+./src/lib/ai-assistant/modification-parser.ts
+489:3  Warning: 'context' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/amendment-generator.ts
+252:14  Warning: 'fallbackError' is defined but never used.  @typescript-eslint/no-unused-vars
+271:3  Warning: 'context' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/analyzers/semantic.ts
+11:42  Warning: 'findMostSimilar' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/extractors/resume-text-extractor.ts
+171:9  Warning: 'required' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/index.ts
+139:13  Warning: 'correctionNeeded' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/quick-wins/prompt.ts
+113:15  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/scorer.ts
+31:3  Warning: 'jobEmbeddings' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/scorers/penalties.ts
+16:3  Warning: 'evidence' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/suggestions/generator.ts
+216:53  Warning: 'targetScore' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/ats/utils/text-utils.ts
+165:9  Warning: 'textLower' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/chat-manager/assistant-manager.ts
+11:15  Warning: 'Run' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/chat-manager/cli.ts
+57:30  Warning: 'command' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/chat-manager/unified-processor.ts
+9:57  Warning: 'FunctionCall' is defined but never used.  @typescript-eslint/no-unused-vars
+15:8  Warning: 'UpdateContentParams' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/design-manager/cli.ts
+5:22  Warning: 'args' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/design-manager/customization-engine.ts
+343:65  Warning: 'templateId' is defined but never used.  @typescript-eslint/no-unused-vars
+467:12  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/history-utils.ts
+139:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/pdf-generator.ts
+51:3  Warning: '_template' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/pdf-renderer.tsx
+7:50  Warning: 'Font' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/posthog.ts
+30:14  Warning: 'posthog' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/resume/field-path-resolver.ts
+125:12  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/scraper/jobExtractor.ts
+139:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/supabase/resume-designs.ts
+143:3  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/lib/template-engine/index.ts
+601:11  Warning: 'customization' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+604:11  Warning: 'resumeData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

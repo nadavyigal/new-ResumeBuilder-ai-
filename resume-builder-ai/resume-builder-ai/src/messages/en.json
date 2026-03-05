@@ -1,0 +1,1455 @@
+{
+  "header": {
+    "dashboard": "Dashboard",
+    "signOut": "Sign out",
+    "logIn": "Log in",
+    "signUp": "Start free"
+  },
+  "footer": {
+    "newsletterTitle": "Weekly Resume Tips That Actually Work",
+    "newsletterDescription": "Get practical ATS guidance, stronger bullet examples, and application strategy once a week.",
+    "newsletterNote": "This is our weekly newsletter. To check your resume instantly, <link>create a free account</link>.",
+    "copyright": "© {year} Resumely. Built for job seekers.",
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "contact": "Contact"
+  },
+  "language": {
+    "english": "English",
+    "hebrew": "Hebrew"
+  },
+  "landing": {
+    "atsChecker": {
+      "badge": "Free Instant Analysis",
+      "title": "See Your Match Score in 30 Seconds",
+      "description": "Upload your resume and job description. We'll show you exactly what's holding you back.",
+      "badges": {
+        "atsSafe": "Robot-proof",
+        "topFixes": "Instant fixes",
+        "weeklyChecks": "5 free checks"
+      },
+      "bullets": {
+        "v2Engine": "Trained on 50,000+ real job postings",
+        "hashPrivacy": "Your resume stays encrypted and private",
+        "unlockFixes": "Sign up free to see all recommendations"
+      },
+      "existingAccount": "Already have an account?",
+      "loginLink": "Log in",
+      "errors": {
+        "generic": "We couldn't process your request. Check your internet connection and try again.",
+        "connection": "Can't reach our servers. Check your connection and try again."
+      },
+      "checksRemaining": "You have {count} free checks left this week"
+    },
+    "uploadForm": {
+      "resumeLabel": "Your Resume (PDF)",
+      "selectedFile": "Ready: {fileName}",
+      "jobDescriptionLabel": "Job Description",
+      "inputModes": {
+        "text": "Paste text",
+        "url": "From URL"
+      },
+      "placeholders": {
+        "description": "Paste the full job description here...",
+        "url": "https://"
+      },
+      "minimumWords": "Need at least 80 words",
+      "wordCount": "{count} words",
+      "urlHelper": "We'll grab the job description from this link.",
+      "checking": "Analyzing...",
+      "submit": "Show Me My Score"
+    },
+    "loadingState": {
+      "title": "Analyzing your resume",
+      "subtitle": "This takes about 30 seconds",
+      "steps": {
+        "parsing": "Parsing your resume",
+        "keywords": "Extracting keywords",
+        "scoring": "Calculating ATS score",
+        "improvements": "Finding quick wins"
+      }
+    },
+    "rateLimit": {
+      "title": "You've hit the free limit",
+      "description": "Try again in {time} or create a free account to unlock more checks.",
+      "cta": "Create free account",
+      "time": {
+        "soon": "soon",
+        "minutes": "{count, plural, one {# minute} other {# minutes}}",
+        "hours": "{count, plural, one {# hour} other {# hours}}",
+        "days": "{count, plural, one {# day} other {# days}}"
+      }
+    },
+    "score": {
+      "match": {
+        "strong": "Strong match",
+        "good": "Good match",
+        "needsImprovement": "Needs improvement"
+      },
+      "topIssues": "Top issues",
+      "lockedTitle": "Unlock {count} more fixes",
+      "lockedDescription": "Create a free account to see all issues and improvements.",
+      "lockedCta": "Unlock all fixes"
+    },
+    "issueCard": {
+      "points": "+{points} pts",
+      "quickWin": "Quick win"
+    },
+    "share": {
+      "messageLinkedIn": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
+      "messageTwitter": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
+      "label": "Share on {platform}",
+      "platform": {
+        "linkedin": "LinkedIn",
+        "twitter": "X/Twitter"
+      }
+    },
+    "features": {
+      "title": "Stop Getting Filtered Out Before Humans See Your Resume",
+      "subtitle": "Match the keywords recruiters search for, not just what's in the job posting",
+      "items": [
+        {
+          "title": "Get Past Resume Robots",
+          "description": "Most resumes never reach a human. We identify the exact keywords that unlock ATS filters."
+        },
+        {
+          "title": "See Your Score Before You Apply",
+          "description": "Know exactly how well you match before hitting submit. No more wondering if you'll hear back."
+        },
+        {
+          "title": "Results in 30 Seconds",
+          "description": "Upload your resume, paste the job description. Your match score appears in half a minute."
+        },
+        {
+          "title": "Templates That Get Opened",
+          "description": "Recruiter-tested layouts that scan cleanly in every ATS. No graphics that confuse the robots."
+        },
+        {
+          "title": "Track Your Applications",
+          "description": "See which jobs you've applied to and which resumes you used. Keep everything organized."
+        },
+        {
+          "title": "Your Data Stays Private",
+          "description": "We encrypt everything and never train AI on your resumes. Delete your account anytime."
+        }
+      ],
+      "stats": [
+        {
+          "label": "ATS Checks Per Resume",
+          "value": "8"
+        },
+        {
+          "label": "Keyword Match Depth",
+          "value": "Deep"
+        },
+        {
+          "label": "Results In",
+          "value": "30 sec"
+        },
+        {
+          "label": "Free To Start",
+          "value": "$0"
+        }
+      ]
+    },
+    "howItWorks": {
+      "title": "Three Steps to Know If You'll Get the Interview",
+      "subtitle": "Find out what's blocking you before you apply",
+      "steps": [
+        {
+          "title": "Upload Your Resume",
+          "description": "Drop your PDF or Word file. We scan your experience, skills, and accomplishments in seconds."
+        },
+        {
+          "title": "Paste the Job Description",
+          "description": "Copy the full job posting. We extract the keywords that matter and compare them to your resume."
+        },
+        {
+          "title": "See What's Missing",
+          "description": "Get your match score plus specific changes that will move you from the \"no\" pile to the \"yes\" pile."
+        }
+      ]
+    },
+    "hero": {
+      "badge": "Used by Job Seekers Worldwide",
+      "titleLine1": "Turn Your Resume Into",
+      "titleLine2": "Interview Invitations",
+      "subtitle": "Your resume gets 6 seconds of attention. Make every second count. Our AI matches your experience to what recruiters actually search for.",
+      "benefits": [
+        "Pass the 6-second scan test",
+        "Match what recruiters search for",
+        "See your score in 30 seconds"
+      ],
+      "ctaPrimary": "Get My Free ATS Score",
+      "ctaSecondary": "See a Sample Report",
+      "socialProof": {
+        "resumesOptimized": "<strong>Role-aware</strong> resume analysis",
+        "reviews": "<strong>Clear</strong> recruiter-facing guidance",
+        "atsApproved": "Built on ATS-safe writing principles"
+      }
+    },
+    "quickWins": {
+      "title": "{count} Changes That Will Increase Your Score",
+      "potential": "+{points} points possible",
+      "note": "These are AI-generated suggestions based on what recruiters search for. Customize them to match your actual experience.",
+      "card": {
+        "badge": "Fix #{index}",
+        "points": "+{points} pts",
+        "location": "In your {section}",
+        "locationWithSubsection": "In {section} - {subsection}",
+        "before": "CURRENT VERSION",
+        "after": "RECOMMENDED VERSION",
+        "copy": "Copy",
+        "copied": "Copied",
+        "rationaleTitle": "Why this helps:",
+        "keywords": "Keywords added:"
+      },
+      "types": {
+        "keyword_optimization": "Keywords",
+        "quantified_achievement": "Numbers",
+        "action_verb": "Action Verbs",
+        "relevance_enhancement": "Relevance"
+      }
+    }
+  },
+  "newsletter": {
+    "placeholder": "your.email@example.com",
+    "subscribe": "Get Weekly Tips",
+    "subscribing": "Adding you...",
+    "successTitle": "You're In",
+    "successDescription": "Check your email to confirm your subscription.",
+    "errorTitle": "Couldn't Subscribe",
+    "errorGeneric": "We couldn't add your email. Try again.",
+    "errorDuplicate": "You're already subscribed to our newsletter.",
+    "errorUnexpected": "We hit a snag. Try again in a moment.",
+    "note": "Weekly resume tips and ATS insights. Unsubscribe anytime."
+  },
+  "auth": {
+    "form": {
+      "errorGeneric": "We couldn't sign you in. Check your email and password and try again.",
+      "confirmEmail": "Check your email for your confirmation link.",
+      "title": {
+        "signup": "Start Your Free Account",
+        "signin": "Sign Back In"
+      },
+      "subtitle": {
+        "signup": "See your match score in 30 seconds",
+        "signin": "Welcome back"
+      },
+      "labels": {
+        "fullName": "Your Name",
+        "email": "Email Address",
+        "password": "Password"
+      },
+      "placeholders": {
+        "fullName": "Jane Smith",
+        "email": "jane@example.com"
+      },
+      "processing": "Signing you in...",
+      "buttons": {
+        "createAccount": "Create Free Account",
+        "signIn": "Sign In"
+      },
+      "switchPrompt": {
+        "hasAccount": "Already have an account?",
+        "noAccount": "Need an account?"
+      },
+      "switchButtons": {
+        "signIn": "Sign in instead",
+        "createAccount": "Create free account"
+      },
+      "forgotPassword": "Forgot password?"
+    },
+    "confirmEmail": {
+      "invalidLinkError": "This link doesn't work. Try signing up again.",
+      "invalidParams": "Invalid confirmation link",
+      "confirmFailed": "Couldn't confirm your email. This link may have expired.",
+      "invalidLinkTitle": "Link Expired",
+      "invalidLinkDescription": "This confirmation link is no longer valid.",
+      "signUpAgain": "Sign up again",
+      "confirmedTitle": "Email Confirmed",
+      "confirmTitle": "Confirm Your Email",
+      "confirmedDescription": "Your email is confirmed. Redirecting you now.",
+      "verifying": "Checking your email...",
+      "confirmDescription": "Click below to confirm your email address.",
+      "redirecting": "Taking you to your dashboard...",
+      "confirmButton": "Confirm My Email",
+      "backToSignIn": "Back to sign in"
+    },
+    "resetPassword": {
+      "successMessage": "Check your email for your password reset link.",
+      "title": "Reset Your Password",
+      "description": "Enter your email and we'll send you a reset link.",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "jane@example.com",
+      "sending": "Sending...",
+      "sendLink": "Send Reset Link",
+      "backToSignIn": "Back to sign in"
+    }
+  },
+  "contact": {
+    "title": "Contact Us",
+    "intro": "Have questions or feedback? We'd love to hear from you!",
+    "emailTitle": "Email",
+    "supportTitle": "Support",
+    "supportDescription": "For technical support or account issues, please email us at the address above. We typically respond within 24 hours.",
+    "featureTitle": "Feature Requests",
+    "featureDescription": "Have an idea for a new feature? We're always looking to improve. Send us your suggestions via email.",
+    "quickLinksTitle": "Quick Links",
+    "quickLinks": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "blog": "Blog"
+    }
+  },
+  "blog": {
+    "index": {
+      "title": "Resume Tips & Career Insights",
+      "subtitle": "Expert advice on ATS optimization, resume writing, and landing your dream job.",
+      "readingTime": "{minutes} min read",
+      "emptyState": "No blog posts yet. Check back soon!"
+    },
+    "post": {
+      "readingTime": "{minutes} min read",
+      "cta": {
+        "title": "Ready to optimize your resume?",
+        "description": "Get your ATS score and personalized optimization suggestions in 30 seconds.",
+        "button": "Start Free Optimization"
+      }
+    }
+  },
+  "errors": {
+    "genericTitle": "We Hit a Snag",
+    "tryAgain": "Try again",
+    "notFound": {
+      "title": "Page Not Found",
+      "description": "This page doesn't exist or was moved.",
+      "home": "Back to home"
+    }
+  },
+  "templates": {
+    "categories": {
+      "traditional": "Traditional",
+      "modern": "Modern",
+      "corporate": "Corporate",
+      "creative": "Creative"
+    },
+    "backToDashboard": "Back to Dashboard",
+    "title": "Resume Templates",
+    "subtitle": "Browse and select from our collection of professional resume templates",
+    "allTemplates": "All Templates",
+    "errors": {
+      "fetch": "Failed to fetch templates",
+      "load": "Failed to load templates",
+      "title": "Error loading templates",
+      "retry": "Try again"
+    },
+    "empty": "No templates found",
+    "emptyWithCategory": "No templates found in \"{category}\" category",
+    "count": "{count, plural, one {# template available} other {# templates available}}",
+    "countWithCategory": "{count, plural, one {# template available in \"{category}\" category} other {# templates available in \"{category}\" category}}"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "lastUpdated": "Last updated: December 23, 2025",
+    "intro": "At Resumely, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered resume optimization service.",
+    "sections": {
+      "infoCollect": {
+        "title": "1. Information We Collect",
+        "provided": {
+          "title": "Information you provide to us:",
+          "items": [
+            "Account information: Name, email address, and password when you create an account",
+            "Resume data: Resume files and content you upload for optimization",
+            "Job descriptions: Job description text you input for comparison",
+            "Payment information: Payment details processed securely via Stripe (we do not store credit card numbers)",
+            "Communications: Messages you send us and newsletter subscriptions"
+          ]
+        },
+        "automatic": {
+          "title": "Information collected automatically:",
+          "items": [
+            "Usage data: Pages visited, features used, time spent on our platform",
+            "Device information: Browser type, operating system, IP address",
+            "Analytics data: Collected via Google Analytics and PostHog for service improvement"
+          ]
+        }
+      },
+      "useInfo": {
+        "title": "2. How We Use Your Information",
+        "intro": "We use the information we collect to:",
+        "items": [
+          "Provide and improve our AI resume optimization service",
+          "Generate personalized resume suggestions using AI technology",
+          "Calculate ATS compatibility scores for your resume",
+          "Send you transactional emails (account confirmations, service updates)",
+          "Send marketing communications (with your consent, opt-out available)",
+          "Analyze usage patterns to improve our product and user experience",
+          "Prevent fraud and ensure platform security",
+          "Comply with legal obligations and enforce our Terms of Service"
+        ]
+      },
+      "security": {
+        "title": "3. Data Security",
+        "intro": "We implement industry-standard security measures to protect your data:",
+        "items": [
+          "Encryption in transit: All data transmitted using HTTPS/TLS encryption",
+          "Encryption at rest: Sensitive data encrypted in our database",
+          "Secure authentication: Password hashing and secure session management via Supabase Auth",
+          "Access controls: Strict role-based access to user data",
+          "Regular security audits: Ongoing monitoring and security assessments"
+        ],
+        "outro": "However, no method of transmission over the internet is 100% secure. While we strive to protect your data, we cannot guarantee absolute security."
+      },
+      "thirdParty": {
+        "title": "4. Third-Party Services",
+        "intro": "We use the following third-party services to operate Resumely:",
+        "linkLabel": "Privacy Policy",
+        "analytics": {
+          "title": "Analytics and tracking:",
+          "items": [
+            {
+              "name": "Google Analytics",
+              "description": "Website analytics and user behavior tracking",
+              "url": "https://policies.google.com/privacy"
+            },
+            {
+              "name": "PostHog",
+              "description": "Product analytics and feature usage tracking",
+              "url": "https://posthog.com/privacy"
+            }
+          ]
+        },
+        "core": {
+          "title": "Core services:",
+          "items": [
+            {
+              "name": "OpenAI",
+              "description": "AI-powered resume optimization and suggestions",
+              "url": "https://openai.com/privacy"
+            },
+            {
+              "name": "Supabase",
+              "description": "Database storage and user authentication",
+              "url": "https://supabase.com/privacy"
+            },
+            {
+              "name": "Resend",
+              "description": "Transactional email delivery",
+              "url": "https://resend.com/legal/privacy-policy"
+            },
+            {
+              "name": "Stripe",
+              "description": "Secure payment processing",
+              "url": "https://stripe.com/privacy"
+            }
+          ]
+        }
+      },
+      "retention": {
+        "title": "5. Data Retention",
+        "body": "We retain your personal information for as long as your account is active or as needed to provide you services. If you delete your account, we will delete your personal data within 30 days, except where retention is required by law or for legitimate business purposes (e.g., fraud prevention, resolving disputes)."
+      },
+      "rights": {
+        "title": "6. Your Rights and Choices",
+        "intro": "You have the following rights regarding your personal data:",
+        "items": [
+          "Access: Request a copy of your personal data",
+          "Correction: Request correction of inaccurate or incomplete data",
+          "Deletion: Request deletion of your account and personal data",
+          "Portability: Request your data in a machine-readable format",
+          "Opt-out: Unsubscribe from marketing emails at any time",
+          "Object: Object to processing of your data for certain purposes"
+        ],
+        "contact": "To exercise these rights, contact us at"
+      },
+      "cookies": {
+        "title": "7. Cookies and Tracking Technologies",
+        "intro": "We use cookies and similar tracking technologies to:",
+        "items": [
+          "Maintain your login session",
+          "Remember your preferences",
+          "Analyze usage patterns and improve our service",
+          "Provide personalized content"
+        ],
+        "outro": "You can control cookies through your browser settings. Note that disabling cookies may affect the functionality of our service."
+      },
+      "children": {
+        "title": "8. Children's Privacy",
+        "body": "Our service is not intended for individuals under the age of 16. We do not knowingly collect personal information from children. If you believe we have collected information from a child, please contact us immediately."
+      },
+      "international": {
+        "title": "9. International Data Transfers",
+        "body": "Your information may be transferred to and processed in countries other than your country of residence. These countries may have different data protection laws. By using our service, you consent to the transfer of your information to the United States and other countries where we operate."
+      },
+      "changes": {
+        "title": "10. Changes to This Privacy Policy",
+        "body": "We may update this Privacy Policy from time to time. We will notify you of material changes by email or through a prominent notice on our website. Your continued use of our service after changes become effective constitutes acceptance of the updated Privacy Policy."
+      },
+      "contact": {
+        "title": "11. Contact Us",
+        "intro": "If you have questions or concerns about this Privacy Policy or our data practices, please contact us:",
+        "items": [
+          {
+            "label": "Email",
+            "value": "resumebuilderaiteam@gmail.com",
+            "href": "mailto:resumebuilderaiteam@gmail.com"
+          },
+          {
+            "label": "Website",
+            "value": "resumelybuilderai.com",
+            "href": "https://resumelybuilderai.com"
+          }
+        ]
+      },
+      "gdpr": {
+        "title": "12. GDPR Compliance (EU Users)",
+        "intro": "If you are located in the European Economic Area (EEA), you have additional rights under the General Data Protection Regulation (GDPR):",
+        "items": [
+          "Right to withdraw consent at any time",
+          "Right to lodge a complaint with a supervisory authority",
+          "Right to restriction of processing",
+          "Right to object to automated decision-making"
+        ],
+        "outro": "Our legal basis for processing your data includes: consent, contractual necessity, legitimate interests, and legal compliance."
+      },
+      "ccpa": {
+        "title": "13. California Privacy Rights (CCPA)",
+        "intro": "California residents have specific rights under the California Consumer Privacy Act (CCPA):",
+        "items": [
+          "Right to know what personal information is collected",
+          "Right to know if personal information is sold or disclosed",
+          "Right to opt-out of the sale of personal information (we do not sell your data)",
+          "Right to deletion of personal information",
+          "Right to non-discrimination for exercising CCPA rights"
+        ]
+      }
+    },
+    "closingNote": "This Privacy Policy is effective as of December 23, 2025. By using Resumely, you acknowledge that you have read and understood this Privacy Policy."
+  },
+  "terms": {
+    "title": "Terms of Service",
+    "lastUpdated": "Last updated: December 23, 2025",
+    "intro": "Welcome to Resumely. By accessing or using our AI-powered resume optimization service, you agree to be bound by these Terms of Service. Please read them carefully.",
+    "sections": {
+      "acceptance": {
+        "title": "1. Acceptance of Terms",
+        "body": "By creating an account, accessing, or using Resumely (\"Service\", \"Platform\", \"we\", \"our\", or \"us\"), you agree to comply with and be bound by these Terms of Service and our Privacy Policy. If you do not agree to these terms, please do not use our Service."
+      },
+      "service": {
+        "title": "2. Service Description",
+        "intro": "Resumely provides the following AI-powered resume optimization services:",
+        "items": [
+          "Applicant Tracking System (ATS) compatibility analysis",
+          "Resume content optimization suggestions powered by artificial intelligence",
+          "Job description matching and keyword optimization",
+          "ATS scoring and compatibility metrics",
+          "Professional resume templates optimized for ATS systems",
+          "Resume export functionality (PDF format)"
+        ],
+        "outro": "Our Service uses AI technology (powered by OpenAI) to analyze your resume and provide suggestions. Results may vary, and we do not guarantee specific outcomes or job placement."
+      },
+      "accounts": {
+        "title": "3. User Accounts",
+        "creation": {
+          "title": "Account Creation",
+          "intro": "To use certain features of our Service, you must create an account. You agree to:",
+          "items": [
+            "Provide accurate, current, and complete information during registration",
+            "Maintain and promptly update your account information",
+            "Maintain the security of your account password",
+            "Accept responsibility for all activities under your account",
+            "Immediately notify us of any unauthorized account access",
+            "Not share your account credentials with others"
+          ]
+        },
+        "termination": {
+          "title": "Account Termination",
+          "body": "We reserve the right to suspend or terminate your account at any time for violation of these Terms, fraudulent activity, or any other reason at our discretion. You may delete your account at any time through your account settings."
+        }
+      },
+      "pricing": {
+        "title": "4. Subscription Plans and Payments",
+        "tiers": {
+          "title": "Pricing Tiers",
+          "intro": "Resumely offers the following pricing plans:",
+          "items": [
+            "Free Tier: One (1) resume optimization per user account",
+            "Premium Plan: $9/month for unlimited resume optimizations, premium templates, and priority support"
+          ]
+        },
+        "payment": {
+          "title": "Payment Terms",
+          "items": [
+            "All payments are processed securely through Stripe",
+            "Subscriptions renew automatically on a monthly basis unless cancelled",
+            "You authorize us to charge your payment method for all fees due",
+            "Prices are subject to change with 30 days notice",
+            "All fees are non-refundable except as required by law or stated in our refund policy"
+          ]
+        },
+        "refund": {
+          "title": "Refund Policy",
+          "body": "Premium subscriptions are eligible for a full refund within 7 days of purchase if you are not satisfied with the service. To request a refund, contact us at resumebuilderaiteam@gmail.com with your account details."
+        },
+        "cancellation": {
+          "title": "Cancellation",
+          "body": "You may cancel your Premium subscription at any time through your account settings. Cancellation takes effect at the end of your current billing period. You will retain access to Premium features until the end of the paid period."
+        }
+      },
+      "acceptableUse": {
+        "title": "5. Acceptable Use Policy",
+        "intro": "You agree NOT to use our Service to:",
+        "items": [
+          "Violate any applicable laws or regulations",
+          "Upload malicious code, viruses, or harmful content",
+          "Infringe upon intellectual property rights of others",
+          "Harass, abuse, or harm other users",
+          "Attempt to reverse engineer, decompile, or extract our AI models",
+          "Use automated scripts, bots, or scraping tools without permission",
+          "Share, resell, or redistribute our Service without authorization",
+          "Create multiple accounts to circumvent free tier limitations",
+          "Upload resumes or content that you do not have rights to",
+          "Use our Service to create false, misleading, or fraudulent resumes"
+        ]
+      },
+      "intellectual": {
+        "title": "6. Intellectual Property Rights",
+        "yourContent": {
+          "title": "Your Content",
+          "body": "You retain all ownership rights to your resume content, job descriptions, and other materials you upload to our Service. By uploading content, you grant us a limited license to use, process, and analyze your content solely for the purpose of providing our Service and improving our AI models."
+        },
+        "ourProperty": {
+          "title": "Our Property",
+          "body": "Resumely, our logo, AI models, algorithms, software, templates, and all related intellectual property are owned by us or our licensors. You may not copy, modify, distribute, or create derivative works without our express written permission."
+        }
+      },
+      "aiContent": {
+        "title": "7. AI-Generated Content and Suggestions",
+        "intro": "Important disclaimers about our AI-powered service:",
+        "items": [
+          "AI-generated suggestions are automated and may contain errors or inaccuracies",
+          "You are responsible for reviewing and verifying all suggestions before use",
+          "AI suggestions should be used as guidance, not absolute rules",
+          "We do not guarantee that AI suggestions will improve your job search outcomes",
+          "You should customize and personalize AI suggestions to match your experience",
+          "Never include false or misleading information in your resume, even if suggested by AI"
+        ]
+      },
+      "disclaimers": {
+        "title": "8. Disclaimers and Limitations of Liability",
+        "asIs": {
+          "title": "Service Provided \"As Is\"",
+          "body": "Our Service is provided \"as is\" and \"as available\" without warranties of any kind, either express or implied. We do not warrant that the Service will be uninterrupted, secure, or error-free."
+        },
+        "employment": {
+          "title": "No Employment Guarantee",
+          "body": "Important: Resumely provides resume optimization tools and suggestions but does NOT guarantee job interviews, job offers, or employment outcomes. Your success in job searching depends on many factors beyond our Service."
+        },
+        "liability": {
+          "title": "Limitation of Liability",
+          "intro": "To the maximum extent permitted by law, Resumely and its affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses resulting from:",
+          "items": [
+            "Your use or inability to use the Service",
+            "Any unauthorized access to or use of our servers and/or personal information",
+            "Any errors, mistakes, or inaccuracies in AI-generated content",
+            "Any job search outcomes or lack thereof"
+          ],
+          "outro": "Our total liability shall not exceed the amount you paid us in the twelve (12) months preceding the claim."
+        }
+      },
+      "indemnification": {
+        "title": "9. Indemnification",
+        "body": "You agree to indemnify, defend, and hold harmless Resumely and its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from your use of the Service, violation of these Terms, or infringement of any third-party rights."
+      },
+      "privacy": {
+        "title": "10. Data Privacy and Security",
+        "body": "Your use of our Service is also governed by our Privacy Policy, which explains how we collect, use, and protect your personal information. We implement industry-standard security measures, but cannot guarantee absolute security. Please refer to our",
+        "linkLabel": "Privacy Policy"
+      },
+      "thirdParty": {
+        "title": "11. Third-Party Services",
+        "body": "Our Service integrates with third-party services including OpenAI (AI processing), Stripe (payments), and others. Your use of these services may be subject to their respective terms and conditions. We are not responsible for the practices of third-party services."
+      },
+      "changes": {
+        "title": "12. Changes to Terms",
+        "body": "We reserve the right to modify these Terms at any time. Material changes will be notified via email or through a prominent notice on our website at least 30 days before taking effect. Your continued use of the Service after changes become effective constitutes acceptance of the updated Terms."
+      },
+      "governing": {
+        "title": "13. Governing Law and Dispute Resolution",
+        "body": "These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law provisions. Any disputes arising from these Terms or your use of the Service shall be resolved through binding arbitration, except where prohibited by law."
+      },
+      "severability": {
+        "title": "14. Severability",
+        "body": "If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full force and effect."
+      },
+      "entire": {
+        "title": "15. Entire Agreement",
+        "body": "These Terms, together with our Privacy Policy, constitute the entire agreement between you and Resumely regarding the use of our Service and supersede all prior agreements and understandings."
+      },
+      "contact": {
+        "title": "16. Contact Information",
+        "intro": "If you have questions about these Terms of Service, please contact us:",
+        "items": [
+          {
+            "label": "Email",
+            "value": "resumebuilderaiteam@gmail.com",
+            "href": "mailto:resumebuilderaiteam@gmail.com"
+          },
+          {
+            "label": "Website",
+            "value": "resumelybuilderai.com",
+            "href": "https://resumelybuilderai.com"
+          }
+        ]
+      },
+      "acknowledgment": {
+        "title": "Acknowledgment",
+        "body": "BY USING RESUMELY, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS OF SERVICE. IF YOU DO NOT AGREE TO THESE TERMS, YOU MAY NOT USE OUR SERVICE."
+      }
+    },
+    "effectiveDate": "These Terms of Service are effective as of December 23, 2025."
+  },
+  "dashboard": {
+    "home": {
+      "loading": "Loading...",
+      "welcome": {
+        "title": "Welcome back, {name}",
+        "fallbackName": "there",
+        "premium": "Premium",
+        "subtitle": "Your resume workspace"
+      },
+      "conversion": {
+        "title": "You scored {score}% on your last check",
+        "description": "{count} quick fixes ready to copy.",
+        "cta": "See What to Fix"
+      },
+      "actions": {
+        "uploadTitle": "Check a New Resume",
+        "uploadDescription": "See how you match a different job.",
+        "getStarted": "Upload Resume",
+        "templatesTitle": "Browse Templates",
+        "templatesDescription": "Pick a format recruiters prefer.",
+        "applicationsTitle": "Track Applications",
+        "applicationsDescription": "See which jobs you've applied to."
+      },
+      "stats": {
+        "averageScoreLabel": "Your average match",
+        "emptyHint": "Check your first resume to see stats."
+      },
+      "howItWorks": {
+        "title": "How to use this",
+        "step1": {
+          "title": "Upload your resume",
+          "description": "Drop a PDF to start."
+        },
+        "step2": {
+          "title": "Add the job posting",
+          "description": "Paste or link the full description."
+        },
+        "step3": {
+          "title": "Get your score",
+          "description": "See what to fix and export your updated resume."
+        }
+      }
+    },
+    "resume": {
+      "title": "Check Your Resume",
+      "subtitle": "Upload your resume and paste the job you're applying for.",
+      "labels": {
+        "resumeFile": "Your Resume",
+        "selected": "{name} ({size})",
+        "jobDescription": "Job Description"
+      },
+      "inputModes": {
+        "text": "Paste text",
+        "url": "From URL"
+      },
+      "placeholders": {
+        "description": "Paste the full job description here...",
+        "url": "https://"
+      },
+      "submit": {
+        "default": "Check My Match",
+        "loading": "Analyzing your resume...",
+        "helper": "This takes about a minute."
+      },
+      "errors": {
+        "pdfOnly": "We need a PDF file. Convert your resume and try again.",
+        "fileSize": "Your file is too large. Please use a resume under 10MB.",
+        "missingResume": "Upload your resume first.",
+        "missingDescription": "Paste the job description so we can compare.",
+        "missingUrl": "Add the URL to the job posting.",
+        "timeout": "This is taking longer than usual. Try again or check your connection.",
+        "generic": "We couldn't process your resume. Make sure it's a valid PDF and try again."
+      }
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your account details.",
+      "labels": {
+        "fullName": "Full name",
+        "email": "Email",
+        "notProvided": "Not provided",
+        "premium": "Premium"
+      },
+      "actions": {
+        "backToDashboard": "Back to dashboard",
+        "signOut": "Sign out"
+      }
+    },
+    "applications": {
+      "title": "Your Applications",
+      "subtitle": "Track which jobs you've checked and applied to.",
+      "total": "{count} tracked",
+      "loading": "Loading...",
+      "navigation": {
+        "backToDashboard": "Back to dashboard"
+      },
+      "search": {
+        "placeholderDesktop": "Search by job title or company...",
+        "placeholderMobile": "Search...",
+        "button": "Search"
+      },
+      "addUrl": {
+        "placeholderDesktop": "Add job URL to track...",
+        "placeholderMobile": "Job URL",
+        "addButton": "Add",
+        "addJobButton": "Add URL"
+      },
+      "alerts": {
+        "addSuccess": "Job URL saved.",
+        "addFailure": "Couldn't save URL: {error}",
+        "addFailureFallback": "Couldn't save that URL.",
+        "addNetworkFailure": "Connection problem. Check your internet and try again."
+      },
+      "empty": {
+        "title": "No applications tracked yet",
+        "description": "Check your first resume to start tracking.",
+        "cta": "Upload Resume"
+      },
+      "table": {
+        "headers": {
+          "resume": "Resume",
+          "company": "Company",
+          "jobTitle": "Job Title",
+          "appliedDate": "Applied",
+          "atsScore": "Match",
+          "easyApply": "Easy Apply",
+          "jobUrl": "Job Link"
+        },
+        "openOptimized": "View optimized",
+        "resumeLink": "Open",
+        "jobUrlLabel": "View job",
+        "applyButton": "Apply Now",
+        "empty": "No applications match your search."
+      },
+      "actions": {
+        "openOptimized": "View optimized",
+        "openOptimizedTitle": "Open your optimized resume",
+        "openResume": "View resume",
+        "opening": "Opening...",
+        "markApplied": "Mark as applied",
+        "marking": "Saving..."
+      },
+      "detail": {
+        "loading": "Loading...",
+        "notFound": "Can't find that application.",
+        "back": "Back",
+        "appliedDate": "Applied {date}",
+        "atsMatchLabel": "Match score",
+        "downloadHtml": "Download HTML",
+        "downloadJson": "Download JSON"
+      },
+      "compare": {
+        "loading": "Loading...",
+        "empty": "Select applications to compare.",
+        "appliedDate": "Applied {date}",
+        "html": "HTML",
+        "json": "JSON"
+      },
+      "card": {
+        "appliedDate": "Applied {date}",
+        "atsLabel": "Match",
+        "markApplied": "Mark applied",
+        "marking": "Saving...",
+        "openJobPosting": "View job",
+        "unknownCompany": "Company not listed",
+        "viewResume": "View resume"
+      }
+    },
+    "optimization": {
+      "loading": "Loading your resume...",
+      "demo": {
+        "banner": "Preview only. Sign in to save changes."
+      },
+      "navigation": {
+        "backToApplications": "Back",
+        "titleAtCompany": "{title} at {company}"
+      },
+      "actions": {
+        "copy": "Copy",
+        "print": "Print",
+        "download": "Download"
+      },
+      "language": {
+        "label": "Language",
+        "placeholder": "Auto",
+        "auto": "Auto-detect",
+        "hebrew": "Hebrew",
+        "english": "English"
+      },
+      "design": {
+        "defaultDescription": "Natural (no template)",
+        "defaultName": "Natural",
+        "changeDesign": "Pick template",
+        "currentTitle": "Current: {name}",
+        "atsFriendly": "ATS-friendly",
+        "applyError": "Couldn't apply template. Try again.",
+        "toastAppliedTitle": "Template applied",
+        "toastAppliedDescription": "Your resume now uses this template.",
+        "toastApplyFailedTitle": "Couldn't apply",
+        "toastApplyFailedDescription": "Template didn't load. Try again."
+      },
+      "atsUnavailable": {
+        "title": "Score unavailable",
+        "description": "We couldn't calculate your ATS score for this check."
+      },
+      "apply": {
+        "applyNow": "Apply to Job",
+        "applying": "Opening...",
+        "demoPreview": "Preview only",
+        "demoReadOnly": "Sign in to apply.",
+        "failure": "Couldn't start application.",
+        "fallbackTitle": "Position unlisted",
+        "fallbackCompany": "Company unlisted",
+        "mustLogin": "Sign in to apply.",
+        "noJobDescription": "No job description available.",
+        "saveFailure": "Couldn't save application."
+      },
+      "error": {
+        "title": "Couldn't Load Resume",
+        "reload": "Reload",
+        "backToDashboard": "Back",
+        "optimizationNotFound": "This check doesn't exist.",
+        "resumeNotFound": "Resume not found.",
+        "jobNotFound": "Job description not found."
+      },
+      "copy": {
+        "success": "Copied. Ready to paste.",
+        "failure": "Couldn't copy. Try again."
+      },
+      "chat": {
+        "title": "AI Assistant",
+        "openLabel": "Open assistant"
+      },
+      "jobSummary": {
+        "titleLine": "{title} at {company}",
+        "aboutLabel": "About",
+        "keyRequirements": "Key requirements",
+        "keyResponsibilities": "Responsibilities",
+        "more": "+{count} more",
+        "detailsFallback": "Job details",
+        "quickSummary": "Summary",
+        "iconLabel": "AI",
+        "locationLine": "{location}"
+      },
+      "sections": {
+        "originalResume": "Original",
+        "jobSummaryTitle": "Job summary",
+        "sourceLabel": "Source"
+      },
+      "plainText": {
+        "summaryTitle": "Summary",
+        "skillsTitle": "Skills",
+        "technicalSkills": "Technical",
+        "professionalSkills": "Professional",
+        "experienceTitle": "Experience",
+        "present": "Present",
+        "educationTitle": "Education",
+        "certificationsTitle": "Certifications",
+        "projectsTitle": "Projects",
+        "technologies": "Tech"
+      }
+    },
+    "history": {
+      "title": "Past Checks",
+      "subtitle": "All the resumes you've checked",
+      "actions": {
+        "tryAgain": "Try again",
+        "clearFilters": "Clear filters",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "deleting": "Deleting..."
+      },
+      "filters": {
+        "label": "Filter",
+        "allTime": "All time",
+        "last7Days": "Last week",
+        "last30Days": "Last month",
+        "last90Days": "Last 3 months",
+        "custom": "Custom",
+        "customRange": "Pick dates",
+        "scorePlaceholder": "Match score",
+        "allScores": "All scores",
+        "score90Plus": "90% or higher",
+        "score80Plus": "80% or higher",
+        "score70Plus": "70% or higher",
+        "clear": "Clear"
+      },
+      "mobile": {
+        "title": "History",
+        "searchPlaceholder": "Search...",
+        "filtersTitle": "Filters",
+        "optimizationsCount": "{count} checks"
+      },
+      "noResults": {
+        "title": "No matches",
+        "description": "Try different filters."
+      },
+      "filteredEmpty": {
+        "title": "No checks match these filters",
+        "description": "Clear filters to see everything."
+      },
+      "table": {
+        "actions": "Actions",
+        "atsMatch": "Match",
+        "company": "Company",
+        "dateCreated": "Date",
+        "jobTitle": "Job",
+        "status": "Status",
+        "selectAllAria": "Select all"
+      },
+      "dialog": {
+        "title": "Delete {count} checks?",
+        "description": "You're about to delete {count} resume checks.",
+        "listIntro": "This removes:",
+        "listItemRecords": "All check records",
+        "listItemMetadata": "Related data",
+        "warning": "You can't undo this."
+      },
+      "errors": {
+        "loadHistory": "Couldn't load your history. Check your connection and try again.",
+        "createApplication": "Couldn't save application. Try again.",
+        "deleteOptimizations": "Couldn't delete checks. Try again.",
+        "exportOptimizations": "Couldn't create export. Try again."
+      },
+      "toasts": {
+        "alreadyAppliedTitle": "Already marked",
+        "alreadyAppliedDescription": "Applied {date}",
+        "unknownDate": "Unknown date",
+        "applicationStartedTitle": "Download ready",
+        "applicationStartedWithUrl": "Opening job page and downloading your resume.",
+        "applicationStartedNoUrl": "Downloaded your resume.",
+        "applicationFailedTitle": "Couldn't start",
+        "applicationFailedDescription": "Try again.",
+        "deletionCompleteTitle": "Deleted",
+        "deletionComplete": "Removed {deleted} checks.",
+        "deletionCompleteWithErrors": "Removed {deleted}, {errors} failed.",
+        "deletionFailedTitle": "Delete failed",
+        "deletionFailedDescription": "Couldn't delete checks.",
+        "exportCompleteTitle": "Export ready",
+        "exportCompleteDescription": "Downloaded {count} checks.",
+        "exportFailedTitle": "Export failed",
+        "exportFailedDescription": "Couldn't create export.",
+        "applicationsPreservedTitle": "Applications saved",
+        "applicationsPreservedDescription": "Kept {count} applications."
+      },
+      "bulk": {
+        "selectedCount": "{count} selected",
+        "selectAll": "Select all",
+        "deselectAll": "Clear selection",
+        "selectHint": "Select items to enable actions",
+        "exportSelected": "Export",
+        "deleteSelected": "Delete",
+        "max20": "Max 20",
+        "max50": "Max 50",
+        "processing": "Working...",
+        "aria": {
+          "selectAll": "Select all",
+          "deselectAll": "Clear selection",
+          "exportSelected": "Export {count}",
+          "deleteSelected": "Delete {count}"
+        }
+      },
+      "pagination": {
+        "rowsPerPage": "Per page",
+        "showing": "{start}-{end} of {total}",
+        "noResults": "No results",
+        "ariaFirst": "First",
+        "ariaPrev": "Previous",
+        "ariaNext": "Next",
+        "ariaLast": "Last",
+        "ariaPage": "Page {page}"
+      },
+      "search": {
+        "placeholder": "Search job title or company",
+        "ariaLabel": "Search",
+        "clearAria": "Clear search"
+      },
+      "row": {
+        "applied": "Applied",
+        "appliedOn": "Applied {date}",
+        "applyNow": "Apply",
+        "applying": "Starting...",
+        "downloadPdf": "Download",
+        "na": "N/A",
+        "selectOptimization": "Select {id}",
+        "status": {
+          "completed": "Done",
+          "processing": "Analyzing",
+          "failed": "Failed"
+        },
+        "unknownDate": "Unknown",
+        "viewDetails": "View"
+      },
+      "card": {
+        "applied": "Applied",
+        "applyNow": "Apply",
+        "applying": "Starting...",
+        "atsLabel": "Match",
+        "openJobPosting": "View job",
+        "unknownCompany": "Company unlisted",
+        "untitledPosition": "Position unlisted",
+        "viewResume": "View"
+      },
+      "empty": {
+        "title": "No checks yet",
+        "description": "Upload your first resume to start.",
+        "cta": "Upload Resume"
+      },
+      "errorBoundary": {
+        "title": "Can't load history",
+        "defaultMessage": "We ran into a problem loading your history.",
+        "fallbackMessage": "History view error.",
+        "componentStack": "Details",
+        "tryAgain": "Try again",
+        "backToDashboard": "Back to dashboard",
+        "helpText": "Need help?",
+        "contactSupport": "Contact support"
+      }
+    },
+    "ats": {
+      "scoreCard": {
+        "title": "Match Score",
+        "original": "Before",
+        "optimized": "After",
+        "outOf": "out of 100",
+        "improvementTitle": "+{points} points ({percent}% better)",
+        "improvementDescription": "Your updated resume scores higher.",
+        "processingTime": "Analysis time",
+        "analyzersUsed": "Checks run",
+        "confidence": {
+          "label": "Confidence: {level}",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "warning": "Note: {message}"
+      },
+      "compact": {
+        "title": "Match score",
+        "original": "Before",
+        "optimized": "After",
+        "details": "Details",
+        "detailsTitle": "Score breakdown"
+      },
+      "subscores": {
+        "title": "Score breakdown",
+        "keywordExact": {
+          "label": "Exact keywords",
+          "description": "Job keywords found in your resume."
+        },
+        "keywordPhrase": {
+          "label": "Keyword phrases",
+          "description": "Multi-word phrases that match."
+        },
+        "semanticRelevance": {
+          "label": "Semantic match",
+          "description": "Overall meaning alignment."
+        },
+        "titleAlignment": {
+          "label": "Title match",
+          "description": "Your titles match the role."
+        },
+        "metricsPresence": {
+          "label": "Numbers used",
+          "description": "Quantified achievements present."
+        },
+        "sectionCompleteness": {
+          "label": "Complete sections",
+          "description": "All key sections included."
+        },
+        "formatParseability": {
+          "label": "Format",
+          "description": "ATS can read your resume."
+        },
+        "recencyFit": {
+          "label": "Recency",
+          "description": "Experience timeframe matches."
+        }
+      },
+      "suggestions": {
+        "title": "Suggestions",
+        "count": "{count} suggestions",
+        "quickWins": "Quick fixes",
+        "highImpact": "Big impact",
+        "otherImprovements": "Other improvements",
+        "quickWinBadge": "Quick",
+        "points": "+{points} pts",
+        "apply": "Apply",
+        "emptyTitle": "No suggestions",
+        "emptyDescription": "Your resume looks good.",
+        "categories": {
+          "keywords": "Keywords",
+          "formatting": "Format",
+          "content": "Content",
+          "structure": "Structure",
+          "metrics": "Numbers"
+        }
+      }
+    },
+    "chat": {
+      "header": {
+        "title": "AI Assistant",
+        "subtitle": "Ask how to improve your resume.",
+        "endSession": "End chat"
+      },
+      "errors": {
+        "loadSessions": "Couldn't load chat history. Refresh and try again.",
+        "loadChatSession": "Couldn't load this chat. Try again.",
+        "loadMessages": "Couldn't load messages. Check your connection.",
+        "sendMessage": "Couldn't send message. Try again.",
+        "closeSession": "Couldn't close chat. Try again.",
+        "applyRefinement": "Couldn't apply change. Try again.",
+        "applyChanges": "Couldn't apply changes. Try again.",
+        "approveChanges": "Couldn't save change. Try again."
+      },
+      "loading": "Loading...",
+      "empty": {
+        "title": "Start a conversation",
+        "description": "Ask for help with your resume."
+      },
+      "error": {
+        "dismiss": "Dismiss"
+      },
+      "input": {
+        "defaultPlaceholder": "Ask for improvements...",
+        "selectionPlaceholder": "What should I change?",
+        "placeholder": "Type your message...",
+        "send": "Send",
+        "charactersRemaining": "{count} left",
+        "helpText": "Enter to send, Shift+Enter for new line."
+      },
+      "refine": {
+        "copy": "Copy",
+        "clear": "Clear",
+        "suggestionFor": "Suggestion for <field></field> in <section></section>",
+        "selectionHint": "Selected <field></field> in <section></section>"
+      },
+      "suggestionsBanner": {
+        "title": "Quick fixes",
+        "tipLabel": "Fix {number}",
+        "points": "+{points} pts",
+        "quickWin": "Quick",
+        "moreSuggestions": "+{count} more",
+        "cta": "Open assistant to apply changes.",
+        "collapsedPreview": "{count} fixes available"
+      },
+      "pendingChanges": {
+        "title": "Review changes",
+        "tipLabel": "Fix {number}",
+        "changesLabel": "Proposed:",
+        "affectsLabel": "Changes",
+        "affectsCount": "{count} sections",
+        "fieldSeparator": "·",
+        "moreSections": "+{count} more",
+        "approve": "Approve",
+        "reject": "Reject",
+        "applying": "Applying...",
+        "approveAria": "Approve fix {number}",
+        "rejectAria": "Reject fix {number}",
+        "instructions": "Approve to apply or reject to skip."
+      },
+      "changeDiff": {
+        "changes": "Changes",
+        "added": "Added",
+        "removed": "Removed",
+        "modified": "Changed",
+        "original": "Before"
+      },
+      "message": {
+        "you": "You",
+        "assistant": "Assistant"
+      }
+    },
+    "design": {
+      "loadingTemplate": "Loading...",
+      "errors": {
+        "loadTemplate": "Couldn't load template. Try again.",
+        "renderTemplate": "Couldn't display template. Try again."
+      },
+      "fallbackTemplate": "Showing default view.",
+      "switchingDesign": "Loading template...",
+      "resumePreviewTitle": "Preview",
+      "present": "Present",
+      "skillLevelTechnical": "Technical",
+      "skillLevelSoft": "Professional",
+      "technologiesLabel": "Tech",
+      "browser": {
+        "title": "Pick a Template",
+        "subtitle": "Choose how your resume looks.",
+        "allTemplates": "All templates",
+        "templatesAvailable": "{count} templates",
+        "empty": "No templates found.",
+        "emptyWithCategory": "No templates in \"{category}\"",
+        "errorTitle": "Couldn't load templates",
+        "errors": {
+          "fetchTemplates": "Couldn't fetch templates. Check your connection.",
+          "loadTemplates": "Couldn't load templates. Try again."
+        },
+        "tryAgain": "Try again",
+        "close": "Close"
+      },
+      "preview": {
+        "modeLabel": "Preview",
+        "sectionsSummary": "Showing {count} sections: {sections}{suffix}",
+        "reviewHint": "Review before applying.",
+        "titleFallback": "Template preview",
+        "subtitle": "See how your resume looks.",
+        "closePreview": "Close",
+        "loading": "Loading...",
+        "errorTitle": "Preview error",
+        "tryAgain": "Try again",
+        "previewTitle": "Preview: {name}",
+        "errors": {
+          "loadPreview": "Couldn't load preview. Try again.",
+          "applyTemplate": "Couldn't apply template. Try again."
+        },
+        "responsiveNote": "Works on desktop and mobile.",
+        "cancel": "Cancel",
+        "applying": "Applying...",
+        "applyTemplate": "Use This Template"
+      },
+      "customizer": {
+        "welcome": "Describe how you want your resume to look.",
+        "header": {
+          "title": "Customize Design",
+          "subtitle": "Tell us what to change.",
+          "close": "Close"
+        },
+        "processing": "Updating...",
+        "input": {
+          "placeholder": "Example: Make the headings blue...",
+          "send": "Send"
+        },
+        "footer": {
+          "atsSafe": "ATS-safe",
+          "contentLocked": "Content locked"
+        },
+        "messages": {
+          "tip": "Tip: Be specific for best results.",
+          "viewPreview": "View preview"
+        },
+        "preview": {
+          "title": "Preview"
+        },
+        "success": {
+          "applied": "Changed: {message}",
+          "appliedDefault": "Changes applied."
+        },
+        "errors": {
+          "applyCustomization": "Couldn't apply change. Try again.",
+          "atsViolation": "ATS warning: {message}",
+          "atsViolationDetail": "This might hurt your ATS score.",
+          "needsDetails": "Can you clarify? {message}",
+          "needsDetailsDetail": "Add more detail to continue.",
+          "invalidRequest": "Can't do that: {message}",
+          "invalidRequestDetail": "Try a different request.",
+          "generic": "Something went wrong: {message}",
+          "genericDetail": "Try again."
+        }
+      },
+      "templateCard": {
+        "previewAlt": "{name} preview",
+        "previewTitle": "{name}",
+        "previewLabel": "Preview",
+        "clickToPreview": "Click to preview",
+        "selected": "Selected",
+        "premium": "Premium",
+        "atsScoreLabel": "ATS score",
+        "customColors": "Colors",
+        "customFonts": "Fonts",
+        "customLayout": "Layout",
+        "apply": "Apply",
+        "applyTemplate": "Use template",
+        "applying": "Applying...",
+        "closePreview": "Close",
+        "categories": {
+          "traditional": "Traditional",
+          "modern": "Modern",
+          "corporate": "Corporate",
+          "creative": "Creative"
+        }
+      },
+      "undo": {
+        "undo": "Undo",
+        "undoTitle": "Undo last change",
+        "undoDisabledTitle": "Nothing to undo",
+        "revert": "Revert",
+        "revertTitle": "Revert all changes",
+        "revertDisabledTitle": "No changes to revert",
+        "errors": {
+          "undo": "Couldn't undo. Try again.",
+          "revert": "Couldn't revert. Try again."
+        },
+        "modal": {
+          "title": "Revert all changes?",
+          "description": "This removes all customizations and restores the default.",
+          "cancel": "Cancel",
+          "confirm": "Revert All"
+        }
+      }
+    },
+    "nav": {
+      "home": "Home",
+      "upload": "Upload",
+      "applications": "Jobs",
+      "profile": "Profile"
+    },
+    "mobileMenu": {
+      "dashboard": "Dashboard",
+      "uploadResume": "Upload resume",
+      "applications": "My applications",
+      "templates": "Templates",
+      "settings": "Settings",
+      "helpSupport": "Help",
+      "premium": "Go Premium",
+      "signOut": "Sign out",
+      "userFallback": "User"
+    },
+    "paywall": {
+      "title": "Unlock Unlimited Resume Checks",
+      "usedFree": "You've used your {count} free checks.",
+      "bestValue": "Most popular",
+      "perMonth": "/month",
+      "cancelAnytime": "Cancel anytime",
+      "features": {
+        "unlimited": "Unlimited resume checks",
+        "templates": "All premium templates",
+        "priorityProcessing": "Results in 15 seconds",
+        "analytics": "Track your applications",
+        "exportFormats": "Download as PDF or Word",
+        "support": "Email support"
+      },
+      "cta": "Start Premium Now",
+      "processing": "Processing...",
+      "securePayment": "Secure payment via Stripe",
+      "maybeLater": "Not now",
+      "errors": {
+        "startUpgrade": "Couldn't start upgrade. Check your connection and try again.",
+        "generic": "We hit a snag. Try again in a moment."
+      }
+    }
+  }
+}

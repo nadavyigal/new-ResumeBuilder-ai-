@@ -1,22 +1,29 @@
 import * as Sentry from "@sentry/nextjs";
 
+type ReplayIntegrationFactory = (options: {
+  maskAllText?: boolean;
+  blockAllMedia?: boolean;
+}) => unknown;
+
 const replayIntegration = (Sentry as unknown as {
-  replayIntegration?: (options: { maskAllText?: boolean; blockAllMedia?: boolean }) => unknown;
+  replayIntegration?: ReplayIntegrationFactory;
 }).replayIntegration;
+
+const integrations = replayIntegration
+  ? [
+      replayIntegration({
+        maskAllText: true,
+        blockAllMedia: true,
+      }),
+    ]
+  : [];
 
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Replay is used to record user sessions for debugging
   // This can be privacy-sensitive, so consider carefully before enabling
-  integrations: replayIntegration
-    ? [
-        replayIntegration({
-          maskAllText: true,
-          blockAllMedia: true,
-        }),
-      ]
-    : [],
+  integrations: integrations as [],
 
   // Performance Monitoring
   tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,

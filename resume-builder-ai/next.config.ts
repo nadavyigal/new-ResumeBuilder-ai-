@@ -15,10 +15,10 @@ const nextConfig: NextConfig = {
     // Enforce type checking during builds
     ignoreBuildErrors: false,
   },
-  // Generate unique build ID to force cache invalidation on deployments
+  // Use git commit SHA for build ID - enables CDN cache reuse between deploys
+  // while still invalidating cache when code actually changes
   generateBuildId: async () => {
-    // Use timestamp for cache busting - forces browser to fetch new chunks
-    return `build-${Date.now()}`;
+    return process.env.VERCEL_GIT_COMMIT_SHA || process.env.GIT_HASH || `build-${Date.now()}`;
   },
   webpack: (config, { isServer }) => {
     if (isServer) {

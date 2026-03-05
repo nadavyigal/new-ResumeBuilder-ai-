@@ -11,6 +11,7 @@ import { OptimizedResume } from "@/lib/ai-optimizer";
 import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
+import { ExpertModesPanel } from "@/components/expert/ExpertModesPanel";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
@@ -66,6 +67,7 @@ export default function OptimizationPage() {
 
   // Pending changes for ATS tip highlighting
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
+  const [isPremium, setIsPremium] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -81,6 +83,33 @@ export default function OptimizationPage() {
     const vh = window.innerHeight;
     setFabPosition({ x: vw - 84, y: vh - 180 });
   }, []);
+
+  useEffect(() => {
+    const resolvePlan = async () => {
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const authUser = authData?.user;
+        if (!authUser) return;
+
+        const metadata = authUser.user_metadata || {};
+        if (metadata?.is_premium === true || metadata?.plan_type === "premium") {
+          setIsPremium(true);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("plan_type")
+          .eq("user_id", authUser.id)
+          .maybeSingle();
+        setIsPremium(profile?.plan_type === "premium");
+      } catch (planError) {
+        console.error("Failed to resolve premium status:", planError);
+      }
+    };
+
+    resolvePlan();
+  }, [supabase]);
 
   useEffect(() => {
     const handleMove = (e: PointerEvent) => {
@@ -236,7 +265,7 @@ export default function OptimizationPage() {
 
       // Set ATS v2 data if available
       const row = optimizationRow as any;
-      if (row.ats_version === 2 && row.ats_score_optimized !== null) {
+      if (row.ats_score_optimized !== null) {
         setAtsV2Data({
           ats_score_original: row.ats_score_original,
           ats_score_optimized: row.ats_score_optimized,
@@ -452,6 +481,20 @@ export default function OptimizationPage() {
       console.error('Failed to refresh design assignment:', error);
     }
   };
+
+  const handleExpertAtsImpact = useCallback((impact: { before: number | null; after: number | null; delta: number | null }) => {
+    setAtsV2Data((prev: any) => ({
+      ats_score_original: impact.before ?? prev?.ats_score_original ?? null,
+      ats_score_optimized: impact.after ?? prev?.ats_score_optimized ?? null,
+      subscores: prev?.subscores ?? null,
+      subscores_original: prev?.subscores_original ?? null,
+      confidence: prev?.confidence ?? null,
+    }));
+
+    if (impact.after !== null) {
+      setMatchScore(impact.after);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -782,6 +825,16 @@ export default function OptimizationPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Expert Modes Panel */}
+      <div className="mb-6 print:hidden flex justify-center">
+        <ExpertModesPanel
+          optimizationId={params.id as string}
+          isPremium={isPremium}
+          onApplied={handleChatMessageSent}
+          onAtsImpact={handleExpertAtsImpact}
+        />
       </div>
 
       {/* Main Layout: Resume Preview (Full Width) */}

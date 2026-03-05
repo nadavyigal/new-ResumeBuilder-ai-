@@ -1,0 +1,10 @@
+{
+  "summary": "Engineer with React and GraphQL experience.",
+  "contact": { "name": "A", "email": "a@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["React", "GraphQL"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

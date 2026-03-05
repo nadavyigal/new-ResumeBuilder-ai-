@@ -6,7 +6,6 @@
 -- Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "vector";
-
 -- =====================================================
 -- DROP EXISTING OBJECTS (for clean setup)
 -- =====================================================
@@ -18,13 +17,11 @@ DROP TRIGGER IF EXISTS update_resumes_updated_at ON resumes;
 DROP TRIGGER IF EXISTS update_job_descriptions_updated_at ON job_descriptions;
 DROP TRIGGER IF EXISTS update_optimizations_updated_at ON optimizations;
 DROP TRIGGER IF EXISTS update_templates_updated_at ON templates;
-
 -- Drop functions
 DROP FUNCTION IF EXISTS public.handle_new_user();
 DROP FUNCTION IF EXISTS public.check_subscription_limit();
 DROP FUNCTION IF EXISTS public.increment_optimization_usage();
 DROP FUNCTION IF EXISTS update_updated_at_column();
-
 -- Drop existing policies
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
@@ -43,14 +40,12 @@ DROP POLICY IF EXISTS "Users can update own optimizations" ON optimizations;
 DROP POLICY IF EXISTS "Users can delete own optimizations" ON optimizations;
 DROP POLICY IF EXISTS "Authenticated users can view templates" ON templates;
 DROP POLICY IF EXISTS "Service role can manage templates" ON templates;
-
 -- Drop tables (in reverse dependency order)
 DROP TABLE IF EXISTS optimizations CASCADE;
 DROP TABLE IF EXISTS job_descriptions CASCADE;
 DROP TABLE IF EXISTS resumes CASCADE;
 DROP TABLE IF EXISTS profiles CASCADE;
 DROP TABLE IF EXISTS templates CASCADE;
-
 -- =====================================================
 -- CREATE TABLES
 -- =====================================================
@@ -66,7 +61,6 @@ CREATE TABLE profiles (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Templates table - resume templates available to users
 CREATE TABLE templates (
     key TEXT PRIMARY KEY,
@@ -77,7 +71,6 @@ CREATE TABLE templates (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Resumes table - uploaded resume files and parsed data
 CREATE TABLE resumes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -89,7 +82,6 @@ CREATE TABLE resumes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Job descriptions table - job postings for optimization
 CREATE TABLE job_descriptions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -102,7 +94,6 @@ CREATE TABLE job_descriptions (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Optimizations table - AI optimization results
 CREATE TABLE optimizations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -118,7 +109,6 @@ CREATE TABLE optimizations (
     -- Ensure one optimization per resume-job combination
     UNIQUE(resume_id, jd_id)
 );
-
 -- =====================================================
 -- ENABLE ROW LEVEL SECURITY
 -- =====================================================
@@ -128,7 +118,6 @@ ALTER TABLE resumes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE job_descriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE optimizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
-
 -- =====================================================
 -- CREATE RLS POLICIES
 -- =====================================================
@@ -136,60 +125,43 @@ ALTER TABLE templates ENABLE ROW LEVEL SECURITY;
 -- Profiles policies
 CREATE POLICY "Users can view own profile" ON profiles
     FOR SELECT USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can insert own profile" ON profiles
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 CREATE POLICY "Users can update own profile" ON profiles
     FOR UPDATE USING (auth.uid() = user_id);
-
 -- Resumes policies
 CREATE POLICY "Users can view own resumes" ON resumes
     FOR SELECT USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can insert own resumes" ON resumes
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 CREATE POLICY "Users can update own resumes" ON resumes
     FOR UPDATE USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can delete own resumes" ON resumes
     FOR DELETE USING (auth.uid() = user_id);
-
 -- Job descriptions policies
 CREATE POLICY "Users can view own job descriptions" ON job_descriptions
     FOR SELECT USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can insert own job descriptions" ON job_descriptions
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 CREATE POLICY "Users can update own job descriptions" ON job_descriptions
     FOR UPDATE USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can delete own job descriptions" ON job_descriptions
     FOR DELETE USING (auth.uid() = user_id);
-
 -- Optimizations policies
 CREATE POLICY "Users can view own optimizations" ON optimizations
     FOR SELECT USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can insert own optimizations" ON optimizations
     FOR INSERT WITH CHECK (auth.uid() = user_id);
-
 CREATE POLICY "Users can update own optimizations" ON optimizations
     FOR UPDATE USING (auth.uid() = user_id);
-
 CREATE POLICY "Users can delete own optimizations" ON optimizations
     FOR DELETE USING (auth.uid() = user_id);
-
 -- Templates policies (public read access for authenticated users)
 CREATE POLICY "Authenticated users can view templates" ON templates
     FOR SELECT TO authenticated USING (true);
-
 -- Service role can manage templates for admin purposes
 CREATE POLICY "Service role can manage templates" ON templates
     FOR ALL TO service_role USING (true);
-
 -- =====================================================
 -- CREATE FUNCTIONS AND TRIGGERS
 -- =====================================================
@@ -202,28 +174,22 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
 -- Apply updated_at triggers to all tables
 CREATE TRIGGER update_profiles_updated_at
     BEFORE UPDATE ON profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_resumes_updated_at
     BEFORE UPDATE ON resumes
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_job_descriptions_updated_at
     BEFORE UPDATE ON job_descriptions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_optimizations_updated_at
     BEFORE UPDATE ON optimizations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 CREATE TRIGGER update_templates_updated_at
     BEFORE UPDATE ON templates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
 -- Function to create user profile on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
@@ -240,12 +206,10 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Trigger to automatically create profile on user signup
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
-
 -- Function to check subscription limits
 CREATE OR REPLACE FUNCTION public.check_subscription_limit(user_uuid UUID)
 RETURNS BOOLEAN AS $$
@@ -271,7 +235,6 @@ BEGIN
     RETURN user_profile.optimizations_used < user_profile.max_optimizations;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- Function to increment optimization usage
 CREATE OR REPLACE FUNCTION public.increment_optimization_usage(user_uuid UUID)
 RETURNS BOOLEAN AS $$
@@ -287,7 +250,6 @@ BEGIN
     RETURN updated_rows > 0;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
-
 -- =====================================================
 -- INSERT DEFAULT DATA
 -- =====================================================
@@ -321,7 +283,6 @@ ON CONFLICT (key) DO UPDATE SET
     is_premium = EXCLUDED.is_premium,
     config = EXCLUDED.config,
     updated_at = NOW();
-
 -- =====================================================
 -- CREATE INDEXES FOR PERFORMANCE
 -- =====================================================
@@ -331,20 +292,16 @@ CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id);
 CREATE INDEX IF NOT EXISTS idx_job_descriptions_user_id ON job_descriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_optimizations_user_id ON optimizations(user_id);
-
 -- Foreign key indexes
 CREATE INDEX IF NOT EXISTS idx_optimizations_resume_id ON optimizations(resume_id);
 CREATE INDEX IF NOT EXISTS idx_optimizations_jd_id ON optimizations(jd_id);
-
 -- Timeline indexes for sorting and pagination
 CREATE INDEX IF NOT EXISTS idx_resumes_created_at ON resumes(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_job_descriptions_created_at ON job_descriptions(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_optimizations_created_at ON optimizations(created_at DESC);
-
 -- Vector similarity indexes (for future similarity search optimization)
 CREATE INDEX IF NOT EXISTS idx_resumes_embeddings ON resumes USING ivfflat (embeddings vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX IF NOT EXISTS idx_job_descriptions_embeddings ON job_descriptions USING ivfflat (embeddings vector_cosine_ops) WITH (lists = 100);
-
 -- =====================================================
 -- SECURITY VALIDATION
 -- =====================================================
@@ -368,7 +325,6 @@ BEGIN
 
     RAISE NOTICE '✅ Row Level Security enabled on all tables';
 END $$;
-
 -- Verify templates were inserted
 DO $$
 BEGIN
@@ -378,7 +334,6 @@ BEGIN
         RAISE EXCEPTION '❌ Default templates were not inserted properly';
     END IF;
 END $$;
-
 -- =====================================================
 -- SETUP COMPLETE NOTIFICATION
 -- =====================================================

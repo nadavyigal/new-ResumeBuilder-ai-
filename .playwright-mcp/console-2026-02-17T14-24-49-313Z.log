@@ -1,0 +1,2 @@
+[    3019ms] [ERROR] Failed to load resource: the server responded with a status of 404 () @ https://buttondown.com/static/images/icons/icon@72.png:0
+[   19109ms] [WARNING] Manifest: property 'start_url' ignored, should be same origin as document. @ https://static-assets.buttondown.com/etc/webmanifest.json:0

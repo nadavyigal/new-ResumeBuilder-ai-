@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,12 @@ import { Upload, Palette, Briefcase, TrendingUp, Sparkles, CheckCircle } from "@
 import { ROUTES } from "@/lib/constants";
 import { createClientComponentClient } from "@/lib/supabase";
 import { useTranslations } from "next-intl";
+import { posthog } from "@/lib/posthog";
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard.home");
   const { user, loading } = useAuth();
+  const searchParams = useSearchParams();
   const [convertedScore, setConvertedScore] = useState<any | null>(null);
   const suggestionsCount = useMemo(() => {
     if (!convertedScore || !Array.isArray(convertedScore.ats_suggestions)) return 0;
@@ -41,6 +44,17 @@ export default function DashboardPage() {
 
     loadConvertedScore();
   }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const upgraded = searchParams.get("upgraded");
+    const source = searchParams.get("source");
+    if (upgraded === "true" && source === "expert_mode") {
+      posthog.capture("upgrade_completed_from_expert", {
+        source,
+      });
+    }
+  }, [searchParams, user]);
 
   if (loading) {
     return (

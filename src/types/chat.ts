@@ -134,6 +134,11 @@ export interface ChatSendMessageResponse {
     score_change: number;
     new_ats_score: number;
   };
+  expert_workflow_run_id?: string;
+  expert_workflow_type?: string;
+  expert_workflow_status?: 'completed' | 'needs_user_input' | 'failed';
+  expert_missing_evidence?: string[];
+  expert_output_preview?: string;
   intent?: 'content' | 'design' | 'ats_tip' | 'unclear';
 }
 

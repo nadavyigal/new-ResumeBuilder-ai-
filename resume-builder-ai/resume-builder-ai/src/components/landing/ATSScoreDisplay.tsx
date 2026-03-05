@@ -1,0 +1,92 @@
+"use client";
+
+import { useTranslations } from "next-intl";
+import { Lock, Sparkles } from "@/lib/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { CountUp } from "@/components/ui/CountUp";
+import { IssueCard } from "@/components/landing/IssueCard";
+import { SocialShareButton } from "@/components/landing/SocialShareButton";
+import { QuickWinsSection } from "@/components/ats/QuickWinsSection";
+import type { ATSCheckerResponse } from "@/components/landing/FreeATSChecker";
+import type { QuickWinSuggestion } from "@/lib/ats/types";
+
+interface ATSScoreDisplayProps {
+  data: ATSCheckerResponse;
+  onSignup: () => void;
+  checksRemainingLabel?: string | null;
+}
+
+export function ATSScoreDisplay({ data, onSignup, checksRemainingLabel }: ATSScoreDisplayProps) {
+  const score = data.score.overall;
+  const { preview } = data;
+  const t = useTranslations("landing.score");
+
+  const matchLabel =
+    score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
+
+  return (
+    <div data-testid="ats-score-display" className="space-y-6 animate-fade-in">
+      <div className="text-center space-y-3">
+        <div data-testid="ats-score" className="text-6xl md:text-7xl font-extrabold text-foreground tracking-tight animate-scale-in">
+          <CountUp end={score} duration={2} />
+          <span className="text-2xl md:text-3xl text-foreground/40 font-bold">/100</span>
+        </div>
+        <div className="inline-flex items-center gap-2 rounded-full bg-mobile-cta/10 border border-mobile-cta/20 px-5 py-1.5 text-sm font-bold text-mobile-cta animate-fade-in-up stagger-2">
+          <Sparkles className="w-4 h-4" />
+          {matchLabel}
+        </div>
+        {checksRemainingLabel && (
+          <div className="text-xs text-foreground/60">{checksRemainingLabel}</div>
+        )}
+      </div>
+
+      <div data-testid="ats-issues-list" className="space-y-3">
+        <h3 className="text-base font-semibold text-foreground">{t("topIssues")}</h3>
+        {preview.topIssues.map((issue, index) => (
+          <IssueCard key={issue.id || index} issue={issue} rank={index + 1} />
+        ))}
+      </div>
+
+      {/* Quick Wins Section */}
+      {data.quickWins && data.quickWins.length > 0 && (
+        <div className="mt-6 pt-6 border-t">
+          <QuickWinsSection quickWins={data.quickWins as QuickWinSuggestion[]} />
+        </div>
+      )}
+
+      {preview.lockedCount > 0 && (
+        <div className="relative">
+          <div
+            data-testid="locked-issues-blur"
+            className="space-y-2 blur-sm opacity-60 pointer-events-none"
+          >
+            {Array.from({ length: Math.max(3, preview.lockedCount) }).map((_, index) => (
+              <div key={index} className="h-16 rounded-2xl border border-border bg-muted" />
+            ))}
+          </div>
+
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 rounded-2xl">
+            <Card className="p-6 text-center max-w-sm">
+              <Lock className="mx-auto h-10 w-10 mb-3 text-foreground" />
+              <h3 className="text-lg font-bold mb-2">
+                {t("lockedTitle", { count: preview.lockedCount })}
+              </h3>
+              <p className="text-sm text-foreground/70 mb-4">
+                {t("lockedDescription")}
+              </p>
+              <Button className="w-full" data-testid="signup-cta" onClick={onSignup}>
+                {t("lockedCta")}
+              </Button>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <SocialShareButton platform="linkedin" score={score} />
+        <SocialShareButton platform="twitter" score={score} />
+      </div>
+    </div>
+  );
+}

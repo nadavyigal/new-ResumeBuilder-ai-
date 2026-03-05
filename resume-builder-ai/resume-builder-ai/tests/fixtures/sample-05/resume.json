@@ -1,0 +1,10 @@
+{
+  "summary": "ML engineer with TensorFlow and Python.",
+  "contact": { "name": "E", "email": "e@b.com", "phone": "", "location": "" },
+  "skills": { "technical": ["TensorFlow", "Python"], "soft": [] },
+  "experience": [],
+  "education": [],
+  "matchScore": 0,
+  "keyImprovements": [],
+  "missingKeywords": []
+}
