@@ -13,6 +13,7 @@ node_modules/
 
 # testing
 /coverage
+/test-results/
 
 # next.js
 /.next/
@@ -33,6 +34,8 @@ dist/
 
 # Artifacts (local only)
 /tmp/artifacts/**
+/.playwright-mcp/
+vercel-latest-deploy.png
 
 # vercel
 .vercel
@@ -51,6 +54,7 @@ yarn-error.log*
 AI/
 playground/
 ResumeBuilder AI/
+resume-builder-ai/
 
 # Windows reserved filenames
 nul

@@ -1,4 +1,0 @@
-# Force cache invalidation
-# Ignore old build artifacts
-.next/
-node_modules/

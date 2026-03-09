@@ -1,1 +1,0 @@
-Hiring DevOps with Kubernetes, Terraform, and CI/CD best practices.
