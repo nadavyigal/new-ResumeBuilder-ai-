@@ -24,7 +24,7 @@ import { detectIntentRegex } from '@/lib/agent/intents';
 import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
 import { runExpertWorkflow } from '@/lib/expert-workflows';
-import type { ExpertWorkflowType } from '@/lib/expert-workflows';
+import type { SurfacedExpertWorkflowType } from '@/lib/expert-workflows';
 import { ensureThread } from '@/lib/ai-assistant/thread-manager';
 import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
@@ -144,7 +144,7 @@ function applyAmendmentsToResume(
   return updatedContent;
 }
 
-function detectExpertWorkflowType(message: string): ExpertWorkflowType | null {
+function detectExpertWorkflowType(message: string): SurfacedExpertWorkflowType | null {
   const text = message.toLowerCase();
   if (/(run|do|start|create|generate).*(expert)?.*(resume)?.*rewrite/.test(text)) {
     return 'full_resume_rewrite';
@@ -163,12 +163,6 @@ function detectExpertWorkflowType(message: string): ExpertWorkflowType | null {
   }
   if (/(screening answer|screening question|application question|pre-screen).*(generate|create|draft|write)?/.test(text)) {
     return 'screening_answer_studio';
-  }
-  if (/(recruiter outreach|linkedin message|follow up message).*(generate|create|write|draft)?/.test(text)) {
-    return 'recruiter_outreach_kit';
-  }
-  if (/(interview story|star story|story bank).*(generate|create|write|draft)?/.test(text)) {
-    return 'interview_story_bank';
   }
   return null;
 }

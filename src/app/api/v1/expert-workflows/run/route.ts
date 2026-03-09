@@ -2,25 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
 import { runExpertWorkflow } from '@/lib/expert-workflows';
-import type { ExpertWorkflowType } from '@/lib/expert-workflows';
+import {
+  SURFACED_EXPERT_WORKFLOW_TYPES,
+  isSurfacedExpertWorkflowType,
+  type SurfacedExpertWorkflowType,
+} from '@/lib/expert-workflows';
 
-const EXPERT_WORKFLOW_TYPES: ExpertWorkflowType[] = [
-  'full_resume_rewrite',
-  'achievement_quantifier',
-  'ats_optimization_report',
-  'professional_summary_lab',
-  'cover_letter_architect',
-  'screening_answer_studio',
-  'recruiter_outreach_kit',
-  'interview_story_bank',
-];
-
-function isExpertWorkflowType(value: string): value is ExpertWorkflowType {
-  return EXPERT_WORKFLOW_TYPES.includes(value as ExpertWorkflowType);
-}
-
-function getLockedPreview(workflowType: ExpertWorkflowType) {
-  const previews: Record<ExpertWorkflowType, string> = {
+function getLockedPreview(workflowType: SurfacedExpertWorkflowType) {
+  const previews: Record<SurfacedExpertWorkflowType, string> = {
     full_resume_rewrite:
       'Preview: your summary and experience bullets will be rewritten for role fit with ATS-safe structure.',
     achievement_quantifier:
@@ -33,10 +22,6 @@ function getLockedPreview(workflowType: ExpertWorkflowType) {
       'Preview: Dear Hiring Team, I am excited to apply for this role because my recent work aligns directly with your priorities. Unlock Premium to generate all 3 tailored variants and save one to your application.',
     screening_answer_studio:
       'Preview: you will receive role-specific screening answers with evidence notes and confidence guidance.',
-    recruiter_outreach_kit:
-      'Preview: you will get ready-to-send outreach drafts for LinkedIn, follow-up, and recruiter email.',
-    interview_story_bank:
-      'Preview: you will get STAR stories mapped to likely interview themes from the job description.',
   };
   return previews[workflowType];
 }
@@ -79,9 +64,13 @@ export async function POST(request: NextRequest) {
     const evidenceInputs =
       body.evidence_inputs && typeof body.evidence_inputs === 'object' ? body.evidence_inputs : {};
 
-    if (!optimizationId || !workflowType || !isExpertWorkflowType(workflowType)) {
+    if (!optimizationId || !workflowType || !isSurfacedExpertWorkflowType(workflowType)) {
       return NextResponse.json(
-        { error: 'optimization_id and valid workflow_type are required.' },
+        {
+          error: 'optimization_id and valid workflow_type are required.',
+          code: 'INVALID_WORKFLOW_TYPE',
+          supported_workflow_types: SURFACED_EXPERT_WORKFLOW_TYPES,
+        },
         { status: 400 }
       );
     }
@@ -110,7 +99,9 @@ export async function POST(request: NextRequest) {
         {
           error: 'Premium required',
           code: 'PREMIUM_REQUIRED',
+          workflow_type: workflowType,
           locked_preview: getLockedPreview(workflowType),
+          supported_workflow_types: SURFACED_EXPERT_WORKFLOW_TYPES,
         },
         { status: 402 }
       );
@@ -142,9 +133,20 @@ export async function POST(request: NextRequest) {
       is_premium: true,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      workflow_type: workflowType,
+      ...result,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to run expert workflow.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: message,
+        status: 'failed',
+        needs_user_input: false,
+        missing_evidence: [],
+      },
+      { status: 500 }
+    );
   }
 }

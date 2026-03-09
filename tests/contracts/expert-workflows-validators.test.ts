@@ -67,6 +67,31 @@ describe('Expert workflow validators', () => {
     expect(result.error).toContain('report');
   });
 
+  it('accepts full resume rewrite output with rewritten_resume payload', () => {
+    const result = validateWorkflowOutput('full_resume_rewrite', {
+      rewritten_resume: {
+        summary: 'Updated summary',
+      },
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts ATS optimization report output with ats_report payload', () => {
+    const result = validateWorkflowOutput('ats_optimization_report', {
+      ats_report: {
+        keyword_coverage: ['TypeScript'],
+        formatting_risks: [],
+      },
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
   it('accepts cover letter output with exactly 3 variants', () => {
     const result = validateWorkflowOutput('cover_letter_architect', {
       cover_letter_variants: [

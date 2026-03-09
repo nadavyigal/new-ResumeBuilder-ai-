@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "@/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +25,11 @@ import {
   Target,
   TrendingUp,
 } from "@/lib/icons";
-import type { ExpertWorkflowType } from "@/lib/expert-workflows";
+import {
+  isSurfacedNonResumeWorkflowType,
+  type ExpertWorkflowType,
+  type SurfacedExpertWorkflowType,
+} from "@/lib/expert-workflows";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/navigation";
 import { cn } from "@/lib/utils";
@@ -45,6 +50,7 @@ type ReportEnvelope = {
 };
 
 type RunResponse = {
+  workflow_type?: SurfacedExpertWorkflowType;
   run_id: string;
   status: WorkflowStatus;
   output: Record<string, unknown>;
@@ -97,7 +103,7 @@ interface ExpertModesPanelProps {
 }
 
 const WORKFLOWS: Array<{
-  type: ExpertWorkflowType;
+  type: SurfacedExpertWorkflowType;
   icon: typeof Sparkles;
   category: "resume" | "document";
 }> = [
@@ -131,13 +137,6 @@ const WORKFLOWS: Array<{
     icon: CheckSquare,
     category: "document",
   },
-];
-
-const NON_RESUME_WORKFLOWS: ExpertWorkflowType[] = [
-  "cover_letter_architect",
-  "screening_answer_studio",
-  "recruiter_outreach_kit",
-  "interview_story_bank",
 ];
 
 function toReportEnvelope(value: unknown): ReportEnvelope | null {
@@ -183,12 +182,15 @@ export function ExpertModesPanel({
   onAtsImpact,
 }: ExpertModesPanelProps) {
   const t = useTranslations("dashboard.optimization.expert");
+  const paywallT = useTranslations("dashboard.paywall");
   const locale = useLocale();
+  const router = useRouter();
 
-  const [activeWorkflow, setActiveWorkflow] = useState<ExpertWorkflowType>(WORKFLOWS[0].type);
+  const [activeWorkflow, setActiveWorkflow] = useState<SurfacedExpertWorkflowType>(WORKFLOWS[0].type);
   const [runLoading, setRunLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lockedMessage, setLockedMessage] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<RunResponse | null>(null);
@@ -224,7 +226,7 @@ export function ExpertModesPanel({
     Array.isArray((runResult.output as any).screening_answers)
       ? ((runResult.output as any).screening_answers as ScreeningAnswer[])
       : [];
-  const isNonResumeWorkflow = NON_RESUME_WORKFLOWS.includes(activeWorkflow);
+  const isNonResumeWorkflow = isSurfacedNonResumeWorkflowType(activeWorkflow);
 
   const report = runResult ? toReportEnvelope((runResult.output as any).report) : null;
 
@@ -235,7 +237,7 @@ export function ExpertModesPanel({
     });
   }, [optimizationId, isPremium]);
 
-  const resetForMode = (workflowType: ExpertWorkflowType) => {
+  const resetForMode = (workflowType: SurfacedExpertWorkflowType) => {
     setActiveWorkflow(workflowType);
     setRunResult(null);
     setApplyResult(null);
@@ -306,6 +308,40 @@ export function ExpertModesPanel({
       setError(runError instanceof Error ? runError.message : t("errors.run"));
     } finally {
       setRunLoading(false);
+    }
+  };
+
+  const startUpgrade = async () => {
+    setUpgradeLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          plan: "premium",
+          locale,
+          source: "expert_mode",
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.ok && typeof payload.checkoutUrl === "string" && payload.checkoutUrl) {
+        window.location.href = payload.checkoutUrl;
+        return;
+      }
+
+      if (response.status === 401) {
+        router.push("/auth/signin");
+        return;
+      }
+
+      throw new Error(payload.error || paywallT("errors.startUpgrade"));
+    } catch (upgradeError) {
+      setError(upgradeError instanceof Error ? upgradeError.message : paywallT("errors.generic"));
+    } finally {
+      setUpgradeLoading(false);
     }
   };
 
@@ -504,16 +540,8 @@ export function ExpertModesPanel({
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!isPremium ? (
                 <>
-                  <Button
-                    onClick={() => {
-                      posthog.capture("upgrade_clicked_from_expert", {
-                        workflow_type: activeWorkflow,
-                        optimization_id: optimizationId,
-                      });
-                      window.location.href = "/pricing";
-                    }}
-                  >
-                    {t("actions.upgrade")}
+                  <Button onClick={startUpgrade} disabled={upgradeLoading}>
+                    {upgradeLoading ? paywallT("processing") : t("actions.upgrade")}
                   </Button>
                   <Button variant="outline" onClick={runWorkflow} disabled={runLoading}>
                     {runLoading ? t("actions.running") : t("actions.preview")}
@@ -563,6 +591,15 @@ export function ExpertModesPanel({
                 </Badge>
                 <span className="text-xs text-muted-foreground">{t("runId")}: {runResult.run_id}</span>
               </div>
+
+              {runResult.status === "needs_user_input" && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                  <p className="font-medium">{t("status.needs_user_input")}</p>
+                  <p className="mt-1">
+                    {t("report.evidenceGaps")}: {runResult.missing_evidence.length}
+                  </p>
+                </div>
+              )}
 
               {report ? (
                 <Card className="border border-border/70">

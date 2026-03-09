@@ -7,6 +7,14 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const body = await request.json().catch(() => ({}));
+  const applyMode = typeof body.apply_mode === 'string' ? body.apply_mode : 'default';
+  const selectionIndex =
+    typeof body.selection_index === 'number' ? body.selection_index : undefined;
+  const selectedIndices = Array.isArray(body.selected_indices)
+    ? body.selected_indices.filter((value: unknown) => typeof value === 'number')
+    : undefined;
+
   const supabase = await createRouteHandlerClient();
   const {
     data: { user },
@@ -14,20 +22,23 @@ export async function POST(
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Unauthorized',
+        updated_fields: [],
+        ats_impact: { before: null, after: null, delta: null },
+        apply_mode: applyMode,
+        selection_index: selectionIndex ?? null,
+        applied_assets: [],
+      },
+      { status: 401 }
+    );
   }
 
   const { id } = await context.params;
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const applyMode = typeof body.apply_mode === 'string' ? body.apply_mode : 'default';
-    const selectionIndex =
-      typeof body.selection_index === 'number' ? body.selection_index : undefined;
-    const selectedIndices = Array.isArray(body.selected_indices)
-      ? body.selected_indices.filter((value: unknown) => typeof value === 'number')
-      : undefined;
-
     await captureServerEvent(user.id, 'expert_apply_clicked', {
       run_id: id,
       apply_mode: applyMode,
@@ -54,6 +65,17 @@ export async function POST(
     return NextResponse.json(result);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to apply expert workflow output.';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: message,
+        updated_fields: [],
+        ats_impact: { before: null, after: null, delta: null },
+        apply_mode: applyMode,
+        selection_index: selectionIndex ?? null,
+        applied_assets: [],
+      },
+      { status: 500 }
+    );
   }
 }

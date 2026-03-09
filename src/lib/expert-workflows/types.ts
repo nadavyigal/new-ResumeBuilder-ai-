@@ -1,5 +1,19 @@
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 
+export const SURFACED_EXPERT_WORKFLOW_TYPES = [
+  'full_resume_rewrite',
+  'achievement_quantifier',
+  'ats_optimization_report',
+  'professional_summary_lab',
+  'cover_letter_architect',
+  'screening_answer_studio',
+] as const;
+
+export const SURFACED_NON_RESUME_WORKFLOW_TYPES = [
+  'cover_letter_architect',
+  'screening_answer_studio',
+] as const;
+
 export type ExpertWorkflowType =
   | 'full_resume_rewrite'
   | 'achievement_quantifier'
@@ -10,7 +24,21 @@ export type ExpertWorkflowType =
   | 'recruiter_outreach_kit'
   | 'interview_story_bank';
 
+export type SurfacedExpertWorkflowType = (typeof SURFACED_EXPERT_WORKFLOW_TYPES)[number];
+
 export type ExpertWorkflowStatus = 'completed' | 'needs_user_input' | 'failed';
+
+export function isSurfacedExpertWorkflowType(value: string): value is SurfacedExpertWorkflowType {
+  return SURFACED_EXPERT_WORKFLOW_TYPES.includes(value as SurfacedExpertWorkflowType);
+}
+
+export function isSurfacedNonResumeWorkflowType(
+  value: ExpertWorkflowType
+): value is (typeof SURFACED_NON_RESUME_WORKFLOW_TYPES)[number] {
+  return SURFACED_NON_RESUME_WORKFLOW_TYPES.includes(
+    value as (typeof SURFACED_NON_RESUME_WORKFLOW_TYPES)[number]
+  );
+}
 
 export interface ExpertWorkflowInput {
   optimization_id: string;
