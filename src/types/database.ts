@@ -216,6 +216,58 @@ export interface Database {
           }
         ]
       >;
+      optimization_review_runs: Table<
+        {
+          id: string;
+          user_id: string;
+          resume_id: string;
+          jd_id: string;
+          original_resume_json: Json;
+          optimized_resume_json: Json;
+          grouped_changes_json: Json;
+          ats_preview_json: Json | null;
+          created_at: string;
+          applied_at: string | null;
+        },
+        {
+          id?: string;
+          user_id: string;
+          resume_id: string;
+          jd_id: string;
+          original_resume_json?: Json;
+          optimized_resume_json?: Json;
+          grouped_changes_json?: Json;
+          ats_preview_json?: Json | null;
+          created_at?: string;
+          applied_at?: string | null;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          resume_id?: string;
+          jd_id?: string;
+          original_resume_json?: Json;
+          optimized_resume_json?: Json;
+          grouped_changes_json?: Json;
+          ats_preview_json?: Json | null;
+          created_at?: string;
+          applied_at?: string | null;
+        },
+        [
+          {
+            foreignKeyName: 'optimization_review_runs_resume_id_fkey';
+            columns: ['resume_id'];
+            referencedRelation: 'resumes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'optimization_review_runs_jd_id_fkey';
+            columns: ['jd_id'];
+            referencedRelation: 'job_descriptions';
+            referencedColumns: ['id'];
+          }
+        ]
+      >;
       templates: Table<
         {
           key: string;

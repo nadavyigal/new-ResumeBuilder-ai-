@@ -124,8 +124,16 @@ export default function ResumeUploadPage() {
         throw new Error(errorData.error || t("errors.generic"));
       }
 
-      const { optimizationId } = await response.json();
-      router.push(`${ROUTES.optimizations}/${optimizationId}`);
+      const payload = await response.json();
+      if (payload.reviewId) {
+        router.push(`${ROUTES.optimizationReviews}/${payload.reviewId}`);
+        return;
+      }
+      if (payload.optimizationId) {
+        router.push(`${ROUTES.optimizations}/${payload.optimizationId}`);
+        return;
+      }
+      throw new Error(t("errors.generic"));
     } catch (error: any) {
       if (error.name === 'AbortError') {
         setError(t("errors.timeout"));

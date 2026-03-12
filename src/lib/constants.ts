@@ -17,6 +17,7 @@ export const ROUTES = {
   },
   upload: "/dashboard/resume",
   optimizations: "/dashboard/optimizations",
+  optimizationReviews: "/dashboard/optimization-reviews",
   templates: "/templates",
   pricing: "/pricing",
 };

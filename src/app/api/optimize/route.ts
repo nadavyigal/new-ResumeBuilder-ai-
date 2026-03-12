@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { optimizeResume } from "@/lib/openai";
-import { scoreOptimization } from "@/lib/ats/integration";
+import { optimizeResume } from "@/lib/ai-optimizer";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
-import { captureServerEvent } from "@/lib/posthog-server";
 import { logger } from "@/lib/agent/utils/logger";
+import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
@@ -69,125 +68,26 @@ export async function POST(req: NextRequest) {
       throw new Error(jdError?.message || "Job description not found");
     }
 
-    const optimizedResume = await optimizeResume((resumeData as any).raw_text, (jdData as any).raw_text);
-
-    // Score the optimization using ATS v2
-    let atsResult = null;
-    try {
-      logger.info('Starting ATS v2 scoring', { userId: user.id, resumeId, jobDescriptionId });
-      const scoringPromise = scoreOptimization({
-        resumeOriginalText: (resumeData as any).raw_text,
-        resumeOptimizedJson: optimizedResume,
-        jobDescriptionText: (jdData as any).raw_text,
-        jobTitle: 'Position', // TODO: Extract from JD if available
-      });
-      
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('ATS scoring timeout')), 30000)
-      );
-      
-      atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
-      
-      logger.info('ATS v2 scoring completed', {
-        userId: user.id,
-        resumeId,
-        original: atsResult?.ats_score_original,
-        optimized: atsResult?.ats_score_optimized,
-        improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
-      });
-    } catch (atsError: any) {
-      logger.error('ATS v2 scoring failed, using fallback scoring', {
-        userId: user.id,
-        resumeId,
-        jobDescriptionId,
-        error: atsError?.message,
-      }, atsError);
-
-      // FALLBACK: Calculate basic keyword-based scores instead of null
-      try {
-        const originalText = (resumeData as any).raw_text?.toLowerCase() || '';
-        const optimizedText = JSON.stringify(optimizedResume).toLowerCase();
-        const jdText = (jdData as any).raw_text?.toLowerCase() || '';
-
-        // Extract simple keywords from job description (words 4+ chars)
-        const jdKeywords = jdText
-          .split(/\s+/)
-          .filter((word: string) => word.length >= 4 && /^[a-z]+$/.test(word))
-          .slice(0, 50); // Use top 50 words
-
-        // Count keyword matches
-        const originalMatches = jdKeywords.filter((kw: string) => originalText.includes(kw)).length;
-        const optimizedMatches = jdKeywords.filter((kw: string) => optimizedText.includes(kw)).length;
-
-        // Calculate scores (40-85 range based on match percentage)
-        const originalScore = Math.round(40 + (originalMatches / jdKeywords.length) * 45);
-        const optimizedScore = Math.round(Math.max(originalScore + 5, 45 + (optimizedMatches / jdKeywords.length) * 45));
-
-        logger.info('Fallback scoring metrics', {
-          userId: user.id,
-          resumeId,
-          jdKeywords: jdKeywords.length,
-          originalMatches,
-          optimizedMatches,
-          originalScore,
-          optimizedScore,
-        });
-
-        atsResult = {
-          ats_score_original: originalScore,
-          ats_score_optimized: optimizedScore,
-          subscores: null,
-          subscores_original: null,
-          suggestions: [],
-          confidence: 0.5, // Lower confidence for fallback
-        };
-      } catch (fallbackError) {
-        logger.error('Fallback scoring also failed', { userId: user.id, resumeId }, fallbackError);
-        atsResult = null;
-      }
+    const optimizationResult = await optimizeResume(
+      (resumeData as any).raw_text,
+      (jdData as any).raw_text
+    );
+    if (!optimizationResult.success || !optimizationResult.optimizedResume) {
+      throw new Error(optimizationResult.error || "Failed to optimize resume");
     }
 
-    // Prepare optimization data with ATS v2 results
-    const optimizationInsert: any = {
-      user_id: user.id,
-      resume_id: resumeId,
-      jd_id: jobDescriptionId,
-      match_score: atsResult?.ats_score_optimized || 85,
-      gaps_data: {}, // Will be populated with gap analysis
-      rewrite_data: optimizedResume,
-      template_key: 'natural', // Default natural design (no template)
-      status: "completed" as const,
-      // ATS v2 fields - always use version 2
-      ats_version: 2,
-      ats_score_original: atsResult?.ats_score_original || null,
-      ats_score_optimized: atsResult?.ats_score_optimized || null,
-      ats_subscores: atsResult?.subscores || null,
-      ats_subscores_original: atsResult?.subscores_original || null,
-      ats_suggestions: atsResult?.suggestions || null,
-      ats_confidence: atsResult?.confidence || null,
-    };
-
-    const { data: optimizationData, error: optimizationError } = await supabase
-      .from("optimizations")
-      .insert(optimizationInsert)
-      .select()
-      .maybeSingle();
-
-    if (optimizationError || !optimizationData) {
-      throw new Error(optimizationError?.message || "Failed to create optimization");
-    }
-
-    // Track optimization completed (server-side)
-    await captureServerEvent(user.id, 'optimization_completed', {
-      optimization_id: (optimizationData as any).id,
-      ats_score_original: atsResult?.ats_score_original || null,
-      ats_score_optimized: atsResult?.ats_score_optimized || 85,
-      improvement: (atsResult?.ats_score_optimized || 85) - (atsResult?.ats_score_original || 0),
-      source: 'optimize_api',
+    const { reviewId } = await createOptimizationReviewRun({
+      supabase,
+      userId: user.id,
+      resumeId,
+      jobDescriptionId,
+      resumeRawText: (resumeData as any).raw_text,
+      jobDescriptionText: (jdData as any).raw_text,
+      jobTitle: 'Position',
+      optimizedResume: optimizationResult.optimizedResume,
     });
 
-    return NextResponse.json({ optimizationId: (optimizationData as any).id });
+    return NextResponse.json({ reviewId, nextStep: "review" });
 
   } catch (error: unknown) {
     logger.error('Error optimizing resume via API', { userId: user.id, resumeId, jobDescriptionId }, error);

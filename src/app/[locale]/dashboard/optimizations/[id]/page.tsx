@@ -12,6 +12,7 @@ import { DesignBrowser } from "@/components/design/DesignBrowser";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { UndoControls } from "@/components/design/UndoControls";
 import { ExpertModesPanel } from "@/components/expert/ExpertModesPanel";
+import { ReadinessOverview } from "@/components/optimization/ReadinessOverview";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
@@ -76,6 +77,27 @@ export default function OptimizationPage() {
   const locale = useLocale();
   const designDescription = currentDesignAssignment?.template?.description || t("design.defaultDescription");
   const designSummaryLabel = locale === "he" ? t("design.changeDesign") : designDescription;
+  const readinessHighlights =
+    optimizedResume?.keyImprovements?.slice(0, 4) && optimizedResume.keyImprovements.length > 0
+      ? optimizedResume.keyImprovements.slice(0, 4)
+      : atsSuggestions.slice(0, 4).map((suggestion: any) => suggestion.text);
+  const readinessStats = [
+    {
+      label: t("readiness.stats.role"),
+      value: jobDescription?.title || t("readiness.stats.unknownRole"),
+    },
+    {
+      label: t("readiness.stats.improvements"),
+      value: String(readinessHighlights.length),
+    },
+    {
+      label: t("readiness.stats.atsSupport"),
+      value:
+        matchScore !== null || atsV2Data?.ats_score_optimized !== null
+          ? `${Math.round(atsV2Data?.ats_score_optimized ?? matchScore ?? 0)}%`
+          : "--",
+    },
+  ];
 
   useEffect(() => {
     // Set initial FAB position after mount (bottom-right)
@@ -773,6 +795,21 @@ export default function OptimizationPage() {
             hasCustomizations={!!currentDesignAssignment?.customization}
             onUndo={handleDesignUpdate}
             onRevert={handleDesignUpdate}
+          />
+        </div>
+      )}
+
+      {optimizedResume && (
+        <div className="mb-6 print:hidden">
+          <ReadinessOverview
+            eyebrow={t("readiness.eyebrow")}
+            structureBadge={t("readiness.structureBadge")}
+            title={t("readiness.title")}
+            subtitle={t("readiness.subtitle", {
+              title: jobDescription?.title || t("readiness.stats.unknownRole"),
+            })}
+            highlights={readinessHighlights.length > 0 ? readinessHighlights : [t("readiness.fallbackHighlight")]}
+            stats={readinessStats}
           />
         </div>
       )}

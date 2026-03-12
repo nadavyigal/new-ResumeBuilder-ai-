@@ -3,14 +3,13 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { parsePdf } from "@/lib/pdf-parser";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
-import { captureServerEvent } from "@/lib/posthog-server";
 import { isPdfUpload } from "@/lib/utils/pdf-validation";
 import { logger } from "@/lib/agent/utils/logger";
+import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
 import { optimizeResume } from "@/lib/ai-optimizer";
-import { scoreOptimization } from "@/lib/ats/integration";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -213,107 +212,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Score the optimization using ATS v2
-    let atsResult = null;
-    try {
-      logger.info('Starting ATS v2 scoring', { resumeId: resumeData.id, userId: user.id });
-      const scoringPromise = scoreOptimization({
-        resumeOriginalText: pdfData.text,
-        resumeOptimizedJson: optimizedResume,
-        jobDescriptionText: jobDescriptionText,
-        jobTitle: extractedTitle || 'Position',
-      });
-
-      // Add timeout to prevent hanging (60 seconds)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ATS scoring timeout')), 60000)
-      );
-
-      atsResult = await Promise.race([scoringPromise, timeoutPromise]) as any;
-
-      logger.info('ATS v2 scoring completed', {
-        resumeId: resumeData.id,
-        original: atsResult?.ats_score_original,
-        optimized: atsResult?.ats_score_optimized,
-        improvement: (atsResult?.ats_score_optimized || 0) - (atsResult?.ats_score_original || 0),
-        suggestions: atsResult?.suggestions?.length || 0,
-      });
-    } catch (atsError: any) {
-      logger.error('ATS v2 scoring failed, continuing without it', {
-        resumeId: resumeData.id,
-        userId: user.id,
-        error: atsError?.message,
-      }, atsError);
-      // Continue with optimization even if ATS scoring fails
-      atsResult = null;
-    }
-
-    // Save optimization results
-    const { data: optimizationData, error: optimizationError } = await supabase
-      .from("optimizations")
-      .insert({
-        user_id: user.id,
-        resume_id: resumeData.id,
-        jd_id: jdData.id,
-        match_score: atsResult?.ats_score_optimized || matchScore,
-        gaps_data: {
-          missingKeywords: optimizedResume.missingKeywords || [],
-          keyImprovements: optimizedResume.keyImprovements || [],
-        },
-        rewrite_data: optimizedResume,
-        template_key: 'natural', // Default natural design (no template)
-        status: 'completed' as const,
-        // ATS v2 fields - always use version 2
-        ats_version: 2,
-        ats_score_original: atsResult?.ats_score_original || null,
-        ats_score_optimized: atsResult?.ats_score_optimized || null,
-        ats_subscores: atsResult?.subscores || null,
-        ats_subscores_original: atsResult?.subscores_original || null,
-        ats_suggestions: atsResult?.suggestions || null,
-        ats_confidence: atsResult?.confidence || null,
-      })
-      .select()
-      .maybeSingle();
-
-    // Track optimization completed (server-side)
-    if (!optimizationError && optimizationData) {
-      await captureServerEvent(user.id, 'optimization_completed', {
-        optimization_id: optimizationData.id,
-        ats_score_original: atsResult?.ats_score_original || null,
-        ats_score_optimized: atsResult?.ats_score_optimized || matchScore,
-        improvement: (atsResult?.ats_score_optimized || matchScore) - (atsResult?.ats_score_original || 0),
-        has_job_url: !!jobDescriptionUrl,
-        job_title: extractedTitle || null,
-        company: extractedCompany || null,
-        source: 'upload_resume_api',
-      });
-    }
-
-    if (optimizationError) {
-      logger.error('Failed to save optimization record', {
-        userId: user.id,
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      }, optimizationError);
-      return NextResponse.json({
-        error: "Optimization completed but failed to save results",
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      }, { status: 500 });
-    }
-
-    if (!optimizationData) {
-      logger.error('Optimization save returned no data', {
-        userId: user.id,
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      });
-      return NextResponse.json({
-        error: "Optimization completed but failed to save results - no data returned",
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      }, { status: 500 });
-    }
+    const { reviewId, reviewRun } = await createOptimizationReviewRun({
+      supabase,
+      userId: user.id,
+      resumeId: resumeData.id,
+      jobDescriptionId: jdData.id,
+      resumeRawText: pdfData.text,
+      jobDescriptionText,
+      jobTitle: extractedTitle || jdData.title,
+      optimizedResume,
+    });
 
     // FR-021: Increment optimization counter for user (DISABLED FOR NOW)
     // const { error: updateError } = await supabase
@@ -326,7 +234,7 @@ export async function POST(req: NextRequest) {
     // }
 
     logger.info('Optimization completed successfully', {
-      optimizationId: optimizationData.id,
+      reviewId,
       matchScore,
       userId: user.id,
     });
@@ -335,8 +243,9 @@ export async function POST(req: NextRequest) {
       success: true,
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
-      optimizationId: optimizationData.id,
-      matchScore: matchScore,
+      reviewId,
+      nextStep: "review",
+      matchScore: reviewRun.ats_preview_json?.after || matchScore,
       keyImprovements: optimizedResume.keyImprovements,
       missingKeywords: optimizedResume.missingKeywords,
     });

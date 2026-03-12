@@ -1071,6 +1071,70 @@
           "confidence": "Confidence"
         }
       },
+      "readiness": {
+        "eyebrow": "Interview-ready draft",
+        "structureBadge": "ATS-safe structure",
+        "title": "Your resume is now positioned for a stronger first screen",
+        "subtitle": "This version is tuned for {title} with clearer positioning, stronger evidence, and cleaner recruiter readability.",
+        "fallbackHighlight": "Role-fit and readability improvements are already built into this version.",
+        "stats": {
+          "role": "Target role",
+          "improvements": "Approved improvements",
+          "atsSupport": "ATS support",
+          "unknownRole": "Unlisted role"
+        }
+      },
+      "review": {
+        "back": "Back to upload",
+        "title": "Review your optimized resume",
+        "subtitle": "Choose which changes to keep for {title} at {company}.",
+        "fallbackTitle": "this role",
+        "fallbackCompany": "this company",
+        "loading": "Preparing your review...",
+        "atsNote": "Projected ATS support is shown for the full approved draft. Your final score will be recalculated after you confirm.",
+        "hero": {
+          "eyebrow": "Review before saving",
+          "structureBadge": "ATS-safe structure",
+          "title": "See the strongest changes before you save anything",
+          "subtitle": "Approve the updates that make you look more interview-ready for {title}.",
+          "emptySelection": "Select at least one change to build your final draft.",
+          "stats": {
+            "selected": "Selected changes",
+            "projectedScore": "Projected ATS support",
+            "projectedGain": "Projected gain"
+          }
+        },
+        "actions": {
+          "clear": "Clear selection",
+          "selectAll": "Approve all",
+          "apply": "Save approved draft",
+          "applying": "Saving approved draft..."
+        },
+        "changes": {
+          "title": "{count} review items",
+          "card": {
+            "included": "Included",
+            "skipped": "Skipped",
+            "skip": "Skip",
+            "include": "Include",
+            "hideDiff": "Hide diff",
+            "viewDiff": "View diff",
+            "before": "Before",
+            "after": "After",
+            "emptyExcerpt": "No visible text in this section."
+          }
+        },
+        "preview": {
+          "title": "Live preview",
+          "selected": "{count} change groups selected.",
+          "empty": "Select changes to preview the final draft."
+        },
+        "errors": {
+          "title": "Couldn't load review",
+          "load": "We couldn't load this optimization review.",
+          "apply": "We couldn't save your approved draft. Please try again."
+        }
+      },
       "atsUnavailable": {
         "title": "Score unavailable",
         "description": "We couldn't calculate your ATS score for this check."
@@ -1308,7 +1372,7 @@
         "warning": "Note: {message}"
       },
       "compact": {
-        "title": "Match score",
+        "title": "ATS support",
         "original": "Before",
         "optimized": "After",
         "details": "Details",
