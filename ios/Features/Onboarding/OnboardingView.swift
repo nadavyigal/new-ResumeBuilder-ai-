@@ -7,22 +7,30 @@ struct OnboardingView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 32) {
+                VStack(spacing: AppSpacing.xxl) {
                     // Hero
-                    VStack(spacing: 8) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 56))
-                            .foregroundStyle(.primary)
+                    VStack(spacing: AppSpacing.md) {
+                        ZStack {
+                            Circle()
+                                .fill(AppColors.gradientMid.opacity(0.15))
+                                .frame(width: 88, height: 88)
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 40, weight: .semibold))
+                                .foregroundStyle(AppGradients.primary)
+                        }
+
                         Text("Resumely")
-                            .font(.largeTitle.bold())
+                            .font(.appTitle)
+                            .foregroundStyle(AppColors.textPrimary)
+
                         Text("Tailor your resume to any job in 60 seconds.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .font(.appBody)
+                            .foregroundStyle(AppColors.textSecondary)
                             .multilineTextAlignment(.center)
                     }
-                    .padding(.top, 40)
+                    .padding(.top, AppSpacing.xxxl)
 
-                    // Sign in with Apple — always visible, no toggle needed
+                    // Sign in with Apple — auth flow unchanged
                     SignInWithAppleButton(
                         viewModel.isSignUp ? .signUp : .signIn,
                         onRequest: { request in
@@ -30,8 +38,6 @@ struct OnboardingView: View {
                         },
                         onCompletion: { _ in
                             // Handled by the ViewModel via its own coordinator call.
-                            // The button's completion is intentionally ignored here;
-                            // tapping the button triggers viewModel.signInWithApple().
                         }
                     )
                     .signInWithAppleButtonStyle(.black)
@@ -39,32 +45,41 @@ struct OnboardingView: View {
                     .onTapGesture {
                         Task { await viewModel.signInWithApple() }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppSpacing.lg)
 
                     // Divider
                     HStack {
-                        Rectangle().frame(height: 1).foregroundStyle(.quaternary)
-                        Text("or").font(.footnote).foregroundStyle(.secondary)
-                        Rectangle().frame(height: 1).foregroundStyle(.quaternary)
+                        Rectangle().frame(height: 1).foregroundStyle(AppColors.glassStroke)
+                        Text("or")
+                            .font(.appCaption)
+                            .foregroundStyle(AppColors.textSecondary)
+                        Rectangle().frame(height: 1).foregroundStyle(AppColors.glassStroke)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppSpacing.lg)
 
                     // Email form
-                    VStack(spacing: 12) {
+                    VStack(spacing: AppSpacing.md) {
                         TextField("Email", text: $viewModel.email)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                             .keyboardType(.emailAddress)
                             .textContentType(.emailAddress)
-                            .padding()
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                            .font(.appBody)
+                            .foregroundStyle(AppColors.textPrimary)
+                            .padding(AppSpacing.lg)
+                            .glassCard(cornerRadius: AppRadii.md)
 
                         SecureField("Password", text: $viewModel.password)
                             .textContentType(viewModel.isSignUp ? .newPassword : .password)
-                            .padding()
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                            .font(.appBody)
+                            .foregroundStyle(AppColors.textPrimary)
+                            .padding(AppSpacing.lg)
+                            .glassCard(cornerRadius: AppRadii.md)
 
-                        Button {
+                        GradientButton(
+                            title: viewModel.isSignUp ? "Create Account" : "Sign In",
+                            isLoading: viewModel.isLoading
+                        ) {
                             Task {
                                 if viewModel.isSignUp {
                                     await viewModel.signUp()
@@ -72,22 +87,9 @@ struct OnboardingView: View {
                                     await viewModel.signInWithEmail()
                                 }
                             }
-                        } label: {
-                            Group {
-                                if viewModel.isLoading {
-                                    ProgressView()
-                                } else {
-                                    Text(viewModel.isSignUp ? "Create Account" : "Sign In")
-                                        .fontWeight(.semibold)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.isLoading)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, AppSpacing.lg)
 
                     // Toggle sign-in / sign-up
                     Button {
@@ -95,24 +97,27 @@ struct OnboardingView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text(viewModel.isSignUp ? "Already have an account?" : "Don't have an account?")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(AppColors.textSecondary)
                             Text(viewModel.isSignUp ? "Sign In" : "Sign Up")
+                                .foregroundStyle(AppColors.gradientMid)
                                 .fontWeight(.semibold)
                         }
-                        .font(.footnote)
+                        .font(.appCaption)
                     }
 
                     // Error
                     if let errorMessage = viewModel.errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
+                            .font(.appCaption)
                             .foregroundStyle(.red)
-                            .padding(.horizontal)
+                            .padding(.horizontal, AppSpacing.lg)
                             .multilineTextAlignment(.center)
                     }
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, AppSpacing.xxxl)
             }
+            .scrollIndicators(.hidden)
+            .screenBackground(showRadialGlow: true)
             .navigationBarTitleDisplayMode(.inline)
         }
     }

@@ -45,6 +45,38 @@ struct APIClient {
         return try await send(request)
     }
 
+    func getWithQuery<T: Decodable>(endpoint: Endpoint, token: String?) async throws -> T {
+        var components = URLComponents(
+            url: baseURL.appendingPathComponent(endpoint.path),
+            resolvingAgainstBaseURL: false
+        )
+        let items = endpoint.queryItems
+        if !items.isEmpty { components?.queryItems = items }
+        let url = components?.url ?? baseURL.appendingPathComponent(endpoint.path)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        return try await send(request)
+    }
+
+    func getData(endpoint: Endpoint, token: String?) async throws -> Data {
+        var request = URLRequest(url: baseURL.appendingPathComponent(endpoint.path))
+        request.httpMethod = "GET"
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else { throw APIClientError.invalidResponse }
+        if httpResponse.statusCode == 401 { throw APIClientError.unauthorized }
+        if !(200...299).contains(httpResponse.statusCode) {
+            let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+            throw APIClientError.serverError(status: httpResponse.statusCode, message: message)
+        }
+        return data
+    }
+
     func uploadResume(fileURL: URL, token: String?) async throws -> ResumeUploadResponse {
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: baseURL.appendingPathComponent(Endpoint.uploadResume.path))
