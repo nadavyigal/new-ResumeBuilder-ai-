@@ -8,11 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
 import { logger } from '@/lib/agent/utils/logger';
+import { consumeCredit } from '@/lib/credits';
 
 export async function POST(request: NextRequest) {
   let optimizationId: string | null = null;
   try {
-    const supabase = await createRouteHandlerClient();
+    const supabase = await createRouteHandlerClient(request);
 
     // Get current user
     const {
@@ -54,6 +55,17 @@ export async function POST(request: NextRequest) {
     const resumeOptimized = optimization.rewrite_data || {};
     const jobDescription = optimization.job_descriptions?.raw_text || '';
     const jobData = optimization.job_descriptions?.parsed_data || null;
+
+    const creditResult = await consumeCredit(supabase as any, user.id, 'ats_rescan');
+    if (!creditResult.ok) {
+      if (creditResult.status === 402) {
+        return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
+      }
+      return NextResponse.json(
+        { error: 'credit_consume_failed', details: creditResult.details },
+        { status: 500 }
+      );
+    }
 
     // Re-score using ATS v2
     const result = await rescoreOptimization({

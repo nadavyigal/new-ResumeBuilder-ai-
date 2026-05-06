@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import type { RefineSectionRequest, RefineSectionResponse } from '@/types/refine';
 import { buildRefineSectionPrompt } from '@/lib/ai/prompt-builders/refineSectionPrompt';
 import { coerceModelJson, validateRefineSuggestion } from '@/lib/ai/validators/refineSection';
+import { consumeCredit } from '@/lib/credits';
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -16,7 +17,7 @@ function getOpenAI(): OpenAI {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createRouteHandlerClient();
+    const supabase = await createRouteHandlerClient(request);
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,6 +29,17 @@ export async function POST(request: NextRequest) {
     }
 
     const temperature = 0.2;
+
+    const creditResult = await consumeCredit(supabase as any, user.id, 'refine_section');
+    if (!creditResult.ok) {
+      if (creditResult.status === 402) {
+        return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
+      }
+      return NextResponse.json(
+        { error: 'credit_consume_failed', details: creditResult.details },
+        { status: 500 }
+      );
+    }
 
     const { system, user: userMsg } = buildRefineSectionPrompt({ req: body });
 
@@ -76,7 +88,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
 
 
 
