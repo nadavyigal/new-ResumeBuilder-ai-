@@ -9,6 +9,8 @@ import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
+// Allow up to 60 s for PDF parsing + job scraping + gpt-4o optimization
+export const maxDuration = 60;
 import { optimizeResume } from "@/lib/ai-optimizer";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
