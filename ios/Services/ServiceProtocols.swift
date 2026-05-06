@@ -17,3 +17,13 @@ protocol ResumeExportServiceProtocol: Sendable {
     func exportPDF(optimizationId: String, token: String) async throws -> ExportResponse
     func downloadPDF(id: String, token: String) async throws -> Data
 }
+
+protocol ResumeUploadServiceProtocol: Sendable {
+    func upload(
+        fileData: Data,
+        filename: String,
+        mimeType: String,
+        jobDescription: String,
+        token: String
+    ) async throws -> UploadResumeResponse
+}

@@ -36,3 +36,22 @@ final class MockResumeExportService: ResumeExportServiceProtocol {
         Data("%PDF-1.4 mock".utf8)
     }
 }
+
+final class MockResumeUploadService: ResumeUploadServiceProtocol {
+    func upload(
+        fileData: Data,
+        filename: String,
+        mimeType: String,
+        jobDescription: String,
+        token: String
+    ) async throws -> UploadResumeResponse {
+        UploadResumeResponse(
+            resumeId: "mock-resume-\(UUID().uuidString.prefix(8))",
+            jobDescriptionId: "mock-jd-\(UUID().uuidString.prefix(8))",
+            reviewId: "mock-review-\(UUID().uuidString.prefix(8))",
+            matchScore: 75,
+            keyImprovements: ["Add TypeScript to Skills section", "Quantify achievements with metrics"],
+            missingKeywords: ["TypeScript", "AWS", "Docker"]
+        )
+    }
+}
