@@ -122,5 +122,5 @@ export const OPTIMIZATION_CONFIG = {
   model: 'gpt-4o',
   temperature: 0.35,
   maxTokens: 4000,
-  timeout: 20000,
+  timeout: 50000,
 };
