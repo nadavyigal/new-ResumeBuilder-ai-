@@ -7,9 +7,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreResume } from '@/lib/ats';
 import type { ATSScoreInput } from '@/lib/ats/types';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { consumeCredit } from '@/lib/credits';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createRouteHandlerClient(request);
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
 
     const {
@@ -43,6 +55,17 @@ export async function POST(request: NextRequest) {
       resume_original_json: typeof resume_original === 'object' ? resume_original : undefined,
       resume_optimized_json: typeof resume_optimized === 'object' ? resume_optimized : undefined,
     };
+
+    const creditResult = await consumeCredit(supabase as any, user.id, 'ats_score');
+    if (!creditResult.ok) {
+      if (creditResult.status === 402) {
+        return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
+      }
+      return NextResponse.json(
+        { error: 'credit_consume_failed', details: creditResult.details },
+        { status: 500 }
+      );
+    }
 
     // Score the resume with optional quick wins
     const result = await scoreResume(input, {

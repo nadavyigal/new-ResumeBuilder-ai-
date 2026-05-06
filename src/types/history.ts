@@ -86,6 +86,15 @@ export interface OptimizationHistoryEntry {
   /** Template key used for this optimization (e.g., "ats-safe", "minimal-ssr") */
   templateKey: string | null;
 
+  /** Resume row ID for native clients that need to reconcile Supabase records */
+  resumeId?: string | number | null;
+
+  /** Job description row ID for native clients that need to reconcile Supabase records */
+  jobDescriptionId?: string | number | null;
+
+  /** Optimized resume JSON used by native clients for preview/redesign parity */
+  rewriteData?: unknown;
+
   /** Whether this optimization has been applied to (has application record) */
   hasApplication: boolean;
 

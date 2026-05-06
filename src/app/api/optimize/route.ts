@@ -4,9 +4,10 @@ import { optimizeResume } from "@/lib/ai-optimizer";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
+import { consumeCredit } from "@/lib/credits";
 
 export async function POST(req: NextRequest) {
-  const supabase = await createRouteHandlerClient();
+  const supabase = await createRouteHandlerClient(req);
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
@@ -66,6 +67,17 @@ export async function POST(req: NextRequest) {
 
     if (jdError || !jdData) {
       throw new Error(jdError?.message || "Job description not found");
+    }
+
+    const creditResult = await consumeCredit(supabase as any, user.id, "optimize");
+    if (!creditResult.ok) {
+      if (creditResult.status === 402) {
+        return NextResponse.json({ error: "insufficient_credits" }, { status: 402 });
+      }
+      return NextResponse.json(
+        { error: "credit_consume_failed", details: creditResult.details },
+        { status: 500 }
+      );
     }
 
     const optimizationResult = await optimizeResume(
