@@ -27,6 +27,10 @@ final class AuthService {
     private let keychain = KeychainStore.shared
     private let service = "com.nadavyigal.resumebuilder.auth"
     private let account = "supabase_session"
+    // Use the shared custom session (120 s request / 600 s resource timeout) instead of
+    // URLSession.shared to avoid the default session's legacy DispatchQueue behaviour,
+    // which triggers "unsafeForcedSync called from Swift Concurrent context" warnings.
+    private let session: URLSession = BackendConfig.urlSession
 
     private init() {}
 
@@ -72,7 +76,7 @@ final class AuthService {
         request.setValue(BackendConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthServiceError.invalidResponse
         }
@@ -149,7 +153,7 @@ final class AuthService {
         request.setValue(BackendConfig.supabaseAnonKey, forHTTPHeaderField: "apikey")
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse else {
             throw AuthServiceError.invalidResponse
         }

@@ -136,13 +136,34 @@ final class ResumeAnalysisService: ResumeAnalysisServiceProtocol {
         return decoded.raw_text
     }
 
-    /// POST /api/ats/score — scores resume text against a job description
+    /// POST /api/ats/score — scores resume text against a job description.
+    ///
+    /// Backend mapping:
+    ///   resume_original  → raw text from GET /api/resumes/{id}.raw_text (before optimization)
+    ///   resume_optimized → same text at this stage (no separate optimized version yet)
+    ///   job_description  → raw job description string from the user
+    ///
+    /// Important: the backend uses JS truthiness checks (`!field`), so EMPTY strings are
+    /// treated the same as missing fields and cause a 400. The preflight guard below is the
+    /// final defence before the network call.
     private func callATSScore(
         resumeOriginal: String,
         resumeOptimized: String,
         jobDescription: String,
         token: String
     ) async throws -> ATSScoreResponse {
+        // Preflight: all three fields must be non-empty. The backend returns 400 for empty
+        // strings because JavaScript's `!value` is truthy for "".
+        guard !resumeOriginal.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw ResumeServiceError.missingResumeText
+        }
+        guard !resumeOptimized.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw ResumeServiceError.missingResumeText
+        }
+        guard !jobDescription.trimmingCharacters(in: .whitespaces).isEmpty else {
+            throw ResumeServiceError.missingJobDescription
+        }
+
         let url = BackendConfig.baseURL.appendingPathComponent("api/ats/score")
 
         let payload = ATSScoreRequest(
@@ -157,9 +178,25 @@ final class ResumeAnalysisService: ResumeAnalysisServiceProtocol {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.httpBody = try JSONEncoder().encode(payload)
 
-        let (data, response) = try await session.data(for: request)
-        try assertSuccess(response: response, data: data)
+        #if DEBUG
+        let contentType = request.value(forHTTPHeaderField: "Content-Type") ?? "nil"
+        print("[ATSScore] Content-Type: \(contentType)")
+        print("[ATSScore] Keys present — resume_original: \(resumeOriginal.count) chars, resume_optimized: \(resumeOptimized.count) chars, job_description: \(jobDescription.count) chars")
+        #endif
 
+        let (data, response) = try await session.data(for: request)
+
+        #if DEBUG
+        if let http = response as? HTTPURLResponse {
+            print("[ATSScore] HTTP status: \(http.statusCode)")
+            if !(200...299).contains(http.statusCode) {
+                let errorBody = String(data: data, encoding: .utf8) ?? "no body"
+                print("[ATSScore] Error body: \(errorBody.prefix(500))")
+            }
+        }
+        #endif
+
+        try assertSuccess(response: response, data: data)
         return try decode(ATSScoreResponse.self, from: data)
     }
 
