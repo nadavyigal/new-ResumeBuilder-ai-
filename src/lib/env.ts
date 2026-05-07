@@ -75,6 +75,6 @@ ${formattedErrors}
   }
 }
 
-if (process.env.NODE_ENV === "production") {
+if (typeof window === "undefined" && process.env.NODE_ENV === "production") {
   getEnv();
 }
