@@ -1,15 +1,17 @@
 import OpenAI from "openai";
-import { getEnv } from "./env";
 import { logger } from "@/lib/agent/utils/logger";
 
-const env = getEnv();
-
-// Lazy initialization to prevent build-time errors
+// Lazy initialization — never call getEnv() at module load time.
+// This file is transitively imported by client components via the ats/quick-wins
+// import chain. Reading env vars at module level crashes the browser bundle because
+// OPENAI_API_KEY and SUPABASE_SERVICE_ROLE_KEY are server-only (not NEXT_PUBLIC_).
 let openaiInstance: OpenAI | null = null;
 
 function getOpenAI(): OpenAI {
   if (!openaiInstance) {
-    openaiInstance = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+    openaiInstance = new OpenAI({ apiKey });
   }
   return openaiInstance;
 }
@@ -18,7 +20,7 @@ function getOpenAI(): OpenAI {
 export { getOpenAI };
 
 export async function optimizeResume(resumeText: string, jobDescriptionText: string) {
-  if (!env.OPENAI_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY is not configured. Please add your OpenAI API key to the .env.local file.');
   }
 
