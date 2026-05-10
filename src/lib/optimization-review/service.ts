@@ -274,13 +274,12 @@ export async function applyOptimizationReviewRun({
     group.operations.map((operation) => ({
       user_id: userId,
       optimization_id: optimization.id,
-      operation_type: operation.operation,
+      operation: operation.operation,
       field_path: operation.field_path,
       old_value: stringifyValue(operation.old_value),
       new_value: stringifyValue(operation.new_value),
       ats_score_before: finalATSPreview?.before ?? reviewRun.ats_preview_json?.before ?? null,
       ats_score_after: finalATSPreview?.after ?? reviewRun.ats_preview_json?.after ?? null,
-      suggestion_text: group.title,
     }))
   );
 

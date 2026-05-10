@@ -799,40 +799,37 @@ export interface Database {
           id: string;
           user_id: string;
           optimization_id: string;
-          operation_type: string;
+          operation: string;
           field_path: string;
           old_value: string | null;
           new_value: string | null;
           ats_score_before: number | null;
           ats_score_after: number | null;
-          suggestion_text: string | null;
-          created_at: string;
+          created_at: string | null;
         },
         {
           id?: string;
           user_id: string;
           optimization_id: string;
-          operation_type: string;
+          operation: string;
           field_path: string;
           old_value?: string | null;
           new_value?: string | null;
           ats_score_before?: number | null;
           ats_score_after?: number | null;
-          suggestion_text?: string | null;
-          created_at?: string;
+          created_at?: string | null;
         },
         {
           id?: string;
           user_id?: string;
           optimization_id?: string;
-          operation_type?: string;
+          operation?: string;
           field_path?: string;
           old_value?: string | null;
           new_value?: string | null;
           ats_score_before?: number | null;
           ats_score_after?: number | null;
-          suggestion_text?: string | null;
-          created_at?: string;
+          created_at?: string | null;
         }
       >;
       design_customizations: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
