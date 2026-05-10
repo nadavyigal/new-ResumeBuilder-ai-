@@ -2,12 +2,17 @@
  * API Route: Render Template Preview
  *
  * POST /api/v1/design/render-preview
- * Body: { templateId: string, resumeData: any, customization?: any, languagePreference?: string }
+ * Body: { templateId: string, resumeData?: any, optimizationId?: string, customization?: any, languagePreference?: string }
+ *
+ * Accepts either `resumeData` (full resume JSON) or `optimizationId` (fetches rewrite_data
+ * from the database). The iOS app sends `optimizationId`; the web client sends `resumeData`.
  * Returns: HTML string
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { renderDesignPreviewHtml } from '@/lib/design-manager/render-preview-html';
+import { createRouteHandlerClient } from '@/lib/supabase-server';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,10 +20,29 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { templateId, resumeData, customization, languagePreference } = body || {};
+    const { templateId, customization, languagePreference } = body || {};
+    // Accept both camelCase (web) and snake_case (iOS) for optimizationId
+    let { resumeData } = body || {};
+    const optimizationId: string | undefined = body?.optimizationId ?? body?.optimization_id;
 
     if (!templateId) {
       return NextResponse.json({ error: 'Template ID is required' }, { status: 400 });
+    }
+
+    // Resolve resumeData from optimizationId when the client sends an ID instead of raw data
+    if (!resumeData && optimizationId) {
+      const supabase = await createRouteHandlerClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const { data: row } = await supabase
+        .from('optimizations')
+        .select('rewrite_data')
+        .eq('id', optimizationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      resumeData = row?.rewrite_data as OptimizedResume | undefined;
     }
 
     if (!resumeData) {
