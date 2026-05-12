@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { templateId, customization, languagePreference } = body || {};
+    const templateId: string | undefined = body?.templateId ?? body?.template_id;
+    const { customization, languagePreference } = body || {};
     // Accept both camelCase (web) and snake_case (iOS) for optimizationId
     let { resumeData } = body || {};
     const optimizationId: string | undefined = body?.optimizationId ?? body?.optimization_id;

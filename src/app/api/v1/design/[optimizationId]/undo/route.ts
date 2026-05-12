@@ -113,8 +113,8 @@ export async function POST(
     let customization = null;
     if (updatedAssignment.customization_id) {
       customization = await getDesignCustomizationById(
+        supabase,
         updatedAssignment.customization_id,
-        user.id
       );
     }
 

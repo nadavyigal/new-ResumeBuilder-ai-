@@ -19,6 +19,89 @@ import {
   getDesignCustomizationById
 } from '@/lib/supabase/design-customizations';
 
+type DirectCustomizationInput = {
+  spacing?: unknown;
+  accentColor?: unknown;
+  accent_color?: unknown;
+  fontStyle?: unknown;
+  font_style?: unknown;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function normalizeHexColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().replace(/^#/, '');
+  if (!/^[0-9a-fA-F]{6}$/.test(trimmed)) return null;
+  return `#${trimmed.toUpperCase()}`;
+}
+
+function fontFamilyFor(style: unknown) {
+  switch (typeof style === 'string' ? style.toLowerCase() : '') {
+    case 'classic':
+      return { heading: 'Georgia', body: 'Georgia' };
+    case 'minimal':
+      return { heading: 'System UI', body: 'System UI' };
+    case 'modern':
+    default:
+      return { heading: 'Inter', body: 'Inter' };
+  }
+}
+
+function spacingFor(value: unknown) {
+  const spacing = typeof value === 'number' && Number.isFinite(value) ? value : 0.5;
+  if (spacing < 0.34) return { section_gap: '10px', line_height: '1.35' };
+  if (spacing > 0.67) return { section_gap: '22px', line_height: '1.65' };
+  return { section_gap: '16px', line_height: '1.5' };
+}
+
+function buildDirectCustomization(input: unknown, currentConfig: any) {
+  const source = asRecord((asRecord(input)?.customization ?? input) as unknown) as DirectCustomizationInput | null;
+  if (!source) return null;
+
+  const hasDirectFields =
+    source.spacing !== undefined ||
+    source.accentColor !== undefined ||
+    source.accent_color !== undefined ||
+    source.fontStyle !== undefined ||
+    source.font_style !== undefined;
+
+  if (!hasDirectFields) return null;
+
+  const accent = normalizeHexColor(source.accentColor ?? source.accent_color);
+  const currentColors = currentConfig?.color_scheme ?? {};
+  const currentFonts = currentConfig?.font_family ?? {};
+  const currentSpacing = currentConfig?.spacing ?? {};
+  const fonts = source.fontStyle !== undefined || source.font_style !== undefined
+    ? fontFamilyFor(source.fontStyle ?? source.font_style)
+    : currentFonts;
+
+  return {
+    color_scheme: {
+      primary: accent ?? currentColors.primary ?? '#111827',
+      secondary: currentColors.secondary ?? '#4B5563',
+      accent: accent ?? currentColors.accent ?? currentColors.primary ?? '#6366F1',
+      background: currentColors.background ?? '#FFFFFF',
+      text: currentColors.text ?? '#111827',
+    },
+    font_family: {
+      heading: fonts.heading ?? 'Inter',
+      body: fonts.body ?? 'Inter',
+    },
+    spacing: source.spacing !== undefined
+      ? spacingFor(source.spacing)
+      : {
+          section_gap: currentSpacing.section_gap ?? '16px',
+          line_height: currentSpacing.line_height ?? '1.5',
+        },
+    custom_css: currentConfig?.custom_css ?? '',
+    is_ats_safe: currentConfig?.is_ats_safe !== false,
+  };
+}
+
 /**
  * POST /api/v1/design/[optimizationId]/customize
  * Applies design customization based on natural language request
@@ -64,10 +147,12 @@ export async function POST(
     // Parse request body
     const body = await request.json();
     const { changeRequest } = body;
+    const hasNaturalLanguageRequest = typeof changeRequest === 'string' && changeRequest.trim().length > 0;
+    const directCustomization = buildDirectCustomization(body, null);
 
-    if (!changeRequest || typeof changeRequest !== 'string') {
+    if (!hasNaturalLanguageRequest && !directCustomization) {
       return NextResponse.json(
-        { error: 'changeRequest is required and must be a string' },
+        { error: 'changeRequest or direct customization is required' },
         { status: 400 }
       );
     }
@@ -118,8 +203,8 @@ export async function POST(
     let currentCustomization = null;
     if (assignment.customization_id) {
       currentCustomization = await getDesignCustomizationById(
+        supabase,
         assignment.customization_id,
-        user.id
       );
     }
 
@@ -130,6 +215,29 @@ export async function POST(
       spacing_settings: template.default_config.spacing_settings,
       custom_css: ''
     };
+
+    const structuredCustomization = buildDirectCustomization(body, currentConfig);
+    if (structuredCustomization) {
+      const newCustomization = await createDesignCustomization(supabase, user.id, {
+        template_id: assignment.template_id,
+        ...structuredCustomization
+      });
+      await updateDesignCustomization(
+        supabase,
+        assignment.id,
+        newCustomization.id,
+        assignment.customization_id
+      );
+
+      return NextResponse.json(
+        {
+          success: true,
+          customization: newCustomization,
+          reasoning: 'Applied selected iOS design controls.'
+        },
+        { status: 200 }
+      );
+    }
 
     // Apply customization using AI
     const result = await validateAndApply(
@@ -154,7 +262,8 @@ export async function POST(
     const customizationResult = result as CustomizationResult;
 
     // Create new customization record
-    const newCustomization = await createDesignCustomization(user.id, {
+    const newCustomization = await createDesignCustomization(supabase, user.id, {
+      template_id: assignment.template_id,
       color_scheme: customizationResult.customization.color_scheme,
       font_family: customizationResult.customization.font_family,
       spacing: customizationResult.customization.spacing,

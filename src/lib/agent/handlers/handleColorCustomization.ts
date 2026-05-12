@@ -63,7 +63,7 @@ export async function handleColorCustomization(
 
     let currentCustomization: DesignCustomization | null = null;
     if (assignment.customization_id) {
-      currentCustomization = await getDesignCustomizationById(assignment.customization_id, userId) as DesignCustomization;
+      currentCustomization = await getDesignCustomizationById(supabase, assignment.customization_id) as DesignCustomization;
     }
 
     const defaultColorScheme = {
@@ -169,7 +169,8 @@ export async function handleColorCustomization(
       ...(currentCustomization?.spacing || {})
     };
 
-    const newCustomization = await createDesignCustomization(userId, {
+    const newCustomization = await createDesignCustomization(supabase, userId, {
+      template_id: assignment.template_id,
       color_scheme: colorScheme,
       font_family: fontFamily,
       spacing,

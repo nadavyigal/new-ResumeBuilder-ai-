@@ -407,8 +407,8 @@ export async function POST(request: NextRequest) {
 
       if (designAssignment.customization_id) {
         currentDesignConfig = await getDesignCustomizationById(
+          supabase,
           designAssignment.customization_id,
-          user.id
         );
       }
     }
@@ -742,11 +742,14 @@ export async function POST(request: NextRequest) {
             is_ats_safe: true // Default to ATS-safe
           };
 
-          // Create the customization record
-          const newCustomization = await createDesignCustomization(user.id, customizationData);
-
-          // Update the resume_design_assignment to reference the new customization
           if (designAssignment) {
+            // Create the customization record
+            const newCustomization = await createDesignCustomization(supabase, user.id, {
+              template_id: designAssignment.template_id,
+              ...customizationData
+            });
+
+            // Update the resume_design_assignment to reference the new customization
             await updateDesignCustomization(
               supabase,
               designAssignment.id,

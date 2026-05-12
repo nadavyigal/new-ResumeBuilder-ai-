@@ -6,14 +6,15 @@
  * Task: T024 (partial)
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export interface DesignCustomization {
   id: string;
-  user_id: string;
+  template_id: string;
+  user_id?: string;
   color_scheme: {
     primary: string;
     secondary: string;
@@ -36,22 +37,21 @@ export interface DesignCustomization {
 
 /**
  * Create a new design customization
- * @param userId - User ID for RLS enforcement
+ * @param supabase - Authenticated Supabase client
+ * @param userId - User ID associated with the authenticated request
  * @param customization - Customization config
  * @returns Created customization
  */
 export async function createDesignCustomization(
+  supabase: SupabaseClient,
   userId: string,
   customization: Omit<DesignCustomization, 'id' | 'user_id' | 'created_at'>
 ): Promise<DesignCustomization> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  void userId;
 
   const { data, error} = await supabase
     .from('design_customizations')
-    .insert({
-      user_id: userId,
-      ...customization
-    })
+    .insert(customization)
     .select()
     .maybeSingle();
 
@@ -64,21 +64,18 @@ export async function createDesignCustomization(
 
 /**
  * Get a design customization by ID
+ * @param supabase - Authenticated Supabase client
  * @param customizationId - Customization UUID
- * @param userId - User ID for RLS enforcement
  * @returns Design customization or null if not found
  */
 export async function getDesignCustomizationById(
-  customizationId: string,
-  userId: string
+  supabase: SupabaseClient,
+  customizationId: string
 ): Promise<DesignCustomization | null> {
-  const supabase = createClient(supabaseUrl, supabaseKey);
-
   const { data, error } = await supabase
     .from('design_customizations')
     .select('*')
     .eq('id', customizationId)
-    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) {
