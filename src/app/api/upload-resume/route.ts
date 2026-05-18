@@ -115,7 +115,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const pdfData = await parsePdf(fileBuffer);
+    let pdfData: { text: string; numpages: number; info: any };
+    try {
+      pdfData = await parsePdf(fileBuffer);
+    } catch (pdfErr) {
+      const msg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
+      logger.warn('PDF parse failed', { fileName: resumeFile.name, error: msg });
+      return NextResponse.json(
+        { error: "Could not read your PDF. Please re-export it directly from your word processor (File → Save As PDF) and try again." },
+        { status: 422 }
+      );
+    }
 
     const resumeInsert = supabase
       .from("resumes")
