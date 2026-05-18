@@ -40,9 +40,13 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Exclude pdf-parse from webpack bundling to avoid test code execution
       config.externals = config.externals || [];
+      // Keep pdf-parse external (legacy — avoids its test-runner side effect on import)
       config.externals.push('pdf-parse');
+      // pdfjs-dist legacy build is ESM; keep it external so webpack does not try
+      // to bundle the worker or the DOMMatrix-dependent main build.
+      config.externals.push('pdfjs-dist/legacy/build/pdf.mjs');
+      config.externals.push('pdfjs-dist/legacy/build/pdf.worker.mjs');
     }
     return config;
   },
