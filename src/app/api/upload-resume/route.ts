@@ -6,6 +6,10 @@ import { scrapeJobDescription } from "@/lib/job-scraper";
 import { isPdfUpload } from "@/lib/utils/pdf-validation";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
+import {
+  normalizeResumeTextFallback,
+  resolvePdfDataWithResumeTextFallback,
+} from "@/lib/resume/resume-text-fallback";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
@@ -51,6 +55,7 @@ export async function POST(req: NextRequest) {
     const resumeFile = formData.get("resume") as File;
     const jobDescription = formData.get("jobDescription") as string;
     const jobDescriptionUrl = formData.get("jobDescriptionUrl") as string;
+    const resumeTextFallback = normalizeResumeTextFallback(formData.get("resumeText"));
 
     if (!resumeFile) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
@@ -117,7 +122,13 @@ export async function POST(req: NextRequest) {
 
     let pdfData: { text: string; numpages: number; info: any };
     try {
-      pdfData = await parsePdf(fileBuffer);
+      pdfData = await resolvePdfDataWithResumeTextFallback({
+        fileBuffer,
+        fileName: resumeFile.name,
+        resumeTextFallback,
+        parsePdf,
+        warn: (message, metadata) => logger.warn(message, metadata),
+      });
     } catch (pdfErr) {
       const msg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
       logger.warn('PDF parse failed', { fileName: resumeFile.name, error: msg });
