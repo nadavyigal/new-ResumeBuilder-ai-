@@ -29,22 +29,36 @@ if (!global.WritableStream) {
   global.WritableStream = WritableStream;
 }
 
-const { fetch, Headers, Request, Response } = require('undici');
+let undiciFetch;
+let UndiciHeaders;
+let UndiciRequest;
+let UndiciResponse;
+
+try {
+  ({
+    fetch: undiciFetch,
+    Headers: UndiciHeaders,
+    Request: UndiciRequest,
+    Response: UndiciResponse,
+  } = require('undici'));
+} catch {
+  // Node 18+ exposes these globals; keep API/contract tests runnable without undici installed.
+}
 
 if (!global.fetch) {
-  global.fetch = fetch;
+  global.fetch = undiciFetch;
 }
 
 if (!global.Headers) {
-  global.Headers = Headers;
+  global.Headers = UndiciHeaders;
 }
 
 if (!global.Request) {
-  global.Request = Request;
+  global.Request = UndiciRequest;
 }
 
 if (!global.Response) {
-  global.Response = Response;
+  global.Response = UndiciResponse;
 }
 
 // Speed up tests that would otherwise invoke Puppeteer/Storage
