@@ -258,6 +258,12 @@ function transformToJsonResume(resumeData: unknown): JsonResume {
 }
 
 function selectPalette(templateId: string) {
+  if (templateId.includes('corporate')) {
+    return { primary: '#111827', accent: '#0f766e', muted: '#f1f5f9', bg: '#ffffff', text: '#111827' };
+  }
+  if (templateId.includes('traditional')) {
+    return { primary: '#1f2937', accent: '#374151', muted: '#f8fafc', bg: '#ffffff', text: '#111827' };
+  }
   if (templateId.includes('sidebar')) {
     return { primary: '#0f172a', accent: '#10b981', muted: '#e2e8f0', bg: '#ffffff', text: '#0f172a' };
   }
@@ -349,8 +355,11 @@ function renderHtml(
 
   const skillsHtml = resume.skills.map((skill) => `<span class="pill">${skill.name}</span>`).join('');
   const contact = resume.basics;
+  const useSidebarLayout = templateId.includes('sidebar') || templateId.includes('corporate');
+  const useCreativeLayout = templateId.includes('timeline') || templateId.includes('creative');
+  const useTraditionalLayout = templateId.includes('traditional');
 
-  const layout = templateId.includes('sidebar')
+  const layout = useSidebarLayout
     ? `
       <div class="grid">
         <aside class="sidebar">
@@ -405,12 +414,66 @@ function renderHtml(
         </main>
       </div>
     `
+    : useCreativeLayout
+      ? `
+      <header class="creative-header">
+        <div class="name">${contact.name || 'Resume'}</div>
+        <div class="title">${contact.label || ''}</div>
+        <div class="meta-row">
+          ${contact.location.city || ''}${contact.email ? ` • ${contact.email}` : ''}${contact.phone ? ` • ${contact.phone}` : ''}${
+            contact.website ? ` • ${contact.website}` : ''
+          }
+        </div>
+      </header>
+      <div class="timeline-shell">
+        ${
+          resume.summary
+            ? `
+          <section>
+            <h2>${headers.professionalSummary}</h2>
+            <p class="summary">${resume.summary}</p>
+          </section>
+        `
+            : ''
+        }
+        ${
+          resume.work.length
+            ? `
+          <section>
+            <h2>${headers.experience}</h2>
+            ${workHtml}
+          </section>
+        `
+            : ''
+        }
+        ${
+          resume.skills.length
+            ? `
+          <section>
+            <h2>${headers.skills}</h2>
+            <div class="pills">${skillsHtml}</div>
+          </section>
+        `
+            : ''
+        }
+        ${
+          resume.education.length
+            ? `
+          <section>
+            <h2>${headers.education}</h2>
+            ${educationHtml}
+          </section>
+        `
+            : ''
+        }
+      </div>
+    `
     : `
       <header class="header">
-        <div class="avatar">${initials}</div>
+        ${useTraditionalLayout ? '' : `<div class="avatar">${initials}</div>`}
         <div>
-          <div class="name">${contact.name || 'John Doe'}</div>
-          <div class="title">${contact.label || 'Software Engineer'}</div>
+          <div class="name">${contact.name || 'Resume'}</div>
+          <div class="title">${contact.label || ''}</div>
           <div class="meta-row">
             ${contact.location.city || ''}${contact.email ? ` • ${contact.email}` : ''}${contact.phone ? ` • ${contact.phone}` : ''}${
               contact.website ? ` • ${contact.website}` : ''
@@ -515,6 +578,7 @@ function renderHtml(
     h2 { font-size: 16px; color: ${palette.primary}; margin-bottom: 10px; display:flex; align-items:center; gap:8px; font-family: ${fonts.heading}, sans-serif; }
     h2::before { content:''; width:10px; height:10px; border-radius:50%; background:${palette.accent}; box-shadow:0 0 0 4px rgba(34,197,94,0.18); }
     .header { display:flex; gap:14px; align-items:center; padding-bottom:14px; border-bottom:1px solid rgba(15,23,42,0.08); margin-bottom:14px; }
+    ${useTraditionalLayout ? '.header { display:block; text-align:center; border-bottom:2px solid rgba(31,41,55,0.2); } h2::before { display:none; } .pills { justify-content:center; }' : ''}
     .name { font-size: 22px; font-weight: 800; color: ${palette.primary}; letter-spacing: -0.01em; font-family: ${fonts.heading}, sans-serif; }
     .title { font-size: 13px; font-weight: 600; color: ${palette.secondary}; margin-top:2px; }
     .meta-row { font-size: 11px; color:${palette.secondary}; margin-top:6px; line-height:1.5; }
@@ -541,6 +605,11 @@ function renderHtml(
     .contact-block .name { color:#f8fafc; }
     .contact-block .title { color:#cbd5e1; }
     .content { padding:4px; }
+    .creative-header { padding:18px; margin-bottom:16px; border-radius:18px; background:linear-gradient(135deg, ${palette.primary}, ${palette.accent}); color:#fff; }
+    .creative-header .name, .creative-header .title, .creative-header .meta-row { color:#fff; }
+    .timeline-shell { border-left:3px solid ${palette.accent}; padding-left:18px; }
+    .timeline-shell section { position:relative; }
+    .timeline-shell section::before { content:''; position:absolute; left:-27px; top:3px; width:12px; height:12px; border-radius:50%; background:${palette.accent}; border:3px solid ${palette.bg}; }
     ${customCss || ''}
     @media (max-width: 720px) {
       body { padding:12px; }
@@ -572,4 +641,3 @@ export function renderDesignPreviewHtml(params: {
   const direction = detectedLanguage === "he" ? "rtl" : "ltr";
   return renderHtml(templateId, jsonResume, sectionHeaders, mode, direction, detectedLanguage, customization);
 }
-

@@ -23,6 +23,16 @@ interface IosSection {
   status: string;
 }
 
+interface IosContact {
+  name: string;
+  email: string;
+  phone: string;
+  location: string;
+  title?: string;
+  linkedin?: string;
+  portfolio?: string;
+}
+
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 function flattenSummary(data: OptimizedResume): string {
@@ -92,6 +102,26 @@ function rewriteDataToSections(data: OptimizedResume): IosSection[] {
   return sections;
 }
 
+function rewriteDataToContact(data: OptimizedResume): IosContact | null {
+  const contact = data.contact;
+  if (!contact) return null;
+
+  const normalized: IosContact = {
+    name: contact.name || "",
+    email: contact.email || "",
+    phone: contact.phone || "",
+    location: contact.location || "",
+    title: contact.title || "",
+    linkedin: contact.linkedin || "",
+    portfolio: contact.portfolio || "",
+  };
+
+  const hasAnyValue = Object.values(normalized).some(
+    (value) => typeof value === "string" && value.trim().length > 0
+  );
+  return hasAnyValue ? normalized : null;
+}
+
 function toIntPercent(value: number | null | undefined): number | null {
   if (value == null) return null;
   const scaled = value <= 1 ? value * 100 : value;
@@ -131,6 +161,7 @@ export async function GET(
 
   const rewriteData = row.rewrite_data as OptimizedResume | null;
   const sections = rewriteData ? rewriteDataToSections(rewriteData) : [];
+  const contact = rewriteData ? rewriteDataToContact(rewriteData) : null;
 
   let jobTitle: string | null = null;
   let company: string | null = null;
@@ -147,9 +178,13 @@ export async function GET(
 
   return NextResponse.json({
     sections,
+    contact,
     jobTitle,
+    job_title: jobTitle,
     company,
     atsScoreBefore: toIntPercent(row.ats_score_original),
+    ats_score_before: toIntPercent(row.ats_score_original),
     atsScoreAfter: toIntPercent(row.ats_score_optimized),
+    ats_score_after: toIntPercent(row.ats_score_optimized),
   });
 }

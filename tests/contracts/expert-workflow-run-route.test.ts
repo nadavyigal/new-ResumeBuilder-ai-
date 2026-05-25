@@ -41,6 +41,27 @@ function loadRouteHarness() {
   const captureServerEvent = jest.fn();
   const runExpertWorkflow = jest.fn();
 
+  jest.doMock('next/server', () => ({
+    __esModule: true,
+    NextResponse: class {
+      status: number;
+      private body: unknown;
+
+      constructor(body: unknown, init?: { status?: number }) {
+        this.body = body;
+        this.status = init?.status ?? 200;
+      }
+
+      static json(body: unknown, init?: { status?: number }) {
+        return new this(body, init);
+      }
+
+      async json() {
+        return this.body;
+      }
+    },
+  }));
+
   jest.doMock('@/lib/supabase-server', () => ({
     __esModule: true,
     createRouteHandlerClient,
@@ -64,6 +85,12 @@ function loadRouteHarness() {
   return { POST, createRouteHandlerClient, captureServerEvent, runExpertWorkflow };
 }
 
+function jsonRequest(body: Record<string, unknown>) {
+  return {
+    json: async () => body,
+  } as any;
+}
+
 describe('POST /api/v1/expert-workflows/run', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -74,13 +101,9 @@ describe('POST /api/v1/expert-workflows/run', () => {
     const { POST, createRouteHandlerClient, runExpertWorkflow } = loadRouteHarness();
     createRouteHandlerClient.mockResolvedValue(buildSupabaseClient({}));
 
-    const request = new Request('http://localhost/api/v1/expert-workflows/run', {
-      method: 'POST',
-      body: JSON.stringify({
+    const request = jsonRequest({
         optimization_id: 'opt-1',
         workflow_type: 'recruiter_outreach_kit',
-      }),
-      headers: { 'Content-Type': 'application/json' },
     });
 
     const response = await POST(request);
@@ -109,13 +132,9 @@ describe('POST /api/v1/expert-workflows/run', () => {
       })
     );
 
-    const request = new Request('http://localhost/api/v1/expert-workflows/run', {
-      method: 'POST',
-      body: JSON.stringify({
+    const request = jsonRequest({
         optimization_id: 'opt-1',
         workflow_type: 'cover_letter_architect',
-      }),
-      headers: { 'Content-Type': 'application/json' },
     });
 
     const response = await POST(request);
@@ -151,13 +170,12 @@ describe('POST /api/v1/expert-workflows/run', () => {
       missing_evidence: ['Need a metric'],
     });
 
-    const request = new Request('http://localhost/api/v1/expert-workflows/run', {
-      method: 'POST',
-      body: JSON.stringify({
+    const request = jsonRequest({
         optimization_id: 'opt-1',
         workflow_type: 'professional_summary_lab',
-      }),
-      headers: { 'Content-Type': 'application/json' },
+        evidence_inputs: {
+          user_context: 'Reduced crash rate by 35%.',
+        },
     });
 
     const response = await POST(request);
@@ -168,5 +186,14 @@ describe('POST /api/v1/expert-workflows/run', () => {
     expect(payload.status).toBe('needs_user_input');
     expect(payload.needs_user_input).toBe(true);
     expect(payload.missing_evidence).toEqual(['Need a metric']);
+    expect(runExpertWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        optimizationId: 'opt-1',
+        workflowType: 'professional_summary_lab',
+        evidenceInputs: {
+          user_context: 'Reduced crash rate by 35%.',
+        },
+      })
+    );
   });
 });

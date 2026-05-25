@@ -23,7 +23,7 @@ export async function resolvePdfDesignContext(
   if (assignment) {
     usedDesignAssignment = true;
     const template = await getDesignTemplateById(supabase, assignment.template_id);
-    templateSlug = template?.slug || defaultTemplateSlug;
+    templateSlug = template ? `${template.category}-${template.slug || template.id}` : defaultTemplateSlug;
 
     if (assignment.customization_id) {
       const { data: customizationData, error: customizationError } = await supabase
