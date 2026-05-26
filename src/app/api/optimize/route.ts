@@ -5,6 +5,9 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/ra
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req);
   const { data: { user } } = await supabase.auth.getUser();

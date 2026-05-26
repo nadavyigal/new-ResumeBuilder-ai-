@@ -39,6 +39,7 @@ type ApplyWorkflowParams = {
   applyMode?: string;
   selectionIndex?: number;
   selectedIndices?: number[];
+  selectedFields?: string[];
 };
 
 type RunRow = {
@@ -497,6 +498,43 @@ function applyATSReportOutput(
   updatedFields.push('skills.technical');
 }
 
+const FULL_REWRITE_FIELDS = new Set([
+  'summary',
+  'skills',
+  'experience',
+  'education',
+  'certifications',
+  'contact',
+]);
+
+function applyFullRewriteOutput(
+  currentResume: OptimizedResume,
+  output: Record<string, unknown>,
+  selectedFields: string[] | undefined,
+  updatedFields: string[]
+): OptimizedResume {
+  if (!isRecord(output.rewritten_resume)) return currentResume;
+  const rewritten = output.rewritten_resume as unknown as OptimizedResume;
+  const cleanFields = Array.isArray(selectedFields)
+    ? selectedFields.filter((field) => FULL_REWRITE_FIELDS.has(field))
+    : [];
+
+  if (cleanFields.length === 0) {
+    updatedFields.push('entire_resume');
+    return rewritten;
+  }
+
+  const nextResume = { ...currentResume } as Record<string, unknown>;
+  const rewrittenRecord = rewritten as unknown as Record<string, unknown>;
+  for (const field of cleanFields) {
+    if (rewrittenRecord[field] !== undefined) {
+      nextResume[field] = rewrittenRecord[field];
+      updatedFields.push(field);
+    }
+  }
+  return nextResume as unknown as OptimizedResume;
+}
+
 function resolveCurrentResume(rewriteData: unknown): OptimizedResume {
   if (isRecord(rewriteData)) {
     return rewriteData as unknown as OptimizedResume;
@@ -564,10 +602,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   const appliedAssets: string[] = [];
 
   if (runRow.workflow_type === 'full_resume_rewrite') {
-    if (isRecord(output.rewritten_resume)) {
-      updatedResume = output.rewritten_resume as unknown as OptimizedResume;
-      updatedFields.push('entire_resume');
-    }
+    updatedResume = applyFullRewriteOutput(updatedResume, output, params.selectedFields, updatedFields);
   } else if (runRow.workflow_type === 'achievement_quantifier') {
     applyQuantifierOutput(updatedResume, output, updatedFields);
   } else if (runRow.workflow_type === 'professional_summary_lab') {

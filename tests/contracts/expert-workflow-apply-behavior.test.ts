@@ -276,4 +276,87 @@ describe('expert workflow apply behavior', () => {
     });
     expect(scoreOptimization).not.toHaveBeenCalled();
   });
+
+  it('applies only selected full rewrite sections when requested', async () => {
+    const { applyExpertWorkflowRun, scoreOptimization } = loadApplyHarness();
+    scoreOptimization.mockResolvedValue({
+      ats_score_original: 58,
+      ats_score_optimized: 70,
+      subscores: {},
+      subscores_original: {},
+      suggestions: [],
+      confidence: 'medium',
+    });
+
+    const currentResume = {
+      summary: 'Old summary',
+      contact: { name: 'Ada', email: 'ada@example.com', phone: '', location: '' },
+      skills: { technical: ['Swift'], soft: [] },
+      experience: [{ title: 'Engineer', company: 'OldCo', achievements: ['Old bullet'] }],
+      education: [],
+      matchScore: 62,
+      keyImprovements: [],
+      missingKeywords: [],
+    };
+
+    const rewrittenResume = {
+      ...currentResume,
+      summary: 'New summary',
+      skills: { technical: ['Swift', 'Partnerships'], soft: [] },
+      experience: [{ title: 'Engineer', company: 'OldCo', achievements: ['New bullet'] }],
+    };
+
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-selected',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'full_resume_rewrite',
+          output_json: {
+            rewritten_resume: rewrittenResume,
+          },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: {
+          id: 'opt-1',
+          rewrite_data: currentResume,
+          resume_id: 'resume-1',
+          jd_id: 'jd-1',
+          ats_score_optimized: 62,
+          match_score: 62,
+        },
+        error: null,
+      },
+      resumeResult: {
+        data: { raw_text: 'Original resume text' },
+        error: null,
+      },
+      jobDescriptionResult: {
+        data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' },
+        error: null,
+      },
+    });
+
+    const result = await applyExpertWorkflowRun({
+      supabase,
+      userId: 'user-1',
+      runId: 'run-selected',
+      selectedFields: ['summary', 'skills'],
+    });
+
+    expect(result.updated_fields).toEqual(['summary', 'skills']);
+    expect((supabase as any).getOptimizationUpdates()[0]).toEqual({
+      rewrite_data: {
+        ...currentResume,
+        summary: 'New summary',
+        skills: { technical: ['Swift', 'Partnerships'], soft: [] },
+      },
+    });
+    expect((supabase as any).getRunUpdates()[0]).toMatchObject({
+      updated_fields_json: ['summary', 'skills'],
+    });
+  });
 });
