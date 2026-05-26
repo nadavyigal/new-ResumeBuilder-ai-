@@ -518,6 +518,11 @@ function applyFullRewriteOutput(
   const cleanFields = Array.isArray(selectedFields)
     ? selectedFields.filter((field) => FULL_REWRITE_FIELDS.has(field))
     : [];
+  if (Array.isArray(selectedFields) && selectedFields.length > 0 && cleanFields.length === 0) {
+    throw new Error(
+      `Invalid selectedFields: ${selectedFields.join(', ')}. Allowed fields: ${Array.from(FULL_REWRITE_FIELDS).join(', ')}`
+    );
+  }
 
   if (cleanFields.length === 0) {
     updatedFields.push('entire_resume');

@@ -138,6 +138,24 @@ describe('Expert workflow validators', () => {
     expect(result.error).toContain('evidence_used');
   });
 
+  it('rejects quantifier output with non-string evidence metadata', () => {
+    const result = validateWorkflowOutput('achievement_quantifier', {
+      bullet_rewrites: [
+        {
+          original_bullet: 'Improved onboarding process',
+          optimized_bullet: 'Improved onboarding process',
+          evidence_used: [42],
+          missing_evidence_questions: ['What was baseline cycle time?'],
+        },
+      ],
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('evidence_used');
+  });
+
   it('accepts ATS optimization report output with live contract fields', () => {
     const result = validateWorkflowOutput('ats_optimization_report', {
       ats_report: {
@@ -182,6 +200,26 @@ describe('Expert workflow validators', () => {
     expect(result.error).toContain('unique');
   });
 
+  it('rejects ATS keyword rows without notes', () => {
+    const result = validateWorkflowOutput('ats_optimization_report', {
+      ats_report: {
+        keyword_match_analysis: [
+          {
+            keyword: 'SwiftUI',
+            present: true,
+            suggested_placement: 'experience',
+          },
+        ],
+        recommended_keywords_to_add: [],
+      },
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('note');
+  });
+
   it('accepts summary lab output with exactly five valid options', () => {
     const result = validateWorkflowOutput('professional_summary_lab', {
       summary_options: [
@@ -217,6 +255,24 @@ describe('Expert workflow validators', () => {
     expect(result.error).toContain('exactly 5');
   });
 
+  it('rejects summary lab output without recommended reason', () => {
+    const result = validateWorkflowOutput('professional_summary_lab', {
+      summary_options: [
+        { angle: 'leadership', summary: 'A leader in iOS delivery.', rationale: 'Leadership evidence.' },
+        { angle: 'technical', summary: 'A SwiftUI specialist.', rationale: 'Technical evidence.' },
+        { angle: 'results', summary: 'A delivery-focused engineer.', rationale: 'Results evidence.' },
+        { angle: 'industry', summary: 'A mobile product engineer.', rationale: 'Industry evidence.' },
+        { angle: 'vision', summary: 'A platform-minded iOS engineer.', rationale: 'Vision evidence.' },
+      ],
+      recommended_index: 1,
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('recommended_reason');
+  });
+
   it('accepts cover letter output with exactly three complete variants', () => {
     const result = validateWorkflowOutput('cover_letter_architect', {
       cover_letter_variants: [
@@ -243,6 +299,7 @@ describe('Expert workflow validators', () => {
         },
       ],
       recommended_index: 1,
+      recommended_reason: 'Best fit',
       report,
       missing_evidence: [],
     });
@@ -258,12 +315,47 @@ describe('Expert workflow validators', () => {
         { angle: 'impact', title: 'Impact', opening_paragraph: 'C', letter: 'C', rationale: 'C' },
       ],
       recommended_index: 1,
+      recommended_reason: 'Best fit',
       report,
       missing_evidence: [],
     });
 
     expect(result.valid).toBe(false);
     expect(result.error).toContain('contract fields');
+  });
+
+  it('rejects cover letter output without recommended reason', () => {
+    const result = validateWorkflowOutput('cover_letter_architect', {
+      cover_letter_variants: [
+        {
+          angle: 'concise',
+          title: 'Concise',
+          opening_paragraph: 'I am excited to apply.',
+          letter: 'I am excited to apply.',
+          rationale: 'Best for direct applications.',
+        },
+        {
+          angle: 'narrative',
+          title: 'Narrative',
+          opening_paragraph: 'Your team caught my attention.',
+          letter: 'Your team caught my attention.',
+          rationale: 'Best when motivation matters.',
+        },
+        {
+          angle: 'impact',
+          title: 'Impact',
+          opening_paragraph: 'I can help improve mobile reliability.',
+          letter: 'I can help improve mobile reliability.',
+          rationale: 'Best for outcomes.',
+        },
+      ],
+      recommended_index: 1,
+      report,
+      missing_evidence: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('recommended_reason');
   });
 
   it('accepts screening answer output with evidence and confidence notes', () => {

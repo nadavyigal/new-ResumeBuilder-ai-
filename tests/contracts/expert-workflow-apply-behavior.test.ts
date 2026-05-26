@@ -359,4 +359,59 @@ describe('expert workflow apply behavior', () => {
       updated_fields_json: ['summary', 'skills'],
     });
   });
+
+  it('rejects invalid selected full rewrite fields instead of applying the whole resume', async () => {
+    const { applyExpertWorkflowRun } = loadApplyHarness();
+
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-invalid',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'full_resume_rewrite',
+          output_json: {
+            rewritten_resume: {
+              summary: 'New summary',
+              skills: { technical: ['Swift'], soft: [] },
+              experience: [],
+              education: [],
+            },
+          },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: {
+          id: 'opt-1',
+          rewrite_data: { summary: 'Old summary' },
+          resume_id: 'resume-1',
+          jd_id: 'jd-1',
+          ats_score_optimized: 62,
+          match_score: 62,
+        },
+        error: null,
+      },
+      resumeResult: {
+        data: { raw_text: 'Original resume text' },
+        error: null,
+      },
+      jobDescriptionResult: {
+        data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' },
+        error: null,
+      },
+    });
+
+    await expect(
+      applyExpertWorkflowRun({
+        supabase,
+        userId: 'user-1',
+        runId: 'run-invalid',
+        selectedFields: ['projects'],
+      })
+    ).rejects.toThrow('Invalid selectedFields');
+
+    expect((supabase as any).getOptimizationUpdates()).toHaveLength(0);
+    expect((supabase as any).getRunUpdates()).toHaveLength(0);
+  });
 });

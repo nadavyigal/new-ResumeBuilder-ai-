@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
         success: true,
         resumeId: resumeData.id,
         jobDescriptionId: jdData.id,
+        reviewId: null,
         nextStep: "optimize",
         matchScore: null,
         keyImprovements: [],

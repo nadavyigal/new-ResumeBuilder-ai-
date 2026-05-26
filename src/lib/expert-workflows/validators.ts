@@ -39,6 +39,10 @@ function getStringArray(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }
 
+function isNonEmptyStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string' && item.trim().length > 0);
+}
+
 function hasTruthyObject(value: unknown): boolean {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
@@ -142,10 +146,10 @@ export function validateWorkflowOutput(
       if (!original || !optimized) {
         return { valid: false, error: 'original_bullet and optimized_bullet are required', missingEvidence };
       }
-      if (!Array.isArray(rewrite.evidence_used)) {
+      if (!isNonEmptyStringArray(rewrite.evidence_used)) {
         return { valid: false, error: 'evidence_used must be an array', missingEvidence };
       }
-      if (!Array.isArray(rewrite.missing_evidence_questions)) {
+      if (!isNonEmptyStringArray(rewrite.missing_evidence_questions)) {
         return { valid: false, error: 'missing_evidence_questions must be an array', missingEvidence };
       }
       if (wordCount(optimized) > 45) {
@@ -172,7 +176,7 @@ export function validateWorkflowOutput(
     if (!Array.isArray(report.keyword_match_analysis)) {
       return { valid: false, error: 'keyword_match_analysis must be an array', missingEvidence };
     }
-    if (!Array.isArray(report.recommended_keywords_to_add)) {
+    if (!isNonEmptyStringArray(report.recommended_keywords_to_add)) {
       return { valid: false, error: 'recommended_keywords_to_add must be an array', missingEvidence };
     }
     if (recommended.length > 20 || hasDuplicateStrings(recommended)) {
@@ -183,8 +187,8 @@ export function validateWorkflowOutput(
         return { valid: false, error: 'keyword_match_analysis rows must be objects', missingEvidence };
       }
       const item = row as Record<string, unknown>;
-      if (!hasRequiredString(item, 'keyword') || typeof item.present !== 'boolean') {
-        return { valid: false, error: 'keyword_match_analysis rows require keyword and present', missingEvidence };
+      if (!hasRequiredString(item, 'keyword') || typeof item.present !== 'boolean' || !hasRequiredString(item, 'note')) {
+        return { valid: false, error: 'keyword_match_analysis rows require keyword, present, and note', missingEvidence };
       }
       const placement = String(item.suggested_placement || '');
       if (placement && !['summary', 'skills', 'experience', 'education'].includes(placement)) {
@@ -203,6 +207,9 @@ export function validateWorkflowOutput(
     }
     if (Number.isNaN(recommendedIndex) || recommendedIndex < 0 || recommendedIndex >= options.length) {
       return { valid: false, error: 'recommended_index is invalid', missingEvidence };
+    }
+    if (!hasRequiredString(parsed, 'recommended_reason')) {
+      return { valid: false, error: 'recommended_reason is required when a recommended_index is set', missingEvidence };
     }
     for (const option of options) {
       if (!hasTruthyObject(option)) {
@@ -227,6 +234,9 @@ export function validateWorkflowOutput(
     }
     if (Number.isNaN(recommendedIndex) || recommendedIndex < 0 || recommendedIndex >= variants.length) {
       return { valid: false, error: 'recommended_index is invalid', missingEvidence };
+    }
+    if (!hasRequiredString(parsed, 'recommended_reason')) {
+      return { valid: false, error: 'recommended_reason is required when a recommended_index is set', missingEvidence };
     }
     for (const variant of variants) {
       if (!hasTruthyObject(variant)) {
@@ -259,7 +269,7 @@ export function validateWorkflowOutput(
       if (!question || !answer) {
         return { valid: false, error: 'screening answers require question and answer', missingEvidence };
       }
-      if (!Array.isArray(item.evidence_used) || !hasRequiredString(item, 'confidence_note')) {
+      if (!isNonEmptyStringArray(item.evidence_used) || !hasRequiredString(item, 'confidence_note')) {
         return { valid: false, error: 'screening answers require evidence_used and confidence_note', missingEvidence };
       }
     }
