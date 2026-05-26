@@ -1,0 +1,33 @@
+{
+  "summary": "Senior iOS engineer with experience leading SwiftUI migrations, improving mobile reliability, and mentoring product-focused engineering teams.",
+  "contact": {
+    "name": "Ada Lovelace",
+    "email": "ada@example.com",
+    "phone": "",
+    "location": "New York, NY"
+  },
+  "skills": {
+    "technical": ["Swift", "SwiftUI", "UIKit", "XCTest", "CI/CD"],
+    "soft": ["Mentoring", "Cross-functional collaboration"]
+  },
+  "experience": [
+    {
+      "title": "Senior iOS Engineer",
+      "company": "Northstar Apps",
+      "achievements": [
+        "Led a SwiftUI migration for a checkout flow used by 250k monthly active users.",
+        "Reduced crash rate by 35% by improving async state handling and test coverage.",
+        "Mentored 4 engineers on Swift concurrency and release quality practices."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "Example University",
+      "degree": "BS Computer Science"
+    }
+  ],
+  "matchScore": 74,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

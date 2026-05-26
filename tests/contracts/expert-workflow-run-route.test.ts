@@ -102,8 +102,8 @@ describe('POST /api/v1/expert-workflows/run', () => {
     createRouteHandlerClient.mockResolvedValue(buildSupabaseClient({}));
 
     const request = jsonRequest({
-        optimization_id: 'opt-1',
-        workflow_type: 'recruiter_outreach_kit',
+      optimization_id: 'opt-1',
+      workflow_type: 'recruiter_outreach_kit',
     });
 
     const response = await POST(request);
@@ -133,8 +133,8 @@ describe('POST /api/v1/expert-workflows/run', () => {
     );
 
     const request = jsonRequest({
-        optimization_id: 'opt-1',
-        workflow_type: 'cover_letter_architect',
+      optimization_id: 'opt-1',
+      workflow_type: 'cover_letter_architect',
     });
 
     const response = await POST(request);
@@ -171,11 +171,11 @@ describe('POST /api/v1/expert-workflows/run', () => {
     });
 
     const request = jsonRequest({
-        optimization_id: 'opt-1',
-        workflow_type: 'professional_summary_lab',
-        evidence_inputs: {
-          user_context: 'Reduced crash rate by 35%.',
-        },
+      optimization_id: 'opt-1',
+      workflow_type: 'professional_summary_lab',
+      evidence_inputs: {
+        user_context: 'Reduced crash rate by 35%.',
+      },
     });
 
     const response = await POST(request);

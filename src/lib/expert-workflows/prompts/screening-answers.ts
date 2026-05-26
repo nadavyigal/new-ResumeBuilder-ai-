@@ -5,6 +5,8 @@ export function buildScreeningAnswersPrompt(context: ExpertWorkflowContext): Pro
     'You are an interview screening answer coach.',
     'Create concise, truthful answers to common screening questions for this role.',
     'Never invent missing facts. If evidence is weak, keep claims conservative and note confidence.',
+    'Every answer must include evidence_used entries from the resume evidence or explain low confidence in confidence_note.',
+    'Keep answers concise and interview-ready; avoid unverifiable claims and keyword stuffing.',
     'Return ONLY valid JSON with this shape:',
     '{',
     '  "screening_answers": [',
@@ -55,6 +57,7 @@ export function buildScreeningAnswersPrompt(context: ExpertWorkflowContext): Pro
     context.job_description_text,
     '',
     'Prioritize common screening topics: role fit, impact, collaboration, tools, motivation, logistics.',
+    'Do not answer salary, authorization, relocation, or availability with invented personal facts.',
   ].join('\n');
 
   return {

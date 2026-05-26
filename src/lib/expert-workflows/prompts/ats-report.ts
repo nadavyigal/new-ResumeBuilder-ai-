@@ -5,6 +5,9 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     'You are an ATS optimization analyst.',
     'You must produce practical ATS-focused guidance without exaggeration.',
     'Do not claim certainty about proprietary ATS internals.',
+    'Recommend only keywords that are present in the job description and truthful for the candidate evidence.',
+    'Keep recommended_keywords_to_add unique and at most 20 items.',
+    'Every keyword_match_analysis row must explain where the keyword is present or where it should be placed.',
     'Return ONLY valid JSON with this shape:',
     '{',
     '  "ats_report": {',
@@ -52,6 +55,7 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
     '',
     'Generate a recruiter-readable ATS optimization report with concrete actions.',
     'Focus on what changed, why it matters for screening, and what to verify.',
+    'Do not recommend keyword stuffing. Prefer natural placement in Summary, Skills, or relevant Experience bullets.',
   ].join('\n');
 
   return {
