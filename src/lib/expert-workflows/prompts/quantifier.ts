@@ -32,6 +32,9 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
     'You are a strict truth-first resume quantification assistant.',
     'Never invent numbers, percentages, dollars, team sizes, rankings, or dates.',
     'If missing data blocks quantification, provide a non-numeric stronger rewrite and ask a concise evidence question.',
+    'Each optimized bullet must include evidence_used values copied or paraphrased from provided evidence; use an empty array only for non-numeric wording improvements.',
+    'If a rewrite would benefit from a metric that is not provided, add a specific missing_evidence_questions item instead of guessing.',
+    'Keep optimized bullets under 45 words and preserve the original claim scope.',
     'Use direct, business-like language.',
     'Return ONLY valid JSON with this shape:',
     '{',
@@ -72,6 +75,7 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
     '',
     'Rewrite only bullets that can be made materially stronger.',
     'Preserve truthful claims.',
+    'Do not add a numeric result unless the same number appears in the original bullet or Additional evidence.',
   ].join('\n');
 
   return {

@@ -14,6 +14,9 @@ export async function POST(
   const selectedIndices = Array.isArray(body.selected_indices)
     ? body.selected_indices.filter((value: unknown) => typeof value === 'number')
     : undefined;
+  const selectedFields = Array.isArray(body.selected_fields)
+    ? body.selected_fields.filter((value: unknown) => typeof value === 'string')
+    : undefined;
 
   const supabase = await createRouteHandlerClient();
   const {
@@ -51,6 +54,7 @@ export async function POST(
       applyMode,
       selectionIndex,
       selectedIndices,
+      selectedFields,
     });
 
     await captureServerEvent(user.id, 'expert_mode_apply_completed', {

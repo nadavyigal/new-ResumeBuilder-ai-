@@ -1,0 +1,33 @@
+{
+  "summary": "Customer success manager with experience onboarding enterprise customers, improving retention workflows, and translating customer feedback into product improvements.",
+  "contact": {
+    "name": "Jordan Lee",
+    "email": "jordan@example.com",
+    "phone": "",
+    "location": "Austin, TX"
+  },
+  "skills": {
+    "technical": ["Salesforce", "HubSpot", "Gainsight", "SQL basics"],
+    "soft": ["Executive communication", "Renewal planning", "Customer training"]
+  },
+  "experience": [
+    {
+      "title": "Customer Success Manager",
+      "company": "Beacon Software",
+      "achievements": [
+        "Managed a portfolio of 42 mid-market accounts across onboarding, adoption, and renewal planning.",
+        "Raised quarterly business review attendance from 58% to 81% by redesigning stakeholder outreach.",
+        "Partnered with product managers to prioritize recurring customer feedback themes."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "Example State University",
+      "degree": "BA Communications"
+    }
+  ],
+  "matchScore": 68,
+  "keyImprovements": [],
+  "missingKeywords": []
+}

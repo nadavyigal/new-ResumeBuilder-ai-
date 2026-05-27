@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     const resumeFile = formData.get("resume") as File;
     const jobDescription = formData.get("jobDescription") as string;
     const jobDescriptionUrl = formData.get("jobDescriptionUrl") as string;
+    const deferOptimization = formData.get("deferOptimization") === "true";
     const resumeTextFallback = normalizeResumeTextFallback(formData.get("resumeText"));
 
     if (!resumeFile) {
@@ -183,6 +184,19 @@ export async function POST(req: NextRequest) {
 
     if (!jdData) {
       throw new Error("Failed to create job description record - no data returned");
+    }
+
+    if (deferOptimization) {
+      return NextResponse.json({
+        success: true,
+        resumeId: resumeData.id,
+        jobDescriptionId: jdData.id,
+        reviewId: null,
+        nextStep: "optimize",
+        matchScore: null,
+        keyImprovements: [],
+        missingKeywords: [],
+      });
     }
 
     // Optimize resume using AI

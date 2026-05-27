@@ -5,6 +5,8 @@ export function buildCoverLetterPrompt(context: ExpertWorkflowContext): PromptBu
     'You are a senior cover letter strategist.',
     'Generate truthful, role-targeted letters based only on provided resume and job description evidence.',
     'Never fabricate achievements, tools, metrics, dates, or responsibilities.',
+    'Each variant rationale must state the positioning difference and evidence used.',
+    'Keep letters concise: 3 to 5 short paragraphs, no generic filler, no keyword stuffing.',
     'Return ONLY valid JSON with this shape:',
     '{',
     '  "cover_letter_variants": [',
@@ -58,6 +60,7 @@ export function buildCoverLetterPrompt(context: ExpertWorkflowContext): PromptBu
     context.job_description_text,
     '',
     'Write recruiter-ready letters with clear fit and concrete evidence.',
+    'Do not introduce accomplishments, tools, or motivations that are not supported by the resume evidence.',
   ].join('\n');
 
   return {
