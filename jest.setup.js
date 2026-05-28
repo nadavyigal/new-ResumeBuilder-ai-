@@ -29,7 +29,20 @@ if (!global.WritableStream) {
   global.WritableStream = WritableStream;
 }
 
-const { fetch, Headers, Request, Response } = require('undici');
+let fetchGlobals = {
+  fetch: global.fetch,
+  Headers: global.Headers,
+  Request: global.Request,
+  Response: global.Response,
+};
+
+try {
+  fetchGlobals = require('undici');
+} catch {
+  // Node 18+ exposes these globals; keep tests runnable when undici is not installed.
+}
+
+const { fetch, Headers, Request, Response } = fetchGlobals;
 
 if (!global.fetch) {
   global.fetch = fetch;

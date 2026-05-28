@@ -106,6 +106,9 @@ export interface OptimizationHistoryEntry {
 
   /** Application ID if exists */
   applicationId?: string;
+
+  /** Optimization review run id (grouped before/after changes), when matched to this optimization */
+  reviewId?: string;
 }
 
 /**
