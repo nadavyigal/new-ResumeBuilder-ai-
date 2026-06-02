@@ -24,36 +24,11 @@ import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import { generateQuickWins } from './quick-wins/generator';
 
 /**
- * Normalize ATS score to realistic range (60-90)
- *
- * This function ensures scores are never unrealistically low due to
- * broken keyword extraction or analyzer failures.
- *
- * UPDATED MAPPING - Wider range to preserve differences between original and optimized:
- * - 0-30 → 40-55 (poor match)
- * - 31-50 → 56-70 (fair match)
- * - 51-70 → 71-82 (good match)
- * - 71-100 → 83-95 (excellent match)
+ * Normalize ATS score — clamps to valid [0, 100] range.
+ * Real score lift comes from the multi-pass pipeline, not artificial inflation.
  */
 function normalizeATSScore(rawScore: number): number {
-  // Clamp input to valid range
-  const score = Math.max(0, Math.min(100, rawScore));
-
-  // Apply piecewise linear transformation - return float to preserve precision
-  // Rounding will happen only at final display, not during calculation
-  if (score <= 30) {
-    // Map 0-30 to 40-55
-    return 40 + (score / 30) * 15;
-  } else if (score <= 50) {
-    // Map 31-50 to 56-70
-    return 56 + ((score - 30) / 20) * 14;
-  } else if (score <= 70) {
-    // Map 51-70 to 71-82
-    return 71 + ((score - 50) / 20) * 11;
-  } else {
-    // Map 71-100 to 83-95
-    return 83 + ((score - 70) / 30) * 12;
-  }
+  return Math.max(0, Math.min(100, rawScore));
 }
 
 /**
@@ -123,33 +98,9 @@ export async function scoreResume(
       {}
     );
 
-    // SAFETY NET: Normalize scores to realistic range (40-95)
-    // This prevents broken scoring algorithms from showing unrealistic results
+    // Normalize scores — clamp to [0, 100]; genuine lift comes from the pipeline
     const normalizedOriginal = normalizeATSScore(originalPenalized.penalizedScore);
-    let normalizedOptimized = normalizeATSScore(optimizedPenalized.penalizedScore);
-
-    // CRITICAL FIX: Ensure meaningful improvement for optimized resumes
-    // Strategy:
-    // 1. Optimized score must NEVER be lower than original
-    // 2. Must show at least a minimum improvement (3-5 points) to reflect optimization value
-    const MIN_IMPROVEMENT = 4; // Minimum guaranteed improvement points
-    const rawImprovement = normalizedOptimized - normalizedOriginal;
-
-    if (rawImprovement < MIN_IMPROVEMENT) {
-      const oldOptimized = normalizedOptimized;
-
-      // Add the minimum improvement, but cap at 95
-      normalizedOptimized = Math.min(95, normalizedOriginal + MIN_IMPROVEMENT);
-
-      console.warn('⚠️ ATS Score Improvement Boost:', {
-        originalNormalized: Math.round(normalizedOriginal * 10) / 10,
-        optimizedBefore: Math.round(oldOptimized * 10) / 10,
-        optimizedAfter: Math.round(normalizedOptimized * 10) / 10,
-        rawImprovement: Math.round(rawImprovement * 10) / 10,
-        guaranteedImprovement: Math.round((normalizedOptimized - normalizedOriginal) * 10) / 10,
-        reason: rawImprovement < 0 ? 'Score dropped - corrected' : 'Improvement too small - boosted'
-      });
-    }
+    const normalizedOptimized = normalizeATSScore(optimizedPenalized.penalizedScore);
 
     const improvement = normalizedOptimized - normalizedOriginal;
 

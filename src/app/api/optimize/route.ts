@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { optimizeResume } from "@/lib/ai-optimizer";
+import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
+
+export const runtime = 'nodejs';
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient(req);
@@ -71,13 +74,11 @@ export async function POST(req: NextRequest) {
     // Credit check disabled — all users are on free tier for now.
     // Re-enable by uncommenting the consumeCredit block when monetization goes live.
 
-    const optimizationResult = await optimizeResume(
+    const pipelineResult = await runOptimizePipeline(
       (resumeData as any).raw_text,
       (jdData as any).raw_text
     );
-    if (!optimizationResult.success || !optimizationResult.optimizedResume) {
-      throw new Error(optimizationResult.error || "Failed to optimize resume");
-    }
+    const optimizedResume = pipelineResult.optimizedResume;
 
     const { reviewId } = await createOptimizationReviewRun({
       supabase,
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
       resumeRawText: (resumeData as any).raw_text,
       jobDescriptionText: (jdData as any).raw_text,
       jobTitle: 'Position',
-      optimizedResume: optimizationResult.optimizedResume,
+      optimizedResume,
     });
 
     return NextResponse.json({ reviewId, nextStep: "review" });
@@ -114,7 +115,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       error: errorMessage,
-      details: error instanceof Error ? error.stack : undefined
     }, { status: statusCode });
   }
 }
