@@ -69,6 +69,9 @@ export default function OptimizationPage() {
   // Pending changes for ATS tip highlighting
   const [pendingChanges, setPendingChanges] = useState<any[]>([]);
   const [isPremium, setIsPremium] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editDraft, setEditDraft] = useState<OptimizedResume | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const params = useParams();
   const supabase = createClientComponentClient();
@@ -705,6 +708,36 @@ export default function OptimizationPage() {
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editDraft) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/v1/optimizations/${params.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rewrite_data: editDraft, changeSummary: 'Manual edit' }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to save');
+      }
+      const result = await res.json();
+      setOptimizedResume(editDraft);
+      if (result.ats_score_optimized != null) {
+        setAtsV2Data((prev: any) => prev ? { ...prev, ats_score_optimized: result.ats_score_optimized, ats_score_original: result.ats_score_original } : prev);
+        setMatchScore(result.ats_score_optimized);
+      }
+      setRefreshKey(k => k + 1);
+      setIsEditing(false);
+      setEditDraft(null);
+      toast({ title: 'Resume saved', description: 'Your changes have been saved and re-scored.' });
+    } catch (err) {
+      toast({ title: 'Save failed', description: err instanceof Error ? err.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <CacheBustingErrorBoundary>
       <SectionSelectionProvider>
@@ -736,9 +769,20 @@ export default function OptimizationPage() {
         </Button>
 
         {/* Export Actions - Grid Layout for Mobile */}
-        <div className="grid grid-cols-3 md:flex gap-2 md:gap-3">
-          <Button 
-            onClick={handleCopyText} 
+        <div className="grid grid-cols-4 md:flex gap-2 md:gap-3">
+          <Button
+            onClick={() => {
+              setEditDraft(optimizedResume ? JSON.parse(JSON.stringify(optimizedResume)) : null);
+              setIsEditing(true);
+            }}
+            variant="outline"
+            className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
+            disabled={!optimizedResume || isDemoOptimization}
+          >
+            Edit
+          </Button>
+          <Button
+            onClick={handleCopyText}
             variant="outline"
             className="w-full text-xs md:text-sm px-2 md:px-4 h-10 md:h-9"
           >
@@ -873,6 +917,156 @@ export default function OptimizationPage() {
           onAtsImpact={handleExpertAtsImpact}
         />
       </div>
+
+      {/* Inline Resume Editor */}
+      {isEditing && editDraft && (
+        <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 dark:bg-blue-900/10 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold">Edit Resume</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setIsEditing(false); setEditDraft(null); }} disabled={saving}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleSaveEdit} disabled={saving}>
+                {saving ? 'Saving...' : 'Save & Re-score'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-1">Professional Summary</label>
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y"
+              value={editDraft.summary}
+              onChange={e => setEditDraft(d => d ? { ...d, summary: e.target.value } : d)}
+            />
+          </div>
+
+          {/* Skills */}
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Technical Skills (comma-separated)</label>
+              <textarea
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
+                value={editDraft.skills.technical.join(', ')}
+                onChange={e => setEditDraft(d => d ? { ...d, skills: { ...d.skills, technical: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } } : d)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Soft Skills (comma-separated)</label>
+              <textarea
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[60px] resize-y"
+                value={editDraft.skills.soft.join(', ')}
+                onChange={e => setEditDraft(d => d ? { ...d, skills: { ...d.skills, soft: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } } : d)}
+              />
+            </div>
+          </div>
+
+          {/* Experience */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">Experience</label>
+            {editDraft.experience.map((exp, i) => (
+              <div key={i} className="mb-4 rounded-lg border border-border bg-background p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Job Title</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                      value={exp.title}
+                      onChange={e => setEditDraft(d => {
+                        if (!d) return d;
+                        const experience = [...d.experience];
+                        experience[i] = { ...experience[i], title: e.target.value };
+                        return { ...d, experience };
+                      })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Company</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                      value={exp.company}
+                      onChange={e => setEditDraft(d => {
+                        if (!d) return d;
+                        const experience = [...d.experience];
+                        experience[i] = { ...experience[i], company: e.target.value };
+                        return { ...d, experience };
+                      })}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Achievement Bullets (one per line)</label>
+                  <textarea
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y"
+                    value={exp.achievements.join('\n')}
+                    onChange={e => setEditDraft(d => {
+                      if (!d) return d;
+                      const experience = [...d.experience];
+                      experience[i] = { ...experience[i], achievements: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) };
+                      return { ...d, experience };
+                    })}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Education */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Education</label>
+            {editDraft.education.map((edu, i) => (
+              <div key={i} className="mb-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Degree</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                    value={edu.degree}
+                    onChange={e => setEditDraft(d => {
+                      if (!d) return d;
+                      const education = [...d.education];
+                      education[i] = { ...education[i], degree: e.target.value };
+                      return { ...d, education };
+                    })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Institution</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                    value={edu.institution}
+                    onChange={e => setEditDraft(d => {
+                      if (!d) return d;
+                      const education = [...d.education];
+                      education[i] = { ...education[i], institution: e.target.value };
+                      return { ...d, education };
+                    })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-muted-foreground mb-1">Graduation Date</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                    value={edu.graduationDate}
+                    onChange={e => setEditDraft(d => {
+                      if (!d) return d;
+                      const education = [...d.education];
+                      education[i] = { ...education[i], graduationDate: e.target.value };
+                      return { ...d, education };
+                    })}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Layout: Resume Preview (Full Width) */}
       <div className="mb-8">

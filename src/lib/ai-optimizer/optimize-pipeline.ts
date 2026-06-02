@@ -104,7 +104,7 @@ function buildGapsFromAtsResult(
   }
 
   const lowSubscores: Record<string, number> = {};
-  const subscores = atsResult.subscores as Record<string, number>;
+  const subscores = atsResult.subscores as unknown as Record<string, number>;
   for (const [key, value] of Object.entries(subscores)) {
     if (typeof value === 'number' && value < 60) {
       lowSubscores[key] = value;
