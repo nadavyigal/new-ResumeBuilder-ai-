@@ -55,5 +55,50 @@ export async function GET(
   }
 }
 
+const VALID_STATUSES = ['saved', 'applied', 'interviewing', 'offered', 'rejected', 'withdrawn'] as const;
+
+/**
+ * PATCH /api/v1/applications/[id]
+ * Body: { status: string }
+ * Updates the application status for the tracker.
+ */
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const supabase = await createRouteHandlerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await context.params;
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const status = body?.status as string | undefined;
+
+    if (!status || !VALID_STATUSES.includes(status as any)) {
+      return NextResponse.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("applications")
+      .update({ status } as any)
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, status });
+  } catch (err: unknown) {
+    const e = err as { message?: string };
+    return NextResponse.json({ error: e.message || "Unknown error" }, { status: 500 });
+  }
+}
+
 
 

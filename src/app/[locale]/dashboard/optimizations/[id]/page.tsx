@@ -698,7 +698,21 @@ export default function OptimizationPage() {
         throw new Error(j.error || t("apply.saveFailure"));
       }
 
-      // Navigate to applications list after apply
+      const appData = await res.json().catch(() => ({}));
+      const appId = appData.id as string | undefined;
+
+      // Mark as Applied (sets apply_clicked_at timestamp)
+      if (appId) {
+        fetch(`/api/v1/applications/${appId}/mark-applied`, { method: 'POST' }).catch(() => {});
+      }
+
+      // Open job URL so user can paste/upload the resume there
+      const jobSourceUrl = jobDescription?.source_url;
+      if (jobSourceUrl) {
+        window.open(jobSourceUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      // Navigate to applications monitor
       window.location.href = `/dashboard/applications`;
 
     } catch (error) {
