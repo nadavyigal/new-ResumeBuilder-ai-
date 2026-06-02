@@ -5,6 +5,8 @@ export function buildSummaryLabPrompt(context: ExpertWorkflowContext): PromptBun
     'You are a professional summary specialist for resumes.',
     'Create concise, role-targeted summaries that are truthful and ATS-friendly.',
     'Never invent achievements or metrics.',
+    'Each summary must be under 80 words and must avoid repeated keywords or hype phrases.',
+    'Each rationale must name the evidence or role-fit reason for that option.',
     'Return ONLY valid JSON with this shape:',
     '{',
     '  "summary_options": [',
@@ -49,6 +51,9 @@ export function buildSummaryLabPrompt(context: ExpertWorkflowContext): PromptBun
     '',
     'Job Description:',
     context.job_description_text,
+    '',
+    'Use only the provided summary, experience bullets, and job description as evidence.',
+    'Do not invent seniority, certifications, metrics, or industries.',
   ].join('\n');
 
   return {

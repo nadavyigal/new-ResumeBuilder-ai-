@@ -13,7 +13,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.13.0
+          cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Lint
@@ -22,4 +23,3 @@ jobs:
         run: npm run test:contracts || true
       - name: Benchmark (CI)
         run: node scripts/bench-agent.mjs --ci || true
-
