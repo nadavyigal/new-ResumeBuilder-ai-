@@ -159,6 +159,53 @@ export async function GET(req: NextRequest) {
       console.warn('Applications table may not exist yet:', err);
     }
 
+    /**
+     * Best-effort: attach a review run id so clients can open Optimization Review from history.
+     * Prefer pending runs (applied_at is null) by closest created_at to the optimization — that is
+     * the usual "review before apply" path. If none pending, fall back to the applied run whose
+     * applied_at is closest to the optimization timestamp (read-only / already-applied UI).
+     */
+    const reviewIdByOptimizationId = new Map<string, string>();
+    try {
+      const resumeIds = [...new Set(data.map((o) => o.resume_id).filter(Boolean))] as string[];
+      if (resumeIds.length > 0) {
+        const { data: reviewRuns } = await supabase
+          .from('optimization_review_runs')
+          .select('id, resume_id, jd_id, created_at, applied_at')
+          .eq('user_id', user.id)
+          .in('resume_id', resumeIds);
+
+        const runs = reviewRuns || [];
+        for (const opt of data) {
+          const matches = runs.filter(
+            (r) => r.resume_id === opt.resume_id && r.jd_id === opt.jd_id
+          );
+          if (matches.length === 0) continue;
+          const optTime = new Date(opt.created_at).getTime();
+
+          const pending = matches.filter((r) => r.applied_at == null);
+          let best: { id: string; diff: number } | undefined;
+          if (pending.length > 0) {
+            for (const c of pending) {
+              const t = new Date(c.created_at as string).getTime();
+              const diff = Math.abs(t - optTime);
+              if (!best || diff < best.diff) best = { id: c.id, diff };
+            }
+          } else {
+            for (const c of matches) {
+              if (!c.applied_at) continue;
+              const t = new Date(c.applied_at as string).getTime();
+              const diff = Math.abs(t - optTime);
+              if (!best || diff < best.diff) best = { id: c.id, diff };
+            }
+          }
+          if (best) reviewIdByOptimizationId.set(opt.id, best.id);
+        }
+      }
+    } catch (reviewErr) {
+      console.warn('optimization_review_runs match skipped:', reviewErr);
+    }
+
     // Transform data to match API contract
     const optimizations: OptimizationHistoryEntry[] = data.map(opt => {
       const jd = jdMap.get(opt.jd_id);
@@ -180,6 +227,7 @@ export async function GET(req: NextRequest) {
         applicationStatus: app?.status || undefined,
         applicationDate: app?.applied_date || undefined,
         applicationId: app?.id || undefined,
+        reviewId: reviewIdByOptimizationId.get(opt.id),
       };
     });
 

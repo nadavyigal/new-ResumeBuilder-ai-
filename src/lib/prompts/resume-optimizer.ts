@@ -21,6 +21,7 @@ What to optimize:
 1. Keyword alignment
 - Mirror important job-description terms when they are genuinely supported by the resume.
 - Spread relevant terms across summary, skills, and experience bullets naturally.
+- When gap keywords are provided in the user prompt, explicitly address each one in the appropriate resume section if truthfully supported.
 
 2. Role clarity
 - Make target role and value proposition explicit in the summary.
@@ -29,6 +30,9 @@ What to optimize:
 3. Impact clarity
 - Prefer quantified outcomes when source text supports them.
 - If no metric exists, keep impact statements concrete but non-numeric.
+- Lead every achievement bullet with a strong action verb (e.g., Designed, Accelerated, Reduced, Launched).
+- Surface real but under-stated experience — if the resume mentions a skill or outcome only briefly, expand it into a full bullet where truthfully supported.
+- Mirror the job description's exact terminology, phrasing, and keywords when genuinely supported by the candidate's background.
 
 4. Structure and readability
 - Keep sections complete and easy to parse.
@@ -124,3 +128,49 @@ export const OPTIMIZATION_CONFIG = {
   maxTokens: 4000,
   timeout: 50000,
 };
+
+/**
+ * Shape of gap data passed into the second-pass prompt
+ */
+export interface ResumeOptimizationGaps {
+  missingKeywords: string[];
+  lowSubscores: Record<string, number>;
+  mustHave: string[];
+}
+
+/**
+ * Second-pass user prompt that injects specific gap information.
+ * Starting from the previous optimization output, focuses on remaining gaps.
+ */
+export const RESUME_OPTIMIZATION_GAP_PROMPT = (
+  resumeText: string,
+  jobDescription: string,
+  gaps: ResumeOptimizationGaps
+) => `
+RESUME (starting point for this optimization pass):
+${resumeText}
+
+---
+
+TARGET JOB DESCRIPTION:
+${jobDescription}
+
+---
+
+REMAINING GAPS TO ADDRESS:
+
+Missing keywords (include naturally where truthfully supported):
+${gaps.missingKeywords.length > 0 ? gaps.missingKeywords.map(k => `- ${k}`).join('\n') : '(none)'}
+
+Must-have requirements not yet fully covered (address in appropriate sections if truthfully supported):
+${gaps.mustHave.length > 0 ? gaps.mustHave.map(r => `- ${r}`).join('\n') : '(none)'}
+
+Low-scoring areas (subscores below 60 — focus improvement here):
+${Object.keys(gaps.lowSubscores).length > 0 ? Object.entries(gaps.lowSubscores).map(([k, v]) => `- ${k}: ${v}`).join('\n') : '(none)'}
+
+---
+
+Optimize this resume for the target job description following the system rules.
+Pay particular attention to the remaining gaps listed above and address each one where truthfully supported by the candidate's background.
+Return only the JSON object with the optimized resume data.
+`;

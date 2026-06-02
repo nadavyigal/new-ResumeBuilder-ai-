@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { scoreOptimization } from "@/lib/ats/integration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -187,4 +188,128 @@ export async function GET(
     atsScoreAfter: toIntPercent(row.ats_score_optimized),
     ats_score_after: toIntPercent(row.ats_score_optimized),
   });
+}
+
+// ─── PATCH handler ────────────────────────────────────────────────────────────
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const supabase = await createRouteHandlerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: { rewrite_data?: OptimizedResume; changeSummary?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const rewriteData = body.rewrite_data;
+  const changeSummary = body.changeSummary;
+
+  if (!rewriteData) {
+    return NextResponse.json({ error: "rewrite_data is required" }, { status: 400 });
+  }
+
+  try {
+    const userId = user.id;
+
+    const { data: currentOpt, error: currentOptErr } = await supabase
+      .from("optimizations")
+      .select("resume_id, jd_id, ats_score_original, ats_subscores_original")
+      .eq("id", id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (currentOptErr) {
+      return NextResponse.json({ error: currentOptErr.message }, { status: 500 });
+    }
+    if (!currentOpt) {
+      return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
+    }
+
+    const { data: jdRow } = await supabase
+      .from("job_descriptions")
+      .select("raw_text, clean_text")
+      .eq("id", (currentOpt as any).jd_id)
+      .maybeSingle();
+
+    const { data: resumeRow } = await supabase
+      .from("resumes")
+      .select("raw_text")
+      .eq("id", (currentOpt as any).resume_id)
+      .maybeSingle();
+
+    let atsResult: {
+      ats_score_original: number | null;
+      ats_score_optimized: number | null;
+      subscores?: any;
+      suggestions?: any;
+      confidence?: any;
+    } = {
+      ats_score_original: (currentOpt as any).ats_score_original ?? null,
+      ats_score_optimized: null,
+    };
+
+    try {
+      const scored = await scoreOptimization({
+        resumeOriginalText: (resumeRow as any)?.raw_text || "",
+        resumeOptimizedJson: rewriteData,
+        jobDescriptionText: (jdRow as any)?.clean_text || (jdRow as any)?.raw_text || "",
+      });
+      atsResult = scored;
+    } catch (scoringErr) {
+      console.error("ATS scoring failed during manual edit:", scoringErr);
+    }
+
+    await supabase
+      .from("optimizations")
+      .update({
+        rewrite_data: rewriteData,
+        match_score: atsResult.ats_score_optimized ?? undefined,
+        ats_score_optimized: atsResult.ats_score_optimized,
+        ats_subscores: (atsResult as any).subscores ?? null,
+        ats_suggestions: (atsResult as any).suggestions ?? null,
+        ats_confidence: (atsResult as any).confidence ?? null,
+      })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    const { data: versions } = await supabase
+      .from("resume_versions")
+      .select("version_number")
+      .eq("optimization_id", id)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextVersion = ((versions as any)?.version_number ?? 0) + 1;
+
+    await supabase.from("resume_versions").insert({
+      optimization_id: id,
+      session_id: null,
+      version_number: nextVersion,
+      content: rewriteData,
+      change_summary: changeSummary || "Manual edit",
+    });
+
+    return NextResponse.json({
+      success: true,
+      ats_score_original: atsResult.ats_score_original,
+      ats_score_optimized: atsResult.ats_score_optimized,
+    });
+  } catch (err) {
+    console.error("PATCH /api/v1/optimizations/:id error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

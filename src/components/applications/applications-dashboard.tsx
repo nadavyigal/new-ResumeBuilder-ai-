@@ -20,15 +20,18 @@ import {
   TrendingUp,
 } from "@/lib/icons";
 
+type ApplicationStatus = 'saved' | 'applied' | 'interviewing' | 'offered' | 'rejected' | 'withdrawn';
+
 interface Application {
   id: string;
   job_title: string;
   company_name: string;
   job_url: string | null;
-  status: 'saved' | 'applied' | 'interviewing' | 'offered' | 'rejected' | 'withdrawn';
+  status: ApplicationStatus;
   applied_date: string | null;
   notes: string | null;
   created_at: string;
+  optimization_id: string | null;
   optimizations: {
     id: string;
     match_score: number;
@@ -49,6 +52,7 @@ export function ApplicationsDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("all");
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -69,6 +73,24 @@ export function ApplicationsDashboard() {
       console.error("Error fetching applications:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateStatus = async (appId: string, newStatus: ApplicationStatus) => {
+    setUpdatingStatus(appId);
+    try {
+      const res = await fetch(`/api/v1/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a));
+      }
+    } catch {
+      // silently ignore — UI reverts on next refresh
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -194,9 +216,9 @@ export function ApplicationsDashboard() {
               onClick={() => router.push(`/dashboard/applications/${application.id}`)}
             >
               <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-xl font-semibold">{application.job_title}</h3>
                       <Badge className={getStatusColor(application.status)}>
                         {getStatusLabel(application.status)}
@@ -208,7 +230,7 @@ export function ApplicationsDashboard() {
                       {application.company_name}
                     </p>
 
-                    <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground flex-wrap">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4" />
                         <span>Match Score: {application.optimizations.match_score}%</span>
@@ -236,26 +258,46 @@ export function ApplicationsDashboard() {
                         {application.notes}
                       </p>
                     )}
-                  </div>
 
-                  {application.job_url && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <a
-                        href={application.job_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2"
+                    {/* Status transition + links row */}
+                    <div className="mt-4 flex items-center gap-3 flex-wrap" onClick={e => e.stopPropagation()}>
+                      <Select
+                        value={application.status}
+                        onValueChange={(val) => updateStatus(application.id, val as ApplicationStatus)}
+                        disabled={updatingStatus === application.id}
                       >
-                        <ExternalLink className="w-4 h-4" />
-                        View Job
-                      </a>
-                    </Button>
-                  )}
+                        <SelectTrigger className="w-[160px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="saved">Saved</SelectItem>
+                          <SelectItem value="applied">Applied</SelectItem>
+                          <SelectItem value="interviewing">Interviewing</SelectItem>
+                          <SelectItem value="offered">Offered</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="withdrawn">Withdrawn</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {application.optimizations?.id && (
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2" asChild>
+                          <a href={`/dashboard/optimizations/${application.optimizations.id}`}>
+                            <FileText className="w-3 h-3 mr-1" />
+                            View Resume
+                          </a>
+                        </Button>
+                      )}
+
+                      {application.job_url && (
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2" asChild>
+                          <a href={application.job_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            Open Job
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
