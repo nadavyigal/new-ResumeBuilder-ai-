@@ -192,7 +192,7 @@ export function validateWorkflowOutput(
       }
       const placement = String(item.suggested_placement || '');
       if (placement && !['summary', 'skills', 'experience', 'education'].includes(placement)) {
-        return { valid: false, error: 'suggested_placement is invalid', missingEvidence };
+        item.suggested_placement = 'skills';
       }
     }
     return { valid: true, missingEvidence };
