@@ -1,4 +1,5 @@
 const MARKITDOWN_URL = process.env.MARKITDOWN_SERVICE_URL;
+const INTERNAL_TOKEN = process.env.MARKITDOWN_INTERNAL_TOKEN;
 
 export interface ConversionResult {
   markdown: string;
@@ -6,7 +7,15 @@ export interface ConversionResult {
   char_count: number;
 }
 
-export async function convertResumeFile(file: File): Promise<ConversionResult> {
+/**
+ * Convert a resume file buffer to structured Markdown via the MarkItDown service.
+ * Accepts a Buffer (already read for magic-byte validation) + filename to avoid
+ * double-consuming the File stream in the request handler.
+ */
+export async function convertResumeBuffer(
+  fileBuffer: Buffer,
+  fileName: string
+): Promise<ConversionResult> {
   if (!MARKITDOWN_URL) {
     throw new Error(
       "MARKITDOWN_SERVICE_URL is not configured. Add it to your environment variables."
@@ -14,13 +23,20 @@ export async function convertResumeFile(file: File): Promise<ConversionResult> {
   }
 
   const form = new FormData();
-  form.append("file", file);
+  // Reconstruct a Blob from the already-read buffer — avoids double-consuming the File stream.
+  form.append("file", new Blob([fileBuffer]), fileName);
+
+  const headers: Record<string, string> = {};
+  if (INTERNAL_TOKEN) {
+    headers["X-Internal-Token"] = INTERNAL_TOKEN;
+  }
 
   let res: Response;
   try {
     res = await fetch(`${MARKITDOWN_URL}/convert`, {
       method: "POST",
       body: form,
+      headers,
       signal: AbortSignal.timeout(30_000),
     });
   } catch (err) {
@@ -29,16 +45,7 @@ export async function convertResumeFile(file: File): Promise<ConversionResult> {
   }
 
   if (!res.ok) {
-    let detail = "";
-    try {
-      const body = await res.json();
-      detail = body?.detail || body?.error || "";
-    } catch {
-      // ignore parse error
-    }
-    throw new Error(
-      `MarkItDown conversion failed (${res.status})${detail ? `: ${detail}` : ""}`
-    );
+    throw new Error(`MarkItDown conversion failed (${res.status})`);
   }
 
   return res.json() as Promise<ConversionResult>;

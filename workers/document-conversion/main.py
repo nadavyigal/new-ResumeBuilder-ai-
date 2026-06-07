@@ -1,12 +1,16 @@
 """
 MarkItDown microservice — FastAPI entry point.
 Exposes POST /convert and GET /health.
+
+Auth: requires X-Internal-Token header matching INTERNAL_TOKEN env var.
+Set INTERNAL_TOKEN to a random secret shared with the Next.js app.
 """
 
 import os
 import logging
-from fastapi import FastAPI, UploadFile, HTTPException
+from fastapi import FastAPI, UploadFile, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 from converter import convert_file
 
 logging.basicConfig(level=logging.INFO)
@@ -18,6 +22,7 @@ MAX_MB = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
 MAX_BYTES = MAX_MB * 1024 * 1024
 
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+INTERNAL_TOKEN = os.getenv("INTERNAL_TOKEN", "")
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +39,13 @@ ALLOWED_CONTENT_TYPES = {
 ALLOWED_EXTENSIONS = {".pdf", ".docx"}
 
 
+def _require_token(x_internal_token: Optional[str] = Header(default=None)) -> None:
+    if not INTERNAL_TOKEN:
+        return  # token check disabled in local dev if env var not set
+    if x_internal_token != INTERNAL_TOKEN:
+        raise HTTPException(401, "Unauthorized")
+
+
 def _validate_file(file: UploadFile) -> None:
     name = (file.filename or "").lower()
     ext = os.path.splitext(name)[1]
@@ -44,7 +56,10 @@ def _validate_file(file: UploadFile) -> None:
 
 
 @app.post("/convert")
-async def convert(file: UploadFile):
+async def convert(
+    file: UploadFile,
+    _: None = Depends(_require_token),
+):
     _validate_file(file)
 
     file_bytes = await file.read()
@@ -59,9 +74,9 @@ async def convert(file: UploadFile):
         result = convert_file(file_bytes, file.filename or "upload.pdf")
     except ValueError as e:
         raise HTTPException(415, str(e))
-    except Exception as e:
+    except Exception:
         logger.exception("Conversion failed for %s", file.filename)
-        raise HTTPException(500, f"Conversion error: {str(e)}")
+        raise HTTPException(500, "Conversion failed")
 
     logger.info("Converted %s: %d chars of Markdown", file.filename, result["char_count"])
     return result

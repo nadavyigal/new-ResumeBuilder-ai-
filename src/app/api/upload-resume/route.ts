@@ -3,7 +3,8 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
 import { isSupportedResumeFile } from "@/lib/utils/file-validation";
-import { convertResumeFile } from "@/lib/markitdown-client";
+import { convertResumeBuffer } from "@/lib/markitdown-client";
+import path from "path";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
@@ -116,9 +117,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Sanitize filename — strip any directory components before storing
+    const safeFileName = path.basename(resumeFile.name);
+
     let resumeMarkdown: string;
     try {
-      const conversion = await convertResumeFile(resumeFile);
+      const conversion = await convertResumeBuffer(fileBuffer, safeFileName);
       resumeMarkdown = conversion.markdown;
       if (!resumeMarkdown || resumeMarkdown.trim().length === 0) {
         throw new Error("Conversion produced empty output");
@@ -136,8 +140,8 @@ export async function POST(req: NextRequest) {
       .from("resumes")
       .insert({
         user_id: user.id,
-        filename: resumeFile.name,
-        storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
+        filename: safeFileName,
+        storage_path: `resumes/${user.id}/${Date.now()}_${safeFileName}`,
         raw_text: resumeMarkdown,
         canonical_data: {}, // Will be populated later during optimization
       })
@@ -282,7 +286,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: unknown) {
     logger.error('Error uploading resume', { userId: user?.id ?? null }, error);
-    const errorMessage = error instanceof Error ? error.message : "Something went wrong";
-    return NextResponse.json({ error: errorMessage }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
