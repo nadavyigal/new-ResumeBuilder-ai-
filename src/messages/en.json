@@ -1675,5 +1675,17 @@
         "generic": "We hit a snag. Try again in a moment."
       }
     }
+  },
+  "atsCheckerPage": {
+    "meta": {
+      "title": "Free ATS Resume Checker — See If Your Resume Passes",
+      "description": "Paste your resume and job description. Get an instant ATS score and the top keyword gaps. Free, no sign-up required."
+    },
+    "appStoreCta": {
+      "heading": "Fix your resume in the Resumely app",
+      "subheading": "AI rewrites your resume to match the job description. Export a tailored PDF in 5 minutes.",
+      "button": "Download Resumely — Free",
+      "orText": "or"
+    }
   }
 }
