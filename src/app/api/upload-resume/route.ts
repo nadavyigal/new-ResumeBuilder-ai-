@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { parsePdf } from "@/lib/pdf-parser";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
-import { isPdfUpload } from "@/lib/utils/pdf-validation";
+import { isSupportedResumeFile } from "@/lib/utils/file-validation";
+import { convertResumeFile } from "@/lib/markitdown-client";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
-import {
-  normalizeResumeTextFallback,
-  resolvePdfDataWithResumeTextFallback,
-} from "@/lib/resume/resume-text-fallback";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
@@ -56,7 +52,6 @@ export async function POST(req: NextRequest) {
     const jobDescription = formData.get("jobDescription") as string;
     const jobDescriptionUrl = formData.get("jobDescriptionUrl") as string;
     const deferOptimization = formData.get("deferOptimization") === "true";
-    const resumeTextFallback = normalizeResumeTextFallback(formData.get("resumeText"));
 
     if (!resumeFile) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
@@ -111,30 +106,28 @@ export async function POST(req: NextRequest) {
     }
 
     const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
-    if (!isPdfUpload(resumeFile, fileBuffer)) {
+    if (!isSupportedResumeFile(resumeFile, fileBuffer)) {
       return NextResponse.json(
         {
           error: 'Invalid file type',
-          message: 'Only PDF files are currently supported. DOC/DOCX support coming soon.'
+          message: 'Only PDF and DOCX files are supported.'
         },
         { status: 400 }
       );
     }
 
-    let pdfData: { text: string; numpages: number; info: any };
+    let resumeMarkdown: string;
     try {
-      pdfData = await resolvePdfDataWithResumeTextFallback({
-        fileBuffer,
-        fileName: resumeFile.name,
-        resumeTextFallback,
-        parsePdf,
-        warn: (message, metadata) => logger.warn(message, metadata),
-      });
-    } catch (pdfErr) {
-      const msg = pdfErr instanceof Error ? pdfErr.message : String(pdfErr);
-      logger.warn('PDF parse failed', { fileName: resumeFile.name, error: msg });
+      const conversion = await convertResumeFile(resumeFile);
+      resumeMarkdown = conversion.markdown;
+      if (!resumeMarkdown || resumeMarkdown.trim().length === 0) {
+        throw new Error("Conversion produced empty output");
+      }
+    } catch (convErr) {
+      const msg = convErr instanceof Error ? convErr.message : String(convErr);
+      logger.warn('MarkItDown conversion failed', { fileName: resumeFile.name, error: msg });
       return NextResponse.json(
-        { error: "Could not read your PDF. Please re-export it directly from your word processor (File → Save As PDF) and try again." },
+        { error: "Could not read your file. Please ensure it is a valid PDF or DOCX and try again." },
         { status: 422 }
       );
     }
@@ -145,7 +138,7 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         filename: resumeFile.name,
         storage_path: `resumes/${user.id}/${Date.now()}_${resumeFile.name}`,
-        raw_text: pdfData.text,
+        raw_text: resumeMarkdown,
         canonical_data: {}, // Will be populated later during optimization
       })
       .select()
@@ -205,7 +198,7 @@ export async function POST(req: NextRequest) {
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
     });
-    const optimizationResult = await optimizeResume(pdfData.text, jobDescriptionText);
+    const optimizationResult = await optimizeResume(resumeMarkdown, jobDescriptionText);
 
     if (!optimizationResult.success) {
       logger.error('AI optimization failed', {
@@ -254,7 +247,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
-      resumeRawText: pdfData.text,
+      resumeRawText: resumeMarkdown,
       jobDescriptionText,
       jobTitle: extractedTitle || jdData.title,
       optimizedResume,
