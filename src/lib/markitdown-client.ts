@@ -24,7 +24,7 @@ export async function convertResumeBuffer(
 
   const form = new FormData();
   // Reconstruct a Blob from the already-read buffer — avoids double-consuming the File stream.
-  form.append("file", new Blob([fileBuffer]), fileName);
+  form.append("file", new Blob([new Uint8Array(fileBuffer)]), fileName);
 
   const headers: Record<string, string> = {};
   if (INTERNAL_TOKEN) {
