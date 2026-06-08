@@ -10,9 +10,9 @@ import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
 // Ensure Node.js runtime for Buffer and outbound fetch
 export const runtime = 'nodejs';
-// Allow up to 60 s for PDF parsing + job scraping + gpt-4o optimization
-export const maxDuration = 60;
-import { optimizeResume } from "@/lib/ai-optimizer";
+// Allow up to 120 s: PDF parse + job scrape + gpt-4o optimization + ATS embedding calls
+export const maxDuration = 120;
+import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -196,55 +196,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Optimize resume using AI
+    // Optimize resume using AI (two-pass pipeline with ATS feedback loop)
     logger.info('Starting AI optimization', {
       userId: user.id,
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
     });
-    const optimizationResult = await optimizeResume(resumeMarkdown, jobDescriptionText);
-
-    if (!optimizationResult.success) {
-      logger.error('AI optimization failed', {
-        userId: user.id,
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-        error: optimizationResult.error,
-      }, optimizationResult.error);
-      return NextResponse.json({
-        error: `Resume uploaded but optimization failed: ${optimizationResult.error}`,
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      }, { status: 500 });
-    }
-
-    const optimizedResume = optimizationResult.optimizedResume;
-    if (!optimizedResume) {
-      logger.error('AI optimization returned no resume payload', {
-        userId: user.id,
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      });
-      return NextResponse.json({
-        error: "Optimization completed but no resume data was returned",
-        resumeId: resumeData.id,
-        jobDescriptionId: jdData.id,
-      }, { status: 500 });
-    }
-
-    // Validate and normalize match_score - must be a number between 0-100
-    let matchScore = 0;
-    const rawScore = optimizedResume.matchScore;
-
-    if (typeof rawScore === 'number' && !isNaN(rawScore)) {
-      matchScore = Math.max(0, Math.min(100, Math.round(rawScore)));
-    } else if (typeof rawScore === 'string') {
-      // Try to parse string to number
-      const parsed = parseFloat(rawScore);
-      if (!isNaN(parsed)) {
-        matchScore = Math.max(0, Math.min(100, Math.round(parsed)));
-      }
-    }
+    const pipelineResult = await runOptimizePipeline(resumeMarkdown, jobDescriptionText);
+    const optimizedResume = pipelineResult.optimizedResume;
 
     const { reviewId, reviewRun } = await createOptimizationReviewRun({
       supabase,
@@ -269,7 +228,6 @@ export async function POST(req: NextRequest) {
 
     logger.info('Optimization completed successfully', {
       reviewId,
-      matchScore,
       userId: user.id,
     });
 
@@ -279,13 +237,30 @@ export async function POST(req: NextRequest) {
       jobDescriptionId: jdData.id,
       reviewId,
       nextStep: "review",
-      matchScore: reviewRun.ats_preview_json?.after || matchScore,
+      matchScore: reviewRun.ats_preview_json?.after || pipelineResult.atsResult.ats_score_optimized || 0,
       keyImprovements: optimizedResume.keyImprovements,
       missingKeywords: optimizedResume.missingKeywords,
     });
 
   } catch (error: unknown) {
     logger.error('Error uploading resume', { userId: user?.id ?? null }, error);
-    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+
+    let errorMessage = "Something went wrong. Please try again.";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      if (error.message.includes('OPENAI_API_KEY') || error.message.includes('Invalid OpenAI API key')) {
+        statusCode = 503;
+        errorMessage = "AI service is not configured. Please contact support.";
+      } else if (error.message.includes('quota exceeded') || error.message.includes('rate limit') || error.message.includes('rate_limit')) {
+        statusCode = 429;
+        errorMessage = "AI service is temporarily busy. Please try again in a moment.";
+      } else if (error.message.includes('Could not read your file')) {
+        statusCode = 422;
+        errorMessage = error.message;
+      }
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
 }

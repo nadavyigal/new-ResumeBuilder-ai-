@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/navigation";
 import { posthog } from "@/lib/posthog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,10 +26,13 @@ export default function ResumeUploadPage() {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      // Validate file type (PDF only)
-      const validTypes = ['application/pdf'];
-      if (!validTypes.includes(file.type) && !file.name.match(/\.pdf$/i)) {
-        setError(t("errors.pdfOnly"));
+      // Validate file type (PDF and DOCX)
+      const validTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
+      if (!validTypes.includes(file.type) && !file.name.match(/\.(pdf|docx)$/i)) {
+        setError(t("errors.fileType"));
         setResumeFile(null);
         return;
       }
@@ -109,7 +112,7 @@ export default function ResumeUploadPage() {
     try {
       // Create AbortController with 60 second timeout (AI optimization can take 30-40 seconds)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 seconds — matches server maxDuration
 
       const response = await fetch("/api/upload-resume", {
         method: "POST",
@@ -162,7 +165,7 @@ export default function ResumeUploadPage() {
                 id="resume"
                 type="file"
                 onChange={handleFileChange}
-                accept=".pdf,application/pdf"
+                accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               />
               {resumeFile && (
                 <p className="text-sm text-green-600">

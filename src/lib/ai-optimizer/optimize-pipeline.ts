@@ -188,7 +188,7 @@ export async function runOptimizePipeline(
   const candidate1Text = resumeJsonToText(candidate1);
   const gapPrompt2 = RESUME_OPTIMIZATION_GAP_PROMPT(candidate1Text, jobDescription, gaps2);
 
-  let candidate2: OptimizedResume | null = await callOpenAIWithGapPrompt(
+  const candidate2: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapPrompt2,
     RESUME_OPTIMIZATION_SYSTEM_PROMPT,
     isHebrew
