@@ -774,6 +774,7 @@
       },
       "errors": {
         "pdfOnly": "We need a PDF file. Convert your resume and try again.",
+        "fileType": "Only PDF and DOCX files are supported. Please convert your resume and try again.",
         "fileSize": "Your file is too large. Please use a resume under 10MB.",
         "missingResume": "Upload your resume first.",
         "missingDescription": "Paste the job description so we can compare.",
