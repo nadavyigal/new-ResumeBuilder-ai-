@@ -16,23 +16,33 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    // Accept both camelCase (web) and snake_case (iOS mobile) field names
     const {
       html,
       url,
-      optimizationId,
-      jobTitle,
-      company,
+      optimizationId: camelOptId,
+      optimization_id,
+      jobTitle: camelJobTitle,
+      job_title,
+      company: camelCompany,
+      company_name,
       atsScore,
       contact,
       appliedDate,
     } = body || {};
 
-    // Two modes: 1) legacy snapshot mode requires html+optimizationId+jobTitle+company
-    //            2) URL mode requires url (extraction fills fields), optimizationId optional
-    if (!url && (!html || !optimizationId || !jobTitle || !company)) {
+    const optimizationId = camelOptId || optimization_id;
+    const jobTitle = camelJobTitle || job_title;
+    const company = camelCompany || company_name;
+
+    // Three modes:
+    //   1) legacy snapshot (web): html + jobTitle + company
+    //   2) URL extraction:        url (fields filled from scrape)
+    //   3) iOS mobile direct:     jobTitle + company (no html/url needed)
+    if (!url && !html && !jobTitle && !company) {
       return NextResponse.json({
         error: "Missing required fields",
-        required: ["html", "optimizationId", "jobTitle", "company"],
+        required: ["jobTitle (or job_title)", "company (or company_name)"],
       }, { status: 400 });
     }
 
