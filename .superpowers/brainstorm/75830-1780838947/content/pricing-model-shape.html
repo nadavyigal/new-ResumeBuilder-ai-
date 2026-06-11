@@ -1,0 +1,48 @@
+<h2>Resumely — Pricing Model Shape</h2>
+<p class="subtitle">The choice here determines what's free, what's paid, and who actually converts. Pick the shape that fits how people use the app.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Freemium — Free preview, pay to export</h3>
+      <p>Anyone can upload a resume, paste a job description, and see the tailored result. Exporting the PDF or copying the full text requires a paid unlock.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Works because</h4><ul><li>User sees value before paying — highest activation</li><li>Fast first session (no card required)</li><li>Free tier drives ASO reviews + word of mouth</li><li>Industry pattern for resume tools (Resume.io, Zety)</li></ul></div>
+        <div class="cons"><h4>Risks</h4><ul><li>Screenshot workaround kills conversion</li><li>Hard to upsell beyond one export</li><li>Low LTV if user leaves after one job</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Credits — Pay per optimization</h3>
+      <p>Buy a pack of credits (e.g. 3 for $4.99, 10 for $12.99). Each job tailoring or expert report costs 1 credit. Top up when you run out.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Works because</h4><ul><li>Matches how job seekers think — per-job cost</li><li>Low barrier to first purchase</li><li>No subscription guilt when job search ends</li><li>Can offer 1 free credit to prove value</li></ul></div>
+        <div class="cons"><h4>Risks</h4><ul><li>Lower predictable revenue than subscription</li><li>Complex IAP setup (multiple SKUs)</li><li>Credit anxiety kills activation mid-session</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Subscription — Monthly / yearly unlimited</h3>
+      <p>Free first optimization to prove value. Then $X/month or $Y/year for unlimited tailoring, all expert features, all templates, and PDF export.</p>
+      <br>
+      <div class="pros-cons">
+        <div class="pros"><h4>Works because</h4><ul><li>Predictable MRR — best for forecasting</li><li>Annual plan = higher LTV per user</li><li>Unlocks all features cleanly — no usage anxiety</li><li>Works well IF users return for multiple applications</li></ul></div>
+        <div class="cons"><h4>Risks</h4><ul><li>High churn — users cancel once hired</li><li>Hard sell for a seasonal, episodic use case</li><li>Requires strong retention hook to justify recurring cost</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:2rem; padding: 1rem; background: var(--surface); border-radius: 8px; border: 1px solid var(--border)">
+  <p class="label">Context from GTM Plan V0</p>
+  <p style="margin-top:0.5rem">The existing plan recommends <strong>Option A</strong> as the fastest-to-test experiment ("free score → paid export"), and flags the episodic-use / low-LTV risk for Option C. But this is your decision.</p>
+</div>

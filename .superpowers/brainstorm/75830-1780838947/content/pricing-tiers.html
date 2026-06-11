@@ -1,0 +1,104 @@
+<h2>Resumely — Proposed Pricing Structure</h2>
+<p class="subtitle">Built from your model (1 export / 5-pack / 10-pack / unlimited) + market research from WP-2. Prices marked ⚠️ need validation against real AI costs. Click any tier to flag a concern.</p>
+
+<div style="margin-bottom:1.5rem; padding:0.75rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:0.82rem">
+  <strong>Free tier (activation, confirmed by market):</strong> Upload resume → 1 full AI optimization → see improved version → 1 PDF export. This is what Teal and Rezi both give free. Gating before this moment is the market anti-pattern.
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:0.75rem; margin-bottom:1.5rem">
+
+  <div class="card" data-choice="tier1" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="card-body">
+      <p class="label">Tier 1</p>
+      <h3 style="margin:0.25rem 0">Single Export</h3>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--accent,#6366f1); margin:0.5rem 0">$3.99 ⚠️</div>
+      <div style="font-size:0.75rem; color:var(--muted,#888); margin-bottom:0.75rem">one-time IAP</div>
+      <ul style="font-size:0.78rem; padding-left:1.2rem; margin:0">
+        <li>Export this tailored resume</li>
+        <li>PDF download + copy text</li>
+        <li>Lowest barrier to first purchase</li>
+      </ul>
+      <div style="margin-top:0.75rem; font-size:0.72rem; color:var(--muted,#888); border-top:1px solid var(--border); padding-top:0.5rem">
+        Market ref: no direct match (Teal gives 1 free). Priced below coffee to reduce friction.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tier2" onclick="toggleSelect(this)" style="cursor:pointer; border:2px solid var(--accent,#6366f1)">
+    <div class="card-body">
+      <p class="label" style="color:var(--accent,#6366f1)">Tier 2 — POPULAR</p>
+      <h3 style="margin:0.25rem 0">5-Export Pack</h3>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--accent,#6366f1); margin:0.5rem 0">$12.99 ⚠️</div>
+      <div style="font-size:0.75rem; color:var(--muted,#888); margin-bottom:0.75rem">$2.60 per export · one-time IAP</div>
+      <ul style="font-size:0.78rem; padding-left:1.2rem; margin:0">
+        <li>5 exports for 5 different jobs</li>
+        <li>Credits don't expire</li>
+        <li>Covers a typical job search sprint</li>
+      </ul>
+      <div style="margin-top:0.75rem; font-size:0.72rem; color:var(--muted,#888); border-top:1px solid var(--border); padding-top:0.5rem">
+        Sweet spot: active job seeker applies to 5–15 roles. Likely highest-volume tier.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tier3" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="card-body">
+      <p class="label">Tier 3</p>
+      <h3 style="margin:0.25rem 0">10-Export Pack</h3>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--accent,#6366f1); margin:0.5rem 0">$19.99 ⚠️</div>
+      <div style="font-size:0.75rem; color:var(--muted,#888); margin-bottom:0.75rem">$2.00 per export · one-time IAP</div>
+      <ul style="font-size:0.78rem; padding-left:1.2rem; margin:0">
+        <li>10 exports — serious job search</li>
+        <li>Credits don't expire</li>
+        <li>Best per-export value</li>
+      </ul>
+      <div style="margin-top:0.75rem; font-size:0.72rem; color:var(--muted,#888); border-top:1px solid var(--border); padding-top:0.5rem">
+        Power user tier. Competes with Rezi's lifetime ($149) as a lower-risk alternative.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" data-choice="tier4" onclick="toggleSelect(this)" style="cursor:pointer">
+    <div class="card-body">
+      <p class="label">Tier 4 — Ultimate</p>
+      <h3 style="margin:0.25rem 0">Unlimited Access</h3>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--accent,#6366f1); margin:0.5rem 0">$9.99/mo ⚠️</div>
+      <div style="font-size:0.75rem; color:var(--muted,#888); margin-bottom:0.75rem">or $49.99/year · subscription</div>
+      <ul style="font-size:0.78rem; padding-left:1.2rem; margin:0">
+        <li>Unlimited tailoring + exports</li>
+        <li>All Expert modes (cover letter, ATS deep-dive, interview prep)</li>
+        <li>All premium templates</li>
+        <li>Job application tracker</li>
+      </ul>
+      <div style="margin-top:0.75rem; font-size:0.72rem; color:var(--muted,#888); border-top:1px solid var(--border); padding-top:0.5rem">
+        Market: Teal $29/mo, Rezi $29/mo, Kickresume $8/mo annual. Annual-first.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="padding:1rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; margin-bottom:1rem">
+  <p class="label">⚠️ What needs CFO validation before these numbers are final</p>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin-top:0.75rem; font-size:0.8rem">
+    <div>
+      <strong>AI cost per optimization</strong><br>
+      <span style="color:var(--muted,#888)">Need: OpenAI billing — actual cost per optimize call (estimate: $0.30–0.80 per full session). This sets the floor on Tier 1 pricing.</span>
+    </div>
+    <div>
+      <strong>Minimum viable margin</strong><br>
+      <span style="color:var(--muted,#888)">Apple takes 30% on IAP (15% if < $1M/year revenue). After Apple cut: Tier 1 nets ~$2.79 before AI cost. If AI cost > $2.79, Tier 1 loses money per transaction.</span>
+    </div>
+    <div>
+      <strong>Hosting + Supabase + Vercel cost per user</strong><br>
+      <span style="color:var(--muted,#888)">Need: provider billing. Low per-user but scales with usage.</span>
+    </div>
+    <div>
+      <strong>Weekly tier consideration</strong><br>
+      <span style="color:var(--muted,#888)">WP-2 research flagged $9-13/week as high-urgency option (Teal does this). Could replace or complement the credit-pack model.</span>
+    </div>
+  </div>
+</div>
+
+<div style="padding:0.75rem 1rem; background:var(--surface); border-left:3px solid var(--accent,#6366f1); border-radius:0 8px 8px 0; font-size:0.82rem">
+  <strong>Existing spec conflict to resolve:</strong> WP-2-monetization-spec.md was drafted with subscription-first (weekly/monthly/annual), not credit-packs. Your model diverges. The two can coexist — credit packs for transactional users, subscription for power users — but the feature matrix in that spec needs updating.
+</div>

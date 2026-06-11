@@ -1,0 +1,29 @@
+---
+description: ResumeBuilder Web Next.js/TypeScript conventions
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js TypeScript Rules (ResumeBuilder Web)
+
+## Commands
+
+- `npm run dev` — development server
+- `npm run build` — production build
+- `npm run lint` — ESLint
+- `tsc --noEmit` — TypeScript strict check
+
+## Code Style
+
+- TypeScript-first; 2-space indentation
+- React functional components; files `PascalCase.tsx` in `src/components`
+- Modules/utilities in `src/lib` use kebab-case
+- Next.js route segments are lowercase; pages named `page.tsx`
+- Prefer explicit types at module boundaries
+
+## Architecture
+
+- `src/app`: Next.js routes, API handlers, layouts and pages
+- `src/components`: Reusable React components
+- `src/lib`: Core logic (Supabase, OpenAI, parsers, templates, utils)
+- `supabase/`: Local config and SQL migrations

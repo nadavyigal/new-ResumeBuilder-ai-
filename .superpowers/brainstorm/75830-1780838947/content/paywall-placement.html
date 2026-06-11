@@ -1,0 +1,85 @@
+<h2>Where does the paywall sit?</h2>
+<p class="subtitle">The same freemium model — but three very different places to draw the line. Each changes what the free user experiences before they decide to pay.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Wall at export — see everything, pay to download</h3>
+      <p>The full tailored resume is visible in the app. ATS score, optimized sections, templates — all readable. The wall hits only when they tap <strong>Export PDF</strong> or <strong>Copy text</strong>.</p>
+      <div class="mockup" style="margin-top:1rem">
+        <div class="mockup-header">Optimized Resume — free preview</div>
+        <div class="mockup-body" style="font-size:0.8rem; line-height:1.6">
+          <div style="padding:0.5rem; border:1px solid var(--border); border-radius:6px; margin-bottom:0.5rem">
+            <strong>ATS Score: 87/100</strong> ✅ &nbsp;&nbsp; <span style="color:var(--success, green)">Strong match for this role</span>
+          </div>
+          <div style="padding:0.5rem; border:1px solid var(--border); border-radius:6px; margin-bottom:0.5rem; opacity:1">
+            <strong>Work Experience</strong><br>
+            Senior Product Manager · Acme Corp · 2022–present<br>
+            <em style="font-size:0.75rem">Led cross-functional team of 8 delivering $2M ARR product line...</em>
+          </div>
+          <div style="padding:0.75rem; background:var(--accent, #6366f1); color:white; border-radius:8px; text-align:center; margin-top:1rem">
+            🔒 Export PDF — Unlock for $4.99
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:1rem">
+        <div class="pros"><h4>Strongest for activation</h4><ul><li>User is fully invested before the ask</li><li>They've seen the value — conversion is higher</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>Screenshot workaround — user reads it without paying</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Wall after first use — 1 free tailoring, then pay</h3>
+      <p>First optimization is completely free — full result, full export. The paywall appears the second time they try to tailor for a new job.</p>
+      <div class="mockup" style="margin-top:1rem">
+        <div class="mockup-header">Starting a new tailoring</div>
+        <div class="mockup-body" style="font-size:0.8rem; line-height:1.6">
+          <div style="padding:0.5rem; border:1px solid var(--border); border-radius:6px; margin-bottom:0.5rem; opacity:0.5">
+            <strong>Resume #1</strong> — Software Engineer @ Google ✅ exported
+          </div>
+          <div style="padding:0.75rem; background:var(--accent, #6366f1); color:white; border-radius:8px; text-align:center">
+            🔒 Tailor for a new job — Unlock for $4.99<br>
+            <span style="font-size:0.75rem; opacity:0.85">You've used your 1 free tailoring</span>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:1rem">
+        <div class="pros"><h4>Strongest proof of value</h4><ul><li>User gets a real win before paying — no risk</li><li>Higher trust, easier second purchase</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>One-and-done users never trigger the paywall</li><li>Harder to track free vs paid cohorts</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Wall at Expert features — tailoring free, power features paid</h3>
+      <p>Tailoring + basic export are always free. The paywall is on the Expert layer: cover letter, deep ATS analysis, keyword suggestions, full section rewrites.</p>
+      <div class="mockup" style="margin-top:1rem">
+        <div class="mockup-header">Expert Tab</div>
+        <div class="mockup-body" style="font-size:0.8rem; line-height:1.6">
+          <div style="padding:0.5rem; border:1px solid var(--border); border-radius:6px; margin-bottom:0.5rem">
+            ✅ <strong>Tailor resume</strong> — Free<br>
+            ✅ <strong>Export PDF</strong> — Free
+          </div>
+          <div style="padding:0.5rem; border:1px dashed var(--border); border-radius:6px; opacity:0.7">
+            🔒 <strong>Cover Letter Architect</strong> — Pro<br>
+            🔒 <strong>Deep ATS Analysis</strong> — Pro<br>
+            🔒 <strong>Expert Section Rewrite</strong> — Pro
+          </div>
+          <div style="padding:0.75rem; background:var(--accent, #6366f1); color:white; border-radius:8px; text-align:center; margin-top:0.75rem">
+            Upgrade to Pro — $9.99/month
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:1rem">
+        <div class="pros"><h4>Highest free-tier value</h4><ul><li>Free tier is genuinely useful — grows user base</li><li>Natural upsell to power users applying to many jobs</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>Most users never need Expert — low upsell rate</li><li>Feels like a subscription, not a transactional purchase</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

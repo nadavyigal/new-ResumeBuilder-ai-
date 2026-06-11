@@ -1,0 +1,98 @@
+<h2>What does the user actually buy?</h2>
+<p class="subtitle">They've seen their tailored resume. They tap Export. The paywall appears. What's on that screen?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>One-time export — pay once, own this resume</h3>
+      <p>Single IAP. <strong>$4.99</strong> to export this tailored version as PDF. Each new job tailoring is a new purchase.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Export this resume</div>
+        <div class="mockup-body" style="font-size:0.8rem">
+          <div style="text-align:center; padding:0.5rem 0 1rem">
+            <div style="font-size:1.5rem; font-weight:700; color:var(--accent,#6366f1)">$4.99</div>
+            <div style="color:var(--muted,#888); font-size:0.75rem">one-time · this resume only</div>
+          </div>
+          <div style="padding:0.4rem 0; border-top:1px solid var(--border)">✅ Download PDF to your phone</div>
+          <div style="padding:0.4rem 0; border-top:1px solid var(--border)">✅ Copy full text to clipboard</div>
+          <div style="padding:0.4rem 0; border-top:1px solid var(--border)">✅ Share via email / LinkedIn</div>
+          <div style="padding:0.75rem; background:var(--accent,#6366f1); color:white; border-radius:8px; text-align:center; margin-top:0.75rem">Unlock Export — $4.99</div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Works because</h4><ul><li>Lowest friction — one decision, clear value</li><li>Feels fair for a job seeker applying to one role</li><li>No subscription guilt</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>Low LTV — power users applying to 20 jobs pay 20× or stop</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Credit pack — buy exports in bulk, save more</h3>
+      <p>At the export wall, show three pack sizes. Best value per export at higher volumes.</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Choose a pack</div>
+        <div class="mockup-body" style="font-size:0.8rem">
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin-bottom:0.75rem">
+            <div style="border:1px solid var(--border); border-radius:6px; padding:0.5rem; text-align:center">
+              <div style="font-weight:700">1</div>
+              <div style="color:var(--muted,#888); font-size:0.7rem">export</div>
+              <div style="font-weight:600; margin-top:0.25rem">$4.99</div>
+            </div>
+            <div style="border:2px solid var(--accent,#6366f1); border-radius:6px; padding:0.5rem; text-align:center; position:relative">
+              <div style="position:absolute; top:-0.6rem; left:50%; transform:translateX(-50%); background:var(--accent,#6366f1); color:white; font-size:0.6rem; padding:0.1rem 0.4rem; border-radius:4px">POPULAR</div>
+              <div style="font-weight:700">5</div>
+              <div style="color:var(--muted,#888); font-size:0.7rem">exports</div>
+              <div style="font-weight:600; margin-top:0.25rem">$12.99</div>
+              <div style="color:var(--muted,#888); font-size:0.65rem">$2.60 each</div>
+            </div>
+            <div style="border:1px solid var(--border); border-radius:6px; padding:0.5rem; text-align:center">
+              <div style="font-weight:700">10</div>
+              <div style="color:var(--muted,#888); font-size:0.7rem">exports</div>
+              <div style="font-weight:600; margin-top:0.25rem">$19.99</div>
+              <div style="color:var(--muted,#888); font-size:0.65rem">$2.00 each</div>
+            </div>
+          </div>
+          <div style="padding:0.75rem; background:var(--accent,#6366f1); color:white; border-radius:8px; text-align:center">Get 5 exports — $12.99</div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Works because</h4><ul><li>Higher first purchase — 5-pack is ~3× a single export</li><li>Power users buy 10-pack and stay in the app</li><li>Credits expire → return pressure</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>3 SKUs = more IAP complexity</li><li>Credit anxiety mid-session ("I only have 1 left")</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Hybrid — one-time export OR subscribe for unlimited</h3>
+      <p>Give the user both paths at the paywall. Pay once for this resume ($4.99) or go unlimited for a low monthly fee ($6.99/mo).</p>
+      <div class="mockup" style="margin-top:0.75rem">
+        <div class="mockup-header">Export options</div>
+        <div class="mockup-body" style="font-size:0.8rem">
+          <div style="border:1px solid var(--border); border-radius:8px; padding:0.75rem; margin-bottom:0.5rem">
+            <div style="font-weight:600">Just this resume</div>
+            <div style="color:var(--muted,#888); font-size:0.75rem">One-time export, yours to keep</div>
+            <div style="font-weight:700; margin-top:0.25rem">$4.99</div>
+          </div>
+          <div style="border:2px solid var(--accent,#6366f1); border-radius:8px; padding:0.75rem; margin-bottom:0.5rem; position:relative">
+            <div style="position:absolute; top:-0.6rem; right:0.75rem; background:var(--accent,#6366f1); color:white; font-size:0.65rem; padding:0.1rem 0.5rem; border-radius:4px">BEST VALUE</div>
+            <div style="font-weight:600">Unlimited — Pro</div>
+            <div style="color:var(--muted,#888); font-size:0.75rem">Unlimited exports · All templates · Expert features</div>
+            <div style="font-weight:700; margin-top:0.25rem">$6.99/month <span style="font-weight:400; font-size:0.75rem">or $39.99/year</span></div>
+          </div>
+          <div style="padding:0.5rem; background:var(--surface,#f5f5f5); border-radius:6px; font-size:0.75rem; color:var(--muted,#888); text-align:center">
+            Applying to multiple jobs? Pro pays off after 6 exports.
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons" style="margin-top:0.75rem">
+        <div class="pros"><h4>Works because</h4><ul><li>Captures both casual and power users</li><li>Subscription anchoring — $4.99 looks small, $6.99/mo looks reasonable</li><li>Annual plan creates real LTV even for active job-search period</li></ul></div>
+        <div class="cons"><h4>Risk</h4><ul><li>Two-path paywall adds decision fatigue</li><li>Most users default to cheapest option</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>
