@@ -110,7 +110,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
   }
 
-  const pdfData = await parsePdf(fileBuffer);
+  let pdfData;
+  try {
+    pdfData = await parsePdf(fileBuffer);
+  } catch (error) {
+    console.error('PDF parse error:', error);
+    return NextResponse.json(
+      { error: 'We could not read your resume. Try exporting it as a text-based PDF.' },
+      { status: 400 }
+    );
+  }
   const resumeText = pdfData?.text?.trim();
 
   if (!resumeText) {
