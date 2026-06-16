@@ -41,8 +41,7 @@ export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.appStoreCta' });
 
   const APP_STORE_URL =
-    'https://apps.apple.com/app/resumely/id000000000?ct=web-ats&at=organic';
-  // Replace id000000000 with actual App Store ID when live.
+    'https://apps.apple.com/app/resume-ai-cv-builder/id6776752349?ct=web-ats&at=organic';
 
   return (
     <>
