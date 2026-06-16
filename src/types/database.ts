@@ -839,6 +839,38 @@ export interface Database {
       history: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       style_customization_history: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
       ai_threads: Table<Record<string, any>, Record<string, any>, Record<string, any>>;
+      saved_resumes: Table<
+        {
+          id: string;
+          user_id: string;
+          optimization_id: string | null;
+          filename: string;
+          display_name: string | null;
+          size_bytes: number | null;
+          created_at: string;
+          updated_at: string;
+        },
+        {
+          id?: string;
+          user_id: string;
+          optimization_id?: string | null;
+          filename: string;
+          display_name?: string | null;
+          size_bytes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          optimization_id?: string | null;
+          filename?: string;
+          display_name?: string | null;
+          size_bytes?: number | null;
+          created_at?: string;
+          updated_at?: string;
+        }
+      >;
     };
     Views: {
       [_ in never]: never;
