@@ -1,29 +1,20 @@
 /**
  * PDF text extraction using pdfjs-dist (legacy Node.js build).
  *
- * pdfjs-dist is externalized in next.config.ts so webpack does not try to
- * bundle the ESM worker. At runtime the legacy CJS-compatible build is
- * loaded via require(). It handles XRef errors that pdf-parse 1.x throws on
- * PDFs produced by print-to-PDF drivers, iOS export tools, and newer PDF
- * generators by falling back to a full linear object scan.
+ * The legacy build handles XRef errors that pdf-parse 1.x throws on PDFs
+ * produced by print-to-PDF drivers, iOS export tools, and newer PDF generators
+ * by falling back to a full linear object scan.
+ *
+ * It is loaded via dynamic import(): pdf.mjs is an ES module, and on the Vercel
+ * Node serverless runtime the route is CommonJS, so require() of the .mjs throws
+ * ERR_REQUIRE_ESM. We deliberately do NOT set GlobalWorkerOptions.workerSrc —
+ * require.resolve() is rewritten to a numeric webpack module id in production
+ * bundles (pdfjs rejects it as "Invalid workerSrc type"), and in Node the legacy
+ * build runs parsing on the main thread via a fake worker without one.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _pdfWorkerSrc: string | null = null;
-
-function getWorkerSrc(): string {
-  if (!_pdfWorkerSrc) {
-    // resolve once — works in both local dev and Vercel deployments
-    _pdfWorkerSrc = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-  }
-  return _pdfWorkerSrc;
-}
-
 export async function parsePdf(dataBuffer: Buffer): Promise<{ text: string; numpages: number; info: any }> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
-
-  pdfjsLib.GlobalWorkerOptions.workerSrc = getWorkerSrc();
+  const pdfjsLib: any = await import('pdfjs-dist/legacy/build/pdf.mjs');
 
   const data = new Uint8Array(dataBuffer);
   const loadingTask = pdfjsLib.getDocument({
