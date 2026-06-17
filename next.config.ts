@@ -20,12 +20,6 @@ const contentSecurityPolicy = `
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
-  // pdfjs-dist legacy build (pdf.mjs + pdf.worker.mjs) is loaded at runtime via a
-  // native dynamic import() that webpack leaves untouched (webpackIgnore), so its
-  // files are not auto-traced into the serverless bundle. Force-include them.
-  outputFileTracingIncludes: {
-    '/api/**': ['./node_modules/pdfjs-dist/legacy/build/pdf.mjs', './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
-  },
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
@@ -49,10 +43,6 @@ const nextConfig: NextConfig = {
       config.externals = config.externals || [];
       // Keep pdf-parse external (legacy — avoids its test-runner side effect on import)
       config.externals.push('pdf-parse');
-      // pdfjs-dist legacy build is ESM. We deliberately do NOT externalize it:
-      // webpack externals emit a require(), and require() of an .mjs throws
-      // ERR_REQUIRE_ESM on the Vercel Node runtime. parsePdf loads it with a
-      // webpackIgnore'd native import() instead (see src/lib/pdf-parser.ts).
     }
     return config;
   },
