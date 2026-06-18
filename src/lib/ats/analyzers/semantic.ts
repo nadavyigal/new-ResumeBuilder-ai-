@@ -11,6 +11,7 @@ import type { AnalyzerInput, AnalyzerResult } from '../types';
 import { getEmbedding, cosineSimilarity } from '../utils/embeddings';
 import { SEMANTIC_THRESHOLDS } from '../config/thresholds';
 import { extractSectionText } from '../extractors/resume-text-extractor';
+import { scoreSkillListMatch } from '../skill-match';
 
 export class SemanticAnalyzer extends BaseAnalyzer {
   constructor() {
@@ -131,18 +132,7 @@ export class SemanticAnalyzer extends BaseAnalyzer {
    * This is a simplified version - in real implementation, would access shared state
    */
   private async getKeywordScore(input: AnalyzerInput): Promise<number> {
-    // Simplified keyword check
-    const resumeWords = new Set(this.tokenize(input.resume_text));
-    const mustHaveWords = new Set(
-      input.job_data.must_have.flatMap(skill => this.tokenize(skill))
-    );
-
-    if (mustHaveWords.size === 0) return 50;
-
-    const matchedCount = Array.from(mustHaveWords).filter(word =>
-      resumeWords.has(word)
-    ).length;
-
-    return (matchedCount / mustHaveWords.size) * 100;
+    const mustHaveResult = scoreSkillListMatch(input.job_data.must_have, input.resume_text);
+    return mustHaveResult.score;
   }
 }

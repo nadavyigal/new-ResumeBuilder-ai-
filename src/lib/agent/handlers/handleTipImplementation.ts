@@ -175,6 +175,7 @@ export async function handleTipImplementation(
 
       const updatePayload = {
         rewrite_data: updatedResume,
+        match_score: scoreAfter,
         ats_score_optimized: scoreAfter,
         ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
         updated_at: new Date().toISOString(),
@@ -259,6 +260,7 @@ export async function handleTipImplementation(
     // 8. Update database with REAL scores and modification count
     const updatePayload = {
       rewrite_data: updatedResume,
+      match_score: scoreAfter,
       ats_score_optimized: scoreAfter,
       ats_subscores: atsResult.subscores,
       ats_suggestions: atsResult.suggestions,

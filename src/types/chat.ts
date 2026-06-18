@@ -220,11 +220,16 @@ export interface DiffResult {
 /**
  * ChatSidebar component props
  */
+export interface AtsScoreUpdate {
+  original?: number | null;
+  optimized?: number | null;
+}
+
 export interface ChatSidebarProps {
   optimizationId: string;
   initialOpen?: boolean;
   onClose?: () => void;
-  onMessageSent?: () => void;
+  onMessageSent?: (immediateAts?: AtsScoreUpdate) => void | Promise<void>;
   onDesignPreview?: (customization: any) => void;
 }
 

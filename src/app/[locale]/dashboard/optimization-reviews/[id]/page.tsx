@@ -13,6 +13,7 @@ import { buildResumeFromApprovedGroups } from "@/lib/optimization-review";
 import type { OptimizationReviewRun, ReviewChangeGroup } from "@/types/optimization-review";
 import { useTranslations } from "next-intl";
 import { ROUTES } from "@/lib/constants";
+import { stashAtsBootstrap } from "@/lib/ats/resolve-display-scores";
 
 type ReviewPayload = {
   review: OptimizationReviewRun;
@@ -148,6 +149,13 @@ export default function OptimizationReviewPage() {
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || t("errors.apply"));
+      }
+
+      if (data.optimizationId && data.atsImpact) {
+        stashAtsBootstrap(String(data.optimizationId), {
+          ats_score_original: data.atsImpact.before ?? null,
+          ats_score_optimized: data.atsImpact.after ?? null,
+        });
       }
 
       router.push(`${ROUTES.optimizations}/${data.optimizationId}`);

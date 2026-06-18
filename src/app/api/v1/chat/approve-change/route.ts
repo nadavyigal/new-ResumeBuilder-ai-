@@ -269,6 +269,7 @@ export async function POST(request: NextRequest) {
         const { error: scoreUpdateError } = await supabase
           .from('optimizations')
           .update({
+            match_score: scoreResult.ats_score_optimized,
             ats_score_optimized: scoreResult.ats_score_optimized,
             ats_subscores: scoreResult.subscores,
           })

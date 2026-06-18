@@ -267,7 +267,9 @@ export function ChatSidebar({
             logger.debug('Calling onMessageSent after tips applied', { optimizationId });
           }
           try {
-            await onMessageSent();
+            await onMessageSent({
+              optimized: data.tips_applied.new_ats_score ?? null,
+            });
             if (process.env.NODE_ENV === 'development') {
               logger.debug('onMessageSent completed after tips applied', { optimizationId });
             }
