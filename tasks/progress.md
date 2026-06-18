@@ -20,3 +20,6 @@ Keep the keyed block above current after each significant validation; the Agenti
 refresh parser reads it. This repo has no tasks/todo.md or session-log.md; MEMORY.md
 carries session history.
 -->
+
+## 2026-06-18 — ATS PDF fix merged + smoke passed
+fix/pdf-parser-unpdf merged to main (PR #74). unpdf resolves the Vercel 500. Render-preview remains parked.
