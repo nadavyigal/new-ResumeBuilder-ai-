@@ -240,7 +240,7 @@ export async function PATCH(
 
     const { data: jdRow } = await supabase
       .from("job_descriptions")
-      .select("raw_text, clean_text")
+      .select("raw_text, clean_text, parsed_data")
       .eq("id", (currentOpt as any).jd_id)
       .maybeSingle();
 
@@ -266,6 +266,7 @@ export async function PATCH(
         resumeOriginalText: (resumeRow as any)?.raw_text || "",
         resumeOptimizedJson: rewriteData,
         jobDescriptionText: (jdRow as any)?.clean_text || (jdRow as any)?.raw_text || "",
+        jobExtractedJson: (jdRow as any)?.parsed_data || undefined,
       });
       atsResult = scored;
     } catch (scoringErr) {
