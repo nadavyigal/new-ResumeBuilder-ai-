@@ -205,10 +205,7 @@ async function prepareInput(input: ATSScoreInput) {
 
   let job_data;
   if (hasValidJobData) {
-    job_data = buildJobDataFromExtractedJson(
-      input.job_extracted_json as Record<string, unknown>,
-      fallbackJobText,
-    );
+    job_data = buildJobDataFromExtractedJson(input.job_extracted_json, fallbackJobText);
   } else {
     // Extract from text
     job_data = extractJobData(input.job_clean_text, input.job_extracted_json);

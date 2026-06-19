@@ -4,6 +4,14 @@
 
 import type { JobExtraction } from './types';
 import { extractJobData } from './extractors/jd-extractor';
+import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+
+export function toParsedJobRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object') {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
 
 export function normalizeStringList(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -64,18 +72,19 @@ export function preferJobDescriptionText(jd: {
 }
 
 export function buildJobDataFromExtractedJson(
-  extracted: Record<string, unknown>,
+  extracted: unknown,
   jobCleanText?: string,
 ): JobExtraction {
-  const title = String(extracted.title || extracted.job_title || '');
-  const company = String(extracted.company || extracted.company_name || '');
-  let must_have = resolveMustHaveFromExtracted(extracted);
-  let nice_to_have = resolveNiceToHaveFromExtracted(extracted);
-  const responsibilities = normalizeStringList(extracted.responsibilities);
+  const record = toParsedJobRecord(extracted);
+  const title = String(record.title || record.job_title || '');
+  const company = String(record.company || record.company_name || '');
+  let must_have = resolveMustHaveFromExtracted(record);
+  let nice_to_have = resolveNiceToHaveFromExtracted(record);
+  const responsibilities = normalizeStringList(record.responsibilities);
 
   const fallbackText =
     jobCleanText ||
-    String(extracted.clean_text || extracted.raw_text || '');
+    String(record.clean_text || record.raw_text || '');
 
   if (must_have.length === 0 && fallbackText) {
     const fromText = extractJobData(fallbackText, {
@@ -97,25 +106,25 @@ export function buildJobDataFromExtractedJson(
     must_have,
     nice_to_have,
     responsibilities,
-    seniority: String(extracted.seniority || ''),
-    location: String(extracted.location || ''),
-    industry: String(extracted.industry || ''),
-    job_title: (extracted.job_title as string | null | undefined) ?? null,
-    company_name: (extracted.company_name as string | null | undefined) ?? null,
-    requirements: (extracted.requirements as string[] | string | null | undefined) ?? null,
+    seniority: String(record.seniority || ''),
+    location: String(record.location || ''),
+    industry: String(record.industry || ''),
+    job_title: (record.job_title as string | null | undefined) ?? null,
+    company_name: (record.company_name as string | null | undefined) ?? null,
+    requirements: (record.requirements as string[] | string | null | undefined) ?? null,
   };
 }
 
 /**
  * Normalize scraper output so requirements is populated when only qualifications exist.
  */
-export function normalizeParsedJobData<T extends Record<string, unknown>>(parsed: T): T {
+export function normalizeParsedJobData(parsed: ExtractedJobData): ExtractedJobData {
   const requirements = normalizeStringList(parsed.requirements);
   if (requirements.length > 0) {
     return { ...parsed, requirements };
   }
 
-  const merged = resolveMustHaveFromExtracted(parsed);
+  const merged = resolveMustHaveFromExtracted(toParsedJobRecord(parsed));
   if (merged.length === 0) {
     return parsed;
   }

@@ -231,10 +231,7 @@ export async function POST(request: NextRequest) {
         // Scorer expects: { title, must_have, nice_to_have, responsibilities, ... }
         const jobText = preferJobDescriptionText(jobDescription);
         const jobDataForScorer = {
-          ...buildJobDataFromExtractedJson(
-            jobDescription.parsed_data as Record<string, unknown>,
-            jobText,
-          ),
+          ...buildJobDataFromExtractedJson(jobDescription.parsed_data, jobText),
           raw_text: jobText,
           clean_text: jobDescription.clean_text || jobDescription.raw_text || '',
         };

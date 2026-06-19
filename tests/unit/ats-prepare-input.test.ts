@@ -1,5 +1,39 @@
 import { buildJobDataFromExtractedJson, normalizeParsedJobData } from '@/lib/ats/job-data-resolver';
 import { scoreResume } from '@/lib/ats/index';
+import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+
+function mockExtractedJobData(
+  overrides: Partial<ExtractedJobData> = {},
+): ExtractedJobData {
+  return {
+    source_url: 'https://example.com/jobs/1',
+    source_domain: 'example.com',
+    scraped_at: '2026-06-19T00:00:00.000Z',
+    company_name: 'Example Corp',
+    job_title: 'Business Development Manager',
+    contact_person: null,
+    location: 'Tel Aviv',
+    employment_type: null,
+    seniority: null,
+    compensation: null,
+    about_this_job: null,
+    requirements: null,
+    responsibilities: [],
+    qualifications: [],
+    nice_to_have: null,
+    benefits: null,
+    application_instructions: null,
+    posting_id: null,
+    provenance: {},
+    summary_for_ui: {
+      company_name: 'Example Corp',
+      job_title: 'Business Development Manager',
+      contact_person: null,
+      location: 'Tel Aviv',
+    },
+    ...overrides,
+  };
+}
 
 describe('ats job-data resolver', () => {
   const cleanText = `
@@ -12,9 +46,7 @@ describe('ats job-data resolver', () => {
     - Strong negotiation and pipeline management skills
   `;
 
-  const parsedData = {
-    job_title: 'Business Development Manager',
-    company_name: 'Example Corp',
+  const parsedData = mockExtractedJobData({
     requirements: null,
     qualifications: [
       '5+ years B2B sales experience',
@@ -26,8 +58,7 @@ describe('ats job-data resolver', () => {
       'Partner with marketing on lead generation campaigns',
     ],
     nice_to_have: ['Experience selling SaaS products'],
-    location: 'Tel Aviv',
-  };
+  });
 
   it('fills must_have from qualifications when requirements is null', () => {
     const jobData = buildJobDataFromExtractedJson(parsedData, cleanText);
@@ -39,10 +70,10 @@ describe('ats job-data resolver', () => {
   });
 
   it('keeps explicit requirements without double-counting qualifications', () => {
-    const withRequirements = {
-      ...parsedData,
+    const withRequirements = mockExtractedJobData({
       requirements: ['Existing requirement only'],
-    };
+      qualifications: ['Should not appear in must_have'],
+    });
 
     const jobData = buildJobDataFromExtractedJson(withRequirements, cleanText);
     expect(jobData.must_have).toEqual(['Existing requirement only']);
@@ -50,8 +81,8 @@ describe('ats job-data resolver', () => {
 
   it('normalizes parsed_data at scrape time', () => {
     const normalized = normalizeParsedJobData(parsedData);
-    expect(Array.isArray(normalized.requirements)).toBe(true);
-    expect((normalized.requirements as string[]).length).toBeGreaterThan(0);
+    expect(normalized.requirements).not.toBeNull();
+    expect(normalized.requirements?.length).toBeGreaterThan(0);
   });
 });
 
