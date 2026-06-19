@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Link } from "@/navigation";
+import { Link, useRouter } from "@/navigation";
+import { ROUTES } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
@@ -80,6 +81,7 @@ export default function OptimizationPage() {
   const [saving, setSaving] = useState(false);
 
   const params = useParams();
+  const router = useRouter();
   const supabase = createClientComponentClient();
   const { toast } = useToast();
   const t = useTranslations("dashboard.optimization");
@@ -102,7 +104,7 @@ export default function OptimizationPage() {
     {
       label: t("readiness.stats.atsSupport"),
       value:
-        matchScore !== null || atsV2Data?.ats_score_optimized !== null
+        matchScore != null || atsV2Data?.ats_score_optimized != null
           ? `${Math.round(atsV2Data?.ats_score_optimized ?? matchScore ?? 0)}%`
           : "--",
     },
@@ -593,7 +595,7 @@ export default function OptimizationPage() {
                 {t("error.reload")}
               </button>
               <button
-                onClick={() => window.location.href = '/dashboard/applications'}
+                onClick={() => router.push(`${ROUTES.dashboard}/applications`)}
                 className="w-full px-4 py-2 bg-muted text-muted-foreground rounded hover:bg-muted/80"
               >
                 {t("error.backToDashboard")}
@@ -758,7 +760,7 @@ export default function OptimizationPage() {
       }
 
       // Navigate to applications monitor
-      window.location.href = `/dashboard/applications`;
+      router.push(`${ROUTES.dashboard}/applications`);
 
     } catch (error) {
       console.error('Error in handleApply:', error);

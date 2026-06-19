@@ -249,8 +249,8 @@ export default function OptimizationReviewPage() {
         {payload.review.ats_preview_json && (
           <div className="space-y-2">
             <CompactATSScoreCard
-              atsScoreOriginal={payload.review.ats_preview_json.before || 0}
-              atsScoreOptimized={payload.review.ats_preview_json.after || 0}
+              atsScoreOriginal={payload.review.ats_preview_json.before ?? 0}
+              atsScoreOptimized={payload.review.ats_preview_json.after ?? 0}
             />
             <p className="text-xs text-muted-foreground">
               {t("atsNote")}

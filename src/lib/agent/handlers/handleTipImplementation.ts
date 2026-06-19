@@ -85,7 +85,7 @@ export async function handleTipImplementation(
     };
   }
   
-  const scoreBefore = optimization.ats_score_optimized || 0;
+  const scoreBefore = optimization.ats_score_optimized ?? 0;
   console.log('💡 [handleTipImplementation] Current score:', scoreBefore);
 
   const jobId = optimization.jd_id;
@@ -154,20 +154,17 @@ export async function handleTipImplementation(
       // Log modifications even in fallback path (Phase 3, T019)
       if (modifications.length > 0 && optimization.user_id) {
         try {
-          for (const modification of modifications) {
-            await supabase
-              .from('content_modifications')
-              .insert({
-                user_id: optimization.user_id,
-                optimization_id: optimizationId,
-                operation_type: modification.operation,
-                field_path: modification.field_path,
-                old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
-                new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
-                ats_score_before: scoreBefore,
-                ats_score_after: scoreAfter,
-              });
-          }
+          const modificationRecords = modifications.map((modification) => ({
+            user_id: optimization.user_id,
+            optimization_id: optimizationId,
+            operation_type: modification.operation,
+            field_path: modification.field_path,
+            old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
+            new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
+            ats_score_before: scoreBefore,
+            ats_score_after: scoreAfter,
+          }));
+          await supabase.from('content_modifications').insert(modificationRecords);
         } catch (logError) {
           console.error('⚠️ Failed to log modifications:', logError);
         }
@@ -229,26 +226,21 @@ export async function handleTipImplementation(
       console.log(`💡 [handleTipImplementation] Logging ${modifications.length} modifications to database...`);
 
       try {
-        // Insert each modification into content_modifications table
-        for (const modification of modifications) {
-          const modificationRecord = {
-            user_id: optimization.user_id,
-            optimization_id: optimizationId,
-            operation_type: modification.operation,
-            field_path: modification.field_path,
-            old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
-            new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
-            ats_score_before: scoreBefore,
-            ats_score_after: scoreAfter,
-            suggestion_text: suggestions.find(s =>
-              modification.field_path.includes('achievements') && s.text.includes(String(modification.new_value))
-            )?.text || null,
-          };
+        const modificationRecords = modifications.map((modification) => ({
+          user_id: optimization.user_id,
+          optimization_id: optimizationId,
+          operation_type: modification.operation,
+          field_path: modification.field_path,
+          old_value: modification.old_value !== undefined ? JSON.stringify(modification.old_value) : null,
+          new_value: modification.new_value !== undefined ? JSON.stringify(modification.new_value) : null,
+          ats_score_before: scoreBefore,
+          ats_score_after: scoreAfter,
+          suggestion_text: suggestions.find((s) =>
+            modification.field_path.includes('achievements') && s.text.includes(String(modification.new_value))
+          )?.text || null,
+        }));
 
-          await supabase
-            .from('content_modifications')
-            .insert(modificationRecord);
-        }
+        await supabase.from('content_modifications').insert(modificationRecords);
 
         console.log(`✅ [handleTipImplementation] Successfully logged ${modifications.length} modifications`);
       } catch (logError) {

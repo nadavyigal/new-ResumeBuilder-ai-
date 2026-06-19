@@ -17,6 +17,12 @@ describe('skill-match', () => {
     expect(skillMatchesResume('Experience with Python and AWS', resumeText)).toBe(true);
   });
 
+  it('does not match short skill names inside longer words', () => {
+    const resume = 'Senior JavaScript engineer building React applications';
+    expect(skillMatchesResume('Java', resume)).toBe(false);
+    expect(skillMatchesResume('JavaScript', resume)).toBe(true);
+  });
+
   it('does not match unrelated skills', () => {
     expect(skillMatchesResume('COBOL', resumeText)).toBe(false);
   });

@@ -14,6 +14,16 @@ const STOP_WORDS = new Set([
   'role', 'job', 'position', 'company', 'years', 'year', 'experience',
 ]);
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsWholePhrase(normalizedResume: string, normalizedPhrase: string): boolean {
+  if (!normalizedPhrase) return false;
+  const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedPhrase)}([^a-z0-9]|$)`);
+  return pattern.test(normalizedResume);
+}
+
 function significantTokens(text: string): string[] {
   return tokenize(text).filter(
     (word) => word.length >= KEYWORD_THRESHOLDS.min_keyword_length && !STOP_WORDS.has(word)
@@ -31,9 +41,9 @@ export function skillMatchesResume(skill: string, resumeText: string): boolean {
     return false;
   }
 
-  // Full phrase / substring match (handles "Node.js", "machine learning", etc.)
+  // Whole-phrase match (handles "Node.js", "machine learning", etc.)
   if (normalizedSkill.length >= KEYWORD_THRESHOLDS.min_keyword_length) {
-    if (normalizedResume.includes(normalizedSkill)) {
+    if (containsWholePhrase(normalizedResume, normalizedSkill)) {
       return true;
     }
   }
@@ -44,10 +54,12 @@ export function skillMatchesResume(skill: string, resumeText: string): boolean {
   }
 
   if (skillTokens.length === 1) {
-    return normalizedResume.includes(skillTokens[0]);
+    return containsWholePhrase(normalizedResume, skillTokens[0]);
   }
 
-  const matchedCount = skillTokens.filter((token) => normalizedResume.includes(token)).length;
+  const matchedCount = skillTokens.filter((token) =>
+    containsWholePhrase(normalizedResume, token)
+  ).length;
   const requiredMatches = Math.max(1, Math.ceil(skillTokens.length * 0.6));
   return matchedCount >= requiredMatches;
 }

@@ -173,7 +173,8 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from('optimizations')
       .update({ rewrite_data: updatedResumeData })
-      .eq('id', optimization_id);
+      .eq('id', optimization_id)
+      .eq('user_id', user.id);
 
     if (updateError) {
       console.error('❌ Failed to update optimization:', updateError);
@@ -260,7 +261,7 @@ export async function POST(request: NextRequest) {
         // Calculate new ATS score
         const scoreResult = await scoreResume(
           updatedResumeData,
-          {},  // original resume (not needed for optimized score)
+          currentResumeData,
           jobDataForScorer,
           jobDescription.embeddings || null
         );
@@ -273,7 +274,8 @@ export async function POST(request: NextRequest) {
             ats_score_optimized: scoreResult.ats_score_optimized,
             ats_subscores: scoreResult.subscores,
           })
-          .eq('id', optimization_id);
+          .eq('id', optimization_id)
+          .eq('user_id', user.id);
 
         if (scoreUpdateError) {
           console.error('❌ Failed to update ATS score:', scoreUpdateError);
@@ -317,13 +319,6 @@ export async function POST(request: NextRequest) {
         updated_resume: updatedResumeData,
       }, { status: 500 });
     }
-
-    // This should not be reached anymore (score calculation always returns inside try/catch)
-    return NextResponse.json({
-      success: true,
-      message: `Applied changes from Tip #${suggestion.number || '?'}`,
-      updated_resume: updatedResumeData,
-    }, { status: 200 });
 
   } catch (error) {
     console.error('Error in POST /api/v1/chat/approve-change:', error);
