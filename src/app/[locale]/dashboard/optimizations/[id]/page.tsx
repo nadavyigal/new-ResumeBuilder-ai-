@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Link } from "@/navigation";
+import { Link, useRouter } from "@/navigation";
+import { ROUTES } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClientComponentClient } from "@/lib/supabase";
@@ -16,6 +17,12 @@ import { ReadinessOverview } from "@/components/optimization/ReadinessOverview";
 import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 import { CacheBustingErrorBoundary } from "@/components/error/CacheBustingErrorBoundary";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
+import {
+  consumeAtsBootstrap,
+  mergeAtsDisplay,
+  resolveAtsDisplay,
+  type ResolvedAtsDisplay,
+} from "@/lib/ats/resolve-display-scores";
 import { useToast } from "@/hooks/useToast";
 import {
   Select,
@@ -43,7 +50,7 @@ export default function OptimizationPage() {
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // ATS v2 state
-  const [atsV2Data, setAtsV2Data] = useState<any>(null);
+  const [atsV2Data, setAtsV2Data] = useState<ResolvedAtsDisplay | null>(null);
   const [atsSuggestions, setAtsSuggestions] = useState<any[]>([]);
 
   // CRITICAL: Do not remove! Used by handleChatMessageSent and handleDesignUpdate callbacks
@@ -74,6 +81,7 @@ export default function OptimizationPage() {
   const [saving, setSaving] = useState(false);
 
   const params = useParams();
+  const router = useRouter();
   const supabase = createClientComponentClient();
   const { toast } = useToast();
   const t = useTranslations("dashboard.optimization");
@@ -96,7 +104,7 @@ export default function OptimizationPage() {
     {
       label: t("readiness.stats.atsSupport"),
       value:
-        matchScore !== null || atsV2Data?.ats_score_optimized !== null
+        matchScore != null || atsV2Data?.ats_score_optimized != null
           ? `${Math.round(atsV2Data?.ats_score_optimized ?? matchScore ?? 0)}%`
           : "--",
     },
@@ -209,6 +217,13 @@ export default function OptimizationPage() {
     }
   }, [t]);
 
+  const applyAtsDisplay = useCallback((display: ResolvedAtsDisplay | null) => {
+    setAtsV2Data(display);
+    if (display?.ats_score_optimized != null) {
+      setMatchScore(display.ats_score_optimized);
+    }
+  }, []);
+
   const fetchOptimizationData = useCallback(async () => {
     try {
       const idVal = String(params.id || "");
@@ -283,22 +298,29 @@ export default function OptimizationPage() {
         throw new Error(t("error.jobNotFound"));
       }
 
-      setResumeText((resumeData as any)?.raw_text || "");
-      setJobDescription(jdData as any); // Store full job description for Apply button (includes title/company/source_url)
-      setOptimizedResume((optimizationRow as any).rewrite_data);
-      setMatchScore((optimizationRow as any).match_score);
-
-      // Set ATS v2 data if available
       const row = optimizationRow as any;
-      if (row.ats_score_optimized !== null) {
-        setAtsV2Data({
+      const bootstrap = consumeAtsBootstrap(idVal);
+      const resolvedAts = mergeAtsDisplay(
+        {
+          match_score: row.match_score,
           ats_score_original: row.ats_score_original,
           ats_score_optimized: row.ats_score_optimized,
-          subscores: row.ats_subscores,
-          subscores_original: row.ats_subscores_original,
-          confidence: row.ats_confidence,
-        });
-        setAtsSuggestions(row.ats_suggestions || []);
+          ats_subscores: row.ats_subscores,
+          ats_subscores_original: row.ats_subscores_original,
+          ats_confidence: row.ats_confidence,
+          ats_suggestions: row.ats_suggestions,
+        },
+        bootstrap
+      );
+
+      setResumeText((resumeData as any)?.raw_text || "");
+      setJobDescription(jdData as any);
+      setOptimizedResume((optimizationRow as any).rewrite_data);
+      setMatchScore(resolvedAts?.ats_score_optimized ?? row.match_score ?? null);
+
+      if (resolvedAts) {
+        applyAtsDisplay(resolvedAts);
+        setAtsSuggestions((row.ats_suggestions as any[]) || []);
       }
 
       // Generate AI summary of job description
@@ -310,15 +332,35 @@ export default function OptimizationPage() {
     } finally {
       setLoading(false);
     }
-  }, [params.id, supabase, t, generateJobDescriptionSummary]);
+  }, [params.id, supabase, t, generateJobDescriptionSummary, applyAtsDisplay]);
 
   useEffect(() => {
     fetchOptimizationData();
   }, [fetchOptimizationData]);
 
   // Refresh resume data and design when chat sends a message
-  const handleChatMessageSent = async () => {
-    console.log(' [handleChatMessageSent] CALLED! Starting refresh process...');
+  const handleChatMessageSent = async (immediateAts?: {
+    original?: number | null;
+    optimized?: number | null;
+  }) => {
+    if (immediateAts?.optimized != null || immediateAts?.original != null) {
+      setAtsV2Data((prev) => {
+        const next = resolveAtsDisplay({
+          match_score: immediateAts.optimized ?? prev?.ats_score_optimized ?? null,
+          ats_score_original: immediateAts.original ?? prev?.ats_score_original ?? null,
+          ats_score_optimized: immediateAts.optimized ?? prev?.ats_score_optimized ?? null,
+          ats_subscores: prev?.subscores,
+          ats_subscores_original: prev?.subscores_original,
+          ats_confidence: prev?.confidence ?? null,
+          ats_suggestions: prev?.suggestions,
+        });
+        return next ?? prev;
+      });
+      if (immediateAts.optimized != null) {
+        setMatchScore(immediateAts.optimized);
+      }
+    }
+
     try {
       const idVal2 = String(params.id || "");
 
@@ -336,7 +378,7 @@ export default function OptimizationPage() {
       const cacheBuster = Date.now();
       const { data: optimizationRow, error: optError } = await supabase
         .from("optimizations")
-        .select("rewrite_data, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, updated_at")
+        .select("rewrite_data, match_score, ats_score_optimized, ats_subscores, ats_score_original, ats_subscores_original, ats_confidence, ats_suggestions, updated_at")
         .eq("id", idVal2)
         .maybeSingle();
 
@@ -352,27 +394,26 @@ export default function OptimizationPage() {
         }
 
         // Force a complete re-render by creating new object reference
-        const newData = JSON.parse(JSON.stringify((optimizationRow as any).rewrite_data));
+        const optRow = optimizationRow as any;
+        const resolvedAts = resolveAtsDisplay({
+          match_score: optRow.match_score,
+          ats_score_original: optRow.ats_score_original,
+          ats_score_optimized: optRow.ats_score_optimized,
+          ats_subscores: optRow.ats_subscores,
+          ats_subscores_original: optRow.ats_subscores_original,
+          ats_confidence: optRow.ats_confidence,
+          ats_suggestions: optRow.ats_suggestions,
+        });
+
+        const newData = JSON.parse(JSON.stringify(optRow.rewrite_data));
+        if (resolvedAts?.ats_score_optimized != null) {
+          newData.matchScore = resolvedAts.ats_score_optimized;
+        }
         setOptimizedResume(newData);
 
-        // Update ATS scores if they changed
-        const optRow = optimizationRow as any;
-        if (optRow.ats_score_optimized !== null || optRow.ats_score_original !== null) {
-          console.log(' Updating ATS scores:', {
-            original: optRow.ats_score_original,
-            optimized: optRow.ats_score_optimized,
-            previousOptimized: atsV2Data?.ats_score_optimized,
-            scoreChanged: optRow.ats_score_optimized !== atsV2Data?.ats_score_optimized
-          });
-
-          // Force React to detect change by creating completely new object
-          setAtsV2Data({
-            ats_score_original: optRow.ats_score_original,
-            ats_score_optimized: optRow.ats_score_optimized,
-            subscores: optRow.ats_subscores,
-            subscores_original: optRow.ats_subscores_original,
-            confidence: atsV2Data?.confidence || null
-          });
+        if (resolvedAts) {
+          applyAtsDisplay(resolvedAts);
+          setAtsSuggestions((optRow.ats_suggestions as any[]) || []);
         }
 
         // Force component re-render
@@ -508,16 +549,22 @@ export default function OptimizationPage() {
   };
 
   const handleExpertAtsImpact = useCallback((impact: { before: number | null; after: number | null; delta: number | null }) => {
-    setAtsV2Data((prev: any) => ({
-      ats_score_original: impact.before ?? prev?.ats_score_original ?? null,
-      ats_score_optimized: impact.after ?? prev?.ats_score_optimized ?? null,
-      subscores: prev?.subscores ?? null,
-      subscores_original: prev?.subscores_original ?? null,
-      confidence: prev?.confidence ?? null,
-    }));
+    setAtsV2Data((prev) => {
+      const next = resolveAtsDisplay({
+        match_score: impact.after ?? prev?.ats_score_optimized ?? null,
+        ats_score_original: impact.before ?? prev?.ats_score_original ?? null,
+        ats_score_optimized: impact.after ?? prev?.ats_score_optimized ?? null,
+        ats_subscores: prev?.subscores,
+        ats_subscores_original: prev?.subscores_original,
+        ats_confidence: prev?.confidence ?? null,
+        ats_suggestions: prev?.suggestions,
+      });
+      return next ?? prev;
+    });
 
     if (impact.after !== null) {
       setMatchScore(impact.after);
+      setOptimizedResume((prev) => (prev ? { ...prev, matchScore: impact.after ?? prev.matchScore } : prev));
     }
   }, []);
 
@@ -548,7 +595,7 @@ export default function OptimizationPage() {
                 {t("error.reload")}
               </button>
               <button
-                onClick={() => window.location.href = '/dashboard/applications'}
+                onClick={() => router.push(`${ROUTES.dashboard}/applications`)}
                 className="w-full px-4 py-2 bg-muted text-muted-foreground rounded hover:bg-muted/80"
               >
                 {t("error.backToDashboard")}
@@ -713,7 +760,7 @@ export default function OptimizationPage() {
       }
 
       // Navigate to applications monitor
-      window.location.href = `/dashboard/applications`;
+      router.push(`${ROUTES.dashboard}/applications`);
 
     } catch (error) {
       console.error('Error in handleApply:', error);
@@ -736,10 +783,21 @@ export default function OptimizationPage() {
         throw new Error(j.error || 'Failed to save');
       }
       const result = await res.json();
-      setOptimizedResume(editDraft);
       if (result.ats_score_optimized != null) {
-        setAtsV2Data((prev: any) => prev ? { ...prev, ats_score_optimized: result.ats_score_optimized, ats_score_original: result.ats_score_original } : prev);
-        setMatchScore(result.ats_score_optimized);
+        const resolved = resolveAtsDisplay({
+          match_score: result.ats_score_optimized,
+          ats_score_original: result.ats_score_original,
+          ats_score_optimized: result.ats_score_optimized,
+          ats_subscores: result.ats_subscores,
+          ats_subscores_original: result.ats_subscores_original,
+          ats_confidence: result.ats_confidence,
+        });
+        if (resolved) {
+          applyAtsDisplay(resolved);
+        }
+        setOptimizedResume({ ...editDraft, matchScore: result.ats_score_optimized });
+      } else {
+        setOptimizedResume(editDraft);
       }
       setRefreshKey(k => k + 1);
       setIsEditing(false);
@@ -879,8 +937,8 @@ export default function OptimizationPage() {
           <div className="lg:col-span-2">
             {atsV2Data ? (
               <CompactATSScoreCard
-                atsScoreOriginal={atsV2Data.ats_score_original || matchScore}
-                atsScoreOptimized={atsV2Data.ats_score_optimized || matchScore}
+                atsScoreOriginal={atsV2Data.ats_score_original}
+                atsScoreOptimized={atsV2Data.ats_score_optimized}
                 subscores={atsV2Data.subscores}
                 subscoresOriginal={atsV2Data.subscores_original}
               />

@@ -26,9 +26,18 @@ export function extractJobData(jobText: string, existingExtraction?: Partial<Job
     industry: existingExtraction?.industry || '',
   };
 
-  // If no must_have skills found, use general keyword extraction as fallback
+  // If no must_have skills found, use technical keyword extraction as fallback.
+  // Filter generic business words so the keyword denominator stays realistic.
   if (extraction.must_have.length === 0) {
-    extraction.must_have = extractKeywords(jobText).slice(0, 20);
+    const genericFallbackTerms = new Set([
+      'job', 'role', 'position', 'company', 'team', 'work', 'working',
+      'experience', 'years', 'ability', 'strong', 'excellent', 'good',
+      'communication', 'skills', 'responsibilities', 'requirements',
+      'description', 'summary', 'overview', 'preferred', 'required',
+    ]);
+    extraction.must_have = extractKeywords(jobText)
+      .filter((keyword) => !genericFallbackTerms.has(keyword.toLowerCase()))
+      .slice(0, 12);
   }
 
   return extraction;

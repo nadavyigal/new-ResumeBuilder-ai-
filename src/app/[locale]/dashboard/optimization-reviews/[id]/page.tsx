@@ -13,6 +13,7 @@ import { buildResumeFromApprovedGroups } from "@/lib/optimization-review";
 import type { OptimizationReviewRun, ReviewChangeGroup } from "@/types/optimization-review";
 import { useTranslations } from "next-intl";
 import { ROUTES } from "@/lib/constants";
+import { stashAtsBootstrap } from "@/lib/ats/resolve-display-scores";
 
 type ReviewPayload = {
   review: OptimizationReviewRun;
@@ -150,6 +151,13 @@ export default function OptimizationReviewPage() {
         throw new Error(data.error || t("errors.apply"));
       }
 
+      if (data.optimizationId && data.atsImpact) {
+        stashAtsBootstrap(String(data.optimizationId), {
+          ats_score_original: data.atsImpact.before ?? null,
+          ats_score_optimized: data.atsImpact.after ?? null,
+        });
+      }
+
       router.push(`${ROUTES.optimizations}/${data.optimizationId}`);
     } catch (applyError) {
       setError(applyError instanceof Error ? applyError.message : t("errors.apply"));
@@ -241,8 +249,8 @@ export default function OptimizationReviewPage() {
         {payload.review.ats_preview_json && (
           <div className="space-y-2">
             <CompactATSScoreCard
-              atsScoreOriginal={payload.review.ats_preview_json.before || 0}
-              atsScoreOptimized={payload.review.ats_preview_json.after || 0}
+              atsScoreOriginal={payload.review.ats_preview_json.before ?? 0}
+              atsScoreOptimized={payload.review.ats_preview_json.after ?? 0}
             />
             <p className="text-xs text-muted-foreground">
               {t("atsNote")}

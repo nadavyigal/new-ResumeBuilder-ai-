@@ -221,6 +221,7 @@ export function ChatSidebar({
       }
 
       const data: ChatSendMessageResponse = await response.json();
+      let resumeRefreshHandled = false;
 
       if (process.env.NODE_ENV === 'development') {
         logger.debug('Chat send response payload', {
@@ -267,7 +268,10 @@ export function ChatSidebar({
             logger.debug('Calling onMessageSent after tips applied', { optimizationId });
           }
           try {
-            await onMessageSent();
+            await onMessageSent({
+              optimized: data.tips_applied.new_ats_score ?? null,
+            });
+            resumeRefreshHandled = true;
             if (process.env.NODE_ENV === 'development') {
               logger.debug('onMessageSent completed after tips applied', { optimizationId });
             }
@@ -313,6 +317,7 @@ export function ChatSidebar({
             logger.debug('Calling onMessageSent after design customization', { optimizationId });
           }
           onMessageSent();
+          resumeRefreshHandled = true;
           if (process.env.NODE_ENV === 'development') {
             logger.debug('onMessageSent completed after design customization', { optimizationId });
           }
@@ -330,8 +335,8 @@ export function ChatSidebar({
       if (data.session_id) {
         await loadMessages(data.session_id);
 
-        // Always trigger resume refresh after messages that change data
-        if (onMessageSent) {
+        // Refresh resume when the response changed data but no targeted handler ran.
+        if (onMessageSent && !resumeRefreshHandled) {
           onMessageSent();
         }
       }
