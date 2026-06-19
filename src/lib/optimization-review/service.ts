@@ -1,6 +1,7 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { scoreOptimization } from "@/lib/ats/integration";
+import { preferJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import {
   buildATSPreview,
   buildFinalResumeMetadata,
@@ -197,7 +198,7 @@ export async function applyOptimizationReviewRun({
 
   const { data: jdRow, error: jdError } = await supabase
     .from("job_descriptions")
-    .select("raw_text, clean_text, title")
+    .select("raw_text, clean_text, title, parsed_data")
     .eq("id", reviewRun.jd_id)
     .maybeSingle();
   if (jdError || !jdRow) {
@@ -206,14 +207,18 @@ export async function applyOptimizationReviewRun({
 
   let finalResume = buildResumeFromApprovedGroups(reviewRun.original_resume_json, approvedGroups);
 
+  const jobDescriptionText = preferJobDescriptionText(jdRow);
+  const parsedData = (jdRow.parsed_data as Record<string, unknown> | null) || undefined;
+
   let finalATSPreview: ReviewATSPreview | null = null;
   let finalATSResult: ATSScoreOutput | null = null;
   try {
     const atsResult = await scoreOptimization({
       resumeOriginalText: resumeRow.raw_text || "",
       resumeOptimizedJson: finalResume,
-      jobDescriptionText: jdRow.clean_text || jdRow.raw_text || "",
+      jobDescriptionText,
       jobTitle: jdRow.title || "Position",
+      jobExtractedJson: parsedData,
     });
     finalATSResult = atsResult;
 
@@ -251,6 +256,7 @@ export async function applyOptimizationReviewRun({
       ats_subscores_original: finalATSResult?.subscores_original ?? null,
       ats_suggestions: finalATSPreview?.suggestions ?? reviewRun.ats_preview_json?.suggestions ?? null,
       ats_confidence: finalATSPreview?.confidence ?? reviewRun.ats_preview_json?.confidence ?? null,
+      jd_text: jobDescriptionText,
     })
     .select("id")
     .maybeSingle();

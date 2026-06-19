@@ -8,6 +8,7 @@ import { scoreResume } from './index';
 import type { ATSScoreInput, JobExtraction, FormatReport, ATSScoreOutput } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { extractJobData } from './extractors/jd-extractor';
+import { buildJobDataFromExtractedJson } from './job-data-resolver';
 
 /**
  * Extract keywords and requirements from job description text
@@ -149,19 +150,23 @@ export async function scoreOptimization(params: {
   resumeOptimizedJson: OptimizedResume;
   jobDescriptionText: string;
   jobTitle?: string;
+  jobExtractedJson?: Record<string, unknown>;
 }): Promise<ATSScoreOutput> {
   const {
     resumeOriginalText,
     resumeOptimizedJson,
     jobDescriptionText,
     jobTitle = 'Position',
+    jobExtractedJson,
   } = params;
 
   // Convert optimized resume JSON to text
   const resumeOptimizedText = resumeJsonToText(resumeOptimizedJson);
 
-  // Extract job requirements
-  const jobExtraction = extractJobRequirements(jobDescriptionText, jobTitle);
+  // Extract job requirements — prefer structured parsed_data with fallbacks
+  const jobExtraction = jobExtractedJson
+    ? buildJobDataFromExtractedJson(jobExtractedJson, jobDescriptionText)
+    : extractJobRequirements(jobDescriptionText, jobTitle);
 
   // Generate format reports
   const formatReport = generateFormatReport(resumeOriginalText);

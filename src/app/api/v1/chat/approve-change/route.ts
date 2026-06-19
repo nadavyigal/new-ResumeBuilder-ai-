@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { scoreResume } from '@/lib/ats/scorer';
+import { buildJobDataFromExtractedJson, preferJobDescriptionText } from '@/lib/ats/job-data-resolver';
 import { TECHNICAL_KEYWORDS } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
@@ -228,25 +229,10 @@ export async function POST(request: NextRequest) {
         // Map parsed_data from database to JobExtraction format expected by scorer
         // Database structure: { job_title, requirements, nice_to_have, responsibilities, ... }
         // Scorer expects: { title, must_have, nice_to_have, responsibilities, ... }
+        const jobText = preferJobDescriptionText(jobDescription);
         const jobDataForScorer = {
-          title: jobDescription.parsed_data.job_title || '',
-          company: jobDescription.parsed_data.company_name || '',
-          must_have: Array.isArray(jobDescription.parsed_data.requirements)
-            ? jobDescription.parsed_data.requirements
-            : (typeof jobDescription.parsed_data.requirements === 'string'
-              ? [jobDescription.parsed_data.requirements]
-              : []),
-          nice_to_have: Array.isArray(jobDescription.parsed_data.nice_to_have)
-            ? jobDescription.parsed_data.nice_to_have
-            : [],
-          responsibilities: Array.isArray(jobDescription.parsed_data.responsibilities)
-            ? jobDescription.parsed_data.responsibilities
-            : [],
-          seniority: jobDescription.parsed_data.seniority || '',
-          location: jobDescription.parsed_data.location || '',
-          industry: '',
-          // raw_text and clean_text are table-level columns, not in parsed_data
-          raw_text: jobDescription.clean_text || jobDescription.raw_text || '',
+          ...buildJobDataFromExtractedJson(jobDescription.parsed_data, jobText),
+          raw_text: jobText,
           clean_text: jobDescription.clean_text || jobDescription.raw_text || '',
         };
 
