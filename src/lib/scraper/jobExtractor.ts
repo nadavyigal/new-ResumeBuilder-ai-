@@ -231,6 +231,14 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
   const seniority = sanitizeText((html.match(/Seniority level<[^>]*>\s*<span[^>]*>([\s\S]*?)<\//i)?.[1])) || null;
   const compensation = sanitizeText((html.match(/Pay|Salary|Compensation[\s\S]{0,40}<[^>]*>([\s\S]*?)<\//i)?.[1])) || null;
 
+  const mergedRequirements =
+    requirements && requirements.length > 0
+      ? requirements
+      : [...(qualifications || []), ...(responsibilities || [])].filter(
+          (item, index, arr) =>
+            arr.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index,
+        );
+
   const extracted: ExtractedJobData = {
     source_url: url,
     source_domain: domain,
@@ -243,7 +251,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
     seniority,
     compensation,
     about_this_job: sanitizeText(about_this_job),
-    requirements: requirements || null,
+    requirements: mergedRequirements.length > 0 ? mergedRequirements : null,
     responsibilities: responsibilities || null,
     qualifications: qualifications || null,
     nice_to_have: null,
@@ -255,7 +263,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
       job_title: job_title,
       contact_person: null,
       about_this_job: about_this_job ? "meta og:description or About section" : null,
-      requirements: requirements ? "h2 Requirements/Skills section" : null,
+      requirements: mergedRequirements.length > 0 ? "h2 Requirements/Skills section or merged qualifications" : null,
       responsibilities: responsibilities ? "h2 Responsibilities section" : null,
       qualifications: qualifications ? "h2 Qualifications section" : null,
       nice_to_have: null,
@@ -288,6 +296,14 @@ export async function extractGeneric(html: string, url: string): Promise<Extract
   const benefits = extractListAfterHeading(html, /<h2[^>]*>(Benefits|Perks)<\/h2>/i);
   const location = sanitizeText((html.match(/Location[:\s]<[^>]*>([\s\S]*?)<\//i)?.[1])) || null;
 
+  const mergedRequirements =
+    requirements && requirements.length > 0
+      ? requirements
+      : [...(qualifications || []), ...(responsibilities || [])].filter(
+          (item, index, arr) =>
+            arr.findIndex((other) => other.toLowerCase() === item.toLowerCase()) === index,
+        );
+
   return {
     source_url: url,
     source_domain: domain,
@@ -300,7 +316,7 @@ export async function extractGeneric(html: string, url: string): Promise<Extract
     seniority: null,
     compensation: null,
     about_this_job: sanitizeText(about_this_job),
-    requirements: requirements || null,
+    requirements: mergedRequirements.length > 0 ? mergedRequirements : null,
     responsibilities: responsibilities || null,
     qualifications: qualifications || null,
     nice_to_have: null,
@@ -312,7 +328,7 @@ export async function extractGeneric(html: string, url: string): Promise<Extract
       job_title,
       contact_person: null,
       about_this_job: about_this_job ? "About/Overview section" : null,
-      requirements: requirements ? "Requirements/Skills section" : null,
+      requirements: mergedRequirements.length > 0 ? "Requirements/Skills section or merged qualifications" : null,
       responsibilities: responsibilities ? "Responsibilities section" : null,
       qualifications: qualifications ? "Qualifications section" : null,
       nice_to_have: null,

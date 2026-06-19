@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { extractJob } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
+import { normalizeParsedJobData } from "@/lib/ats/job-data-resolver";
 import { isSupportedResumeFile } from "@/lib/utils/file-validation";
 import { convertResumeBuffer } from "@/lib/markitdown-client";
 import path from "path";
@@ -74,7 +75,7 @@ export async function POST(req: NextRequest) {
         const extracted = await extractJob(jobDescriptionUrl);
         extractedTitle = extracted.job_title;
         extractedCompany = extracted.company_name;
-        extractedData = extracted;
+        extractedData = normalizeParsedJobData(extracted);
         sourceUrl = jobDescriptionUrl;
 
         const parts: string[] = [];

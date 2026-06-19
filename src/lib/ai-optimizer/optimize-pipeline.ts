@@ -8,6 +8,7 @@ import {
 import { optimizeResume, type OptimizedResume } from './index';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
+import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import type { ATSScoreOutput } from '@/lib/ats/types';
 
 export interface OptimizationPipelineResult {
@@ -120,15 +121,18 @@ function buildGapsFromAtsResult(
 
 export async function runOptimizePipeline(
   resumeText: string,
-  jobDescription: string
+  jobDescription: string,
+  options?: { jobExtractedJson?: Record<string, unknown> }
 ): Promise<OptimizationPipelineResult> {
   const hebrewPattern = /[֐-׿]/;
   const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
 
   console.log('Pipeline start:', { isHebrew, resumeLen: resumeText.length });
 
-  // Step 1: Extract JD structure
-  const jobExtraction = extractJobData(jobDescription);
+  // Step 1: Extract JD structure (use parsed_data fallbacks when available)
+  const jobExtraction = options?.jobExtractedJson
+    ? buildJobDataFromExtractedJson(options.jobExtractedJson, jobDescription)
+    : extractJobData(jobDescription);
   console.log('Pipeline JD extraction:', {
     must_have_count: jobExtraction.must_have.length,
     nice_to_have_count: jobExtraction.nice_to_have.length,
@@ -162,6 +166,7 @@ export async function runOptimizePipeline(
     resumeOriginalText: resumeText,
     resumeOptimizedJson: candidate1,
     jobDescriptionText: jobDescription,
+    jobExtractedJson: options?.jobExtractedJson,
   });
 
   console.log('Pipeline pass 1 score:', {
@@ -204,6 +209,7 @@ export async function runOptimizePipeline(
     resumeOriginalText: resumeText,
     resumeOptimizedJson: candidate2,
     jobDescriptionText: jobDescription,
+    jobExtractedJson: options?.jobExtractedJson,
   });
 
   console.log('Pipeline pass 2 score:', {

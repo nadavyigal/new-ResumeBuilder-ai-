@@ -19,6 +19,7 @@ import { applyPenalties } from './scorers/penalties';
 import { estimateConfidence } from './scorers/confidence';
 import { generateSuggestions } from './suggestions/generator';
 import { extractJobData, isJobExtractionComplete } from './extractors/jd-extractor';
+import { buildJobDataFromExtractedJson } from './job-data-resolver';
 import { extractResumeText } from './extractors/resume-text-extractor';
 import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import { generateQuickWins } from './quick-wins/generator';
@@ -196,32 +197,18 @@ async function prepareInput(input: ATSScoreInput) {
   // Handle both database format (job_title) and scorer format (title)
   const hasValidJobData = input.job_extracted_json?.title || input.job_extracted_json?.job_title;
 
+  const fallbackJobText =
+    input.job_clean_text ||
+    (input.job_extracted_json as { raw_text?: string; clean_text?: string }).clean_text ||
+    (input.job_extracted_json as { raw_text?: string; clean_text?: string }).raw_text ||
+    '';
+
   let job_data;
   if (hasValidJobData) {
-    // If we have database format (job_title), map to scorer format (title)
-    if (input.job_extracted_json.job_title && !input.job_extracted_json.title) {
-      job_data = {
-        title: input.job_extracted_json.job_title || '',
-        company: input.job_extracted_json.company_name || '',
-        must_have: Array.isArray(input.job_extracted_json.requirements)
-          ? input.job_extracted_json.requirements
-          : (typeof input.job_extracted_json.requirements === 'string'
-            ? [input.job_extracted_json.requirements]
-            : []),
-        nice_to_have: Array.isArray(input.job_extracted_json.nice_to_have)
-          ? input.job_extracted_json.nice_to_have
-          : [],
-        responsibilities: Array.isArray(input.job_extracted_json.responsibilities)
-          ? input.job_extracted_json.responsibilities
-          : [],
-        seniority: input.job_extracted_json.seniority || '',
-        location: input.job_extracted_json.location || '',
-        industry: input.job_extracted_json.industry || '',
-      };
-    } else {
-      // Already in correct format
-      job_data = input.job_extracted_json;
-    }
+    job_data = buildJobDataFromExtractedJson(
+      input.job_extracted_json as Record<string, unknown>,
+      fallbackJobText,
+    );
   } else {
     // Extract from text
     job_data = extractJobData(input.job_clean_text, input.job_extracted_json);
