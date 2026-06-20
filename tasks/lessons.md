@@ -54,3 +54,17 @@ Always wrap the call in try/catch returning a JSON 400 so a bad PDF can never su
 **Two reproduction techniques (a plain `next start` is NOT enough — local Node hides these):**
 - ESM/require trap: `NODE_OPTIONS='--no-experimental-require-module' npm run start` makes local Node reject `require()` of ESM like Vercel's does.
 - DOM-globals trap: in a node script, `delete globalThis.DOMMatrix; delete globalThis.Path2D; delete globalThis.ImageData;` before parsing, to simulate Vercel's environment. unpdf passes this; raw pdfjs's failing path does not.
+
+---
+
+## LinkedIn serves a degraded authwall to datacenter IPs — scrape the guest API, never /jobs/view
+
+**Symptom:** URL-submitted LinkedIn jobs scored very low (~21/100) in production but looked fine when tested locally. The stored `job_descriptions` row had `clean_text`/`raw_text` of exactly ~222 chars and every `parsed_data` field null.
+
+**Root cause:** `extractJob` fetched `https://www.linkedin.com/jobs/view/{id}`. From Vercel's serverless egress IP, LinkedIn returns a degraded authwall/`session_redirect` page that contains only the `og:description` meta tag (~222 chars) and NO `show-more-less-html` job body. `extractFromLinkedIn` parsed the meta snippet into `about_this_job` and returned a valid object **without throwing**, so the catch-fallbacks never fired and the thin data flowed straight to scoring. A residential IP (local dev / curl) gets the full page, so this is invisible locally — same class of false-green as the unpdf/DOMMatrix trap above.
+
+**Fix:** Use LinkedIn's public guest endpoint `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{id}` — it returns the full posting body, works from datacenter IPs, and needs no User-Agent. The guest fragment differs from the full page: no `og:title`/`<title>` (title/company come from `topcard__title` / `topcard__org-name-link`), no `<p>` tags in the body (recover the whole `show-more-less-html__markup` as the body), and `<strong>Qualifications<br><br></strong>` headings (the `<br>` breaks any regex requiring the keyword immediately before `</strong>` — match `<strong[^>]*>\s*(Keyword)` instead). Ref: PR fix/linkedin-guest-scrape.
+
+**Never let a scrape silently produce a score.** Added `isThinExtraction` + `ThinJobExtractionError` thrown centrally in `extractJob`; `/api/upload-resume` now prefers pasted text and otherwise returns `422 JOB_URL_UNREADABLE`. Optimizing against an empty JD is worse than telling the user to paste it.
+
+**Reproduction caveat:** a real authwall only reproduces from a datacenter IP. Local curl/dev gets full content. Verify on a Vercel preview via the `?token=`-gated `/api/debug/scrape-check` route, not locally.
