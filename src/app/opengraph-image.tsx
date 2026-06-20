@@ -174,7 +174,7 @@ export default async function OGImage() {
                 maxWidth: "480px",
               }}
             >
-              Free ATS score, actionable fixes, and AI-powered optimization to land more interviews.
+              Free Match Score, actionable fixes, and AI-powered optimization built for ATS-friendly resumes.
             </span>
 
             {/* CTA badge */}
@@ -262,7 +262,7 @@ export default async function OGImage() {
                   textTransform: "uppercase",
                 }}
               >
-                ATS Score
+                Match Score
               </span>
 
               {/* Circular score */}

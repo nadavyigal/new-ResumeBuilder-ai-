@@ -89,6 +89,7 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
         {checksRemainingLabel && (
           <div className="text-xs text-foreground/60">{checksRemainingLabel}</div>
         )}
+        <p className="mx-auto max-w-xs text-xs text-foreground/50">{t("explainer")}</p>
       </div>
 
       <MainIssuesSummary

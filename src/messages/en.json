@@ -7,7 +7,7 @@
   },
   "footer": {
     "newsletterTitle": "Weekly Resume Tips That Actually Work",
-    "newsletterDescription": "Get proven strategies to beat ATS filters and land more interviews.",
+    "newsletterDescription": "Get proven, ATS-aware resume strategies and practical job-search tips every week.",
     "newsletterNote": "This is our weekly newsletter. To check your resume instantly, <link>create a free account</link>.",
     "copyright": "© {year} Resumely. Built for job seekers.",
     "privacy": "Privacy",
@@ -65,7 +65,7 @@
       "steps": {
         "parsing": "Parsing your resume",
         "keywords": "Extracting keywords",
-        "scoring": "Calculating ATS score",
+        "scoring": "Calculating your Match Score",
         "improvements": "Finding quick wins"
       }
     },
@@ -81,6 +81,7 @@
       }
     },
     "score": {
+      "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
       "match": {
         "strong": "Strong match",
         "good": "Good match",
@@ -96,8 +97,8 @@
       "quickWin": "Quick win"
     },
     "share": {
-      "messageLinkedIn": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
-      "messageTwitter": "I just scored {score}/100 on my ATS check! See how your resume performs: {url}",
+      "messageLinkedIn": "I just ran my resume through Resumely and scored {score}/100! See how your resume performs: {url}",
+      "messageTwitter": "I just ran my resume through Resumely and scored {score}/100! See how your resume performs: {url}",
       "label": "Share on {platform}",
       "platform": {
         "linkedin": "LinkedIn",
@@ -180,10 +181,10 @@
         "Match what recruiters search for",
         "See your score in 30 seconds"
       ],
-      "ctaPrimary": "Get My Free ATS Score",
+      "ctaPrimary": "Get My Free Match Score",
       "ctaSecondary": "See a Sample Report",
       "socialProof": {
-        "atsApproved": "Beats ATS filters"
+        "atsApproved": "Built for ATS-safe formatting"
       }
     },
     "quickWins": {
@@ -311,7 +312,7 @@
       "readingTime": "{minutes} min read",
       "cta": {
         "title": "Ready to optimize your resume?",
-        "description": "Get your ATS score and personalized optimization suggestions in 30 seconds.",
+        "description": "Get your Resumely Match Score and personalized optimization suggestions in 30 seconds.",
         "button": "Start Free Optimization"
       }
     }
@@ -860,7 +861,7 @@
         "downloadHtml": "Download HTML",
         "downloadJson": "Download JSON",
         "loadError": "Couldn't load application details.",
-        "cumulativeAts": "Current ATS score",
+        "cumulativeAts": "Current Match Score",
         "latestDelta": "Latest saved expert report impact: {delta} points",
         "contactTitle": "Saved contact snapshot",
         "reports": {
@@ -1036,7 +1037,7 @@
           "impact": "Observed ATS impact",
           "assetTitle": "Output saved to application",
           "assetDescription": "Saved {count} items to your application.",
-          "notApplicable": "ATS score tracking doesn't apply to this workflow type."
+          "notApplicable": "Match Score tracking doesn't apply to this workflow type."
         },
         "errors": {
           "run": "Couldn't run this workflow. Please try again.",
@@ -1138,7 +1139,7 @@
       },
       "atsUnavailable": {
         "title": "Score unavailable",
-        "description": "We couldn't calculate your ATS score for this check."
+        "description": "We couldn't calculate your Match Score for this check."
       },
       "apply": {
         "applyNow": "Apply to Job",
@@ -1586,7 +1587,7 @@
         "errors": {
           "applyCustomization": "Couldn't apply change. Try again.",
           "atsViolation": "ATS warning: {message}",
-          "atsViolationDetail": "This might hurt your ATS score.",
+          "atsViolationDetail": "This might hurt your Match Score.",
           "needsDetails": "Can you clarify? {message}",
           "needsDetailsDetail": "Add more detail to continue.",
           "invalidRequest": "Can't do that: {message}",
@@ -1602,7 +1603,7 @@
         "clickToPreview": "Click to preview",
         "selected": "Selected",
         "premium": "Premium",
-        "atsScoreLabel": "ATS score",
+        "atsScoreLabel": "Match Score",
         "customColors": "Colors",
         "customFonts": "Fonts",
         "customLayout": "Layout",
@@ -1680,7 +1681,7 @@
   "atsCheckerPage": {
     "meta": {
       "title": "Free ATS Resume Checker — See If Your Resume Passes",
-      "description": "Paste your resume and job description. Get an instant ATS score and the top keyword gaps. Free, no sign-up required."
+      "description": "Paste your resume and job description. Get an instant Resumely Match Score and the top keyword gaps, based on how ATS systems parse resumes. Free, no sign-up required."
     },
     "appStoreCta": {
       "heading": "Fix your resume in the Resumely app",
