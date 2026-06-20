@@ -1,4 +1,10 @@
-import { buildJobDataFromExtractedJson, normalizeParsedJobData } from '@/lib/ats/job-data-resolver';
+import {
+  buildJobDataFromExtractedJson,
+  buildJobDescriptionTextFromParsed,
+  buildParsedDataFromPlainText,
+  normalizeParsedJobData,
+  resolveJobDescriptionText,
+} from '@/lib/ats/job-data-resolver';
 import { scoreResume } from '@/lib/ats/index';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
 
@@ -83,6 +89,36 @@ describe('ats job-data resolver', () => {
     const normalized = normalizeParsedJobData(parsedData);
     expect(normalized.requirements).not.toBeNull();
     expect(normalized.requirements?.length).toBeGreaterThan(0);
+  });
+
+  it('builds parsed_data from pasted plain text', () => {
+    const pasted = `
+      Business Development Manager
+      Requirements:
+      - B2B sales experience
+      - Salesforce CRM
+      - SaaS background
+    `;
+    const parsed = buildParsedDataFromPlainText(pasted);
+    expect(parsed.requirements?.length).toBeGreaterThan(0);
+  });
+
+  it('prefers richer clean_text over truncated raw_text', () => {
+    const parsed = {
+      job_title: 'Business Development Manager',
+      requirements: ['B2B sales', 'Salesforce', 'SaaS', 'negotiation', 'pipeline management'],
+      qualifications: ['Fluent English'],
+      responsibilities: ['Own enterprise pipeline'],
+    };
+
+    const resolved = resolveJobDescriptionText({
+      raw_text: 'BDM role in Tel Aviv. Great opportunity.',
+      clean_text: buildJobDescriptionTextFromParsed(parsed),
+      parsed_data: parsed,
+    });
+
+    expect(resolved.length).toBeGreaterThan(80);
+    expect(resolved).toContain('Requirements:');
   });
 });
 

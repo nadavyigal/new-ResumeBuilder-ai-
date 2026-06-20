@@ -13,6 +13,7 @@ type ReviewContext = {
   jobTitle?: string | null;
   jobDescriptionText: string;
   resumeOriginalText: string;
+  jobExtractedJson?: Record<string, unknown>;
 };
 
 type SectionDescriptor = {
@@ -271,6 +272,7 @@ export async function buildATSPreview(
       resumeOptimizedJson: optimizedResume,
       jobDescriptionText: context.jobDescriptionText,
       jobTitle: context.jobTitle || "Position",
+      jobExtractedJson: context.jobExtractedJson,
     });
 
     return {

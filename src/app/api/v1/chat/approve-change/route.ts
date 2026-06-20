@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { scoreResume } from '@/lib/ats/scorer';
-import { buildJobDataFromExtractedJson, preferJobDescriptionText } from '@/lib/ats/job-data-resolver';
+import { buildJobDataFromExtractedJson, resolveJobDescriptionText } from '@/lib/ats/job-data-resolver';
 import { TECHNICAL_KEYWORDS } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
@@ -229,7 +229,11 @@ export async function POST(request: NextRequest) {
         // Map parsed_data from database to JobExtraction format expected by scorer
         // Database structure: { job_title, requirements, nice_to_have, responsibilities, ... }
         // Scorer expects: { title, must_have, nice_to_have, responsibilities, ... }
-        const jobText = preferJobDescriptionText(jobDescription);
+        const jobText = resolveJobDescriptionText({
+          raw_text: jobDescription.raw_text,
+          clean_text: jobDescription.clean_text,
+          parsed_data: jobDescription.parsed_data,
+        });
         const jobDataForScorer = {
           ...buildJobDataFromExtractedJson(jobDescription.parsed_data, jobText),
           raw_text: jobText,

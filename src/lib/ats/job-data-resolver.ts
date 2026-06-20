@@ -71,6 +71,105 @@ export function preferJobDescriptionText(jd: {
   return raw || clean;
 }
 
+export function buildJobDescriptionTextFromParsed(parsed: unknown): string {
+  const record = toParsedJobRecord(parsed);
+  const parts: string[] = [];
+
+  const title = record.job_title || record.title;
+  const company = record.company_name || record.company;
+  if (title) parts.push(`Job Title: ${title}`);
+  if (company) parts.push(`Company: ${company}`);
+  if (record.location) parts.push(`Location: ${String(record.location)}`);
+  if (record.about_this_job) parts.push(`About: ${String(record.about_this_job)}`);
+
+  const requirements = normalizeStringList(record.requirements);
+  const qualifications = normalizeStringList(record.qualifications);
+  const responsibilities = normalizeStringList(record.responsibilities);
+  const niceToHave = normalizeStringList(record.nice_to_have);
+
+  if (requirements.length > 0) {
+    parts.push(`Requirements: ${requirements.join('; ')}`);
+  } else if (qualifications.length > 0) {
+    parts.push(`Qualifications: ${qualifications.join('; ')}`);
+  }
+  if (responsibilities.length > 0) {
+    parts.push(`Responsibilities: ${responsibilities.join('; ')}`);
+  }
+  if (niceToHave.length > 0) {
+    parts.push(`Nice to have: ${niceToHave.join('; ')}`);
+  }
+
+  return parts.join('\n').trim();
+}
+
+/** Pick the richest JD text available for scoring (persisted jd_text > clean > raw > parsed). */
+export function resolveJobDescriptionText(input: {
+  raw_text?: string | null;
+  clean_text?: string | null;
+  parsed_data?: unknown;
+  jd_text?: string | null;
+}): string {
+  const candidates = [
+    (input.jd_text || '').trim(),
+    (input.clean_text || '').trim(),
+    (input.raw_text || '').trim(),
+    buildJobDescriptionTextFromParsed(input.parsed_data),
+  ].filter((value) => value.length > 0);
+
+  return candidates.reduce(
+    (longest, current) => (current.length > longest.length ? current : longest),
+    '',
+  );
+}
+
+export function buildParsedDataFromPlainText(
+  text: string,
+  meta?: { jobTitle?: string | null; company?: string | null; sourceUrl?: string | null },
+): ExtractedJobData {
+  const trimmed = text.trim();
+  const fromText = extractJobData(trimmed, {
+    title: meta?.jobTitle || undefined,
+    company: meta?.company || undefined,
+  });
+
+  let sourceDomain = 'manual';
+  if (meta?.sourceUrl) {
+    try {
+      sourceDomain = new URL(meta.sourceUrl).hostname;
+    } catch {
+      sourceDomain = 'manual';
+    }
+  }
+
+  return normalizeParsedJobData({
+    source_url: meta?.sourceUrl || '',
+    source_domain: sourceDomain,
+    scraped_at: new Date().toISOString(),
+    company_name: meta?.company || fromText.company || null,
+    job_title: meta?.jobTitle || fromText.title || null,
+    contact_person: null,
+    location: fromText.location || null,
+    employment_type: null,
+    seniority: fromText.seniority || null,
+    compensation: null,
+    about_this_job: trimmed.length <= 4000 ? trimmed : trimmed.slice(0, 4000),
+    requirements: fromText.must_have.length > 0 ? fromText.must_have : null,
+    qualifications: fromText.must_have.length > 0 ? fromText.must_have : null,
+    responsibilities: fromText.responsibilities.length > 0 ? fromText.responsibilities : null,
+    nice_to_have: fromText.nice_to_have.length > 0 ? fromText.nice_to_have : null,
+    benefits: null,
+    application_instructions: null,
+    posting_id: null,
+    provenance: { source: 'plain_text' },
+    summary_for_ui: {
+      company_name: meta?.company || fromText.company || null,
+      job_title: meta?.jobTitle || fromText.title || null,
+      contact_person: null,
+      location: fromText.location || null,
+    },
+  });
+}
+
 export function buildJobDataFromExtractedJson(
   extracted: unknown,
   jobCleanText?: string,

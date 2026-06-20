@@ -7,7 +7,7 @@
   },
   "footer": {
     "newsletterTitle": "טיפים שבועיים לקורות חיים שבאמת עובדים",
-    "newsletterDescription": "קבלו אסטרטגיות מוכחות לעבור מסננים ולהגיע ליותר ראיונות.",
+    "newsletterDescription": "קבלו אסטרטגיות פרקטיות ומודעות-ATS לקורות חיים וטיפים לחיפוש עבודה, מדי שבוע.",
     "newsletterNote": "זה הניוזלטר השבועי שלנו. כדי לבדוק קורות חיים מיד, <link>פתחו חשבון חינם</link>.",
     "copyright": "© {year} Resumely. בנוי למחפשי עבודה.",
     "privacy": "פרטיות",
@@ -65,7 +65,7 @@
       "steps": {
         "parsing": "מנתחים את קורות החיים שלך",
         "keywords": "מוציאים מילות מפתח",
-        "scoring": "מחושבים ציון ה-ATS",
+        "scoring": "מחשבים את ציון ההתאמה שלכם",
         "improvements": "מחפשים ניצחונות מהירים"
       }
     },
@@ -81,6 +81,7 @@
       }
     },
     "score": {
+      "explainer": "מבוסס על פורמט והתאמת מילות מפתח מול המשרה שהדבקתם. לא משויך לאף ספק ATS.",
       "match": {
         "strong": "התאמה חזקה",
         "good": "התאמה טובה",
@@ -96,8 +97,8 @@
       "quickWin": "ניצחון מהיר"
     },
     "share": {
-      "messageLinkedIn": "אני רק קיבלתי {score}/100 בבדיקת ה-ATS שלי! ראה איך קורות החיים שלך מתפקדים: {url}",
-      "messageTwitter": "אני רק קיבלתי {score}/100 בבדיקת ה-ATS שלי! ראה איך קורות החיים שלך מתפקדים: {url}",
+      "messageLinkedIn": "העברתי את קורות החיים שלי ב-Resumely וקיבלתי ציון {score}/100! ראה איך קורות החיים שלך מתפקדים: {url}",
+      "messageTwitter": "העברתי את קורות החיים שלי ב-Resumely וקיבלתי ציון {score}/100! ראה איך קורות החיים שלך מתפקדים: {url}",
       "label": "שתף ב-{platform}",
       "platform": {
         "linkedin": "LinkedIn",
@@ -183,13 +184,13 @@
       "ctaPrimary": "לקבל את ציון ההתאמה בחינם",
       "ctaSecondary": "לראות דוגמה",
       "socialProof": {
-        "atsApproved": "עוברים מסננים"
+        "atsApproved": "מבוסס על פורמט בטוח ל-ATS"
       }
     },
     "quickWins": {
       "title": "{count} הצעות לניצחון מהיר",
       "potential": "+{points} pts פוטנציאל",
-      "note": "ההצעות שנוצרו על ידי AI מציגות שיפורים ספציפיים כדי לשפר את ציון ה-ATS שלך. העתק והתאם אותן לקורות החיים שלך תוך שמירה על אמת בנוגע לניסיון שלך.",
+      "note": "ההצעות שנוצרו על ידי AI מציגות שיפורים ספציפיים כדי לשפר את ציון ההתאמה שלך. העתק והתאם אותן לקורות החיים שלך תוך שמירה על אמת בנוגע לניסיון שלך.",
       "card": {
         "badge": "ניצחון מהיר #{index}",
         "points": "+{points} pts",
@@ -311,7 +312,7 @@
       "readingTime": "{minutes} דקות קריאה",
       "cta": {
         "title": "מוכן לאופטימיזציה של קורות החיים שלך?",
-        "description": "קבל את ציון ה-ATS שלך והצעות אופטימיזציה מותאמות אישית תוך 30 שניות.",
+        "description": "קבל את ציון ההתאמה שלך והצעות אופטימיזציה מותאמות אישית תוך 30 שניות.",
         "button": "התחל אופטימיזציה חינם"
       }
     }
@@ -718,7 +719,7 @@
         "subtitle": "הנה מקום העבודה שלך לקורות חיים."
       },
       "conversion": {
-        "title": "ציון ה-ATS שלך הוא {score}",
+        "title": "ציון ההתאמה שלך הוא {score}",
         "description": "יש לך {count} הצעות מוכנות ליישום.",
         "cta": "המשך אופטימיזציה"
       },
@@ -732,7 +733,7 @@
         "applicationsDescription": "עקוב אחרי משרות שהגשת אליהן."
       },
       "stats": {
-        "averageScoreLabel": "ציון ATS ממוצע",
+        "averageScoreLabel": "ציון התאמה ממוצע",
         "emptyHint": "השלם אופטימיזציות כדי לראות את הסטטיסטיקות שלך."
       },
       "howItWorks": {
@@ -833,7 +834,7 @@
           "company": "חברה",
           "jobTitle": "תפקיד",
           "appliedDate": "הוגש",
-          "atsScore": "ציון ATS",
+          "atsScore": "התאמה",
           "easyApply": "הגשה קלה",
           "jobUrl": "קישור למשרה"
         },
@@ -856,11 +857,11 @@
         "notFound": "מועמדות לא נמצאה.",
         "back": "חזור למועמדויות",
         "appliedDate": "הוגש ב-{date}",
-        "atsMatchLabel": "התאמת ATS",
+        "atsMatchLabel": "ציון התאמה",
         "downloadHtml": "הורד HTML",
         "downloadJson": "הורד JSON",
         "loadError": "נכשל בטעינת פרטי המועמדות.",
-        "cumulativeAts": "ציון ATS נוכחי",
+        "cumulativeAts": "ציון התאמה נוכחי",
         "latestDelta": "השפעת דוח המומחה האחרון שנשמר: {delta} נקודות",
         "contactTitle": "תמונת מצב של פרטי קשר שמורה",
         "reports": {
@@ -1036,7 +1037,7 @@
           "impact": "השפעת ATS שנצפתה",
           "assetTitle": "התוצר נשמר למועמדות",
           "assetDescription": "נשמרו {count} פריטים למועמדות שלך.",
-          "notApplicable": "מעקב ציון ATS לא רלוונטי לסוג תהליך זה."
+          "notApplicable": "מעקב ציון התאמה לא רלוונטי לסוג תהליך זה."
         },
         "errors": {
           "run": "לא ניתן היה להפעיל את התהליך. נסה שוב.",
@@ -1137,8 +1138,8 @@
         }
       },
       "atsUnavailable": {
-        "title": "פרטי ATS אינם זמינים",
-        "description": "לא הצלחנו לטעון נתוני ATS מפורטים עבור אופטימיזציה זו."
+        "title": "הציון אינו זמין",
+        "description": "לא הצלחנו לחשב את ציון ההתאמה שלך לבדיקה זו."
       },
       "apply": {
         "applyNow": "הגש עכשיו",
@@ -1215,7 +1216,7 @@
         "last90Days": "90 הימים האחרונים",
         "custom": "מותאם אישית",
         "customRange": "טווח מותאם אישית",
-        "scorePlaceholder": "ציון ATS",
+        "scorePlaceholder": "ציון התאמה",
         "allScores": "כל הציונים",
         "score90Plus": "90+",
         "score80Plus": "80+",
@@ -1238,7 +1239,7 @@
       },
       "table": {
         "actions": "פעולות",
-        "atsMatch": "התאמת ATS",
+        "atsMatch": "התאמה",
         "company": "חברה",
         "dateCreated": "תאריך",
         "jobTitle": "תפקיד",
@@ -1332,7 +1333,7 @@
         "applied": "הוגש",
         "applyNow": "הגש עכשיו",
         "applying": "מגיש...",
-        "atsLabel": "ATS",
+        "atsLabel": "התאמה",
         "openJobPosting": "פתח פרסום משרה",
         "unknownCompany": "חברה לא ידועה",
         "untitledPosition": "תפקיד ללא שם",
@@ -1356,12 +1357,12 @@
     },
     "ats": {
       "scoreCard": {
-        "title": "ציון ATS",
+        "title": "ציון התאמה",
         "original": "מקורי",
         "optimized": "מותאם",
         "outOf": "מתוך 100",
         "improvementTitle": "שופר ב-{points} נקודות ({percent}%)",
-        "improvementDescription": "קורות החיים המותאמים שלך מקבלים ציון גבוה יותר בבדיקות ATS.",
+        "improvementDescription": "קורות החיים המותאמים שלך מקבלים ציון גבוה יותר.",
         "processingTime": "זמן עיבוד",
         "analyzersUsed": "אנליזרים בשימוש",
         "confidence": {
@@ -1377,7 +1378,7 @@
         "original": "מקורי",
         "optimized": "מותאם",
         "details": "פרטים",
-        "detailsTitle": "פרטי ציון ATS"
+        "detailsTitle": "פירוט הציון"
       },
       "subscores": {
         "title": "תתי ציונים",
@@ -1415,7 +1416,7 @@
         }
       },
       "suggestions": {
-        "title": "הצעות ATS",
+        "title": "הצעות",
         "count": "{count} הצעות",
         "quickWins": "ניצחונות מהירים",
         "highImpact": "השפעה גבוהה",
@@ -1473,7 +1474,7 @@
         "selectionHint": "נבחר <field></field> ב-<section></section>"
       },
       "suggestionsBanner": {
-        "title": "הצעות ATS מהירות",
+        "title": "תיקונים מהירים",
         "tipLabel": "טיפ {number}",
         "points": "+{points} נקודות",
         "quickWin": "ניצחון מהיר",
@@ -1585,8 +1586,8 @@
         },
         "errors": {
           "applyCustomization": "נכשל בהחלת התאמה אישית.",
-          "atsViolation": "כלל בטוח ל-ATS: {message}",
-          "atsViolationDetail": "שינוי זה עלול לפגוע בהתאמה ל-ATS.",
+          "atsViolation": "אזהרת ATS: {message}",
+          "atsViolationDetail": "שינוי זה עלול לפגוע בציון ההתאמה שלך.",
           "needsDetails": "האם תוכל להבהיר? {message}",
           "needsDetailsDetail": "אנא הוסף פרטים נוספים כדי להמשיך.",
           "invalidRequest": "הבקשה אינה נתמכת: {message}",
@@ -1602,7 +1603,7 @@
         "clickToPreview": "לחץ כדי לצפות",
         "selected": "נבחר",
         "premium": "פרימיום",
-        "atsScoreLabel": "ציון ATS",
+        "atsScoreLabel": "ציון התאמה",
         "customColors": "צבעים",
         "customFonts": "גופנים",
         "customLayout": "פריסה",
@@ -1680,7 +1681,7 @@
   "atsCheckerPage": {
     "meta": {
       "title": "בדיקת קורות חיים ATS חינם — האם קורות החיים שלך עוברים סינון?",
-      "description": "הדבק את קורות החיים ותיאור המשרה. קבל ציון ATS מיידי ואת פערי מילות המפתח. חינם, ללא הרשמה."
+      "description": "הדבק את קורות החיים ותיאור המשרה. קבל ציון התאמה מיידי של Resumely ואת פערי מילות המפתח, לפי האופן שבו מערכות ATS קוראות קורות חיים. חינם, ללא הרשמה."
     },
     "appStoreCta": {
       "heading": "תקן את קורות החיים שלך באפליקציית Resumely",

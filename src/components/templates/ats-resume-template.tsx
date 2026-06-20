@@ -195,7 +195,7 @@ export function ATSResumeTemplate({ data, languagePreference }: ATSResumeTemplat
       <div className="mt-8 pt-6 border-t border-gray-300 print:hidden">
         <div className="bg-blue-50 p-4 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-semibold text-gray-900">ATS Match Score</span>
+            <span className="font-semibold text-gray-900">Match Score</span>
             <span className="text-2xl font-bold text-blue-600">
               {data.matchScore}%
             </span>

@@ -8,7 +8,7 @@
 import { scoreResume as scoreResumeMain, rescoreOptimization } from './index';
 import { extractResumeText } from './extractors/resume-text-extractor';
 import { extractJobData } from './extractors/jd-extractor';
-import { buildJobDataFromExtractedJson, preferJobDescriptionText } from './job-data-resolver';
+import { buildJobDataFromExtractedJson, resolveJobDescriptionText } from './job-data-resolver';
 import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import type { ATSScoreOutput } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
@@ -43,7 +43,7 @@ export async function scoreResume(
     : resumeOptimizedText;
 
   // Extract job description text — prefer longer clean_text over truncated raw_text
-  const jobText = preferJobDescriptionText(jobDescriptionData);
+  const jobText = resolveJobDescriptionText(jobDescriptionData);
 
   const hasStructuredJob = jobDescriptionData.title || jobDescriptionData.job_title;
   const jobExtraction = hasStructuredJob

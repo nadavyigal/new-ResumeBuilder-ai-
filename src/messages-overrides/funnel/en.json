@@ -62,7 +62,7 @@
       "wordCount": "{count} words",
       "urlHelper": "Paste a public job post URL and we will fetch the description.",
       "checking": "Running ATS check...",
-      "submit": "Get my ATS score",
+      "submit": "Get my Match Score",
       "invalidUrl": "Enter a valid job post URL.",
       "hints": {
         "resumeRequired": "Upload your resume to start.",
@@ -101,14 +101,14 @@
       "steps": {
         "parsing": "Parsing resume content",
         "keywords": "Extracting role keywords",
-        "scoring": "Calculating ATS match score",
+        "scoring": "Calculating your Match Score",
         "improvements": "Preparing top fixes"
       },
       "progress": "{percent}% complete"
     },
     "share": {
-      "messageLinkedIn": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
-      "messageTwitter": "I just ran an ATS resume check and got {score}/100. Try yours here: {url}",
+      "messageLinkedIn": "I just ran my resume through Resumely and scored {score}/100. Try yours here: {url}",
+      "messageTwitter": "I just ran my resume through Resumely and scored {score}/100. Try yours here: {url}",
       "label": "Share on {platform}",
       "platform": {
         "linkedin": "LinkedIn",
@@ -134,6 +134,7 @@
       }
     },
     "score": {
+      "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
       "topIssues": "Highest-impact fixes first",
       "lockedTitle": "Unlock {count} more high-impact fixes",
       "lockedDescription": "Create a free account to unlock the full action plan, editable examples, and one-click continuation.",
@@ -166,7 +167,7 @@
         "subtitle": "This is your optimization workspace."
       },
       "conversion": {
-        "title": "Your latest ATS score: {score}",
+        "title": "Your latest Match Score: {score}",
         "description": "You have {count} suggested edits ready to apply in your full workflow.",
         "cta": "Continue to full optimization"
       },
@@ -247,7 +248,7 @@
       "period": "/month",
       "description": "Best for validating one role quickly",
       "feature1": "Limited resume optimizations",
-      "feature2": "ATS match score and top issues",
+      "feature2": "Match Score and top issues",
       "feature3": "Basic template access",
       "cta": "Start Free"
     },
