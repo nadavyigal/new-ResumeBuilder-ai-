@@ -1,7 +1,7 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { scoreOptimization } from "@/lib/ats/integration";
-import { preferJobDescriptionText } from "@/lib/ats/job-data-resolver";
+import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import {
   buildATSPreview,
   buildFinalResumeMetadata,
@@ -38,6 +38,7 @@ interface CreateReviewRunParams {
   resumeRawText: string;
   jobDescriptionText: string;
   jobTitle?: string | null;
+  jobExtractedJson?: Record<string, unknown>;
   optimizedResume: OptimizedResume;
 }
 
@@ -100,6 +101,7 @@ export async function createOptimizationReviewRun({
   resumeRawText,
   jobDescriptionText,
   jobTitle,
+  jobExtractedJson,
   optimizedResume,
 }: CreateReviewRunParams): Promise<{ reviewId: string; reviewRun: OptimizationReviewRun }> {
   const { data: resumeRow } = await supabase
@@ -121,6 +123,7 @@ export async function createOptimizationReviewRun({
     jobDescriptionText,
     jobTitle,
     resumeOriginalText: resumeRawText,
+    jobExtractedJson,
   });
 
   const { data: inserted, error } = await supabase
@@ -207,8 +210,12 @@ export async function applyOptimizationReviewRun({
 
   let finalResume = buildResumeFromApprovedGroups(reviewRun.original_resume_json, approvedGroups);
 
-  const jobDescriptionText = preferJobDescriptionText(jdRow);
   const parsedData = (jdRow.parsed_data as Record<string, unknown> | null) || undefined;
+  const jobDescriptionText = resolveJobDescriptionText({
+    raw_text: jdRow.raw_text,
+    clean_text: jdRow.clean_text,
+    parsed_data: parsedData,
+  });
 
   let finalATSPreview: ReviewATSPreview | null = null;
   let finalATSResult: ATSScoreOutput | null = null;

@@ -1,7 +1,7 @@
 import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
 import { applySuggestionsWithTracking } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
-import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
+import { buildJobDataFromExtractedJson, resolveJobDescriptionText } from '@/lib/ats/job-data-resolver';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 interface AgentContext {
@@ -72,7 +72,7 @@ export async function handleTipImplementation(
   console.log('💡 [handleTipImplementation] Fetching optimization:', optimizationId);
   const { data: optimization, error: fetchError } = await supabase
     .from('optimizations')
-    .select('rewrite_data, ats_score_optimized, ai_modification_count, user_id, jd_id, resume_id, ats_score_original, ats_subscores_original')
+    .select('rewrite_data, ats_score_optimized, ai_modification_count, user_id, jd_id, resume_id, ats_score_original, ats_subscores_original, jd_text')
     .eq('id', optimizationId)
     .maybeSingle(); // Use maybeSingle() to avoid 406 errors when no rows found
 
@@ -98,16 +98,21 @@ export async function handleTipImplementation(
   if (jobId) {
     const { data, error } = await supabase
       .from('job_descriptions')
-      .select('clean_text, raw_text, title')
+      .select('clean_text, raw_text, title, parsed_data')
       .eq('id', jobId)
       .maybeSingle();
     if (error) {
       console.error('WARN [handleTipImplementation] Failed to fetch job description:', error);
     } else {
       jobDesc = data;
-      jobText = (jobDesc?.clean_text || jobDesc?.raw_text || '').trim();
-      if (jobText) {
-        jobData = extractJobData(jobText);
+      jobText = resolveJobDescriptionText({
+        raw_text: jobDesc?.raw_text,
+        clean_text: jobDesc?.clean_text,
+        parsed_data: jobDesc?.parsed_data,
+        jd_text: optimization.jd_text,
+      });
+      if (jobText && jobDesc?.parsed_data) {
+        jobData = buildJobDataFromExtractedJson(jobDesc.parsed_data, jobText);
       }
     }
   }
@@ -205,8 +210,9 @@ export async function handleTipImplementation(
     const atsResult = await rescoreAfterTipImplementation({
       resumeOriginalText: resumeData.raw_text,
       resumeOptimizedJson: updatedResume,
-      jobDescriptionText: jobText || jobDesc.clean_text || jobDesc.raw_text,
+      jobDescriptionText: jobText,
       jobTitle: jobTitle,
+      jobExtractedJson: jobDesc?.parsed_data || undefined,
       previousOriginalScore: optimization.ats_score_original,
       previousSubscoresOriginal: optimization.ats_subscores_original,
     });
@@ -257,7 +263,8 @@ export async function handleTipImplementation(
       ats_subscores: atsResult.subscores,
       ats_suggestions: atsResult.suggestions,
       ats_confidence: atsResult.confidence,
-      ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length, // Increment count (Phase 3)
+      ...(optimization.jd_text ? {} : { jd_text: jobText }),
+      ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
       updated_at: new Date().toISOString(),
     };
     console.log('💡 [handleTipImplementation] Updating optimization in database with real scores and modification count');

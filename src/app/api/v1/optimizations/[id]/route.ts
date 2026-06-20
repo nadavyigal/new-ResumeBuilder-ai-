@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { scoreOptimization } from "@/lib/ats/integration";
 
 export const runtime = "nodejs";
@@ -226,7 +227,7 @@ export async function PATCH(
 
     const { data: currentOpt, error: currentOptErr } = await supabase
       .from("optimizations")
-      .select("resume_id, jd_id, ats_score_original, ats_subscores_original")
+      .select("resume_id, jd_id, ats_score_original, ats_subscores_original, jd_text")
       .eq("id", id)
       .eq("user_id", userId)
       .maybeSingle();
@@ -265,7 +266,12 @@ export async function PATCH(
       const scored = await scoreOptimization({
         resumeOriginalText: (resumeRow as any)?.raw_text || "",
         resumeOptimizedJson: rewriteData,
-        jobDescriptionText: (jdRow as any)?.clean_text || (jdRow as any)?.raw_text || "",
+        jobDescriptionText: resolveJobDescriptionText({
+          raw_text: (jdRow as any)?.raw_text,
+          clean_text: (jdRow as any)?.clean_text,
+          parsed_data: (jdRow as any)?.parsed_data,
+          jd_text: (currentOpt as any)?.jd_text,
+        }),
         jobExtractedJson: (jdRow as any)?.parsed_data || undefined,
       });
       atsResult = scored;

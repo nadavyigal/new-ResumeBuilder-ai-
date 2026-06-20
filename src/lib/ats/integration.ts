@@ -197,6 +197,7 @@ export async function rescoreAfterTipImplementation(params: {
   resumeOptimizedJson: OptimizedResume;
   jobDescriptionText: string;
   jobTitle?: string;
+  jobExtractedJson?: Record<string, unknown>;
   previousOriginalScore: number;
   previousSubscoresOriginal: any;
 }): Promise<ATSScoreOutput> {
@@ -205,6 +206,7 @@ export async function rescoreAfterTipImplementation(params: {
     resumeOptimizedJson,
     jobDescriptionText,
     jobTitle = 'Position',
+    jobExtractedJson,
     previousOriginalScore,
     previousSubscoresOriginal,
   } = params;
@@ -212,8 +214,10 @@ export async function rescoreAfterTipImplementation(params: {
   // Convert optimized resume JSON to text
   const resumeOptimizedText = resumeJsonToText(resumeOptimizedJson);
 
-  // Extract job requirements
-  const jobExtraction = extractJobRequirements(jobDescriptionText, jobTitle);
+  // Extract job requirements — prefer structured parsed_data when available
+  const jobExtraction = jobExtractedJson
+    ? buildJobDataFromExtractedJson(jobExtractedJson, jobDescriptionText)
+    : extractJobRequirements(jobDescriptionText, jobTitle);
 
   // Generate format reports
   const formatReport = generateFormatReport(resumeOriginalText);

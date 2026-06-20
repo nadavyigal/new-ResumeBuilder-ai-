@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { extractJob, ThinJobExtractionError } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
-import { normalizeParsedJobData } from "@/lib/ats/job-data-resolver";
+import {
+  buildJobDescriptionTextFromParsed,
+  buildParsedDataFromPlainText,
+  normalizeParsedJobData,
+  resolveJobDescriptionText,
+} from "@/lib/ats/job-data-resolver";
 import { isSupportedResumeFile } from "@/lib/utils/file-validation";
 import { convertResumeBuffer } from "@/lib/markitdown-client";
 import path from "path";
@@ -77,16 +82,10 @@ export async function POST(req: NextRequest) {
         extractedCompany = extracted.company_name;
         extractedData = normalizeParsedJobData(extracted);
         sourceUrl = jobDescriptionUrl;
-
-        const parts: string[] = [];
-        if (extracted.job_title) parts.push(`Job Title: ${extracted.job_title}`);
-        if (extracted.company_name) parts.push(`Company: ${extracted.company_name}`);
-        if (extracted.location) parts.push(`Location: ${extracted.location}`);
-        if (extracted.about_this_job) parts.push(`About: ${extracted.about_this_job}`);
-        if (extracted.requirements?.length) parts.push(`Requirements: ${extracted.requirements.join("; ")}`);
-        if (extracted.responsibilities?.length) parts.push(`Responsibilities: ${extracted.responsibilities.join("; ")}`);
-        if (extracted.qualifications?.length) parts.push(`Qualifications: ${extracted.qualifications.join("; ")}`);
-        jobDescriptionText = parts.join("\n");
+        jobDescriptionText = buildJobDescriptionTextFromParsed(extractedData);
+        if (!jobDescriptionText && extracted.about_this_job) {
+          jobDescriptionText = extracted.about_this_job;
+        }
       } catch (err) {
         const isThin =
           err instanceof ThinJobExtractionError ||
@@ -98,7 +97,9 @@ export async function POST(req: NextRequest) {
           // hard-fail with an actionable message instead of scoring garbage.
           if (jobDescription && jobDescription.trim()) {
             jobDescriptionText = jobDescription;
-            extractedData = { fallback: true, source_url: jobDescriptionUrl };
+            extractedData = buildParsedDataFromPlainText(jobDescription, {
+              sourceUrl: jobDescriptionUrl,
+            });
             sourceUrl = jobDescriptionUrl;
           } else {
             return NextResponse.json(
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
           try {
             const text = await scrapeJobDescription(jobDescriptionUrl);
             jobDescriptionText = text;
-            extractedData = { fallback: true, source_url: jobDescriptionUrl };
+            extractedData = buildParsedDataFromPlainText(text, { sourceUrl: jobDescriptionUrl });
             sourceUrl = jobDescriptionUrl;
           } catch {
             jobDescriptionText = `Job Posting URL: ${jobDescriptionUrl}`;
@@ -129,6 +130,7 @@ export async function POST(req: NextRequest) {
       }
     } else if (jobDescription) {
       jobDescriptionText = jobDescription;
+      extractedData = buildParsedDataFromPlainText(jobDescription);
     } else {
       return NextResponse.json({ error: "Job description or URL is required." }, { status: 400 });
     }
@@ -175,6 +177,12 @@ export async function POST(req: NextRequest) {
       .select()
       .maybeSingle();
 
+    const scoringJobText = resolveJobDescriptionText({
+      raw_text: jobDescriptionText,
+      clean_text: buildJobDescriptionTextFromParsed(extractedData),
+      parsed_data: extractedData,
+    });
+
     const jdInsert = supabase
       .from("job_descriptions")
       .insert({
@@ -182,7 +190,7 @@ export async function POST(req: NextRequest) {
         title: extractedTitle || "Job Position",
         company: extractedCompany || "Company Name",
         raw_text: jobDescriptionText,
-        clean_text: jobDescriptionText,
+        clean_text: scoringJobText,
         parsed_data: extractedData,
         source_url: sourceUrl,
       })
@@ -229,7 +237,9 @@ export async function POST(req: NextRequest) {
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
     });
-    const pipelineResult = await runOptimizePipeline(resumeMarkdown, jobDescriptionText);
+    const pipelineResult = await runOptimizePipeline(resumeMarkdown, scoringJobText, {
+      jobExtractedJson: extractedData,
+    });
     const optimizedResume = pipelineResult.optimizedResume;
 
     const { reviewId, reviewRun } = await createOptimizationReviewRun({
@@ -238,8 +248,9 @@ export async function POST(req: NextRequest) {
       resumeId: resumeData.id,
       jobDescriptionId: jdData.id,
       resumeRawText: resumeMarkdown,
-      jobDescriptionText,
+      jobDescriptionText: scoringJobText,
       jobTitle: extractedTitle || jdData.title,
+      jobExtractedJson: extractedData,
       optimizedResume,
     });
 

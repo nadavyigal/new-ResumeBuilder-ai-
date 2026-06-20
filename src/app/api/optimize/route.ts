@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
-import { preferJobDescriptionText } from "@/lib/ats/job-data-resolver";
+import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
@@ -75,8 +75,13 @@ export async function POST(req: NextRequest) {
     // Credit check disabled — all users are on free tier for now.
     // Re-enable by uncommenting the consumeCredit block when monetization goes live.
 
-    const jobDescriptionText = preferJobDescriptionText(jdData as { raw_text?: string; clean_text?: string });
     const parsedData = (jdData as { parsed_data?: Record<string, unknown> }).parsed_data;
+
+    const jobDescriptionText = resolveJobDescriptionText({
+      raw_text: (jdData as { raw_text?: string }).raw_text,
+      clean_text: (jdData as { clean_text?: string }).clean_text,
+      parsed_data: parsedData,
+    });
 
     const pipelineResult = await runOptimizePipeline(
       (resumeData as any).raw_text,
@@ -92,7 +97,8 @@ export async function POST(req: NextRequest) {
       jobDescriptionId,
       resumeRawText: (resumeData as any).raw_text,
       jobDescriptionText,
-      jobTitle: 'Position',
+      jobTitle: (jdData as { title?: string }).title || 'Position',
+      jobExtractedJson: parsedData,
       optimizedResume,
     });
 
