@@ -66,15 +66,23 @@ export async function POST(req: NextRequest) {
     let sourceUrl: string | null = (body?.jobUrl as string | undefined) || null;
     if (url) {
       console.log('🔍 Extracting job from URL:', url);
-      extracted = await extractJob(url);
-      console.log('📊 Extracted data:', {
-        company: extracted.company_name,
-        title: extracted.job_title,
-        sourceUrl: extracted.source_url
-      });
-      mappedJobTitle = extracted.job_title || mappedJobTitle;
-      mappedCompany = extracted.company_name || mappedCompany;
-      sourceUrl = extracted.source_url;
+      try {
+        extracted = await extractJob(url);
+        console.log('📊 Extracted data:', {
+          company: extracted.company_name,
+          title: extracted.job_title,
+          sourceUrl: extracted.source_url
+        });
+        mappedJobTitle = extracted.job_title || mappedJobTitle;
+        mappedCompany = extracted.company_name || mappedCompany;
+        sourceUrl = extracted.source_url;
+      } catch (err) {
+        // A thin/unreadable scrape (e.g. LinkedIn authwall) must not 500 this
+        // endpoint — it only records title/company. Keep the body-supplied
+        // values and the original URL.
+        console.warn('⚠️ Job extraction failed, using provided title/company:', (err as Error)?.message);
+        sourceUrl = url;
+      }
     }
 
     // Create DB row first to get application id (avoid new columns for backward compatibility)

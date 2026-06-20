@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { extractJob } from "@/lib/scraper/jobExtractor";
+import { extractJob, ThinJobExtractionError } from "@/lib/scraper/jobExtractor";
 import { scrapeJobDescription } from "@/lib/job-scraper";
 import { normalizeParsedJobData } from "@/lib/ats/job-data-resolver";
 import { isSupportedResumeFile } from "@/lib/utils/file-validation";
@@ -87,18 +87,44 @@ export async function POST(req: NextRequest) {
         if (extracted.responsibilities?.length) parts.push(`Responsibilities: ${extracted.responsibilities.join("; ")}`);
         if (extracted.qualifications?.length) parts.push(`Qualifications: ${extracted.qualifications.join("; ")}`);
         jobDescriptionText = parts.join("\n");
-      } catch {
-        // Fallback to simple scraper if structured extraction fails
-        try {
-          const text = await scrapeJobDescription(jobDescriptionUrl);
-          jobDescriptionText = text;
-          extractedData = { fallback: true, source_url: jobDescriptionUrl };
-          sourceUrl = jobDescriptionUrl;
-        } catch {
-          // Final fallback: proceed with URL only so optimization can continue
-          jobDescriptionText = `Job Posting URL: ${jobDescriptionUrl}`;
-          extractedData = { fallback: true, source_url: jobDescriptionUrl };
-          sourceUrl = jobDescriptionUrl;
+      } catch (err) {
+        const isThin =
+          err instanceof ThinJobExtractionError ||
+          (err as { code?: string })?.code === "THIN_JOB_EXTRACTION";
+
+        if (isThin) {
+          // The URL was fetched but came back effectively empty (e.g. LinkedIn
+          // authwall). Prefer pasted text if the user provided it; otherwise
+          // hard-fail with an actionable message instead of scoring garbage.
+          if (jobDescription && jobDescription.trim()) {
+            jobDescriptionText = jobDescription;
+            extractedData = { fallback: true, source_url: jobDescriptionUrl };
+            sourceUrl = jobDescriptionUrl;
+          } else {
+            return NextResponse.json(
+              {
+                error:
+                  "We couldn't read that job link. Paste the job description text instead.",
+                code: "JOB_URL_UNREADABLE",
+                field: "jobDescription",
+                sourceUrl: jobDescriptionUrl,
+              },
+              { status: 422 }
+            );
+          }
+        } else {
+          // Transient/parse failure (network, timeout): fall back to the simple
+          // scraper, then to a URL-only stub so optimization can still proceed.
+          try {
+            const text = await scrapeJobDescription(jobDescriptionUrl);
+            jobDescriptionText = text;
+            extractedData = { fallback: true, source_url: jobDescriptionUrl };
+            sourceUrl = jobDescriptionUrl;
+          } catch {
+            jobDescriptionText = `Job Posting URL: ${jobDescriptionUrl}`;
+            extractedData = { fallback: true, source_url: jobDescriptionUrl };
+            sourceUrl = jobDescriptionUrl;
+          }
         }
       }
     } else if (jobDescription) {
