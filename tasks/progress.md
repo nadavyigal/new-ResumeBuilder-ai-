@@ -2,15 +2,15 @@
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: ATS scoring pipeline error sweep (production score-capping bugs); PDF parse/render-preview rollout parked
-Active Story: LinkedIn job scrape returns thin/meta-only content in production (Vercel serverless IP likely flagged by LinkedIn anti-bot) — root cause of low scores on real test jobs; parked per founder decision 2026-06-19, no new scraping-proxy dependency added without explicit approval
-Last Completed Story: Wired job_extracted_json (parsed_data) into PUT /api/v1/optimizations/[id] save-path scoreOptimization() call (commit 85505a3, 2026-06-19) — closes the gap where manual edits/re-scores bypassed PR #76's structured resolver
-Next Recommended Story: If LinkedIn scrape-blocking needs fixing later — either evaluate a residential-IP scraping proxy (new paid dependency, needs approval) or add a thin-scrape detector that prompts the user to paste JD text manually instead of silently scoring against a truncated og:description snippet
+Current Phase: ATS scoring pipeline error sweep — LinkedIn scrape-blocking fix implemented, awaiting production verification on Vercel preview
+Active Story: Verify the LinkedIn guest-endpoint fix from a real Vercel datacenter IP (branch fix/linkedin-guest-scrape) — set SCRAPE_CHECK_TOKEN on the preview, hit /api/debug/scrape-check, confirm aboutLen>1000 & isThin:false; then re-optimize a fresh LinkedIn job on iOS and confirm the score lifts above ~21
+Last Completed Story: Implemented LinkedIn guest-API scrape fix + thinness gate (branch fix/linkedin-guest-scrape, pushed 2026-06-20) — root-cause fix for the score-capping bug
+Next Recommended Story: After preview verification passes, merge fix/linkedin-guest-scrape and remove (or keep 404-gated) the debug route; only revisit a residential proxy if LinkedIn 429s the Vercel IP at scale (fetchHtml() seam is ready)
 Estimated Completion: Web is live; launch-support items above remain
-Blockers: LinkedIn appears to serve degraded/meta-only HTML to Vercel's serverless egress IPs — confirmed by diffing a direct curl (full 2,950-char description, all sections present) against the production-scraped row (222 chars, every parsed_data field null) for the same job URL. Not fixable in the resolver/scorer layer; needs a scrape-layer fix.
-Risks: PDF/DOCX upload smoke test still not run (#1 pre-approval risk per tasks/MEMORY.md 2026-06-08); user_credits table vs profiles.credit_balance reconciliation must be resolved at Gate A
-Last Validation: PR #76 merged 2026-06-19 08:40 UTC + save-path fix (85505a3) 2026-06-19. CI/lint/tests all pass. Cloudflare Workers Build "match1resume1to1job" check fails on every PR (#72-76) — confirmed stale/orphaned integration (no wrangler.toml in repo), not a regression.
-Last Updated: 2026-06-19
+Blockers: —
+Risks: Guest-endpoint behavior on Vercel's IP is verified-by-design but not yet confirmed from a real datacenter IP (only reproducible post-deploy); PDF/DOCX upload smoke test still not run (#1 pre-approval risk per tasks/MEMORY.md 2026-06-08); user_credits table vs profiles.credit_balance reconciliation must be resolved at Gate A
+Last Validation: fix/linkedin-guest-scrape — 8 new unit tests pass, relevant suites 24/24, lint 0 errors (2026-06-20). The 16 other failing jest suites are pre-existing (Playwright e2e under jest + server-dependent contract tests), confirmed by stash-and-rerun on baseline.
+Last Updated: 2026-06-20
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--

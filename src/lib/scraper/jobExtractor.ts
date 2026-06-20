@@ -79,6 +79,77 @@ function extractMetaContent(html: string, name: string): string | null {
   return m ? sanitizeText(m[1]) : null;
 }
 
+// A scrape is "thin" when the job body is shorter than this AND no structured
+// lists were found. LinkedIn's datacenter authwall snippet is ~222 chars with no
+// lists; a real posting body runs into the thousands. 300 sits safely between.
+const THIN_BODY_MIN_CHARS = 300;
+
+const CHROME_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+/**
+ * Thrown when a job posting was fetched successfully but the extracted content
+ * is effectively empty (e.g. LinkedIn served a datacenter authwall instead of
+ * the real posting). Callers should surface an actionable "paste the text"
+ * message rather than scoring against the near-empty content.
+ */
+export class ThinJobExtractionError extends Error {
+  readonly code = "THIN_JOB_EXTRACTION" as const;
+  constructor(public readonly url: string) {
+    super("Job posting extraction returned insufficient content");
+    this.name = "ThinJobExtractionError";
+  }
+}
+
+/**
+ * True when extraction produced no usable job content — short body and no
+ * requirements/qualifications/responsibilities lists.
+ */
+export function isThinExtraction(data: ExtractedJobData): boolean {
+  const bodyLen = (data.about_this_job || "").length;
+  const hasLists =
+    (data.requirements?.length ?? 0) > 0 ||
+    (data.qualifications?.length ?? 0) > 0 ||
+    (data.responsibilities?.length ?? 0) > 0;
+  return bodyLen < THIN_BODY_MIN_CHARS && !hasLists;
+}
+
+/**
+ * Derive a LinkedIn numeric job id from any of the URL shapes LinkedIn uses.
+ * Priority: currentJobId query param → /jobs/view/{id} → trailing long integer.
+ */
+export function extractLinkedInJobId(url: URL): string | null {
+  const currentJobId = url.searchParams.get("currentJobId");
+  if (currentJobId && /^\d+$/.test(currentJobId)) return currentJobId;
+
+  const viewMatch = url.pathname.match(/\/jobs\/view\/(\d+)/);
+  if (viewMatch) return viewMatch[1];
+
+  const trailingMatch = url.pathname.match(/(\d{6,})\/?$/);
+  if (trailingMatch) return trailingMatch[1];
+
+  return null;
+}
+
+/**
+ * Single outbound-fetch seam for job scraping. A future residential-proxy
+ * service (PROXY_URL / SCRAPER_API_KEY) would slot in here. The LinkedIn guest
+ * endpoint works without a User-Agent, so we only send one when asked.
+ */
+async function fetchHtml(targetUrl: string, opts: { userAgent: boolean }): Promise<string> {
+  const res = await fetch(targetUrl, {
+    method: "GET",
+    headers: opts.userAgent ? { "User-Agent": CHROME_USER_AGENT } : {},
+    signal: AbortSignal.timeout(12_000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch job posting: ${res.status} ${res.statusText}`);
+  }
+
+  return res.text();
+}
+
 export async function extractFromLinkedIn(html: string, url: string): Promise<ExtractedJobData> {
   const domain = new URL(url).hostname;
   // Try to extract from known containers
@@ -141,6 +212,23 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
     }
   }
 
+  // Guest-fragment fallback: the /jobs-guest/ API response has no og:title or
+  // <title> tag — title/company live in the topcard markup. Only fires when the
+  // meta/JSON-LD paths above produced nothing, so the full-page parsing stays
+  // primary.
+  if (!job_title) {
+    job_title =
+      sanitizeText(html.match(/class=["'][^"']*\btop-card-layout__title\b[^"']*["'][^>]*>([\s\S]*?)<\//i)?.[1]) ||
+      sanitizeText(html.match(/class=["'][^"']*\btopcard__title\b[^"']*["'][^>]*>([\s\S]*?)<\//i)?.[1]) ||
+      job_title;
+  }
+  if (!company_name) {
+    company_name =
+      sanitizeText(html.match(/class=["'][^"']*\btopcard__org-name-link\b[^"']*["'][^>]*>([\s\S]*?)<\//i)?.[1]) ||
+      sanitizeText(html.match(/class=["'][^"']*\btop-card-layout__second-subline\b[^"']*["'][^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\//i)?.[1]) ||
+      company_name;
+  }
+
   // Location from meta or inline text
   const location = extractMetaContent(html, "job:location") ||
     sanitizeText((html.match(/"job-location"[^>]*>([\s\S]*?)<\//i)?.[1])) ||
@@ -191,6 +279,17 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
     }
   }
 
+  // Final fallback: the LinkedIn guest fragment holds the full posting inside
+  // show-more-less-html with <strong>/<ul> markup and no <p> tags, so the
+  // pattern-based extraction above can miss it. Use the whole sanitized body so
+  // the scorer always has the real JD text (and the thin gate doesn't trip).
+  if ((!about_this_job || about_this_job.length < 50) && fullDescription) {
+    const fullBody = sanitizeText(fullDescription);
+    if (fullBody && fullBody.length > (about_this_job?.length ?? 0)) {
+      about_this_job = fullBody;
+    }
+  }
+
   // Extract Responsibilities
   let responsibilities: string[] | null = null;
   const respMatch = fullDescription.match(/Responsibilities[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/i);
@@ -202,7 +301,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
 
   // Fallback: look for responsibility-related headings
   if (!responsibilities || responsibilities.length === 0) {
-    responsibilities = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(What you['']ll do|Responsibilities|Your responsibilities|Key responsibilities)<\/strong>/i) ||
+    responsibilities = extractListAfterHeading(fullDescription || html, /<strong[^>]*>\s*(What you['']ll do|Responsibilities|Your responsibilities|Key responsibilities)/i) ||
                       extractListAfterHeading(fullDescription || html, /<h2[^>]*>(What you['']ll do|Responsibilities)<\/h2>/i);
   }
 
@@ -217,12 +316,12 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
 
   // Fallback: look for requirement-related headings
   if (!requirements || requirements.length === 0) {
-    requirements = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(Requirements|What we need|What you need|You have|Must have)<\/strong>/i) ||
+    requirements = extractListAfterHeading(fullDescription || html, /<strong[^>]*>\s*(Requirements|What we need|What you need|You have|Must have)/i) ||
                   extractListAfterHeading(fullDescription || html, /<h2[^>]*>(Requirements|Skills|You have)<\/h2>/i);
   }
 
   // Extract Qualifications (separate from requirements)
-  const qualifications = extractListAfterHeading(fullDescription || html, /<strong[^>]*>(Qualifications|What you bring|Basic Qualifications|Your qualifications)<\/strong>/i) ||
+  const qualifications = extractListAfterHeading(fullDescription || html, /<strong[^>]*>\s*(Qualifications|What you bring|Basic Qualifications|Your qualifications)/i) ||
                         extractListAfterHeading(fullDescription || html, /<h2[^>]*>(Qualifications|What you bring|Basic Qualifications)<\/h2>/i);
   const benefits = extractListAfterHeading(html, /<h2[^>]*>(Benefits|Perks)<\/h2>/i);
 
@@ -346,38 +445,45 @@ export async function extractGeneric(html: string, url: string): Promise<Extract
 }
 
 export async function extractJob(url: string): Promise<ExtractedJobData> {
-  // Handle LinkedIn URLs with currentJobId parameter
-  let finalUrl = url;
   const parsedUrl = new URL(url);
   const host = parsedUrl.hostname.toLowerCase();
+  const isLinkedIn = host.includes('linkedin.com');
 
-  if (host.includes('linkedin.com')) {
-    const currentJobId = parsedUrl.searchParams.get('currentJobId');
-    if (currentJobId) {
-      // Convert collection URL to direct job URL
-      finalUrl = `https://www.linkedin.com/jobs/view/${currentJobId}`;
-      console.log(`Converted LinkedIn URL to direct job URL: ${finalUrl}`);
+  let html: string;
+  let finalUrl = url;
+  let extracted: ExtractedJobData;
+
+  if (isLinkedIn) {
+    const jobId = extractLinkedInJobId(parsedUrl);
+    if (jobId) {
+      // The public guest endpoint returns the full posting body and works from
+      // datacenter IPs (no auth), unlike /jobs/view which LinkedIn degrades to
+      // an authwall for cloud egress. Try it first.
+      const guestUrl = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`;
+      try {
+        html = await fetchHtml(guestUrl, { userAgent: false });
+        finalUrl = guestUrl;
+      } catch {
+        // Guest endpoint failed (e.g. 429) — fall back to the public view page.
+        finalUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+        html = await fetchHtml(finalUrl, { userAgent: true });
+      }
+    } else {
+      html = await fetchHtml(url, { userAgent: true });
     }
+    extracted = await extractFromLinkedIn(html, finalUrl);
+  } else {
+    html = await fetchHtml(url, { userAgent: true });
+    extracted = await extractGeneric(html, finalUrl);
   }
 
-  const res = await fetch(finalUrl, {
-    method: 'GET',
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    },
-    signal: AbortSignal.timeout(12_000),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Failed to fetch job posting: ${res.status} ${res.statusText}`);
+  // Guard against scoring against an empty/authwall scrape. Callers translate
+  // this into an actionable "paste the description" message.
+  if (isThinExtraction(extracted)) {
+    throw new ThinJobExtractionError(finalUrl);
   }
 
-  const html = await res.text();
-
-  if (host.includes('linkedin.com')) {
-    return extractFromLinkedIn(html, finalUrl);
-  }
-  return extractGeneric(html, finalUrl);
+  return extracted;
 }
 
 
