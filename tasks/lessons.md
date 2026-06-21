@@ -13,6 +13,16 @@
 
 ---
 
+## LinkedIn JD section headings vary endlessly — classify by keyword, don't enumerate phrases
+
+**Symptom:** A Fresha Business Development Manager posting (the same job behind the 34/100 score investigated above) had `parsed_data.requirements/qualifications/responsibilities` ALL null despite a full 6KB scrape with genuinely well-structured `<strong>heading</strong><ul><li>...` content.
+**Root cause:** `extractFromLinkedIn` in `src/lib/scraper/jobExtractor.ts` matched section headings against a fixed list of literal phrases ("Responsibilities", "What you'll do", "Requirements", "Must have", "Qualifications"...). This posting used "What You Will Be Doing", "What We Are Looking For", and "Added bonus" — none of which matched, so every structured field silently came back null even though the content was present. Re-checking the existing `guest-fragment.html` fixture (Base44 job) showed the *same* gap was already latent there: its first `<ul>` (under heading "Job Description") was responsibilities content the old regex never caught either — only `qualifications` matched ("Qualifications" heading), which is why that test still passed (it only asserted `listCount > 0`, not which bucket).
+**Fix:** Added a generic fallback (`extractClassifiedHeadingSections` + `classifyHeading`) that scans every `<strong>heading</strong><ul>...</ul>` block in the description and buckets it by keyword family (responsibilities / requirements / qualifications / nice_to_have / benefits) via regex on the heading text, rather than requiring an exact phrase. Only fills buckets the literal-phrase matching above left empty, so a recognized phrase still wins first. Also wired up `nice_to_have` (previously always hardcoded `null`).
+**Verified:** Live-fetched the real Fresha LinkedIn guest fragment (job 4425913724) and confirmed responsibilities/requirements/nice_to_have populate correctly post-fix. Regression test added: `tests/unit/linkedin-job-extractor.test.ts` with new fixture `tests/fixtures/linkedin/guest-fragment-varied-headings.html`.
+**Note:** This closes the dominant remaining lever from the 2026-06-21 multi-causal diagnosis — JD structured-requirement extraction. The scorer no longer needs to fall back to the noisy `extractKeywords` prose-keyword proxy for postings with well-formed but non-standard heading phrasing.
+
+---
+
 ## Supabase 406: `.single()` on missing or multiple rows
 
 **Mistake:** Using `.single()` on a query that can return zero or multiple rows.

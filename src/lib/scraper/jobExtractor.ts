@@ -66,6 +66,65 @@ function extractListAfterHeading(html: string, headingRegex: RegExp): string[] |
   return paras.length ? paras : null;
 }
 
+type SectionBucket = 'responsibilities' | 'requirements' | 'qualifications' | 'nice_to_have' | 'benefits';
+
+// Real LinkedIn postings phrase their <strong> section headings in countless
+// ways ("What You Will Be Doing", "What We Are Looking For", "Added bonus" —
+// none of which match the literal "Responsibilities"/"Requirements"/etc.
+// patterns above). Rather than enumerating every synonym, classify whatever
+// heading text is actually present by keyword family.
+const SECTION_HEADING_PATTERNS: ReadonlyArray<{ bucket: SectionBucket; pattern: RegExp }> = [
+  { bucket: 'nice_to_have', pattern: /\b(nice[\s-]?to[\s-]?have|added?\s+bonus|preferred|good\s+to\s+have)\b/i },
+  { bucket: 'benefits', pattern: /\b(benefits?|perks?|what\s+we\s+offer|compensation)\b/i },
+  { bucket: 'qualifications', pattern: /\b(qualifications?|what\s+you\s+bring|your\s+background|basic\s+qualifications?)\b/i },
+  {
+    bucket: 'responsibilities',
+    pattern: /\b(responsibilit|what\s+you('|’)?ll\s+do|what\s+you\s+will\s+(be\s+)?doing|duties|day[\s-]?to[\s-]?day|key\s+activities|your\s+role)\b/i,
+  },
+  {
+    bucket: 'requirements',
+    pattern: /\b(requirements?|looking\s+for|what\s+(we|you)\s+need|must[\s-]?have|you\s+have\b|skills\s+required|who\s+you\s+are)\b/i,
+  },
+];
+
+function classifyHeading(headingText: string): SectionBucket | null {
+  for (const { bucket, pattern } of SECTION_HEADING_PATTERNS) {
+    if (pattern.test(headingText)) return bucket;
+  }
+  return null;
+}
+
+/**
+ * Generic fallback: find every <strong>heading</strong><ul>...</ul> block in
+ * the description (regardless of exact heading phrasing) and bucket its list
+ * items by keyword family. Used only to fill buckets the literal-phrase
+ * extraction above missed, so a recognized phrase always wins first.
+ */
+function extractClassifiedHeadingSections(html: string): Record<SectionBucket, string[]> {
+  const buckets: Record<SectionBucket, string[]> = {
+    responsibilities: [],
+    requirements: [],
+    qualifications: [],
+    nice_to_have: [],
+    benefits: [],
+  };
+
+  const sectionRegex = /<strong[^>]*>([\s\S]*?)<\/strong>\s*<ul[^>]*>([\s\S]*?)<\/ul>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = sectionRegex.exec(html)) !== null) {
+    const heading = sanitizeText(match[1]);
+    if (!heading) continue;
+    const bucket = classifyHeading(heading);
+    if (!bucket) continue;
+    const items = [...match[2].matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)]
+      .map(m => sanitizeText(m[1]))
+      .filter(Boolean) as string[];
+    buckets[bucket].push(...items);
+  }
+
+  return buckets;
+}
+
 function extractTitleFromTitleTag(html: string): string | null {
   const t = textBetween(html, /<title[^>]*>/i, /<\/title>/i);
   if (!t) return null;
@@ -321,9 +380,31 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
   }
 
   // Extract Qualifications (separate from requirements)
-  const qualifications = extractListAfterHeading(fullDescription || html, /<strong[^>]*>\s*(Qualifications|What you bring|Basic Qualifications|Your qualifications)/i) ||
+  let qualifications = extractListAfterHeading(fullDescription || html, /<strong[^>]*>\s*(Qualifications|What you bring|Basic Qualifications|Your qualifications)/i) ||
                         extractListAfterHeading(fullDescription || html, /<h2[^>]*>(Qualifications|What you bring|Basic Qualifications)<\/h2>/i);
-  const benefits = extractListAfterHeading(html, /<h2[^>]*>(Benefits|Perks)<\/h2>/i);
+  let benefits = extractListAfterHeading(html, /<h2[^>]*>(Benefits|Perks)<\/h2>/i);
+  let nice_to_have: string[] | null = null;
+
+  // Generic fallback: classify whatever <strong>heading</strong><ul> blocks
+  // remain (heading phrasing LinkedIn employers vary endlessly — "What You
+  // Will Be Doing", "What We Are Looking For", "Added bonus", etc.) and fill
+  // only the buckets still empty after the literal-phrase matching above.
+  const classified = extractClassifiedHeadingSections(fullDescription || html);
+  if (!responsibilities || responsibilities.length === 0) {
+    responsibilities = classified.responsibilities.length ? classified.responsibilities : responsibilities;
+  }
+  if (!requirements || requirements.length === 0) {
+    requirements = classified.requirements.length ? classified.requirements : requirements;
+  }
+  if (!qualifications || qualifications.length === 0) {
+    qualifications = classified.qualifications.length ? classified.qualifications : qualifications;
+  }
+  if (!benefits || benefits.length === 0) {
+    benefits = classified.benefits.length ? classified.benefits : benefits;
+  }
+  if (classified.nice_to_have.length) {
+    nice_to_have = classified.nice_to_have;
+  }
 
   const contact_person = null; // Rarely explicit on LinkedIn
   const employment_type = sanitizeText((html.match(/Employment Type<[^>]*>\s*<span[^>]*>([\s\S]*?)<\//i)?.[1])) || null;
@@ -353,7 +434,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
     requirements: mergedRequirements.length > 0 ? mergedRequirements : null,
     responsibilities: responsibilities || null,
     qualifications: qualifications || null,
-    nice_to_have: null,
+    nice_to_have: nice_to_have && nice_to_have.length > 0 ? nice_to_have : null,
     benefits: benefits || null,
     application_instructions: null,
     posting_id: sanitizeText((html.match(/data-job-id=\"(\d+)\"/i)?.[1])) || null,
@@ -365,7 +446,7 @@ export async function extractFromLinkedIn(html: string, url: string): Promise<Ex
       requirements: mergedRequirements.length > 0 ? "h2 Requirements/Skills section or merged qualifications" : null,
       responsibilities: responsibilities ? "h2 Responsibilities section" : null,
       qualifications: qualifications ? "h2 Qualifications section" : null,
-      nice_to_have: null,
+      nice_to_have: nice_to_have && nice_to_have.length > 0 ? "classified heading section" : null,
       benefits: benefits ? "h2 Benefits section" : null,
       application_instructions: null,
       compensation: compensation ? "Compensation/Salary snippet" : null,

@@ -11,6 +11,10 @@ import {
 const FIXTURE_DIR = path.join(__dirname, '../fixtures/linkedin');
 const guestHtml = fs.readFileSync(path.join(FIXTURE_DIR, 'guest-fragment.html'), 'utf8');
 const authwallHtml = fs.readFileSync(path.join(FIXTURE_DIR, 'authwall-fragment.html'), 'utf8');
+const variedHeadingsHtml = fs.readFileSync(
+  path.join(FIXTURE_DIR, 'guest-fragment-varied-headings.html'),
+  'utf8'
+);
 
 const GUEST_URL =
   'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/4429904263';
@@ -31,6 +35,32 @@ describe('extractFromLinkedIn — guest fragment', () => {
       (result.responsibilities?.length ?? 0);
     expect(listCount).toBeGreaterThan(0);
 
+    expect(isThinExtraction(result)).toBe(false);
+  });
+});
+
+describe('extractFromLinkedIn — non-standard section headings (regression)', () => {
+  // Regression: a real Business Development Manager posting (Fresha, scored
+  // 34/100 in production) used headings "What You Will Be Doing" / "What We
+  // Are Looking For" / "Added bonus" instead of the literal "Responsibilities"
+  // / "Requirements" the extractor matched on — every structured field came
+  // back null even though the content was present and well-formed, so the
+  // scorer fell back to a noisy keyword proxy over raw prose.
+  it('classifies varied heading phrasing into responsibilities/requirements/nice_to_have', async () => {
+    const result = await extractFromLinkedIn(
+      variedHeadingsHtml,
+      'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/4425913724'
+    );
+
+    expect(result.responsibilities).toEqual(
+      expect.arrayContaining([expect.stringContaining('KPIs')])
+    );
+    expect(result.requirements).toEqual(
+      expect.arrayContaining([expect.stringContaining('B2B sales')])
+    );
+    expect(result.nice_to_have).toEqual(
+      expect.arrayContaining([expect.stringContaining('Bi-lingual')])
+    );
     expect(isThinExtraction(result)).toBe(false);
   });
 });
