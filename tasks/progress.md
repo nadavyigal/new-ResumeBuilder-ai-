@@ -2,15 +2,15 @@
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: ATS scoring pipeline error sweep — LinkedIn scrape-blocking fix implemented, awaiting production verification on Vercel preview
-Active Story: Verify the LinkedIn guest-endpoint fix from a real Vercel datacenter IP (branch fix/linkedin-guest-scrape) — set SCRAPE_CHECK_TOKEN on the preview, hit /api/debug/scrape-check, confirm aboutLen>1000 & isThin:false; then re-optimize a fresh LinkedIn job on iOS and confirm the score lifts above ~21
-Last Completed Story: Implemented LinkedIn guest-API scrape fix + thinness gate (branch fix/linkedin-guest-scrape, pushed 2026-06-20) — root-cause fix for the score-capping bug
-Next Recommended Story: After preview verification passes, merge fix/linkedin-guest-scrape and remove (or keep 404-gated) the debug route; only revisit a residential proxy if LinkedIn 429s the Vercel IP at scale (fetchHtml() seam is ready)
-Estimated Completion: Web is live; launch-support items above remain
-Blockers: —
-Risks: Guest-endpoint behavior on Vercel's IP is verified-by-design but not yet confirmed from a real datacenter IP (only reproducible post-deploy); PDF/DOCX upload smoke test still not run (#1 pre-approval risk per tasks/MEMORY.md 2026-06-08); user_credits table vs profiles.credit_balance reconciliation must be resolved at Gate A
-Last Validation: fix/linkedin-guest-scrape — 8 new unit tests pass, relevant suites 24/24, lint 0 errors (2026-06-20). The 16 other failing jest suites are pre-existing (Playwright e2e under jest + server-dependent contract tests), confirmed by stash-and-rerun on baseline.
-Last Updated: 2026-06-20
+Current Phase: ATS scoring accuracy — root-caused the persistent low scores to multiple compounding causes (NOT a deploy gap). Fixed the substring-keyword bug; larger levers (JD structured-requirement extraction, AI-optimizer metric quality) remain.
+Active Story: Land the keyword-substring fix (branch claude/nostalgic-euclid-564122) — extractKeywords no longer matches tech terms as substrings. Verified against real prod data (Fresha BD optimization d30a6841 / jd 42dc3790).
+Last Completed Story: Diagnosed why scores stay low despite the merged LinkedIn + Layer B fixes. Confirmed prod is fresh (1h-old deploy on git-main alias, www.resumelybuilderai.com). Reproduced score 34 with exact inputs; found must_have = ["rust","express","api","Fresha\nAbout","Trusted"] from unbounded substring matching in extractKeywords. Fixed + tested.
+Next Recommended Story: Decide direction with founder (product call). Two highest-ROI levers: (A) extract real requirement/qualification bullets from the LinkedIn guest fragment — parsed_data.requirements/qualifications/responsibilities are ALL null even when about_this_job is full (6KB), so the scorer falls back to a noisy keyword proxy; (B) AI-optimizer writes metric-free achievement bullets (metrics_presence legitimately = 0), so the optimize prompt needs to enforce quantified results.
+Estimated Completion: Web is live; scoring-accuracy work is incremental
+Blockers: Direction decision — "low scores" can mean improve extraction accuracy OR re-weight the model (keyword_phrase is structurally ~0 by design; 12% weight). Needs founder input before touching weights, given the "defensible Resumely Match Score" positioning.
+Risks: keyword_phrase analyzer (12%) requires verbatim 3-6 word n-gram overlap — near-0 for any paraphrased resume; this is a design weakness, not a bug. metrics_presence (10%) correctly penalizes metric-free AI output.
+Last Validation: claude/nostalgic-euclid-564122 — 3 new keyword-extraction tests + 24/24 ATS unit suites pass, lint clean, tsc no new errors (21 pre-existing, none in touched files). Real-data repro: keyword_exact 25→33 after fix (2026-06-21).
+Last Updated: 2026-06-21
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--
@@ -34,6 +34,18 @@ Found while verifying live: the fix does not fully close the score-capping bug.
 2. PUT /api/v1/optimizations/[id] (save-edit path) calls scoreOptimization() without jobExtractedJson, so it falls back to extractJobRequirements()'s naive text parsing instead of buildJobDataFromExtractedJson()'s structured fallback — meaning saves/re-scores through this path still don't benefit from PR #76.
 
 Next: confirm with a brand-new optimize run (not a re-opened old one) whether the score lifts; if it does, file a follow-up to wire job_extracted_json into the save-path scoreOptimization() call in src/app/api/v1/optimizations/[id]/route.ts.
+
+## 2026-06-21 — Persistent low scores root-caused: NOT a deploy gap; multi-causal scoring bug
+Investigated why the founder still sees low scores despite the LinkedIn guest-scrape + Layer B fixes being merged.
+
+Decisive findings (evidence from prod Supabase + Vercel):
+1. **Not a deploy gap.** Latest production deploy is 1h old and carries the `git-main` alias (→ www.resumelybuilderai.com). Production tracks main.
+2. **The LinkedIn guest scrape now WORKS.** Fresha BD job (opt d30a6841, created 2026-06-21 08:49 AFTER all fixes) has raw_text/clean_text = 6371 chars. The thin-scrape problem is solved for this job. (The older Base44 job f3a1f852 with 222 chars predates the Jun-20 fix.)
+3. **Real remaining bug = garbage keyword extraction.** parsed_data.requirements/qualifications/responsibilities are ALL null even with full about_this_job, so the scorer falls back to `extractJobData` on prose → `extractKeywords`. That function matched tech terms as substrings (no word boundaries): `rust`⊂"trusted", `api`⊂"rapidly", `express`⊂"expressing", `go`⊂"Google". For the BD role must_have came out `["rust","express","api","Fresha\nAbout","Trusted"]` → keyword_exact=25, keyword_phrase=0 → overall 34.
+
+Fix (this branch): word-bound the tech-term matching with alphanumeric lookarounds + stop capitalized phrases spanning newlines. Real-data repro: keyword_exact 25→33. Lint/tsc/24 ATS tests green.
+
+Honest scope note — the substring fix is necessary but only lifts ~2 pts. The dominant drags are: (a) JD structured requirements never extracted (Bug A, scraper); (b) keyword_phrase structurally ~0 (verbatim n-gram design, 12%); (c) metrics_presence legitimately 0 because the AI optimizer writes metric-free bullets (10%). Resolving "low scores" fully is a product decision — see keyed block "Next Recommended Story" / "Blockers".
 
 ## 2026-06-19 — Save-path resolver gap fixed; real root cause found (LinkedIn scrape blocking)
 Fixed commit 85505a3: PUT /api/v1/optimizations/[id] now selects parsed_data and forwards it as jobExtractedJson to scoreOptimization(), so manual edits/re-scores get the same structured fallback as the initial optimize path. Lint clean, ats-prepare-input.test.ts passes (4/4).
