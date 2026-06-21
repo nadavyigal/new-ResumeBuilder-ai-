@@ -4,6 +4,15 @@
 
 ---
 
+## ATS keyword extractor matched tech terms as substrings (fabricated skills → low scores)
+
+**Symptom:** Non-technical roles (Business Development, Partnership Manager) scored ~34 even with a fully-scraped 6KB JD. `must_have` for a Fresha BD role came out as `["rust","express","api","Fresha\nAbout","Trusted"]`.
+**Root cause:** `extractKeywords` in `src/lib/ats/utils/text-utils.ts` matched each technical term with `new RegExp(term, 'gi')` — no word boundaries. So `rust` matched inside "t**rust**ed", `api` inside "r**api**dly", `express` inside "**express**ing", `go` inside "Google". These fabricated skills never appear in the resume, collapsing `keyword_exact` (22%) and `keyword_phrase` (12%).
+**Fix:** Wrap each term in alphanumeric lookarounds `(?<![A-Za-z0-9])(?:term)(?![A-Za-z0-9])` (not `\b` — several terms contain symbols like `c++`, `.net`, `ci/cd`, `rest api`). Also changed the capitalized-phrase pattern from `\s+` to `[ \t]+` so phrases don't span line breaks ("Fresha\nAbout").
+**Note:** This was one of several compounding causes of low scores — see progress.md 2026-06-21. It is necessary but not sufficient on its own (lifts ~2 pts); the JD structured-requirement extraction and AI-optimizer metric quality are the larger remaining levers.
+
+---
+
 ## Supabase 406: `.single()` on missing or multiple rows
 
 **Mistake:** Using `.single()` on a query that can return zero or multiple rows.

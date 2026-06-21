@@ -133,8 +133,10 @@ export function countPhraseMatches(text: string, phrases: string[]): number {
 export function extractKeywords(text: string, maxKeywords: number = KEYWORD_THRESHOLDS.max_keywords): string[] {
   const keywords: string[] = [];
 
-  // Extract capitalized terms (likely proper nouns, technologies)
-  const capitalizedPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
+  // Extract capitalized terms (likely proper nouns, technologies).
+  // Use [ \t]+ (not \s+) between words so a phrase never spans a line break —
+  // otherwise "Company: Fresha\nAbout:" yields the junk keyword "Fresha\nAbout".
+  const capitalizedPattern = /\b[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+)*\b/g;
   const capitalized = text.match(capitalizedPattern) || [];
 
   // Extract acronyms and technical terms (2+ uppercase letters)
@@ -161,9 +163,15 @@ export function extractKeywords(text: string, maxKeywords: number = KEYWORD_THRE
     'leadership', 'communication', 'problem-solving', 'teamwork', 'analytical', 'strategic',
   ];
 
-  // Find all technical terms that appear in the text (case-insensitive)
+  // Find all technical terms that appear in the text (case-insensitive).
+  // Alphanumeric lookarounds prevent substring false-positives: without them
+  // "rust" matches inside "trusted", "api" inside "rapidly", "express" inside
+  // "expressing", "go" inside "Google" — fabricating tech skills that a
+  // non-technical JD never listed and tanking the keyword sub-scores. \b can't
+  // be used here because several terms contain symbols (c++, .net, ci/cd,
+  // rest api), where \b would sit at the wrong place.
   for (const term of technicalTerms) {
-    const regex = new RegExp(term, 'gi');
+    const regex = new RegExp(`(?<![A-Za-z0-9])(?:${term})(?![A-Za-z0-9])`, 'gi');
     const matches = text.match(regex);
     if (matches) {
       // Preserve original casing from text
