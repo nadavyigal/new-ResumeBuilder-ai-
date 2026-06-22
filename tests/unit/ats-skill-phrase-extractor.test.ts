@@ -38,3 +38,28 @@ describe('extractSkillPhrases', () => {
     expect(lc).not.toContain('');
   });
 });
+
+const FRESHA_REQUIREMENTS = [
+  'Experience - Minimum 1 years of solid B2B sales with a track record of success',
+  'Industry - SaaS, online marketplaces, or payment platforms is highly desirable',
+  'Relationship Building - You are a true hunter and relationship builder',
+];
+
+describe('extractSkillPhrases - Fresha labeled bullets', () => {
+  const phrases = extractSkillPhrases(FRESHA_REQUIREMENTS);
+  const lc = phrases.map((p) => p.toLowerCase());
+
+  it('does not emit junk clause fragments from labeled requirements', () => {
+    expect(lc).not.toContain('minimum years solid');
+    expect(lc).not.toContain('industry saas online');
+    expect(lc).not.toContain('payment platforms highly');
+    expect(lc).not.toContain('success');
+  });
+
+  it('extracts real skill phrases from comma/or lists', () => {
+    expect(lc.some((p) => p.includes('saas'))).toBe(true);
+    expect(lc.some((p) => p.includes('marketplaces'))).toBe(true);
+    expect(lc.some((p) => p.includes('payment') || p.includes('platforms'))).toBe(true);
+    expect(lc.some((p) => p.includes('b2b') || p.includes('sales'))).toBe(true);
+  });
+});
