@@ -12,6 +12,8 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { scoreOptimization } from "@/lib/ats/integration";
+import { mapSuggestionsToBlockers } from "@/lib/ats/blocker-mapper";
+import type { Suggestion } from "@/lib/ats/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,7 +151,7 @@ export async function GET(
 
   const { data: row, error: rowErr } = await supabase
     .from("optimizations")
-    .select("rewrite_data, ats_score_original, ats_score_optimized, jd_id")
+    .select("rewrite_data, ats_score_original, ats_score_optimized, jd_id, ats_suggestions")
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -178,6 +180,8 @@ export async function GET(
     company = jd?.company ?? null;
   }
 
+  const blockers = mapSuggestionsToBlockers(row.ats_suggestions as Suggestion[] | null);
+
   return NextResponse.json({
     sections,
     contact,
@@ -188,6 +192,8 @@ export async function GET(
     ats_score_before: toIntPercent(row.ats_score_original),
     atsScoreAfter: toIntPercent(row.ats_score_optimized),
     ats_score_after: toIntPercent(row.ats_score_optimized),
+    atsBlockers: blockers,
+    ats_blockers: blockers,
   });
 }
 
