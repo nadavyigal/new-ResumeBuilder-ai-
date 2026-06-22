@@ -48,10 +48,11 @@ function isJunkSkillPhrase(phrase: string): boolean {
  * Parse LinkedIn-style bullets like "Industry - SaaS, online marketplaces, or payment platforms".
  */
 function extractFromLabeledRequirement(raw: string): string[] {
-  const dashMatch = raw.match(/^[^-]+-\s*(.+)$/);
+  // Require a word-only label (e.g. "Industry - SaaS..."), not "2-3 years..." sentences.
+  const dashMatch = raw.match(/^([A-Za-z][A-Za-z\s]{2,})\s+-\s*(.+)$/);
   if (!dashMatch) return [];
 
-  let body = dashMatch[1].replace(TRAILING_BOILERPLATE, '').trim();
+  let body = dashMatch[2].replace(TRAILING_BOILERPLATE, '').trim();
   if (!body) return [];
 
   const phrases: string[] = [];

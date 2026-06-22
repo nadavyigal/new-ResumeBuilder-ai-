@@ -62,7 +62,7 @@ export function generateSuggestions(params: {
         const expanded = expandKeywordSuggestion(suggestion).filter(
           (item) => item.estimated_gain >= SUGGESTION_THRESHOLDS.min_gain,
         );
-        suggestions.push(...expanded);
+        suggestions.push(...(expanded.length > 0 ? expanded : [suggestion]));
       }
     }
   }
