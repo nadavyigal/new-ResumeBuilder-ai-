@@ -4,6 +4,7 @@
 
 import type { JobExtraction } from './types';
 import { extractJobData } from './extractors/jd-extractor';
+import { extractSkillPhrases } from './extractors/skill-phrase-extractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
 
 export function toParsedJobRecord(value: unknown): Record<string, unknown> {
@@ -197,6 +198,16 @@ export function buildJobDataFromExtractedJson(
     if (nice_to_have.length === 0) {
       nice_to_have = fromText.nice_to_have;
     }
+  }
+
+  const atomizedMustHave = extractSkillPhrases(must_have);
+  if (atomizedMustHave.length > 0) {
+    must_have = atomizedMustHave;
+  }
+
+  const atomizedNiceToHave = extractSkillPhrases(nice_to_have);
+  if (atomizedNiceToHave.length > 0) {
+    nice_to_have = atomizedNiceToHave;
   }
 
   return {

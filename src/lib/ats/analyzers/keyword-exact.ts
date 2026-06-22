@@ -9,7 +9,7 @@
 import { BaseAnalyzer } from './base';
 import type { AnalyzerInput, AnalyzerResult } from '../types';
 import { KEYWORD_THRESHOLDS } from '../config/thresholds';
-import { scoreSkillListMatch } from '../skill-match';
+import { scoreSkillCoverage } from '../skill-match';
 
 export class KeywordExactAnalyzer extends BaseAnalyzer {
   constructor() {
@@ -21,8 +21,8 @@ export class KeywordExactAnalyzer extends BaseAnalyzer {
       const mustHaveSkills = input.job_data.must_have.filter(Boolean);
       const niceToHaveSkills = input.job_data.nice_to_have.filter(Boolean);
 
-      const mustHaveResult = scoreSkillListMatch(mustHaveSkills, input.resume_text);
-      const niceToHaveResult = scoreSkillListMatch(niceToHaveSkills, input.resume_text);
+      const mustHaveResult = scoreSkillCoverage(mustHaveSkills, input.resume_text);
+      const niceToHaveResult = scoreSkillCoverage(niceToHaveSkills, input.resume_text);
 
       const mustHaveWeight = KEYWORD_THRESHOLDS.must_have_weight;
       const niceToHaveWeight = KEYWORD_THRESHOLDS.nice_to_have_weight;
@@ -34,10 +34,11 @@ export class KeywordExactAnalyzer extends BaseAnalyzer {
       if (totalPossiblePoints === 0) {
         score = 50;
       } else {
-        const earnedPoints =
-          mustHaveResult.matched.length * mustHaveWeight +
-          niceToHaveResult.matched.length * niceToHaveWeight;
-        score = this.safeDivide(earnedPoints, totalPossiblePoints) * 100;
+        const mustEarned =
+          (mustHaveResult.score / 100) * mustHaveSkills.length * mustHaveWeight;
+        const niceEarned =
+          (niceToHaveResult.score / 100) * niceToHaveSkills.length * niceToHaveWeight;
+        score = this.safeDivide(mustEarned + niceEarned, totalPossiblePoints) * 100;
       }
 
       const confidence = this.calculateConfidence({

@@ -71,8 +71,9 @@ describe('ats job-data resolver', () => {
 
     expect(jobData.must_have.length).toBeGreaterThan(0);
     expect(jobData.must_have).toEqual(
-      expect.arrayContaining(['5+ years B2B sales experience', 'CRM proficiency (Salesforce, HubSpot)']),
+      expect.arrayContaining(['b2b sales experience', 'crm proficiency salesforce']),
     );
+    expect(jobData.must_have.every((keyword) => keyword.split(' ').length <= 3)).toBe(true);
   });
 
   it('keeps explicit requirements without double-counting qualifications', () => {
@@ -82,7 +83,10 @@ describe('ats job-data resolver', () => {
     });
 
     const jobData = buildJobDataFromExtractedJson(withRequirements, cleanText);
-    expect(jobData.must_have).toEqual(['Existing requirement only']);
+    expect(jobData.must_have).toEqual(['requirement only']);
+    expect(jobData.must_have).not.toEqual(
+      expect.arrayContaining(['should not appear']),
+    );
   });
 
   it('normalizes parsed_data at scrape time', () => {

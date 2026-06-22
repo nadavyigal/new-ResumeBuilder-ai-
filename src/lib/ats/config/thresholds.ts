@@ -74,6 +74,9 @@ export const KEYWORD_THRESHOLDS = {
   /** Minimum word length to consider as keyword */
   min_keyword_length: 3,
 
+  /** Minimum coverage to label a requirement matched in evidence/gap detection */
+  match_classification_threshold: 0.6,
+
   /** Weight multiplier for must-have skills */
   must_have_weight: 2.0,
 
