@@ -59,13 +59,16 @@ export function generateSuggestions(params: {
       );
 
       if (suggestion && suggestion.estimated_gain >= SUGGESTION_THRESHOLDS.min_gain) {
-        suggestions.push(suggestion);
+        suggestions.push(...expandKeywordSuggestion(suggestion));
       }
     }
   }
 
   // Rank and filter suggestions
-  return rankSuggestions(suggestions).slice(0, SUGGESTION_THRESHOLDS.max_suggestions);
+  return rankSuggestions(dedupeKeywordSuggestions(suggestions)).slice(
+    0,
+    SUGGESTION_THRESHOLDS.max_suggestions,
+  );
 }
 
 /**
@@ -142,6 +145,61 @@ function createSuggestion(
     console.error('Failed to create suggestion:', error);
     return null;
   }
+}
+
+function expandKeywordSuggestion(suggestion: Suggestion): Suggestion[] {
+  if (suggestion.action?.type !== 'add_keyword') {
+    return [suggestion];
+  }
+
+  const { keywords, target, source } = suggestion.action.params;
+  if (keywords.length <= 1) {
+    return [suggestion];
+  }
+
+  const gainPerKeyword = Math.max(1, Math.round(suggestion.estimated_gain / keywords.length));
+
+  return keywords.map((keyword) => ({
+    id: `keyword_exact:${slugifyKeyword(keyword)}`,
+    text: `Add "${keyword}" in context on your resume`,
+    estimated_gain: gainPerKeyword,
+    targets: suggestion.targets,
+    quick_win: suggestion.quick_win,
+    category: suggestion.category,
+    action: {
+      type: 'add_keyword' as const,
+      params: { keywords: [keyword], target, source },
+    },
+  }));
+}
+
+function dedupeKeywordSuggestions(suggestions: Suggestion[]): Suggestion[] {
+  const seenKeywords = new Set<string>();
+  const deduped: Suggestion[] = [];
+
+  for (const suggestion of suggestions) {
+    if (suggestion.action?.type !== 'add_keyword') {
+      deduped.push(suggestion);
+      continue;
+    }
+
+    const keyword = suggestion.action.params.keywords[0]?.trim().toLowerCase();
+    if (!keyword || seenKeywords.has(keyword)) {
+      continue;
+    }
+
+    seenKeywords.add(keyword);
+    deduped.push(suggestion);
+  }
+
+  return deduped;
+}
+
+function slugifyKeyword(keyword: string): string {
+  return keyword
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 /**
