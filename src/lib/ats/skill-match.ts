@@ -60,8 +60,38 @@ export function skillMatchesResume(skill: string, resumeText: string): boolean {
   const matchedCount = skillTokens.filter((token) =>
     containsWholePhrase(normalizedResume, token)
   ).length;
-  const requiredMatches = Math.max(1, Math.ceil(skillTokens.length * 0.6));
+  const requiredMatches = Math.max(
+    1,
+    Math.ceil(skillTokens.length * KEYWORD_THRESHOLDS.match_classification_threshold),
+  );
   return matchedCount >= requiredMatches;
+}
+
+/** Fraction (0-1) of a skill phrase's significant tokens present in the resume. */
+export function skillCoverage(skill: string, resumeText: string): number {
+  const normalizedSkill = normalizeText(skill);
+  const normalizedResume = normalizeText(resumeText);
+
+  if (!normalizedSkill || !normalizedResume) {
+    return 0;
+  }
+
+  if (
+    normalizedSkill.length >= KEYWORD_THRESHOLDS.min_keyword_length &&
+    containsWholePhrase(normalizedResume, normalizedSkill)
+  ) {
+    return 1;
+  }
+
+  const tokens = significantTokens(skill);
+  if (tokens.length === 0) {
+    return 0;
+  }
+
+  const matched = tokens.filter((token) =>
+    containsWholePhrase(normalizedResume, token)
+  ).length;
+  return matched / tokens.length;
 }
 
 /**
@@ -92,5 +122,38 @@ export function scoreSkillListMatch(skills: string[], resumeText: string): {
     matched,
     missing,
     score: (matched.length / uniqueSkills.length) * 100,
+  };
+}
+
+/** Score a skill list by average token coverage; matched/missing keep a threshold. */
+export function scoreSkillCoverage(skills: string[], resumeText: string): {
+  matched: string[];
+  missing: string[];
+  score: number;
+} {
+  const uniqueSkills = [...new Set(skills.map((skill) => skill.trim()).filter(Boolean))];
+  if (uniqueSkills.length === 0) {
+    return { matched: [], missing: [], score: 50 };
+  }
+
+  const matched: string[] = [];
+  const missing: string[] = [];
+  let coverageSum = 0;
+
+  for (const skill of uniqueSkills) {
+    const coverage = skillCoverage(skill, resumeText);
+    coverageSum += coverage;
+
+    if (coverage >= KEYWORD_THRESHOLDS.match_classification_threshold) {
+      matched.push(skill);
+    } else {
+      missing.push(skill);
+    }
+  }
+
+  return {
+    matched,
+    missing,
+    score: (coverageSum / uniqueSkills.length) * 100,
   };
 }
