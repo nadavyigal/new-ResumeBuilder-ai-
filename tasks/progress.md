@@ -2,15 +2,15 @@
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: ATS scoring accuracy — both compounding causes from the 2026-06-21 diagnosis are now resolved or closed out. Story 1 (JD structured-requirement extraction) fixed and shipped via PR #81. Story 2 (AI-optimizer metric quality) investigated and closed as not-a-bug.
-Active Story: None — PR #81 open, awaiting merge. Next direction needs founder input (see Blockers).
+Current Phase: ATS scoring accuracy — both compounding causes from the 2026-06-21 diagnosis are resolved. PR #80 and PR #81 both merged to main. Story 2's metric-nudge follow-up is parked for a future build (founder decision 2026-06-21/22: leave metrics_presence as-is for now, plan the nudge feature via PM skill before building).
+Active Story: None — between stories. Awaiting founder direction on next priority (e.g. PM-planning the parked metrics-nudge feature, or other work).
 Last Completed Story: PR #80 merged (keyword-substring word-boundary fix). Story 1: fixed `extractFromLinkedIn`'s heading-matching so non-literal section headings ("What You Will Be Doing", "What We Are Looking For", "Added bonus") are classified by keyword family instead of requiring an exact phrase match — verified against the real Fresha LinkedIn posting (job 4425913724, the same one that scored 34/100 in prod). Branch fix/ats-jd-requirements-and-metrics, commit 3c0a4ee, PR #81 open.
 Next Recommended Story: Story 2 was investigated, not implemented — traced the d30a6841 optimization back to its pre-optimization source resume (`resumes.raw_text` for resume_id b797b20e) and confirmed it has ZERO quantified metrics anywhere in the original, founder-authored text (only "15+ years" in the summary). The AI optimizer correctly preserved this truthfully per its "never fabricate metrics" rule — `metrics_presence: 0` is accurate, not a defect. No fix implemented. Founder decision needed: ship a UX nudge prompting users with metric-free resumes to add real numbers (new feature, out of this session's scope), or accept the score as correctly reflecting genuinely metric-free input.
 Estimated Completion: Web is live; scoring-accuracy work is incremental
 Blockers: Founder decision on Story 2's framing above. Also still open from before: keyword_phrase (12% weight) re-weighting — requires verbatim 3-6 word n-gram overlap, near-0 for any paraphrased resume by design, not a bug.
 Risks: keyword_phrase analyzer (12%) requires verbatim 3-6 word n-gram overlap — near-0 for any paraphrased resume; this is a design weakness, not a bug. metrics_presence (10%) correctly penalizes genuinely metric-free resumes — confirmed via the actual pre-optimization source text, not just the AI output.
 Last Validation: fix/ats-jd-requirements-and-metrics (commit 3c0a4ee) — new regression test (`tests/unit/linkedin-job-extractor.test.ts` + fixture `guest-fragment-varied-headings.html`), 32/32 unit tests pass, lint clean, tsc 21 pre-existing errors only (none in touched files). Real-data repro against live Fresha LinkedIn guest fragment confirmed responsibilities/requirements/nice_to_have all populate where they were previously null.
-Last Updated: 2026-06-21
+Last Updated: 2026-06-22
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--
