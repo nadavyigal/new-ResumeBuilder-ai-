@@ -52,7 +52,7 @@ function extractFromLabeledRequirement(raw: string): string[] {
   const dashMatch = raw.match(/^([A-Za-z][A-Za-z\s]{2,})\s+-\s*(.+)$/);
   if (!dashMatch) return [];
 
-  let body = dashMatch[2].replace(TRAILING_BOILERPLATE, '').trim();
+  const body = dashMatch[2].replace(TRAILING_BOILERPLATE, '').trim();
   if (!body) return [];
 
   const phrases: string[] = [];
