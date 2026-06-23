@@ -59,7 +59,10 @@ export function generateSuggestions(params: {
       );
 
       if (suggestion && suggestion.estimated_gain >= SUGGESTION_THRESHOLDS.min_gain) {
-        suggestions.push(...expandKeywordSuggestion(suggestion));
+        const expanded = expandKeywordSuggestion(suggestion).filter(
+          (item) => item.estimated_gain >= SUGGESTION_THRESHOLDS.min_gain,
+        );
+        suggestions.push(...(expanded.length > 0 ? expanded : [suggestion]));
       }
     }
   }
@@ -152,7 +155,12 @@ function expandKeywordSuggestion(suggestion: Suggestion): Suggestion[] {
     return [suggestion];
   }
 
-  const { keywords, target, source } = suggestion.action.params;
+  const params = suggestion.action.params;
+  if (!params?.keywords?.length) {
+    return [suggestion];
+  }
+
+  const { keywords, target, source } = params;
   if (keywords.length <= 1) {
     return [suggestion];
   }
@@ -164,7 +172,7 @@ function expandKeywordSuggestion(suggestion: Suggestion): Suggestion[] {
     text: `Add "${keyword}" in context on your resume`,
     estimated_gain: gainPerKeyword,
     targets: suggestion.targets,
-    quick_win: suggestion.quick_win,
+    quick_win: gainPerKeyword >= SUGGESTION_THRESHOLDS.quick_win_effort_threshold,
     category: suggestion.category,
     action: {
       type: 'add_keyword' as const,
