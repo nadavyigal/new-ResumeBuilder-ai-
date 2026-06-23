@@ -10,6 +10,10 @@ import { isPdfUpload } from '@/lib/utils/pdf-validation';
 import { scrapeJobDescription } from '@/lib/job-scraper';
 import { extractJob } from '@/lib/scraper/jobExtractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+import {
+  buildPublicAtsCheckResponse,
+  type FitSource,
+} from '@/lib/ats/public-ats-check-response';
 
 export const runtime = 'nodejs';
 
@@ -133,25 +137,6 @@ export async function POST(request: NextRequest) {
   const jobHash = hashContent(jobDescription);
   const supabase = createServiceRoleClient();
 
-  const { data: cachedScore, error: cacheError } = await supabase
-    .from('anonymous_ats_scores')
-    .select('*')
-    .eq('session_id', sessionId)
-    .eq('resume_hash', resumeHash)
-    .eq('job_description_hash', jobHash)
-    .gt('created_at', new Date(Date.now() - CACHE_TTL_MS).toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (cacheError) {
-    console.error('Cache lookup error:', cacheError);
-  }
-
-  if (cachedScore) {
-    return NextResponse.json(formatResponse(cachedScore, sessionId, rateLimitResult.remaining));
-  }
-
   // Extract job data from job description for better quick wins
   let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
@@ -173,6 +158,29 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Job extraction failed, using defaults:', error);
     // Continue with DEFAULT_JOB_DATA
+  }
+
+  const { data: cachedScore, error: cacheError } = await supabase
+    .from('anonymous_ats_scores')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('resume_hash', resumeHash)
+    .eq('job_description_hash', jobHash)
+    .gt('created_at', new Date(Date.now() - CACHE_TTL_MS).toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (cacheError) {
+    console.error('Cache lookup error:', cacheError);
+  }
+
+  if (cachedScore) {
+    return NextResponse.json(formatResponse(cachedScore, sessionId, rateLimitResult.remaining, {
+      resumeText,
+      jobData,
+      jobDescription,
+    }));
   }
 
   const atsInput: ATSScoreInput = {
@@ -207,29 +215,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to save ATS score.' }, { status: 500 });
   }
 
-  return NextResponse.json(formatResponse(insertedScore, sessionId, rateLimitResult.remaining));
+  return NextResponse.json(formatResponse(insertedScore, sessionId, rateLimitResult.remaining, {
+    resumeText,
+    jobData,
+    jobDescription,
+  }));
 }
 
-function formatResponse(score: any, sessionId: string, remaining: number) {
-  const suggestions = Array.isArray(score.ats_suggestions) ? score.ats_suggestions : [];
-  const topIssues = suggestions.slice(0, 3);
-  const quickWins = Array.isArray(score.ats_quick_wins) ? score.ats_quick_wins : [];
-
-  return {
-    success: true,
-    sessionId,
-    score: {
-      overall: score.ats_score,
-      timestamp: score.created_at,
-    },
-    preview: {
-      topIssues,
-      totalIssues: suggestions.length,
-      lockedCount: Math.max(0, suggestions.length - 3),
-    },
-    quickWins, // Include quick wins in response
-    checksRemaining: remaining,
-  };
+export function formatResponse(score: any, sessionId: string, remaining: number, fitSource?: FitSource) {
+  return buildPublicAtsCheckResponse(score, sessionId, remaining, fitSource);
 }
 
 function countWords(text: string) {

@@ -87,6 +87,9 @@
         "good": "התאמה טובה",
         "needsImprovement": "דורש שיפור"
       },
+      "fit": {
+        "label": "התאמה משוערת"
+      },
       "topIssues": "בעיות עיקריות",
       "lockedTitle": "פתח {count} תיקונים נוספים",
       "lockedDescription": "צור חשבון חינם כדי לראות את כל הבעיות והשיפורים.",

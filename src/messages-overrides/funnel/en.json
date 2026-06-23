@@ -135,6 +135,9 @@
     },
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
+      "fit": {
+        "label": "Estimated fit"
+      },
       "topIssues": "Highest-impact fixes first",
       "lockedTitle": "Unlock {count} more high-impact fixes",
       "lockedDescription": "Create a free account to unlock the full action plan, editable examples, and one-click continuation.",

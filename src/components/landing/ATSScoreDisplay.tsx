@@ -31,6 +31,11 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
   const { preview } = data;
   const t = useTranslations("landing.score");
   const continueHandler = preview.lockedCount > 0 ? onSignup : undefined;
+  const fitTone = data.fit?.verdict === "Strong"
+    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700"
+    : data.fit?.verdict === "Stretch"
+      ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
+      : "border-rose-500/30 bg-rose-500/10 text-rose-700";
 
   const matchLabel =
     score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
@@ -78,6 +83,18 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
   return (
     <div data-testid="ats-score-display" className="space-y-6">
       <div className="text-center space-y-2">
+        {data.fit && (
+          <div
+            data-testid="fit-verdict"
+            className={`mx-auto mb-3 max-w-sm rounded-2xl border px-4 py-3 ${fitTone}`}
+          >
+            <div className="text-xs font-semibold text-foreground/60">
+              {t("fit.label")}
+            </div>
+            <div className="text-2xl font-bold text-foreground">{data.fit.verdict}</div>
+            <p className="mt-1 text-xs text-foreground/60">{data.fit.scoreNote}</p>
+          </div>
+        )}
         <div data-testid="ats-score" className="text-5xl font-bold text-foreground">
           <CountUp end={score} duration={2} />
           <span className="text-2xl text-foreground/60">/100</span>

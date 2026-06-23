@@ -12,6 +12,28 @@ Project-specific architectural and product decisions. Read at the start of every
 
 ---
 
+## 2026-06-23 — WP-12 Story 0: Fit block on public ATS check
+
+### Session summary
+Implemented Story 0 of the Fit-First Triage wedge for the web repo only.
+
+**Completed:**
+- Added additive `fit` response data for `POST /api/public/ats-check`: `verdict` from locked bands (`>=75 Strong`, `50-74 Stretch`, `<50 Skip`), `scoreNote`, `topGaps`, and `missingKeywords`.
+- Derived gaps from the existing must-have requirement matching path and left `score`, `preview`, `quickWins`, and `checksRemaining` unchanged.
+- Rendered the server-owned verdict band above the existing score/quick-wins result panel on the free ATS checker page.
+- Added focused response-shape coverage in `tests/api/ats-check-format-response.test.ts`.
+
+**Validation:**
+- `npx eslint src/app/api/public/ats-check/route.ts src/lib/ats/public-ats-check-response.ts src/components/landing/FreeATSChecker.tsx src/components/landing/ATSScoreDisplay.tsx tests/api/ats-check-format-response.test.ts` passed.
+- `npm run check:i18n` passed with 0 missing HE strings and 0 invalid strings.
+- Direct `tsx` assertions for the new response builder passed.
+- `npx tsc --noEmit` still fails on the known pre-existing test typing errors outside touched files (same class as prior sessions).
+- `npm test -- tests/api/ats-check-format-response.test.ts --runInBand`, a known existing unit test, and direct `ts-jest` all hung before diagnostics; `npm run build` also hung in `next build` after template sync and was stopped after several silent minutes.
+
+**Not done:**
+- Did not start iOS Stories 1-4.
+- Did not add Supabase columns, RLS changes, dependencies, or rate-limit changes.
+
 ## 2026-05-20 — Agentic OS Setup
 **Decided:** Added MEMORY.md and ERRORS.md to Claude Code setup for this project
 **Why:** To eliminate re-explaining context and re-proposing failed approaches between sessions

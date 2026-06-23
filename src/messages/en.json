@@ -87,6 +87,9 @@
         "good": "Good match",
         "needsImprovement": "Needs improvement"
       },
+      "fit": {
+        "label": "Estimated fit"
+      },
       "topIssues": "Top issues",
       "lockedTitle": "Unlock {count} more fixes",
       "lockedDescription": "Create a free account to see all issues and improvements.",

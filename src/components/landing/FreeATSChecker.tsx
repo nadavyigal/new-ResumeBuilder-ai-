@@ -49,6 +49,12 @@ export interface ATSCheckerResponse {
     keywords_added: string[];
   }>;
   checksRemaining: number;
+  fit?: {
+    verdict: "Strong" | "Stretch" | "Skip";
+    scoreNote: string;
+    topGaps: string[];
+    missingKeywords: string[];
+  };
 }
 
 export function FreeATSChecker() {
