@@ -10,6 +10,7 @@ import { buildScreeningAnswersPrompt } from './prompts/screening-answers';
 import { buildOutreachKitPrompt } from './prompts/outreach-kit';
 import { buildStoryBankPrompt } from './prompts/story-bank';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
+import type { WorkflowValidationResult } from './validators';
 import type {
   ApplicationExpertReport,
   ExpertAtsImpact,
@@ -275,6 +276,58 @@ async function runModelWithRetry(
   throw lastError || new Error('Unknown expert workflow model error.');
 }
 
+/**
+ * Number of full generate-then-validate attempts before giving up. LLMs occasionally
+ * return well-formed JSON that misses the strict schema (e.g. 2 cover-letter variants
+ * instead of exactly 3, or an out-of-enum suggested_placement). Regenerating with the
+ * validation error fed back almost always fixes it on the next pass.
+ */
+export const MAX_VALIDATION_ATTEMPTS = 3;
+
+/**
+ * Return a copy of the prompt with the schema-validation error appended to the user
+ * message so the model can self-correct on the retry attempt.
+ */
+export function withValidationCorrection(prompt: PromptBundle, error: string): PromptBundle {
+  return {
+    ...prompt,
+    user:
+      `${prompt.user}\n\nThe previous response failed schema validation with this error: ` +
+      `"${error}". Return a corrected JSON object that fully satisfies the required schema. ` +
+      `Output only the JSON object, with no commentary.`,
+  };
+}
+
+/**
+ * Generate model output and validate it against the workflow schema, regenerating with a
+ * corrective hint when validation fails. This makes the expert-workflow endpoints resilient
+ * to normal LLM output variance instead of returning a 500 on the first schema miss.
+ *
+ * The generator defaults to {@link runModelWithRetry} (which keeps its own network/timeout
+ * retry) and is injectable so the regeneration loop can be unit-tested without OpenAI.
+ */
+export async function generateValidatedOutput(
+  workflowType: ExpertWorkflowType,
+  prompt: PromptBundle,
+  generate: (p: PromptBundle) => Promise<Record<string, unknown>> = runModelWithRetry,
+  maxAttempts: number = MAX_VALIDATION_ATTEMPTS
+): Promise<{ output: Record<string, unknown>; validation: WorkflowValidationResult }> {
+  let lastError = 'Invalid expert workflow output.';
+  let attemptPrompt = prompt;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const output = await generate(attemptPrompt);
+    const validation = validateWorkflowOutput(workflowType, output);
+    if (validation.valid) {
+      return { output, validation };
+    }
+    lastError = validation.error || lastError;
+    attemptPrompt = withValidationCorrection(prompt, lastError);
+  }
+
+  throw new Error(lastError);
+}
+
 function extractArtifacts(
   workflowType: ExpertWorkflowType,
   output: Record<string, unknown>
@@ -353,12 +406,10 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
 
   const context = await loadWorkflowContext(params);
   const prompt = extractPromptBundle(context);
-  const parsed = await runModelWithRetry(prompt);
-  const validation = validateWorkflowOutput(context.workflow_type, parsed);
-
-  if (!validation.valid) {
-    throw new Error(validation.error || 'Invalid expert workflow output.');
-  }
+  const { output: parsed, validation } = await generateValidatedOutput(
+    context.workflow_type,
+    prompt
+  );
 
   const status = validation.missingEvidence.length > 0 ? 'needs_user_input' : 'completed';
 
