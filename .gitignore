@@ -61,3 +61,6 @@ ios/
 nul
 resume-builder-ai/nul
 .env*.local
+
+# Eval run artifacts (regenerated each run)
+evals/**/report.json
