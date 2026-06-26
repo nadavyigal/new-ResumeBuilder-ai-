@@ -68,6 +68,18 @@ export function runChecks(resume: OptimizedResume, c: EvalCase): CheckResult[] {
   );
   add('no-new-certifications', newCertifications.length === 0, true, `new certifications: ${JSON.stringify(newCertifications)}`);
 
+  // Fabrication check: every percentage figure in achievement bullets must
+  // trace back (exact string match) to the original resume text. The system
+  // prompt already says "if no metric exists, keep impact non-numeric" —
+  // proven (live run, 2026-06-26) that the model violates this under pressure
+  // when the original resume has zero metrics. Deterministic, not prompt-only.
+  const achievementText = (resume.experience ?? [])
+    .flatMap((e) => e.achievements ?? [])
+    .join(' ');
+  const optimizedPercentages = [...new Set(achievementText.match(/\d+(?:\.\d+)?%/g) ?? [])];
+  const newPercentages = optimizedPercentages.filter((pct) => !c.resumeText.includes(pct));
+  add('no-new-percentage-metrics', newPercentages.length === 0, true, `new percentages: ${JSON.stringify(newPercentages)}`);
+
   // Sanity: optimized resume shouldn't be wildly shorter than the original
   // (a sign of dropped/truncated content) or absurdly bloated.
   const achievementCount = (resume.experience ?? []).reduce((n, e) => n + (e.achievements?.length ?? 0), 0);

@@ -62,6 +62,13 @@ describe('resume-optimizer deterministic checks (offline)', () => {
     expect(result?.pass).toBe(false);
   });
 
+  it('catches a fabricated percentage metric not present in the original resume', () => {
+    const resume = honestResume();
+    resume.experience[0].achievements = ['Reduced deployment time by 40% through process improvements.'];
+    const result = runChecks(resume, honestCase).find((r) => r.id === 'no-new-percentage-metrics');
+    expect(result?.pass).toBe(false);
+  });
+
   it('flags an out-of-range matchScore', () => {
     const resume = honestResume();
     resume.matchScore = 150;
