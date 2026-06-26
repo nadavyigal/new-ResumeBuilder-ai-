@@ -36,8 +36,15 @@ export function runChecks(resume: OptimizedResume, c: EvalCase): CheckResult[] {
   const add = (id: string, pass: boolean, critical: boolean, detail: string) =>
     results.push({ id, pass, critical, detail });
 
-  add('has-summary', typeof resume.summary === 'string' && resume.summary.trim().length > 0, true, `summary: ${JSON.stringify(resume.summary).slice(0, 60)}`);
-  add('has-experience', Array.isArray(resume.experience) && resume.experience.length > 0, true, `experience entries: ${resume.experience?.length ?? 0}`);
+  // Sanitize every field up front so a malformed model response produces
+  // failing check results instead of throwing and aborting the eval loop.
+  const summary = typeof resume.summary === 'string' ? resume.summary : '';
+  const experience = Array.isArray(resume.experience) ? resume.experience : [];
+  const education = Array.isArray(resume.education) ? resume.education : [];
+  const certifications = Array.isArray(resume.certifications) ? resume.certifications : [];
+
+  add('has-summary', summary.trim().length > 0, true, `summary: ${JSON.stringify(summary).slice(0, 60)}`);
+  add('has-experience', experience.length > 0, true, `experience entries: ${experience.length}`);
   add(
     'matchscore-in-range',
     typeof resume.matchScore === 'number' && resume.matchScore >= 0 && resume.matchScore <= 100,
@@ -48,14 +55,14 @@ export function runChecks(resume: OptimizedResume, c: EvalCase): CheckResult[] {
   // Fabrication check: every employer name in the output must trace back to
   // the original resume text. A NEW employer is the clearest possible
   // fabrication signal.
-  const newEmployers = (resume.experience ?? [])
+  const newEmployers = experience
     .map((e) => e.company)
     .filter((name) => name && !appearsInSource(name, c.resumeText));
   add('no-new-employers', newEmployers.length === 0, true, `new employers: ${JSON.stringify(newEmployers)}`);
 
   // Fabrication check: every institution in education must trace back to the
   // original resume text.
-  const newInstitutions = (resume.education ?? [])
+  const newInstitutions = education
     .map((e) => e.institution)
     .filter((name) => name && !appearsInSource(name, c.resumeText));
   add('no-new-institutions', newInstitutions.length === 0, true, `new institutions: ${JSON.stringify(newInstitutions)}`);
@@ -63,9 +70,7 @@ export function runChecks(resume: OptimizedResume, c: EvalCase): CheckResult[] {
   // Fabrication check: every certification claimed must trace back to the
   // original resume text. This is the single highest-value check for the
   // "no required cert" trap cases in the golden set.
-  const newCertifications = (resume.certifications ?? []).filter(
-    (cert) => cert && !appearsInSource(cert, c.resumeText)
-  );
+  const newCertifications = certifications.filter((cert) => cert && !appearsInSource(cert, c.resumeText));
   add('no-new-certifications', newCertifications.length === 0, true, `new certifications: ${JSON.stringify(newCertifications)}`);
 
   // Fabrication check: every percentage figure in achievement bullets must
@@ -73,16 +78,14 @@ export function runChecks(resume: OptimizedResume, c: EvalCase): CheckResult[] {
   // prompt already says "if no metric exists, keep impact non-numeric" —
   // proven (live run, 2026-06-26) that the model violates this under pressure
   // when the original resume has zero metrics. Deterministic, not prompt-only.
-  const achievementText = (resume.experience ?? [])
-    .flatMap((e) => e.achievements ?? [])
-    .join(' ');
+  const achievementText = experience.flatMap((e) => e.achievements ?? []).join(' ');
   const optimizedPercentages = [...new Set(achievementText.match(/\d+(?:\.\d+)?%/g) ?? [])];
   const newPercentages = optimizedPercentages.filter((pct) => !c.resumeText.includes(pct));
   add('no-new-percentage-metrics', newPercentages.length === 0, true, `new percentages: ${JSON.stringify(newPercentages)}`);
 
   // Sanity: optimized resume shouldn't be wildly shorter than the original
   // (a sign of dropped/truncated content) or absurdly bloated.
-  const achievementCount = (resume.experience ?? []).reduce((n, e) => n + (e.achievements?.length ?? 0), 0);
+  const achievementCount = experience.reduce((n, e) => n + (e.achievements?.length ?? 0), 0);
   add('has-achievements', achievementCount > 0, false, `achievement bullets: ${achievementCount}`);
 
   return results;

@@ -28,6 +28,34 @@ function getClient(): OpenAI {
   return new OpenAI({ apiKey });
 }
 
+const SCORE_KEYS = ['truthfulness', 'atsAlignment', 'clarity', 'completeness'] as const;
+
+/**
+ * Validates and range-checks the judge's raw JSON before trusting it. Without
+ * this, a malformed response (e.g. overallPass: "false" as a string, or a
+ * score outside 1-5) would be silently counted as a passing verdict by the
+ * eval's truthy/numeric-coercion comparisons.
+ */
+function parseJudgeVerdict(content: string): JudgeVerdict {
+  const parsed: unknown = JSON.parse(content);
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error(`Invalid judge response: ${content}`);
+  }
+
+  const verdict = parsed as Record<string, unknown>;
+  for (const key of SCORE_KEYS) {
+    const value = verdict[key];
+    if (typeof value !== 'number' || value < 1 || value > 5) {
+      throw new Error(`Invalid ${key} in judge response: ${content}`);
+    }
+  }
+  if (typeof verdict.overallPass !== 'boolean' || typeof verdict.reason !== 'string') {
+    throw new Error(`Invalid judge response: ${content}`);
+  }
+
+  return verdict as unknown as JudgeVerdict;
+}
+
 export async function judgeResume(c: EvalCase, resume: OptimizedResume, model = 'gpt-4o-mini'): Promise<JudgeVerdict> {
   const client = getClient();
 
@@ -75,5 +103,5 @@ Set overallPass = false ONLY if truthfulness < 4 because of a concrete fabricati
 
   const content = completion.choices[0]?.message?.content;
   if (!content) throw new Error('Judge returned empty response');
-  return JSON.parse(content) as JudgeVerdict;
+  return parseJudgeVerdict(content);
 }

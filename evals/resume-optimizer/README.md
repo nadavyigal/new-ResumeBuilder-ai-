@@ -52,7 +52,7 @@ Fails (non-zero exit) if either:
 ## When it runs
 
 - **Free deterministic checks**: part of the normal Jest suite.
-- **Paid LM-judge eval**: nightly + pre-release gate (`.github/workflows/eval-resume-nightly.yml`). Not per-PR, to control token cost — same cadence as RunSmart's plan-generator eval.
+- **Paid LM-judge eval**: run manually via `npm run eval:resume` today. A nightly + pre-release GitHub Action (mirroring RunSmart's plan-generator eval cadence — not per-PR, to control token cost) is written at `.github/workflows/eval-resume-nightly.yml` but **not yet pushed** — the repo's git push token lacks the `workflow` OAuth scope required to add files under `.github/workflows/`. Run `gh auth refresh -s workflow` then push that file to enable it.
 
 ## Extending
 

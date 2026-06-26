@@ -14,7 +14,7 @@
     "test:contracts": "jest tests/contracts",
     "test:agent": "jest tests/agent",
     "test:api": "jest tests/api",
-    "eval:resume": "RUN_LIVE_EVAL=1 jest evals/resume-optimizer/optimize-eval.live.test.ts",
+    "eval:resume": "node scripts/run-eval-resume.mjs",
     "bench:agent": "node scripts/bench-agent.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
