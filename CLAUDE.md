@@ -20,7 +20,7 @@ Source of truth hierarchy:
 
 ## Development Commands
 
-Run from the `resume-builder-ai/` subdirectory (the actual Next.js app):
+Run from the repo root (the Next.js app lives at the repo root — there is no `resume-builder-ai/` subdirectory):
 
 ```bash
 npm run dev      # Start dev server at http://localhost:3000
@@ -67,24 +67,31 @@ AI Resume Optimizer — a Next.js application that analyzes resumes against job 
 ### Directory Structure
 
 ```
-resume-builder-ai/          ← run all commands from here
-└── src/
-    ├── app/                # Next.js App Router
-    │   ├── auth/           # Signin, signup pages
-    │   ├── dashboard/      # Main app
-    │   ├── layout.tsx
-    │   └── page.tsx        # Landing page
-    ├── components/
-    │   ├── auth/
-    │   ├── layout/
-    │   ├── providers/
-    │   └── ui/             # shadcn/ui components
-    ├── lib/
-    │   ├── constants.ts
-    │   ├── supabase.ts     # Browser Supabase client
-    │   ├── supabase-server.ts  # Server Supabase client
-    │   └── utils.ts
-    └── types/
+.                            ← repo root, run all commands from here
+├── src/
+│   ├── app/                # Next.js App Router
+│   │   ├── api/            # API routes
+│   │   ├── auth/           # Signin, signup pages
+│   │   ├── dashboard/      # Main app
+│   │   ├── layout.tsx
+│   │   └── page.tsx        # Landing page
+│   ├── components/
+│   │   ├── auth/
+│   │   ├── layout/
+│   │   ├── providers/
+│   │   └── ui/             # shadcn/ui components
+│   ├── lib/
+│   │   ├── ai-optimizer/   # Resume optimization pipeline (runOptimizePipeline)
+│   │   ├── ats/            # ATS scoring
+│   │   ├── prompts/        # AI prompts
+│   │   ├── constants.ts
+│   │   ├── supabase.ts     # Browser Supabase client
+│   │   ├── supabase-server.ts  # Server Supabase client
+│   │   └── utils.ts
+│   └── types/
+├── evals/resume-optimizer/  # LM-judge eval for the AI optimizer (npm run eval:resume)
+├── tests/                   # Jest unit/contract/api/agent tests
+└── .claude/agents/          # Subagents (architect, code-reviewer, qa-tdd, etc.)
 ```
 
 ### API Routes
