@@ -74,6 +74,63 @@ async function callOpenAIWithGapPrompt(
   }
 }
 
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const PERCENT_PATTERN = /\d+(?:\.\d+)?%/g;
+
+/**
+ * Deterministically removes any percentage figure in an achievement bullet
+ * that the model invented (i.e. does not appear anywhere in the candidate's
+ * original resume text). The system prompt already instructs "if no metric
+ * exists, keep impact statements non-numeric" — proven, by the eval harness
+ * (evals/resume-optimizer/, 2026-06-26), that gpt-4o violates this under
+ * pressure when the source resume has zero metrics to draw from. Mirrors
+ * RunSmart's enforcePlanSafety: enforce deterministically, don't trust the
+ * prompt alone for the fabrication-prone case.
+ */
+export function stripFabricatedMetrics(resume: OptimizedResume, originalResumeText: string): OptimizedResume {
+  const experience = (resume.experience ?? []).map((entry) => {
+    const achievements = (entry.achievements ?? []).map((bullet) => {
+      const percentages = [...new Set(bullet.match(PERCENT_PATTERN) ?? [])];
+      const fabricated = percentages.filter((pct) => !originalResumeText.includes(pct));
+      if (fabricated.length === 0) return bullet;
+
+      let cleaned = bullet;
+      for (const pct of fabricated) {
+        const escaped = escapeRegExp(pct);
+        cleaned = cleaned
+          // "by 20%", "to 20%"
+          .replace(new RegExp(`\\s*(?:by|to)\\s+${escaped}\\b`, 'gi'), '')
+          // "20% improvement/increase/reduction/growth/gain (in/to)"
+          .replace(new RegExp(`${escaped}\\s+(?:improvement|increase|reduction|growth|gain)\\s*(?:in|to)?`, 'gi'), '')
+          // leftover bare percentage
+          .replace(new RegExp(escaped, 'g'), '');
+      }
+      // Tidy artifacts left by removal: collapse adjacent duplicate/connector
+      // words ("by by", "by through" -> "through"), strip a connector word
+      // left dangling before punctuation, and collapse whitespace.
+      const CONNECTORS = '(?:by|to|through|via)';
+      let prevCleaned: string;
+      do {
+        prevCleaned = cleaned;
+        cleaned = cleaned
+          .replace(new RegExp(`\\b${CONNECTORS}\\s+${CONNECTORS}\\b`, 'gi'), (m) => m.split(/\s+/).pop() ?? m)
+          .replace(new RegExp(`\\s+${CONNECTORS}\\s*([.,;]|$)`, 'gi'), '$1');
+      } while (cleaned !== prevCleaned);
+      cleaned = cleaned
+        .replace(/\s{2,}/g, ' ')
+        .replace(/\s+([,.;])/g, '$1')
+        .trim();
+      return cleaned || bullet.replace(PERCENT_PATTERN, '').trim();
+    });
+    return { ...entry, achievements };
+  });
+
+  return { ...resume, experience };
+}
+
 function buildInitialGaps(resumeText: string, mustHave: string[]): ResumeOptimizationGaps {
   const resumeLower = resumeText.toLowerCase();
   const missingKeywords = mustHave.filter(term => {
@@ -161,6 +218,8 @@ export async function runOptimizePipeline(
     candidate1 = fallbackResult.optimizedResume;
   }
 
+  candidate1 = stripFabricatedMetrics(candidate1, resumeText);
+
   // Step 3: Score pass 1 candidate
   const score1 = await scoreOptimization({
     resumeOriginalText: resumeText,
@@ -193,16 +252,18 @@ export async function runOptimizePipeline(
   const candidate1Text = resumeJsonToText(candidate1);
   const gapPrompt2 = RESUME_OPTIMIZATION_GAP_PROMPT(candidate1Text, jobDescription, gaps2);
 
-  const candidate2: OptimizedResume | null = await callOpenAIWithGapPrompt(
+  const candidate2Raw: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapPrompt2,
     RESUME_OPTIMIZATION_SYSTEM_PROMPT,
     isHebrew
   );
 
-  if (!candidate2) {
+  if (!candidate2Raw) {
     console.warn('Pipeline pass 2 failed, keeping pass 1 candidate');
     return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1 };
   }
+
+  const candidate2 = stripFabricatedMetrics(candidate2Raw, resumeText);
 
   // Score pass 2 candidate
   const score2 = await scoreOptimization({
