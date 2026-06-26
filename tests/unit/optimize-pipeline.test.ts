@@ -61,7 +61,7 @@ jest.mock('@/lib/ats/extractors/jd-extractor', () => {
 // ---------------------------------------------------------------------------
 // Imports after mocks
 // ---------------------------------------------------------------------------
-import { runOptimizePipeline } from '@/lib/ai-optimizer/optimize-pipeline';
+import { runOptimizePipeline, stripFabricatedMetrics } from '@/lib/ai-optimizer/optimize-pipeline';
 import OpenAI from 'openai';
 import * as atsIntegration from '@/lib/ats/integration';
 import * as jdExtractorModule from '@/lib/ats/extractors/jd-extractor';
@@ -371,5 +371,68 @@ describe('normalizeATSScore — honest scoring', () => {
   // Test 2a: MIN_IMPROVEMENT constant must not exist in the ats module
   it('2a: does not export MIN_IMPROVEMENT (forced boost is gone)', () => {
     expect((atsModule as any).MIN_IMPROVEMENT).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite 3: stripFabricatedMetrics — the fix for the fabrication bug found by
+// evals/resume-optimizer (2026-06-26): gpt-4o invents percentages in
+// achievement bullets when the source resume has zero metrics, violating its
+// own system prompt's "keep impact non-numeric" instruction. This is the
+// deterministic guardrail (parallel to RunSmart's enforcePlanSafety) that
+// makes the safety guarantee real instead of prompt-only.
+// ---------------------------------------------------------------------------
+describe('stripFabricatedMetrics', () => {
+  const ORIGINAL_NO_METRICS = 'Led a team handling customer tickets. Trained new hires on support tools.';
+
+  it('removes a fabricated percentage not present in the original resume', () => {
+    const resume = makeResumeJson();
+    resume.experience[0].achievements = ['Led a team, reducing resolution time by 20% through process improvements.'];
+
+    const cleaned = stripFabricatedMetrics(resume, ORIGINAL_NO_METRICS);
+
+    expect(cleaned.experience[0].achievements[0]).not.toMatch(/20%/);
+  });
+
+  it('removes multiple fabricated percentages across achievements', () => {
+    const resume = makeResumeJson();
+    resume.experience[0].achievements = [
+      'Reduced resolution time by 20% through efficient process implementation.',
+      'Improved CSAT scores by 15% via better training.',
+    ];
+
+    const cleaned = stripFabricatedMetrics(resume, ORIGINAL_NO_METRICS);
+
+    const allText = cleaned.experience[0].achievements.join(' ');
+    expect(allText).not.toMatch(/20%/);
+    expect(allText).not.toMatch(/15%/);
+  });
+
+  it('leaves a percentage untouched when it is genuinely present in the original resume', () => {
+    const resume = makeResumeJson();
+    resume.experience[0].achievements = ['Led a migration, cutting page load time by 35%.'];
+    const original = 'Led migration of a legacy app to React, cutting page load time by 35%.';
+
+    const cleaned = stripFabricatedMetrics(resume, original);
+
+    expect(cleaned.experience[0].achievements[0]).toContain('35%');
+  });
+
+  it('leaves achievements with no percentages untouched', () => {
+    const resume = makeResumeJson();
+    resume.experience[0].achievements = ['Built systems used by the team.'];
+
+    const cleaned = stripFabricatedMetrics(resume, ORIGINAL_NO_METRICS);
+
+    expect(cleaned.experience[0].achievements[0]).toBe('Built systems used by the team.');
+  });
+
+  it('does not crash on an achievement that is ONLY a fabricated percentage', () => {
+    const resume = makeResumeJson();
+    resume.experience[0].achievements = ['40%'];
+
+    const cleaned = stripFabricatedMetrics(resume, ORIGINAL_NO_METRICS);
+
+    expect(cleaned.experience[0].achievements[0]).not.toMatch(/40%/);
   });
 });

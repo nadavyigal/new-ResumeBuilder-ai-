@@ -36,12 +36,26 @@ With the harness corrected, the real finding surfaced cleanly:
   no real metric is available to draw from.
 - All other 6 cases: 0 fabrication, judge pass.
 
-## Remediation (not yet done — recommended next story)
+## Run 3 (2026-06-26, after production fix) — judgePassRate 100%, 0 critical
 
-Mirror the RunSmart Story 1b fix: don't trust the prompt alone for the
-fabrication-prone case (no source metric available). Either deterministically
-strip/flag invented percentages from `experience[].achievements` in
-`optimize-pipeline.ts` post-processing (parallel to RunSmart's
-`enforcePlanSafety`), or add a second self-check pass that rejects/regenerates
-when a generated metric has no traceable source. Re-run with `npm run
-eval:resume` after the fix and update this file.
+Fixed: `stripFabricatedMetrics()` added to `optimize-pipeline.ts`, applied to
+every candidate (gap-prompt path, fallback path, and pass 2) before scoring or
+returning. Mirrors RunSmart's `enforcePlanSafety` — deterministic enforcement,
+not prompt-only. It removes any `\d+%` figure in achievement bullets that
+doesn't exact-match a percentage already present in the original resume text,
+then collapses leftover dangling connector words ("by by", "by through") so
+the bullet still reads cleanly.
+
+Verified on `no-quantified-metrics`: the optimizer's invented "20%"/"15%" are
+now gone and the bullets read naturally ("Led a team to reduce ticket
+resolution time through process streamlining...", "Improved CSAT scores by
+training new hires..."). Judge: truthfulness 4, overallPass true, "No
+fabricated claims were found."
+
+Unit-tested directly in `tests/unit/optimize-pipeline.test.ts` (`describe('stripFabricatedMetrics')`,
+5 cases: fabricated removal, multiple fabrications, genuine metric preserved,
+no-percentage passthrough, percentage-only-bullet edge case).
+
+This baseline is now green at 100% / 0 critical. Re-run with `npm run
+eval:resume` after any future change to the pipeline or prompt, and update
+this file if the result changes.
