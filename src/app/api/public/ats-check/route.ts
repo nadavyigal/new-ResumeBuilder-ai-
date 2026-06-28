@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parsePdf } from '@/lib/pdf-parser';
 import { scoreResume } from '@/lib/ats';
 import type { ATSScoreInput, JobExtraction } from '@/lib/ats/types';
-import { createServiceRoleClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limiting/check-rate-limit';
 import { getClientIP } from '@/lib/rate-limiting/get-client-ip';
 import { hashContent } from '@/lib/utils/hash-content';
@@ -71,16 +71,10 @@ export async function POST(request: NextRequest) {
 
   const formData = await request.formData();
   const resumeFile = formData.get('resume');
+  const resumeIdRaw = formData.get('resumeId') ?? formData.get('resume_id');
   const jobDescriptionRaw = formData.get('jobDescription');
   const jobDescriptionUrlRaw = formData.get('jobDescriptionUrl');
-
-  if (!(resumeFile instanceof File)) {
-    return NextResponse.json({ error: 'Resume file is required.' }, { status: 400 });
-  }
-
-  if (resumeFile.size > MAX_FILE_SIZE) {
-    return NextResponse.json({ error: 'Resume file must be under 10MB.' }, { status: 400 });
-  }
+  const resumeId = typeof resumeIdRaw === 'string' ? resumeIdRaw.trim() : '';
 
   let jobDescription = typeof jobDescriptionRaw === 'string' ? jobDescriptionRaw.trim() : '';
   const jobDescriptionUrl = typeof jobDescriptionUrlRaw === 'string' ? jobDescriptionUrlRaw.trim() : '';
@@ -109,22 +103,61 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
-  if (!isPdfUpload(resumeFile, fileBuffer)) {
-    return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
-  }
+  let resumeText = '';
+  if (resumeId) {
+    const authSupabase = await createRouteHandlerClient(request);
+    const {
+      data: { user },
+      error: authError,
+    } = await authSupabase.auth.getUser();
 
-  let pdfData;
-  try {
-    pdfData = await parsePdf(fileBuffer);
-  } catch (error) {
-    console.error('PDF parse error:', error);
-    return NextResponse.json(
-      { error: 'We could not read your resume. Try exporting it as a text-based PDF.' },
-      { status: 400 }
-    );
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: resumeData, error: resumeError } = await authSupabase
+      .from('resumes')
+      .select('raw_text')
+      .eq('id', resumeId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (resumeError) {
+      console.error('Resume lookup error:', resumeError);
+      return NextResponse.json({ error: 'Failed to load resume.' }, { status: 500 });
+    }
+
+    if (!resumeData) {
+      return NextResponse.json({ error: 'Resume not found.' }, { status: 404 });
+    }
+
+    resumeText = (resumeData as { raw_text?: string | null }).raw_text?.trim() || '';
+  } else {
+    if (!(resumeFile instanceof File)) {
+      return NextResponse.json({ error: 'Resume file is required.' }, { status: 400 });
+    }
+
+    if (resumeFile.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'Resume file must be under 10MB.' }, { status: 400 });
+    }
+
+    const fileBuffer = Buffer.from(await resumeFile.arrayBuffer());
+    if (!isPdfUpload(resumeFile, fileBuffer)) {
+      return NextResponse.json({ error: 'Only PDF resumes are supported.' }, { status: 400 });
+    }
+
+    let pdfData;
+    try {
+      pdfData = await parsePdf(fileBuffer);
+    } catch (error) {
+      console.error('PDF parse error:', error);
+      return NextResponse.json(
+        { error: 'We could not read your resume. Try exporting it as a text-based PDF.' },
+        { status: 400 }
+      );
+    }
+    resumeText = pdfData?.text?.trim() || '';
   }
-  const resumeText = pdfData?.text?.trim();
 
   if (!resumeText) {
     return NextResponse.json(
