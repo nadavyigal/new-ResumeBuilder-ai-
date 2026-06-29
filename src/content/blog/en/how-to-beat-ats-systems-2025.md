@@ -1,12 +1,12 @@
 ---
-title: "How to Pass ATS Screens in 2026: A Practical Resume Checklist"
+title: "How to Tailor Your Resume for ATS Systems in 2026: A Practical Checklist"
 date: "2026-02-14"
 excerpt: "A practical, evidence-first checklist to make your resume easier for ATS systems and recruiters to read."
 author: "Resumely Team"
 tags: ["ATS", "Resume Optimization", "Job Search", "Career Tips"]
 ---
 
-# How to Pass ATS Screens in 2026
+# How to Tailor Your Resume for ATS Systems in 2026
 
 If your resume is strong but you still get few responses, the problem is often clarity, not capability. Hiring teams use applicant tracking systems (ATS) to parse and sort applications before a recruiter reviews them.
 
