@@ -1,5 +1,9 @@
 # Screenshot Briefs — Resumely
 
+Source of truth for positioning is `.agents/product-marketing.md` (ResumeBuilder iOS repo).
+Lead with Fit/Match and application package, not "ATS score." Keep "ATS" only in
+process-descriptive contexts (ATS-friendly formatting).
+
 ## Format
 - Size: 1320×2868 px (iPhone 6.9" Pro Max)
 - Background: dark gradient (#0f0f0f → #1a1a2e) or match app theme
@@ -10,19 +14,19 @@
 
 ---
 
-## Frame 1: ATS Score Before/After (PRIMARY — most important)
+## Frame 1: Match Score Before/After (PRIMARY — most important)
 
 **Headline:** Your resume, actually getting noticed.
-**Subheadline:** ATS score: 62 → 89 in 5 minutes.
+**Subheadline:** Resumely Match Score: 62 → 89 in 5 minutes.
 
 **Screen content to show:**
-- ATS score gauge/circle going from 62 (red) to 89 (green)
+- Resumely Match Score gauge/circle going from 62 (red) to 89 (green)
 - Below it: a few highlighted keyword matches appearing ("Python ✓", "Product Strategy ✓", "Cross-functional ✓")
 - Job title shown: "Senior Product Manager @ Stripe"
 
 **Hebrew variant (Frame 1-HE):**
 - Headline: קורות החיים שלך — עכשיו בולטים.
-- Subheadline: ציון ATS: 62 ← 89 תוך 5 דקות.
+- Subheadline: ציון התאמה של Resumely: 62 ← 89 תוך 5 דקות.
 - Same screen content with Hebrew UI labels
 
 ---
@@ -63,7 +67,7 @@
   - Cover Letter Generator
   - Interview Prep Guide
   - LinkedIn Optimisation
-  - ATS Deep Dive
+  - Fit Deep Dive
 - One card shown as active/expanded with a sample cover letter preview
 
 ---
@@ -76,6 +80,6 @@ Identical content to Frame 1-HE above. Used specifically in the Hebrew locale li
 
 ## Notes for Designer
 - All screenshots should use real (or realistic) resume content — not Lorem Ipsum
-- The "before" ATS score should look genuinely bad (62, red) to make the "after" (89, green) feel like a real win
+- The "before" Match Score should look genuinely bad (62, red) to make the "after" (89, green) feel like a real win
 - Use the same colour palette as the live app for visual consistency
 - Export each frame as PNG, store at `launch-assets/aso/screenshots/`

@@ -1,51 +1,56 @@
 # English App Store Metadata — Resumely
 
-## Title (30 chars max)
-Resumely: AI Resume Builder
-(chars: 28 ✓)
+Source of truth for English ASO copy is the iOS repo:
+`ResumeBuilder IOS APP/docs/app-store/en-metadata.md`. This file mirrors it.
+Keep both in sync if the copy changes.
+
+## Positioning Rule
+
+Lead with Fit/Match and the complete application package. Keep "ATS" only in
+process-descriptive contexts such as ATS-friendly formatting or common parsing
+checks. Do not claim an official ATS score, guaranteed passage, or guaranteed
+interviews.
+
+## Title
+
+The app currently appears in App Store Connect as "Resume AI - CV Builder".
+Do not change the app name mid-review unless Apple rejects metadata or the
+founder explicitly chooses a rename.
+
+Future brand-led option: `Resumely: Resume Builder`
 
 ## Subtitle (30 chars max)
-ATS Resume Tailored to Any Job
-(chars: 30 ✓)
 
-## Keywords (100 chars, comma-separated, no spaces after commas)
-resume builder,ATS resume,tailor resume,cover letter,resume optimizer,job search,CV maker
-(chars: 89 ✓)
+Recommended for the Fit/Match wedge:
+```
+AI Resume Tailor & Job Match
+```
 
-## Promotional Text (170 chars max — updateable without new build)
-Land more interviews. Paste any job description and get a tailored, ATS-optimised resume in 5 minutes. Free to try.
-(chars: 115 ✓)
+## Keywords (100 bytes max)
 
-## Description (4000 chars max)
-Resumely uses AI to tailor your resume to any job description in minutes — no rewriting, no guessing.
+```
+cv builder,job application,cover letter,career,scanner,optimizer,interview,linkedin,job seeker
+```
 
-**How it works**
-1. Upload your resume (PDF or Word)
-2. Paste the job description or job listing URL
-3. Resumely analyses the job requirements and optimises every section
-4. See your ATS score jump — then export a perfectly tailored PDF
+## Promotional Text (170 chars max)
 
-**Why it works**
-Most resumes are rejected before a human ever reads them. Applicant Tracking Systems (ATS) scan for specific keywords, format, and structure. Resumely shows you exactly what's missing and fixes it automatically.
+```
+Check your fit before you apply. Resumely shows what is missing, helps tailor your resume, and exports a complete application package from your iPhone.
+```
 
-**What you get — free**
-• 1 full AI optimisation
-• ATS score with top keyword gaps
-• 1 PDF export
+## Description Opening
 
-**Upgrade for more**
-• 5-export pack — cover a full job search
-• 10-export pack — power users
-• Unlimited — all exports, all expert modes, all templates
+```text
+Check your fit before you apply. Upload your resume, add a job description or link, and Resumely shows what is missing before you spend time tailoring.
 
-**Expert modes (Unlimited)**
-• Cover letter generator
-• Interview prep guide
-• LinkedIn profile optimisation
-• Salary negotiation brief
+Review your Resumely Match Score, apply targeted edits, choose an ATS-friendly design, and export a polished resume, cover letter, and application package from your iPhone.
+```
 
-**Privacy first**
-Your resume is hashed and never stored in readable form. We do not sell your data.
+## Claims To Avoid
 
-Built by a solo founder who spent too long manually tailoring resumes for every application.
-(chars: ~1,050 ✓)
+- "Pass ATS"
+- "Beat the bots"
+- "Official ATS score"
+- "Guaranteed interview"
+- "Get hired"
+- Any named ATS-vendor compatibility claim without evidence
