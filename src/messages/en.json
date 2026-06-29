@@ -7,7 +7,7 @@
   },
   "footer": {
     "newsletterTitle": "Weekly Resume Tips That Actually Work",
-    "newsletterDescription": "Get proven, ATS-aware resume strategies and practical job-search tips every week.",
+    "newsletterDescription": "Get proven resume-tailoring strategies and practical job-search tips every week.",
     "newsletterNote": "This is our weekly newsletter. To check your resume instantly, <link>create a free account</link>.",
     "copyright": "© {year} Resumely. Built for job seekers.",
     "privacy": "Privacy",
@@ -224,7 +224,7 @@
     "errorGeneric": "We couldn't add your email. Try again.",
     "errorDuplicate": "You're already subscribed to our newsletter.",
     "errorUnexpected": "We hit a snag. Try again in a moment.",
-    "note": "Weekly resume tips and ATS insights. Unsubscribe anytime."
+    "note": "Weekly resume tips and job-search insights. Unsubscribe anytime."
   },
   "auth": {
     "form": {
@@ -307,7 +307,7 @@
   "blog": {
     "index": {
       "title": "Resume Tips & Career Insights",
-      "subtitle": "Expert advice on ATS optimization, resume writing, and landing your dream job.",
+      "subtitle": "Expert advice on resume tailoring, job fit, and landing your dream job.",
       "readingTime": "{minutes} min read",
       "emptyState": "No blog posts yet. Check back soon!"
     },
