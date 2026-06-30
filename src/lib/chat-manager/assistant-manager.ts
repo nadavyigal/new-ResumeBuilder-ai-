@@ -8,6 +8,7 @@
 import OpenAI from 'openai';
 import type { Assistant } from 'openai/resources/beta/assistants';
 import type { Thread } from 'openai/resources/beta/threads/threads';
+import { captureAiGenerationEvent, type AITraceOptions } from '@/lib/posthog-ai';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 
@@ -23,6 +24,7 @@ export interface RunAssistantInput {
   threadId: string;
   userMessage: string;
   resumeContext: ResumeContext;
+  aiTrace?: AITraceOptions;
 }
 
 export interface RunAssistantOutput {
@@ -114,6 +116,7 @@ export class AssistantManager {
    * Run the assistant with a user message
    */
   async runAssistant(input: RunAssistantInput): Promise<RunAssistantOutput> {
+    const startedAt = Date.now();
     const assistant = await this.getOrCreateAssistant();
 
     // Create thread if not provided - use const to prevent reassignment
@@ -212,9 +215,42 @@ export class AssistantManager {
         }
       }
     } else {
+      await captureAiGenerationEvent({
+        input: {
+          thread_id: resolvedThreadId,
+          user_message: input.userMessage,
+          resume_context: input.resumeContext,
+        },
+        model: ASSISTANT_MODEL,
+        trace: input.aiTrace || { traceName: 'chat' },
+        latency: Date.now() - startedAt,
+        usage: {
+          inputTokens: run.usage?.prompt_tokens,
+          outputTokens: run.usage?.completion_tokens,
+          totalTokens: run.usage?.total_tokens,
+        },
+        error: new Error(`Assistant run failed: ${run.status}`),
+      });
       console.error('Run failed with status:', run.status);
       throw new Error(`Assistant run failed: ${run.status}`);
     }
+
+    await captureAiGenerationEvent({
+      input: {
+        thread_id: resolvedThreadId,
+        user_message: input.userMessage,
+        resume_context: input.resumeContext,
+      },
+      output: response,
+      model: ASSISTANT_MODEL,
+      trace: input.aiTrace || { traceName: 'chat' },
+      latency: Date.now() - startedAt,
+      usage: {
+        inputTokens: run.usage?.prompt_tokens,
+        outputTokens: run.usage?.completion_tokens,
+        totalTokens: run.usage?.total_tokens,
+      },
+    });
 
     return {
       response,

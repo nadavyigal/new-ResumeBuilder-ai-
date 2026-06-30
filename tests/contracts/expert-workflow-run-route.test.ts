@@ -77,9 +77,13 @@ function loadRouteHarness() {
     return {
       __esModule: true,
       ...actual,
-      runExpertWorkflow,
     };
   });
+
+  jest.doMock('@/lib/expert-workflows/orchestrator', () => ({
+    __esModule: true,
+    runExpertWorkflow,
+  }));
 
   const { POST } = require('@/app/api/v1/expert-workflows/run/route');
   return { POST, createRouteHandlerClient, captureServerEvent, runExpertWorkflow };

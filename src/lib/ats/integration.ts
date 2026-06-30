@@ -4,7 +4,7 @@
  * Prepares data and calls the ATS scoring engine from the optimization workflow
  */
 
-import { scoreResume } from './index';
+import { scoreResume } from './core';
 import type { ATSScoreInput, JobExtraction, FormatReport, ATSScoreOutput } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { extractJobData } from './extractors/jd-extractor';

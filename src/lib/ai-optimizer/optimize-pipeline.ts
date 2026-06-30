@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
@@ -17,6 +18,11 @@ export interface OptimizationPipelineResult {
   passesUsed: number;
 }
 
+type OptimizationPipelineOptions = {
+  jobExtractedJson?: Record<string, unknown>;
+  aiTrace?: AITraceOptions;
+};
+
 function getOpenAIClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -28,7 +34,8 @@ function getOpenAIClient(): OpenAI {
 async function callOpenAIWithGapPrompt(
   userPrompt: string,
   systemPrompt: string,
-  isHebrew: boolean
+  isHebrew: boolean,
+  aiTrace?: AITraceOptions
 ): Promise<OptimizedResume | null> {
   try {
     const openai = getOpenAIClient();
@@ -42,7 +49,8 @@ async function callOpenAIWithGapPrompt(
 - Use truthful, professional Hebrew and avoid unnecessary English text.`
       : '';
 
-    const completion = await openai.chat.completions.create(
+    const completion = await trackedChatCompletion(
+      openai,
       {
         model: OPTIMIZATION_CONFIG.model,
         temperature: OPTIMIZATION_CONFIG.temperature,
@@ -59,6 +67,7 @@ async function callOpenAIWithGapPrompt(
           },
         ],
       },
+      aiTrace || { traceName: 'optimize' },
       { timeout: OPTIMIZATION_CONFIG.timeout }
     );
 
@@ -179,7 +188,7 @@ function buildGapsFromAtsResult(
 export async function runOptimizePipeline(
   resumeText: string,
   jobDescription: string,
-  options?: { jobExtractedJson?: Record<string, unknown> }
+  options?: OptimizationPipelineOptions
 ): Promise<OptimizationPipelineResult> {
   const hebrewPattern = /[֐-׿]/;
   const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
@@ -206,12 +215,13 @@ export async function runOptimizePipeline(
   let candidate1: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapUserPrompt,
     RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-    isHebrew
+    isHebrew,
+    options?.aiTrace
   );
 
   if (!candidate1) {
     console.warn('Pipeline pass 1 gap call failed, falling back to plain optimizeResume');
-    const fallbackResult = await optimizeResume(resumeText, jobDescription);
+    const fallbackResult = await optimizeResume(resumeText, jobDescription, options?.aiTrace);
     if (!fallbackResult.success || !fallbackResult.optimizedResume) {
       throw new Error(fallbackResult.error || 'Failed to optimize resume in pipeline pass 1');
     }
@@ -255,7 +265,8 @@ export async function runOptimizePipeline(
   const candidate2Raw: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapPrompt2,
     RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-    isHebrew
+    isHebrew,
+    options?.aiTrace
   );
 
   if (!candidate2Raw) {

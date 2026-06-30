@@ -6,6 +6,7 @@
  */
 
 import { getOpenAI } from '@/lib/openai';
+import { trackedChatCompletion } from '@/lib/posthog-ai';
 import type { QuickWinSuggestion, JobExtraction, SubScores } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { buildQuickWinsPrompt } from './prompt';
@@ -40,7 +41,7 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
   try {
     const prompt = buildQuickWinsPrompt(params);
 
-    const completion = await getOpenAI().chat.completions.create({
+    const completion = await trackedChatCompletion(getOpenAI(), {
       model: 'gpt-4o-mini', // Cost-efficient model
       messages: [
         {
@@ -55,6 +56,11 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
       response_format: { type: 'json_object' },
       temperature: 0.7, // Balance creativity and consistency
       max_tokens: 2000,
+    }, {
+      traceName: 'ats-check',
+      properties: {
+        current_ats_score: params.current_ats_score,
+      },
     });
 
     const result = completion.choices[0].message.content;

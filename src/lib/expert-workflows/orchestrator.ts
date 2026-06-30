@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { scoreOptimization } from '@/lib/ats/integration';
 import { buildRewritePrompt } from './prompts/rewrite';
@@ -232,14 +233,15 @@ async function loadWorkflowContext(params: RunWorkflowParams): Promise<ExpertWor
 }
 
 async function runModelWithRetry(
-  prompt: PromptBundle
+  prompt: PromptBundle,
+  aiTrace?: AITraceOptions
 ): Promise<Record<string, unknown>> {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const completionPromise = client.chat.completions.create({
+      const completionPromise = trackedChatCompletion(client, {
         model: prompt.model,
         temperature: prompt.temperature,
         max_tokens: prompt.max_tokens,
@@ -248,7 +250,7 @@ async function runModelWithRetry(
           { role: 'system', content: prompt.system },
           { role: 'user', content: prompt.user },
         ],
-      });
+      }, aiTrace || { traceName: 'expert-mode' });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Expert workflow request timed out.')), WORKFLOW_TIMEOUT_MS);
@@ -408,7 +410,16 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
   const prompt = extractPromptBundle(context);
   const { output: parsed, validation } = await generateValidatedOutput(
     context.workflow_type,
-    prompt
+    prompt,
+    (attemptPrompt) =>
+      runModelWithRetry(attemptPrompt, {
+        distinctId: context.user_id,
+        traceName: 'expert-mode',
+        properties: {
+          workflow_type: context.workflow_type,
+          optimization_id: context.optimization_id,
+        },
+      })
   );
 
   const status = validation.missingEvidence.length > 0 ? 'needs_user_input' : 'completed';
