@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import type { AITraceOptions } from "@/lib/posthog-ai";
 
 // Lazy initialization — never call getEnv() at module load time.
 // This file is transitively imported by client components via the ats/quick-wins
@@ -17,3 +18,4 @@ function getOpenAI(): OpenAI {
 
 // Export for use in other files
 export { getOpenAI };
+export type { AITraceOptions };

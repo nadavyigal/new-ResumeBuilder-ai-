@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import OpenAI from 'openai';
+import { trackedChatCompletion } from '@/lib/posthog-ai';
 import type { RefineSectionRequest, RefineSectionResponse } from '@/types/refine';
 import { buildRefineSectionPrompt } from '@/lib/ai/prompt-builders/refineSectionPrompt';
 import { coerceModelJson, validateRefineSuggestion } from '@/lib/ai/validators/refineSection';
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     const { system, user: userMsg } = buildRefineSectionPrompt({ req: body });
 
-    const completion = await getOpenAI().chat.completions.create({
+    const completion = await trackedChatCompletion(getOpenAI(), {
       model: 'gpt-4o-mini',
       temperature,
       response_format: { type: 'json_object' },
@@ -51,6 +52,12 @@ export async function POST(request: NextRequest) {
         { role: 'system', content: system },
         { role: 'user', content: userMsg },
       ],
+    }, {
+      distinctId: user.id,
+      traceName: 'refine-section',
+      properties: {
+        resume_id: body.resumeId,
+      },
     });
 
     const raw = completion.choices?.[0]?.message?.content || '';
@@ -88,7 +95,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
-
 
 
 

@@ -28,6 +28,7 @@ export interface UnifiedProcessInput {
   message: string;
   sessionId: string;
   optimizationId: string;
+  userId?: string;
   currentResumeContent: Record<string, unknown>;
   currentDesignConfig?: any;
   currentTemplateId?: string;
@@ -100,7 +101,15 @@ export async function processUnifiedMessage(
   const assistantInput: RunAssistantInput = {
     threadId: input.threadId || '', // Will be created if empty
     userMessage: input.message,
-    resumeContext
+    resumeContext,
+    aiTrace: {
+      distinctId: input.userId,
+      traceName: 'chat',
+      properties: {
+        session_id: input.sessionId,
+        optimization_id: input.optimizationId,
+      },
+    },
   };
 
   try {

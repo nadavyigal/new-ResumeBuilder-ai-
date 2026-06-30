@@ -4,15 +4,22 @@
 import { PostHog } from 'posthog-node';
 
 let posthogClient: PostHog | null = null;
+let warnedMissingPostHogKey = false;
 
 export function getPostHogClient(): PostHog | null {
   if (posthogClient) return posthogClient;
 
-  const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
+  const apiKey = process.env.POSTHOG_API_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const apiHost =
+    process.env.POSTHOG_HOST ||
+    process.env.NEXT_PUBLIC_POSTHOG_HOST ||
+    'https://us.i.posthog.com';
 
   if (!apiKey) {
-    console.warn('PostHog API key not found. Server-side analytics disabled.');
+    if (!warnedMissingPostHogKey) {
+      console.warn('PostHog API key not found. Server-side analytics disabled.');
+      warnedMissingPostHogKey = true;
+    }
     return null;
   }
 
@@ -23,6 +30,17 @@ export function getPostHogClient(): PostHog | null {
   });
 
   return posthogClient;
+}
+
+export async function flushPostHogClient() {
+  const client = getPostHogClient();
+  if (!client) return;
+
+  try {
+    await client.flush();
+  } catch (error) {
+    console.error('PostHog server flush error:', error);
+  }
 }
 
 export async function captureServerEvent(
@@ -44,4 +62,3 @@ export async function captureServerEvent(
     console.error('PostHog server capture error:', error);
   }
 }
-

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_USER_PROMPT,
@@ -79,7 +80,8 @@ function getOpenAIClient(): OpenAI {
  */
 export async function optimizeResume(
   resumeText: string,
-  jobDescription: string
+  jobDescription: string,
+  aiTrace?: AITraceOptions
 ): Promise<OptimizationResult> {
   try {
     const openai = getOpenAIClient();
@@ -105,7 +107,7 @@ export async function optimizeResume(
       jobPreview: jobDescription.substring(0, 100),
     });
 
-    const completion = await openai.chat.completions.create({
+    const completion = await trackedChatCompletion(openai, {
       model: OPTIMIZATION_CONFIG.model,
       temperature: OPTIMIZATION_CONFIG.temperature,
       max_tokens: OPTIMIZATION_CONFIG.maxTokens,
@@ -120,7 +122,7 @@ export async function optimizeResume(
           content: RESUME_OPTIMIZATION_USER_PROMPT(resumeText, jobDescription),
         },
       ],
-    });
+    }, aiTrace || { traceName: 'optimize' });
 
     const responseContent = completion.choices[0]?.message?.content;
 

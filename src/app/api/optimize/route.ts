@@ -86,7 +86,17 @@ export async function POST(req: NextRequest) {
     const pipelineResult = await runOptimizePipeline(
       (resumeData as any).raw_text,
       jobDescriptionText,
-      parsedData ? { jobExtractedJson: parsedData } : undefined,
+      {
+        ...(parsedData ? { jobExtractedJson: parsedData } : {}),
+        aiTrace: {
+          distinctId: user.id,
+          traceName: 'optimize',
+          properties: {
+            resume_id: resumeId,
+            job_description_id: jobDescriptionId,
+          },
+        },
+      },
     );
     const optimizedResume = pipelineResult.optimizedResume;
 

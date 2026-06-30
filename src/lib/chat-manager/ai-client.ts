@@ -7,6 +7,7 @@
  */
 
 import OpenAI from 'openai';
+import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 
 export interface AIClientConfig {
   apiKey: string;
@@ -15,6 +16,7 @@ export interface AIClientConfig {
   maxTokens?: number;
   timeout?: number; // Request timeout in milliseconds
   maxRetries?: number; // Maximum retry attempts
+  aiTrace?: AITraceOptions;
 }
 
 export interface ChatCompletionOptions {
@@ -113,12 +115,16 @@ export async function getChatResponse(
   try {
     // Wrap request in timeout promise
     const completion = await Promise.race([
-      client.chat.completions.create({
-        model: config?.model ?? 'gpt-4',
-        messages: options.messages,
-        temperature: config?.temperature ?? 0.7,
-        max_tokens: config?.maxTokens ?? 1000,
-      }),
+      trackedChatCompletion(
+        client,
+        {
+          model: config?.model ?? 'gpt-4',
+          messages: options.messages,
+          temperature: config?.temperature ?? 0.7,
+          max_tokens: config?.maxTokens ?? 1000,
+        },
+        config?.aiTrace || { traceName: 'chat' }
+      ),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new AITimeoutError()), timeout)
       ),
