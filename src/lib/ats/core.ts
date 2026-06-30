@@ -5,7 +5,7 @@
  * Coordinates all analyzers and generates complete scoring output.
  */
 
-import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey, QuickWinSuggestion } from './types';
+import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey } from './types';
 import {  KeywordExactAnalyzer } from './analyzers/keyword-exact';
 import { KeywordPhraseAnalyzer } from './analyzers/keyword-phrase';
 import { SemanticAnalyzer } from './analyzers/semantic';
@@ -39,8 +39,7 @@ function normalizeATSScore(rawScore: number): number {
  * @returns Complete ATS scoring output with original and optimized scores
  */
 export async function scoreResume(
-  input: ATSScoreInput,
-  options?: { generateQuickWins?: boolean }
+  input: ATSScoreInput
 ): Promise<ATSScoreOutput> {
   const startTime = Date.now();
   const warnings: string[] = [];
@@ -128,28 +127,6 @@ export async function scoreResume(
       jobData: preparedInput.job_data,
     });
 
-    // Generate quick wins if requested
-    let quickWins: QuickWinSuggestion[] | undefined;
-
-    if (options?.generateQuickWins) {
-      try {
-        const { generateQuickWins } = await import('./quick-wins/generator');
-
-        quickWins = await generateQuickWins({
-          resume_text: input.resume_optimized_text,
-          resume_json: input.resume_optimized_json || {} as any,
-          job_data: preparedInput.job_data,
-          subscores: optimizedAggregate.subscores,
-          current_ats_score: Math.round(normalizedOptimized),
-        });
-
-        console.log('✨ Generated quick wins:', quickWins.length);
-      } catch (error) {
-        console.error('Quick wins generation failed, skipping:', error);
-        // Don't block scoring if quick wins fail
-      }
-    }
-
     // Collect warnings
     if (originalAggregate.failedAnalyzers.length > 0) {
       warnings.push(`Some analyzers failed: ${originalAggregate.failedAnalyzers.join(', ')}`);
@@ -167,7 +144,6 @@ export async function scoreResume(
       subscores: optimizedAggregate.subscores,
       subscores_original: originalAggregate.subscores,
       suggestions,
-      quick_wins: quickWins, // Add quick wins if generated
       confidence: confidenceResult.confidence,
       metadata: {
         version: 2,

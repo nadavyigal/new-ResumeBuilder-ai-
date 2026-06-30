@@ -7,6 +7,8 @@ Create a `.env.local` (or `local.env`) and set your Supabase keys and OpenAI key
 Required variables:
 
 - `OPENAI_API_KEY` — OpenAI API key used for intent classification and planning.
+- `POSTHOG_API_KEY` — PostHog project API key used for server-side analytics and LLM observability.
+- `POSTHOG_HOST` — PostHog ingestion host, defaults to `https://us.i.posthog.com`.
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key for SSR clients.
 - `SUPABASE_SERVICE_ROLE_KEY` — Service role key for server-side inserts/storage.

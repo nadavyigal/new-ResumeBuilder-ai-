@@ -4,7 +4,7 @@ import { captureServerEvent } from '@/lib/posthog-server';
 import {
   listApplicationExpertReports,
   saveAppliedRunToApplication,
-} from '@/lib/expert-workflows';
+} from '@/lib/expert-workflows/orchestrator';
 
 export async function GET(
   _req: NextRequest,

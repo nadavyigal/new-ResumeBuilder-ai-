@@ -23,7 +23,7 @@ import { CHAT_CONFIG, TECHNICAL_KEYWORDS } from '@/lib/constants';
 import { detectIntentRegex } from '@/lib/agent/intents';
 import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
-import { runExpertWorkflow } from '@/lib/expert-workflows';
+import { runExpertWorkflow } from '@/lib/expert-workflows/orchestrator';
 import type { SurfacedExpertWorkflowType } from '@/lib/expert-workflows';
 import { ensureThread } from '@/lib/ai-assistant/thread-manager';
 import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
@@ -647,6 +647,7 @@ export async function POST(request: NextRequest) {
       message,
       sessionId: chatSession.id,
       optimizationId: optimization_id,
+      userId: user.id,
       currentResumeContent,
       currentDesignConfig,
       currentTemplateId,

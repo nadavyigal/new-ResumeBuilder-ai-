@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
-import { runExpertWorkflow } from '@/lib/expert-workflows';
+import { runExpertWorkflow } from '@/lib/expert-workflows/orchestrator';
 import {
   SURFACED_EXPERT_WORKFLOW_TYPES,
   isSurfacedExpertWorkflowType,

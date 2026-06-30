@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
-import { applyExpertWorkflowRun } from '@/lib/expert-workflows';
+import { applyExpertWorkflowRun } from '@/lib/expert-workflows/orchestrator';
 
 export async function POST(
   request: NextRequest,

@@ -27,7 +27,13 @@ export async function POST(req: NextRequest) {
       // Legacy: use ai-optimizer to produce an optimized resume (no schema or DB coupling)
       const resumeText = typeof body.resume_text === 'string' ? body.resume_text : (body.resume_json?.summary ?? "");
       const jobText = body.job_text ?? "";
-      const legacy = await optimizeResume(resumeText, jobText);
+      const legacy = await optimizeResume(resumeText, jobText, {
+        distinctId: user.id,
+        traceName: 'expert-mode',
+        properties: {
+          source: 'agent-run-shadow',
+        },
+      });
 
       // Compute baseline ATS (before agent)
       const beforeATS = (() => {

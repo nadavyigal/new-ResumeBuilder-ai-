@@ -239,6 +239,13 @@ export async function POST(req: NextRequest) {
     });
     const pipelineResult = await runOptimizePipeline(resumeMarkdown, scoringJobText, {
       jobExtractedJson: extractedData,
+      aiTrace: {
+        distinctId: user.id,
+        traceName: 'optimize',
+        properties: {
+          source: 'upload-resume',
+        },
+      },
     });
     const optimizedResume = pipelineResult.optimizedResume;
 
