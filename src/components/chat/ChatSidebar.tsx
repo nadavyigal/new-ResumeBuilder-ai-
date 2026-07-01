@@ -162,32 +162,38 @@ export function ChatSidebar({
         const lower = message.trim().toLowerCase();
         // If user types an apply intent while a suggestion exists, apply it
         if (refineResult && (lower === 'apply' || lower === 'apply suggestion' || lower.startsWith('apply ') || lower.startsWith('amend') || lower.startsWith('update'))) {
-          setIsLoading(true);
-          const res = await applyRefinement({
-            optimizationId,
-            selection,
-            suggestion: refineResult,
-          });
-          setIsLoading(false);
-          if (!res.ok) {
-            throw new Error(res.reason || t('errors.applyRefinement'));
+          try {
+            setIsLoading(true);
+            const res = await applyRefinement({
+              optimizationId,
+              selection,
+              suggestion: refineResult,
+            });
+            if (!res.ok) {
+              throw new Error(res.reason || t('errors.applyRefinement'));
+            }
+            setRefineResult(null);
+            // Trigger refresh
+            if (onMessageSent) onMessageSent();
+          } finally {
+            setIsLoading(false);
           }
-          setRefineResult(null);
-          // Trigger refresh
-          if (onMessageSent) onMessageSent();
           return;
         }
 
-        setIsLoading(true);
-        setRefineResult(null);
-        const payload: RefineSectionRequest = {
-          resumeId: optimizationId,
-          selection,
-          instruction: message,
-        };
-        const result = await refineSection(payload);
-        setRefineResult(result.suggestion);
-        setIsLoading(false);
+        try {
+          setIsLoading(true);
+          setRefineResult(null);
+          const payload: RefineSectionRequest = {
+            resumeId: optimizationId,
+            selection,
+            instruction: message,
+          };
+          const result = await refineSection(payload);
+          setRefineResult(result.suggestion);
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
 
