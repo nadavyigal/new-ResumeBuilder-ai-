@@ -132,10 +132,12 @@ export default function OptimizationPage() {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select("plan_type")
+          .select("plan_type, legacy_free_access")
           .eq("user_id", authUser.id)
           .maybeSingle();
-        setIsPremium(profile?.plan_type === "premium");
+        setIsPremium(
+          profile?.plan_type === "premium" || profile?.legacy_free_access === true
+        );
       } catch (planError) {
         console.error("Failed to resolve premium status:", planError);
       }
