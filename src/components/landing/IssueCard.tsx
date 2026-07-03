@@ -22,8 +22,8 @@ export function IssueCard({ issue, rank }: IssueCardProps) {
         <div className="h-8 w-8 rounded-full bg-mobile-cta/10 text-mobile-cta flex items-center justify-center font-semibold">
           {rank}
         </div>
-        <div className="flex-1 space-y-2">
-          <p className="text-sm font-medium text-foreground">{issue.text}</p>
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="break-words text-sm font-medium text-foreground">{issue.text}</p>
           <div className="flex flex-wrap items-center gap-2">
             {categoryLabel && (
               <Badge variant="secondary" className="text-xs">

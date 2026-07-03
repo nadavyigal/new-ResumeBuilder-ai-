@@ -47,6 +47,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
   const hasValidWordCount = inputMode !== "text" || wordCount >= PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS;
   const hasValidUrl = inputMode !== "url" || isLikelyJobUrl(jobDescriptionUrl);
   const hasJobInput = inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim();
+  const hasStartedTextInput = inputMode === "text" && jobDescription.trim().length > 0;
 
   const canSubmit = Boolean(
     resumeFile
@@ -104,7 +105,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           required
         />
         {resumeFile && (
-          <p className="text-xs text-foreground/60">
+          <p className="break-all text-xs text-foreground/60">
             {t("selectedFile", { fileName: resumeFile.name })}
           </p>
         )}
@@ -141,9 +142,9 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
               rows={6}
               required
             />
-            <div className="flex items-center justify-between text-xs text-foreground/60">
+            <div className="flex items-center justify-between gap-3 text-xs text-foreground/60">
               <span>{t("minimumWords", { count: PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS })}</span>
-              <span className={hasValidWordCount ? "" : "text-destructive"}>
+              <span className={hasStartedTextInput && !hasValidWordCount ? "text-destructive" : ""}>
                 {t("wordCount", { count: wordCount })}
               </span>
             </div>

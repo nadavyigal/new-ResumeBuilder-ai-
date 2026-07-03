@@ -19,16 +19,16 @@ export function Header() {
 
   return (
     <header className="w-full border-b-2 border-border bg-background py-4">
-      <div className="container flex items-center justify-between px-4">
+      <div className="container flex min-w-0 items-center justify-between gap-3 px-4">
         {/* Logo */}
-        <Link href={ROUTES.home} className="flex items-center">
-          <span className="font-bold text-xl text-foreground px-6 py-2 border-2 border-foreground rounded-full hover:bg-foreground hover:text-background transition-all duration-200">
+        <Link href={ROUTES.home} className="flex min-w-0 items-center">
+          <span className="rounded-full border-2 border-foreground px-4 py-2 text-lg font-bold text-foreground transition-all duration-200 hover:bg-foreground hover:text-background md:px-6 md:text-xl">
             RESUMELY
           </span>
         </Link>
 
         {/* Auth Buttons */}
-        <div className="flex items-center gap-3">
+        <div className="hidden items-center gap-3 md:flex">
           <Link href={ROUTES.pricing} className="hidden sm:block">
             <Button variant="ghost" size="sm">
               {t("pricing")}
@@ -64,6 +64,10 @@ export function Header() {
               </Link>
             </>
           )}
+        </div>
+
+        <div className="flex shrink-0 items-center md:hidden">
+          <LanguageSwitcher compact />
         </div>
       </div>
     </header>
