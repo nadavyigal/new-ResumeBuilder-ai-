@@ -258,4 +258,21 @@ describe('POST /api/public/ats-check resumeId input', () => {
     expect(isPdfUpload).toHaveBeenCalledTimes(1);
     expect(parsePdf).toHaveBeenCalledTimes(1);
   });
+
+  it('rejects job descriptions below the shared public word minimum', async () => {
+    const auth = createAuthClient({});
+    const { POST, scoreResume } = loadRouteHarness(auth.client);
+    const ninetyWordJobDescription = Array(90).fill('role').join(' ');
+    const resumeFile = new File(['%PDF test'], 'resume.pdf', { type: 'application/pdf' });
+
+    const response = await POST(buildRequest(
+      { jobDescription: ninetyWordJobDescription },
+      resumeFile
+    ));
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.error).toBe('Please paste the full job description (at least 100 words).');
+    expect(scoreResume).not.toHaveBeenCalled();
+  });
 });

@@ -97,15 +97,6 @@ export function FreeATSChecker() {
     return t("checksRemaining", { count: scoreData.checksRemaining });
   }, [scoreData, t]);
 
-  const mapApiErrorToUi = (apiError?: string) => {
-    const normalized = String(apiError || "").toLowerCase();
-    if (normalized.includes("80") && normalized.includes("word")) return t("errors.minimumWords");
-    if (normalized.includes("url")) return t("errors.invalidUrl");
-    if (normalized.includes("pdf") || normalized.includes("resume")) return t("errors.invalidResume");
-    if (normalized.includes("job description")) return t("errors.jobDescriptionRequired");
-    return apiError || t("errors.generic");
-  };
-
   const handleFileSelected = (file: File) => {
     posthog.capture("ats_checker_file_uploaded", {
       fileSize: file.size,
@@ -170,7 +161,7 @@ export function FreeATSChecker() {
       }
 
       if (!response.ok) {
-        setErrorMessage(mapApiErrorToUi(payload?.error));
+        setErrorMessage(payload?.error || t("errors.generic"));
         setStep("upload");
         return;
       }
@@ -278,14 +269,18 @@ export function FreeATSChecker() {
             </div>
 
             <div className="rounded-3xl border-2 border-border bg-card/95 p-6 md:p-8 shadow-xl shadow-mobile-cta/10">
-              {step === "upload" && (
-                <UploadForm
-                  onSubmit={handleSubmit}
-                  onFileSelected={handleFileSelected}
-                  errorMessage={errorMessage}
-                />
+              {(step === "upload" || step === "processing") && (
+                <div className="space-y-6">
+                  {step === "processing" && <LoadingState />}
+                  <div className={step === "processing" ? "hidden" : undefined}>
+                    <UploadForm
+                      onSubmit={handleSubmit}
+                      onFileSelected={handleFileSelected}
+                      errorMessage={errorMessage}
+                    />
+                  </div>
+                </div>
               )}
-              {step === "processing" && <LoadingState />}
               {step === "results" && scoreData && (
                 <ATSScoreDisplay
                   data={scoreData}
