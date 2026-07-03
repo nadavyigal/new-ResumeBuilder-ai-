@@ -9,9 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "@/navigation";
 import { Upload, Palette, Briefcase, TrendingUp, Sparkles, CheckCircle } from "@/lib/icons";
 import { ROUTES } from "@/lib/constants";
-import { createClientComponentClient } from "@/lib/supabase";
 import { useTranslations } from "next-intl";
 import { posthog } from "@/lib/posthog";
+
+type ConvertedScore = {
+  ats_score: number;
+  ats_suggestions: unknown;
+  converted_at: string | null;
+};
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard.home");
@@ -26,19 +31,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    const supabase = createClientComponentClient();
     const loadConvertedScore = async () => {
-      const { data } = await supabase
-        .from("anonymous_ats_scores")
-        .select("ats_score, ats_suggestions, converted_at")
-        .eq("user_id", user.id)
-        .not("converted_at", "is", null)
-        .order("converted_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const response = await fetch("/api/public/convert-session");
+      if (!response.ok) return;
 
-      if (data) {
-        setConvertedScore(data);
+      const payload = await response.json();
+      if (payload?.scoreData) {
+        setConvertedScore(payload.scoreData as ConvertedScore);
       }
     };
 
