@@ -7,6 +7,31 @@ type JsonObject = Record<string, unknown>;
 const ROOT = process.cwd();
 const CRITICAL_FUNNEL_PATHS = ['landing.score.mainIssues', 'landing.popup'];
 
+const MAIN_ISSUE_CATEGORIES = ['keywords', 'metrics', 'content', 'structure', 'formatting'] as const;
+
+/** Leaf keys MainIssuesSummary reads at runtime (see src/components/ats/MainIssuesSummary.tsx). */
+const MAIN_ISSUES_RUNTIME_LEAF_KEYS = [
+  'title',
+  'subtitle',
+  'issueBadge',
+  'pointsBadge',
+  'whyLabel',
+  'exampleLabel',
+  'copy',
+  'copied',
+  'continueTitle',
+  'continueDescription',
+  'continueCta',
+  ...MAIN_ISSUE_CATEGORIES.flatMap((category) => [
+    `categories.${category}.title`,
+    `categories.${category}.description`,
+    `categories.${category}.why`,
+    `categories.${category}.fallbackTerm`,
+    `categories.${category}.examples.example1`,
+    `categories.${category}.examples.example2`,
+  ]),
+];
+
 function readJson(relativePath: string): JsonObject {
   return JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8')) as JsonObject;
 }
@@ -52,20 +77,41 @@ function collectLeafKeys(value: unknown, basePath = ''): string[] {
   return [basePath];
 }
 
+function buildMergedLocale(locale: 'en' | 'he'): JsonObject {
+  const en = mergeMessages(
+    readJson('src/messages/en.json'),
+    readJson('src/messages-overrides/funnel/en.json')
+  );
+
+  if (locale === 'en') {
+    return en;
+  }
+
+  return mergeMessages(mergeMessages(en, readJson('src/messages/he.json')), readJson('src/messages-overrides/funnel/he.json'));
+}
+
 describe('funnel i18n critical namespace parity', () => {
   it.each(CRITICAL_FUNNEL_PATHS)('%s has matching EN and HE leaf keys', (namespace) => {
-    const en = mergeMessages(
-      readJson('src/messages/en.json'),
-      readJson('src/messages-overrides/funnel/en.json')
-    );
-    const he = mergeMessages(
-      mergeMessages(en, readJson('src/messages/he.json')),
-      readJson('src/messages-overrides/funnel/he.json')
-    );
+    const en = buildMergedLocale('en');
+    const he = buildMergedLocale('he');
 
     const enKeys = collectLeafKeys(getAtPath(en, namespace)).sort();
     const heKeys = collectLeafKeys(getAtPath(he, namespace)).sort();
 
     expect(enKeys).toEqual(heKeys);
+  });
+
+  it.each(['en', 'he'] as const)('landing.score.mainIssues exposes every MainIssuesSummary runtime key (%s)', (locale) => {
+    const messages = buildMergedLocale(locale);
+    const namespace = getAtPath(messages, 'landing.score.mainIssues');
+
+    expect(namespace).toBeDefined();
+
+    for (const leafKey of MAIN_ISSUES_RUNTIME_LEAF_KEYS) {
+      const value = getAtPath(namespace as JsonObject, leafKey);
+      expect(value).toBeDefined();
+      expect(typeof value).toBe('string');
+      expect((value as string).trim().length).toBeGreaterThan(0);
+    }
   });
 });
