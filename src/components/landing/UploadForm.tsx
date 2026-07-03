@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-const MIN_JOB_DESCRIPTION_WORDS = 80;
+import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from "@/lib/ats/public-ats-check-constants";
 
 function isLikelyJobUrl(value: string): boolean {
   const trimmed = value.trim();
@@ -45,7 +44,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
     return jobDescription.trim().split(/\s+/).filter(Boolean).length;
   }, [jobDescription, inputMode]);
 
-  const hasValidWordCount = inputMode !== "text" || wordCount >= MIN_JOB_DESCRIPTION_WORDS;
+  const hasValidWordCount = inputMode !== "text" || wordCount >= PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS;
   const hasValidUrl = inputMode !== "url" || isLikelyJobUrl(jobDescriptionUrl);
   const hasJobInput = inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim();
 
@@ -62,7 +61,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
     if (inputMode === "text" && !jobDescription.trim()) return t("hints.jobDescriptionRequired");
     if (inputMode === "url" && !jobDescriptionUrl.trim()) return t("hints.jobUrlRequired");
     if (inputMode === "text" && !hasValidWordCount) {
-      return t("hints.minimumWords", { count: MIN_JOB_DESCRIPTION_WORDS });
+      return t("hints.minimumWords", { count: PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS });
     }
     if (inputMode === "url" && !hasValidUrl) return t("hints.validUrlRequired");
     return null;
@@ -143,7 +142,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
               required
             />
             <div className="flex items-center justify-between text-xs text-foreground/60">
-              <span>{t("minimumWords", { count: MIN_JOB_DESCRIPTION_WORDS })}</span>
+              <span>{t("minimumWords", { count: PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS })}</span>
               <span className={hasValidWordCount ? "" : "text-destructive"}>
                 {t("wordCount", { count: wordCount })}
               </span>

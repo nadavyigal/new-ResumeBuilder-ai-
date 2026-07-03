@@ -14,6 +14,7 @@ import {
   buildPublicAtsCheckResponse,
   type FitSource,
 } from '@/lib/ats/public-ats-check-response';
+import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
 
 export const runtime = 'nodejs';
 
@@ -96,9 +97,9 @@ export async function POST(request: NextRequest) {
   }
 
   const wordCount = countWords(jobDescription);
-  if (wordCount < 100 && !hasUrlInput) {
+  if (wordCount < PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS && !hasUrlInput) {
     return NextResponse.json(
-      { error: 'Please paste the full job description (at least 100 words).' },
+      { error: `Please paste the full job description (at least ${PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS} words).` },
       { status: 400 }
     );
   }
@@ -310,7 +311,7 @@ async function resolveJobDescriptionFromUrl(rawUrl: string) {
     extractedText = '';
   }
 
-  if (countWords(extractedText) >= 100) {
+  if (countWords(extractedText) >= PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS) {
     return extractedText;
   }
 

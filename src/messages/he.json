@@ -53,7 +53,7 @@
         "description": "הדבק את תיאור המשרה כאן...",
         "url": "https://"
       },
-      "minimumWords": "מינימום 80 מילים",
+      "minimumWords": "מינימום 100 מילים",
       "wordCount": "{count} מילים",
       "urlHelper": "נשיג את תיאור המשרה מהקישור.",
       "checking": "בוחן...",

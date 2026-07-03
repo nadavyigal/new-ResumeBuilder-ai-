@@ -53,7 +53,7 @@
         "description": "Paste the full job description here...",
         "url": "https://"
       },
-      "minimumWords": "Need at least 80 words",
+      "minimumWords": "Need at least 100 words",
       "wordCount": "{count} words",
       "urlHelper": "We'll grab the job description from this link.",
       "checking": "Analyzing...",

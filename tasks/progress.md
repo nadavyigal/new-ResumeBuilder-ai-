@@ -1,5 +1,27 @@
 # Project Progress
 
+## 2026-07-03 — WP-29 S3 word-count and error preservation
+WP-29 S3 completed on branch `codex/wp29-s3-word-count-errors`.
+
+Completed:
+- Added `PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS = 100` and reused it in the landing upload form and `api/public/ats-check`.
+- Updated EN/HE base and funnel copy so the visible minimum no longer falls back to 80 words.
+- Changed the public checker to surface server `error` strings verbatim instead of remapping them to stale UI copy.
+- Kept `UploadForm` mounted during processing/failure so a failed check preserves the selected PDF and job description text.
+- Added focused coverage for a 90-word server rejection and for forced server 400 preservation in the landing checker.
+
+Validation:
+- `npm test -- tests/api/ats-check-resume-id-route.test.ts tests/app/free-ats-checker-failure-preserves-input.test.tsx --runInBand` passed, 6/6 tests.
+- `npm run check:i18n` passed with 0 missing HE strings and 0 invalid strings.
+- `npx eslint src/app/api/public/ats-check/route.ts src/components/landing/FreeATSChecker.tsx src/components/landing/UploadForm.tsx tests/api/ats-check-resume-id-route.test.ts tests/app/free-ats-checker-failure-preserves-input.test.tsx` passed.
+- `git diff --check` passed.
+- `npm run lint` passed with existing warnings only.
+- `npm run build` passed.
+- `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S3 files.
+
+Not done:
+- Did not start WP-29 S4. S4 remains a founder decision gate before any implementation.
+
 ## 2026-07-03 — WP-29 S2 missing EN funnel messages
 WP-29 S2 completed on branch `codex/wp29-s2-en-funnel-messages`.
 
@@ -48,14 +70,14 @@ Fix (branch `fix/expert-workflows-validation-retry`): `generateValidatedOutput()
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: WP-29 Resumely web funnel P0 fixes — S1 and S2 completed; S3 word-count/error-preservation is next.
-Active Story: WP-29 S3 — align word-count validation at 100 words, surface server errors verbatim, and preserve uploaded file/JD input on ats-check failure. Do not start S4 until S3 is implemented, verified, and reported.
-Last Completed Story: WP-29 S2 — added EN `landing.score.mainIssues.*` and `landing.popup.*` funnel copy, plus a focused EN/HE key-parity test for those critical namespaces. Branch `codex/wp29-s2-en-funnel-messages`.
-Next Recommended Story: WP-29 S3 — use a single 100-word minimum shared by the public ATS widget and API route, surface server `error` strings in the widget, and stop resetting input on check failures.
+Current Phase: WP-29 Resumely web funnel P0 fixes — S1-S3 completed; S4 decision gate is next.
+Active Story: WP-29 S4 — resolve the signed-in upgrade CTA dead end only after founder chooses hide/disable, waitlist/notify-me, or real checkout. Do not wire Stripe or open Gate A without explicit approval.
+Last Completed Story: WP-29 S3 — aligned public ATS checker minimum at 100 words across widget/API, surfaced server errors verbatim, and preserved uploaded file/JD input on ats-check failure. Branch `codex/wp29-s3-word-count-errors`.
+Next Recommended Story: WP-29 S4 — founder decision on upgrade CTA behavior, then a small scoped implementation matching that choice.
 Estimated Completion: Web is live; scoring-accuracy work is incremental
-Blockers: WP-29 S4 still needs a founder decision before implementation because the upgrade CTA touches the monetization gate. No blocker for S2.
+Blockers: WP-29 S4 needs a founder decision before implementation because the upgrade CTA touches the monetization gate.
 Risks: `npx tsc --noEmit` still has pre-existing test typing/export failures; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
-Last Validation: WP-29 S2 branch `codex/wp29-s2-en-funnel-messages` — JSON parse passed, focused parity test 2/2 passed, `npm run check:i18n` passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S2 files.
+Last Validation: WP-29 S3 branch `codex/wp29-s3-word-count-errors` — focused API/UI tests 6/6 passed, `npm run check:i18n` passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S3 files.
 Last Updated: 2026-07-03
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
