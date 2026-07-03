@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
 import { RateLimitMessage } from "@/components/landing/RateLimitMessage";
 import { Badge } from "@/components/ui/badge";
+import { ROUTES } from "@/lib/constants";
 import type { SuggestionAction } from "@/lib/ats/types";
 
 const SESSION_KEY = "ats_session_id";
@@ -179,6 +180,8 @@ export function FreeATSChecker() {
   };
 
   const handleSignup = () => {
+    const activeSessionId = scoreData?.sessionId ?? sessionId;
+
     if (scoreData) {
       posthog.capture("ats_checker_signup_clicked", {
         score: scoreData.score.overall,
@@ -186,7 +189,14 @@ export function FreeATSChecker() {
       });
     }
 
-    router.push("/auth/signup");
+    const signupParams = new URLSearchParams({
+      next: ROUTES.dashboard,
+    });
+    if (activeSessionId) {
+      signupParams.set("session_id", activeSessionId);
+    }
+
+    router.push(`/auth/signup?${signupParams.toString()}`);
   };
 
   const handleBackToChecker = () => {
