@@ -142,7 +142,21 @@
       "lockedTitle": "Unlock {count} more high-impact fixes",
       "lockedDescription": "Create a free account to unlock the full action plan, editable examples, and one-click continuation.",
       "lockedCta": "Create Free Account",
-      "checkAnother": "Check another resume"
+      "checkAnother": "Check another resume",
+      "mainIssues": {
+        "title": "Your 3 highest-impact gaps",
+        "subtitle": "These are the biggest blockers for role fit, parsing, and recruiter clarity. Start here.",
+        "exampleLabel": "Example you can adapt",
+        "continueTitle": "Want the full fix plan?",
+        "continueDescription": "Create a free account to unlock every gap, tailored examples, and one-click improvements."
+      }
+    },
+    "popup": {
+      "title": "Want the full fix plan?",
+      "description": "Create a free account to unlock every issue, save your progress, and continue into full optimization.",
+      "primaryCta": "Create Free Account",
+      "secondaryCta": "Not now",
+      "privacyNote": "No spam. Unsubscribe anytime."
     }
   },
   "auth": {
