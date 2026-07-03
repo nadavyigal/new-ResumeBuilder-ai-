@@ -39,7 +39,7 @@
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "connection": "We could not reach the server. Please try again.",
-        "minimumWords": "Add at least 80 words in the job description to run the check.",
+        "minimumWords": "Add at least 100 words in the job description to run the check.",
         "invalidUrl": "Enter a valid job post URL.",
         "invalidResume": "Upload a valid PDF resume file to continue.",
         "jobDescriptionRequired": "Add a job description (text or URL) to continue."
