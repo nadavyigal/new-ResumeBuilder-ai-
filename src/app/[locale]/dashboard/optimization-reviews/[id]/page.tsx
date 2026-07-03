@@ -14,6 +14,7 @@ import type { OptimizationReviewRun, ReviewChangeGroup } from "@/types/optimizat
 import { useTranslations } from "next-intl";
 import { ROUTES } from "@/lib/constants";
 import { stashAtsBootstrap } from "@/lib/ats/resolve-display-scores";
+import { SectionSelectionProvider } from "@/hooks/useSectionSelection";
 
 type ReviewPayload = {
   review: OptimizationReviewRun;
@@ -204,8 +205,9 @@ export default function OptimizationReviewPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/40 px-4 py-4 md:px-8 md:py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <SectionSelectionProvider>
+      <div className="min-h-screen bg-muted/40 px-4 py-4 md:px-8 md:py-8">
+        <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link href={ROUTES.upload} className="text-sm text-muted-foreground hover:text-foreground">
@@ -317,7 +319,8 @@ export default function OptimizationReviewPage() {
             <CardContent className="p-4 text-sm text-red-700">{error}</CardContent>
           </Card>
         )}
+        </div>
       </div>
-    </div>
+    </SectionSelectionProvider>
   );
 }
