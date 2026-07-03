@@ -11,8 +11,8 @@ const contentSecurityPolicy = `
   img-src 'self' data: https:;
   font-src 'self' data: https:;
   connect-src 'self' https:;
-  frame-ancestors 'none';
-  frame-src 'none';
+  frame-ancestors 'self';
+  frame-src 'self';
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
         key: 'Content-Security-Policy',
         value: contentSecurityPolicy.replace(/\s{2,}/g, ' ').trim(),
       },
-      { key: 'X-Frame-Options', value: 'DENY' },
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
       { key: 'X-Content-Type-Options', value: 'nosniff' },
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       {

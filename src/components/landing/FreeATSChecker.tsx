@@ -198,16 +198,16 @@ export function FreeATSChecker() {
   return (
     <section
       data-testid="free-ats-checker"
-      className="relative overflow-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32"
+      className="relative max-w-full overflow-x-hidden bg-background pt-12 pb-16 md:pt-24 md:pb-32"
     >
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-mobile-cta/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/4 h-64 w-64 max-w-[70vw] rounded-full bg-mobile-cta/10 blur-3xl animate-pulse md:h-96 md:w-96" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 max-w-[70vw] rounded-full bg-secondary/20 blur-3xl animate-pulse md:h-96 md:w-96" />
       </div>
 
-      <div className="container px-4 mx-auto">
+      <div className="container mx-auto max-w-full px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start">
+          <div className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] items-start">
             <div className="space-y-6">
               <div
                 data-testid="ats-checker-badge"
@@ -268,7 +268,7 @@ export function FreeATSChecker() {
               </div>
             </div>
 
-            <div className="rounded-3xl border-2 border-border bg-card/95 p-6 md:p-8 shadow-xl shadow-mobile-cta/10">
+            <div className="min-w-0 rounded-3xl border-2 border-border bg-card/95 p-6 shadow-xl shadow-mobile-cta/10 md:p-8">
               {(step === "upload" || step === "processing") && (
                 <div className="space-y-6">
                   {step === "processing" && <LoadingState />}

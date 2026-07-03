@@ -88,4 +88,32 @@ describe('generateSuggestions - keyword_exact fan-out', () => {
     expect(new Set(ids).size).toBe(ids.length);
     ids.forEach((id) => expect(id).toMatch(/^keyword_exact:/));
   });
+
+  it('filters hiring boilerplate out of public keyword suggestions', () => {
+    const suggestions = generateSuggestions({
+      subscores: LOW_SUBSCORES,
+      analyzerResults: new Map([
+        ['keyword_exact', keywordAnalyzerResult(['are hiring a', 'strategic partnerships'])],
+      ]),
+      jobData: {
+        title: 'Partnership Manager',
+        company: '',
+        must_have: ['are hiring a', 'strategic partnerships'],
+        nice_to_have: [],
+        responsibilities: ['We are hiring a partnership manager to build strategic partnerships.'],
+        seniority: 'mid',
+        location: '',
+        industry: '',
+      },
+    });
+
+    const keywordTexts = suggestions.flatMap((suggestion) =>
+      suggestion.action?.type === 'add_keyword' ? suggestion.action.params.keywords : []
+    );
+
+    expect(keywordTexts).toContain('strategic partnerships');
+    expect(keywordTexts).not.toContain('are hiring a');
+    expect(suggestions.map((suggestion) => suggestion.text.toLowerCase()).join(' '))
+      .not.toContain('are hiring a');
+  });
 });

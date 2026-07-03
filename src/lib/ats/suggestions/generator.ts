@@ -292,6 +292,8 @@ function rankSuggestions(suggestions: Suggestion[]): Suggestion[] {
 
 const JOB_POSTING_PATTERNS: RegExp[] = [
   /\bjob description\b/i,
+  /\b(?:we|they)?\s*are\s+hiring\s+(?:a|an|for)?\b/i,
+  /\bhiring\s+(?:a|an|for)\b/i,
   /\bresponsibilit(y|ies)\b/i,
   /\bqualifications\b/i,
   /\brequirements\b/i,
@@ -311,6 +313,8 @@ const GENERIC_KEYWORD_PATTERNS: RegExp[] = [
   /^company\s*name$/i,
   /^about$/i,
   /^about\s+this\s+job$/i,
+  /^(?:we|they)?\s*are\s+hiring\s+(?:a|an|for)?$/i,
+  /^hiring\s+(?:a|an|for)$/i,
   /^nominal$/i,
   /^nominal\s+about$/i,
   /^responsibilities$/i,
@@ -328,6 +332,8 @@ function isGenericKeyword(keyword: string): boolean {
   if (cleaned.startsWith('job title')) return true;
   if (cleaned.startsWith('company')) return true;
   if (cleaned.startsWith('about')) return true;
+  if (cleaned.includes(' are hiring ')) return true;
+  if (cleaned.startsWith('hiring ')) return true;
   if (cleaned.startsWith('responsibilit')) return true;
   if (cleaned.startsWith('requirement')) return true;
   if (cleaned.startsWith('qualification')) return true;
