@@ -146,9 +146,67 @@
       "mainIssues": {
         "title": "Your 3 highest-impact gaps",
         "subtitle": "These are the biggest blockers for role fit, parsing, and recruiter clarity. Start here.",
+        "issueBadge": "Gap {index}",
+        "pointsBadge": "+{points} pts",
+        "whyLabel": "Why this matters",
         "exampleLabel": "Example you can adapt",
+        "copy": "Copy",
+        "copied": "Copied",
         "continueTitle": "Want the full fix plan?",
-        "continueDescription": "Create a free account to unlock every gap, tailored examples, and one-click improvements."
+        "continueDescription": "Create a free account to unlock every gap, tailored examples, and one-click improvements.",
+        "continueCta": "Create Free Account",
+        "categories": {
+          "keywords": {
+            "title": "Missing role-critical skills",
+            "description": "Screening tools cannot confirm fit if key skills are missing from Skills or recent achievements.",
+            "why": "Recruiters scan for exact terms. Missing them can hide strong experience.",
+            "fallbackTerm": "a role-critical skill",
+            "examples": {
+              "example1": "Skills/Tools: {skillsList}",
+              "example2": "Nice-to-have (if accurate): {niceList}"
+            }
+          },
+          "metrics": {
+            "title": "Impact isn't quantified",
+            "description": "Strong claims need numbers to be credible and easy to compare.",
+            "why": "Measurable results are what recruiters scan for first.",
+            "fallbackTerm": "a core KPI",
+            "examples": {
+              "example1": "Improved {metric} by [X%] by {action}, reducing [cost/time] by [Y%].",
+              "example2": "Led {initiative} across {scope}, delivering {result} in [timeframe]."
+            }
+          },
+          "content": {
+            "title": "Target role is unclear",
+            "description": "Your summary should state the role you want and the value you bring.",
+            "why": "Clear positioning improves role fit and recruiter confidence.",
+            "fallbackTerm": "target job title",
+            "examples": {
+              "example1": "Targeting {title} roles. I specialize in {skill1}, {skill2}, and {skill3} to drive [Outcome].",
+              "example2": "{title} with [X]+ years in [Industry], focused on {skill1}, {skill2}, and [Outcome]."
+            }
+          },
+          "structure": {
+            "title": "Core sections are thin or missing",
+            "description": "Missing summary, skills, or achievements reduces match signal.",
+            "why": "Complete sections improve parseability and keyword coverage.",
+            "fallbackTerm": "a professional summary",
+            "examples": {
+              "example1": "Summary: [Job Title] with [X]+ years delivering [Outcome] in [Industry].",
+              "example2": "Skills: [Hard Skill 1], [Hard Skill 2], [Tool], [Domain Keyword], [Method]"
+            }
+          },
+          "formatting": {
+            "title": "Formatting may block parsing",
+            "description": "Tables, graphics, and complex layouts can hide content from screening tools.",
+            "why": "If parsers cannot read it, they cannot match you to the role.",
+            "fallbackTerm": "standard headings",
+            "examples": {
+              "example1": "Use standard headings: Summary | Experience | Skills | Education",
+              "example2": "Experience — [Company] | [Title] | [Dates]"
+            }
+          }
+        }
       }
     },
     "popup": {
