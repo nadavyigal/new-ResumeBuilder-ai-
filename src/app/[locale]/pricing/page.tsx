@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MONETIZATION_GATE_OPEN } from "@/lib/monetization-gate";
 
 interface PricingPageProps {
   params: Promise<{ locale: string }>;
@@ -64,9 +65,20 @@ export default async function PricingPage({ params }: PricingPageProps) {
             <p>{t("premium.feature1")}</p>
             <p>{t("premium.feature2")}</p>
             <p>{t("premium.feature3")}</p>
-            <Button asChild className="w-full mt-4 bg-[hsl(216_65%_33%)] hover:bg-[hsl(216_65%_27%)] text-white">
-              <Link href="/auth/signup">{t("premium.cta")}</Link>
-            </Button>
+            {MONETIZATION_GATE_OPEN ? (
+              <Button asChild className="w-full mt-4 bg-[hsl(216_65%_33%)] hover:bg-[hsl(216_65%_27%)] text-white">
+                <Link href="/auth/signup">{t("premium.cta")}</Link>
+              </Button>
+            ) : (
+              <>
+                <Button className="w-full mt-4" disabled aria-disabled="true">
+                  {t("premium.gatedCta")}
+                </Button>
+                <p className="text-xs text-foreground/60 text-center">
+                  {t("premium.gatedNote")}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

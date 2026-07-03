@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { defaultLocale, locales, type Locale } from "@/locales";
+import { MONETIZATION_GATE_CLOSED_CODE, MONETIZATION_GATE_OPEN } from "@/lib/monetization-gate";
 
 function normalizeLocale(locale?: string): Locale {
   if (locale && locales.includes(locale as Locale)) {
@@ -35,6 +36,18 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    if (!MONETIZATION_GATE_OPEN) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: MONETIZATION_GATE_CLOSED_CODE,
+          error: "Premium upgrades are not open yet."
+        },
+        { status: 403 }
+      );
+    }
+
     const locale = normalizeLocale(rawLocale);
 
     const checkoutSource = typeof source === "string" ? source : "direct";
