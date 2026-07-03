@@ -228,7 +228,7 @@
         "signin": "Continue your resume optimization workflow"
       },
       "labels": {
-        "email": "Work Email"
+        "email": "Email"
       },
       "buttons": {
         "createAccount": "Create Free Account",

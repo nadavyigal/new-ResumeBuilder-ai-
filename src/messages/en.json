@@ -716,7 +716,7 @@
     "home": {
       "loading": "Loading...",
       "welcome": {
-        "title": "Welcome back, {name}",
+        "title": "Welcome, {name}",
         "fallbackName": "there",
         "premium": "Premium",
         "subtitle": "Your resume workspace"
@@ -827,8 +827,8 @@
         "addNetworkFailure": "Connection problem. Check your internet and try again."
       },
       "empty": {
-        "title": "No applications tracked yet",
-        "description": "Check your first resume to start tracking.",
+        "title": "Add your first job",
+        "description": "Paste a job URL or check a resume to start tracking applications.",
         "cta": "Upload Resume"
       },
       "table": {
@@ -845,7 +845,7 @@
         "resumeLink": "Open",
         "jobUrlLabel": "View job",
         "applyButton": "Apply Now",
-        "empty": "No applications match your search."
+        "empty": "Add your first job to start tracking applications."
       },
       "actions": {
         "openOptimized": "View optimized",

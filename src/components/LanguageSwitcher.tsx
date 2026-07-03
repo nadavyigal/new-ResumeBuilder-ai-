@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/navigation";
 import { Button } from "@/components/ui/button";
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const t = useTranslations("language");
   const locale = useLocale();
   const pathname = usePathname();
@@ -22,14 +22,14 @@ export function LanguageSwitcher() {
         size="sm"
         onClick={() => switchLocale("en")}
       >
-        {t("english")}
+        {compact ? "EN" : t("english")}
       </Button>
       <Button
         variant={locale === "he" ? "default" : "ghost"}
         size="sm"
         onClick={() => switchLocale("he")}
       >
-        {t("hebrew")}
+        {compact ? "HE" : t("hebrew")}
       </Button>
     </div>
   );
