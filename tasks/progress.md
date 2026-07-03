@@ -1,5 +1,26 @@
 # Project Progress
 
+## 2026-07-03 — WP-29 S2 missing EN funnel messages
+WP-29 S2 completed on branch `codex/wp29-s2-en-funnel-messages`.
+
+Completed:
+- Added EN funnel override copy for `landing.score.mainIssues.*` and `landing.popup.*` in `src/messages-overrides/funnel/en.json`.
+- Copy follows Fit/Match positioning: role fit, parsing, recruiter clarity, full fix plan. It does not use "ATS score", "pass ATS", "beat bots", or guaranteed-outcome framing.
+- Added `tests/contracts/funnel-i18n-parity.test.ts` so the critical funnel namespaces keep matching EN/HE leaf keys after runtime message merging.
+
+Validation:
+- `jq . src/messages-overrides/funnel/en.json` passed.
+- `npm test -- tests/contracts/funnel-i18n-parity.test.ts --runInBand` passed, 2/2 tests.
+- `npm run check:i18n` passed with 0 missing HE strings and 0 invalid strings.
+- `npx eslint tests/contracts/funnel-i18n-parity.test.ts` passed.
+- `git diff --check` passed.
+- `npm run lint` passed with existing warnings only.
+- `npm run build` passed.
+- `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S2 files.
+
+Not done:
+- Did not start WP-29 S3.
+
 ## 2026-07-03 — WP-29 S1 optimization review crash guard
 WP-29 S1 completed on branch `codex/wp29-s1-optimization-review-crash`.
 
@@ -27,14 +48,14 @@ Fix (branch `fix/expert-workflows-validation-retry`): `generateValidatedOutput()
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: WP-29 Resumely web funnel P0 fixes — S1 optimization review crash guard completed against current `origin/main`; S2 missing EN funnel messages is next.
-Active Story: WP-29 S2 — add missing EN funnel messages and locale key parity guard. Do not start S3 until S2 is implemented, verified, and reported.
-Last Completed Story: WP-29 S1 — optimization review route already wraps `DesignRenderer` and `ChatSidebar` in `SectionSelectionProvider`; added regression coverage proving the real consumers fail without the provider and render with it. Branch `codex/wp29-s1-optimization-review-crash`.
-Next Recommended Story: WP-29 S2 — create the EN sibling for `src/messages-overrides/funnel/he.json` keys (`landing.score.mainIssues.*`, `landing.popup.*`) using Fit/Match positioning, then add a key-parity guard so EN/HE funnel override keys cannot diverge again.
+Current Phase: WP-29 Resumely web funnel P0 fixes — S1 and S2 completed; S3 word-count/error-preservation is next.
+Active Story: WP-29 S3 — align word-count validation at 100 words, surface server errors verbatim, and preserve uploaded file/JD input on ats-check failure. Do not start S4 until S3 is implemented, verified, and reported.
+Last Completed Story: WP-29 S2 — added EN `landing.score.mainIssues.*` and `landing.popup.*` funnel copy, plus a focused EN/HE key-parity test for those critical namespaces. Branch `codex/wp29-s2-en-funnel-messages`.
+Next Recommended Story: WP-29 S3 — use a single 100-word minimum shared by the public ATS widget and API route, surface server `error` strings in the widget, and stop resetting input on check failures.
 Estimated Completion: Web is live; scoring-accuracy work is incremental
 Blockers: WP-29 S4 still needs a founder decision before implementation because the upgrade CTA touches the monetization gate. No blocker for S2.
 Risks: `npx tsc --noEmit` still has pre-existing test typing/export failures; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
-Last Validation: WP-29 S1 branch `codex/wp29-s1-optimization-review-crash` — focused regression 2/2 passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S1 files.
+Last Validation: WP-29 S2 branch `codex/wp29-s2-en-funnel-messages` — JSON parse passed, focused parity test 2/2 passed, `npm run check:i18n` passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S2 files.
 Last Updated: 2026-07-03
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
