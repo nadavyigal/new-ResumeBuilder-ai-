@@ -17,6 +17,40 @@ interface AuthFormProps {
   mode: "signin" | "signup";
 }
 
+const ATS_SESSION_STORAGE_KEY = "ats_session_id";
+
+function getSafeRelativePath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+  return value;
+}
+
+async function convertPendingAtsSession(sessionId: string | null, accessToken?: string | null) {
+  if (!sessionId) return;
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
+    const response = await fetch("/api/public/convert-session", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ sessionId }),
+    });
+
+    if (!response.ok) {
+      console.error("Anonymous ATS session conversion failed:", await response.text());
+    }
+  } catch (conversionError) {
+    console.error("Anonymous ATS session conversion error:", conversionError);
+  }
+}
+
 export function AuthForm({ mode }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,15 +91,21 @@ export function AuthForm({ mode }: AuthFormProps) {
         // Get the current origin for the redirect URL
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
         const localePrefix = locale === defaultLocale ? '' : `/${locale}`;
+        const querySessionId = searchParams.get("session_id")?.trim() || null;
         const storedSessionId = typeof window !== 'undefined'
-          ? localStorage.getItem('ats_session_id')
+          ? localStorage.getItem(ATS_SESSION_STORAGE_KEY)
           : null;
-        const nextParam = searchParams.get("next");
-        const callbackQuery = new URLSearchParams();
-        if (storedSessionId) {
-          callbackQuery.set("session_id", storedSessionId);
+        const pendingSessionId = querySessionId ?? storedSessionId;
+        if (querySessionId && typeof window !== 'undefined') {
+          localStorage.setItem(ATS_SESSION_STORAGE_KEY, querySessionId);
         }
-        if (nextParam && nextParam.startsWith("/")) {
+
+        const nextParam = getSafeRelativePath(searchParams.get("next"));
+        const callbackQuery = new URLSearchParams();
+        if (pendingSessionId) {
+          callbackQuery.set("session_id", pendingSessionId);
+        }
+        if (nextParam) {
           callbackQuery.set("next", nextParam);
         }
         const callbackPath = `${localePrefix}/auth/callback`;
@@ -113,7 +153,8 @@ export function AuthForm({ mode }: AuthFormProps) {
             ...utmParams,
           });
 
-          router.push(ROUTES.dashboard);
+          await convertPendingAtsSession(pendingSessionId, data.session?.access_token);
+          router.push(nextParam ?? ROUTES.dashboard);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
