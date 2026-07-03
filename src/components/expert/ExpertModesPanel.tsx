@@ -33,6 +33,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/navigation";
 import { cn } from "@/lib/utils";
+import { MONETIZATION_GATE_OPEN } from "@/lib/monetization-gate";
 
 type WorkflowStatus = "completed" | "needs_user_input" | "failed";
 
@@ -312,6 +313,11 @@ export function ExpertModesPanel({
   };
 
   const startUpgrade = async () => {
+    if (!MONETIZATION_GATE_OPEN) {
+      setError(paywallT("gateClosedNote"));
+      return;
+    }
+
     setUpgradeLoading(true);
     setError(null);
 
@@ -540,9 +546,15 @@ export function ExpertModesPanel({
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!isPremium ? (
                 <>
-                  <Button onClick={startUpgrade} disabled={upgradeLoading}>
-                    {upgradeLoading ? paywallT("processing") : t("actions.upgrade")}
-                  </Button>
+                  {MONETIZATION_GATE_OPEN ? (
+                    <Button onClick={startUpgrade} disabled={upgradeLoading}>
+                      {upgradeLoading ? paywallT("processing") : t("actions.upgrade")}
+                    </Button>
+                  ) : (
+                    <Button disabled aria-disabled="true">
+                      {paywallT("gateClosedCta")}
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={runWorkflow} disabled={runLoading}>
                     {runLoading ? t("actions.running") : t("actions.preview")}
                   </Button>
