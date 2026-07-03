@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, Sparkles, Zap } from "@/lib/icons";
 import { useLocale, useTranslations } from "next-intl";
+import { MONETIZATION_GATE_OPEN } from "@/lib/monetization-gate";
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
   const locale = useLocale();
   const [loading, setLoading] = useState(false);
   const handleUpgrade = async () => {
+    if (!MONETIZATION_GATE_OPEN) return;
+
     setLoading(true);
 
     try {
@@ -110,11 +113,13 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
 
               <Button
                 onClick={handleUpgrade}
-                disabled={loading}
+                disabled={loading || !MONETIZATION_GATE_OPEN}
                 className="w-full text-base py-6"
                 size="lg"
               >
-                {loading ? (
+                {!MONETIZATION_GATE_OPEN ? (
+                  t("gateClosedCta")
+                ) : loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-background border-t-transparent rounded-full animate-spin"></span>
                     {t("processing")}
@@ -128,7 +133,7 @@ export function UpgradeModal({ isOpen, onClose, optimizationsUsed }: UpgradeModa
               </Button>
 
               <p className="text-xs text-center text-muted-foreground mt-4">
-                {t("securePayment")}
+                {MONETIZATION_GATE_OPEN ? t("securePayment") : t("gateClosedNote")}
               </p>
             </CardContent>
           </Card>

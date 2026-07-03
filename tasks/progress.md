@@ -1,5 +1,28 @@
 # Project Progress
 
+## 2026-07-03 — WP-29 S4 Premium CTA gate
+WP-29 S4 completed on branch `codex/wp29-s4-disable-premium-cta`.
+
+Completed:
+- Recorded the founder decision in Agentic OS `DECISIONS.md`: choose option A and keep Premium CTAs hidden/disabled until Gate A opens.
+- Added a central `MONETIZATION_GATE_OPEN = false` product gate.
+- Disabled the Premium pricing CTA and replaced it with an unavailable state instead of linking signed-in users into the signup/dashboard redirect loop.
+- Disabled in-app upgrade actions in the paywall modal and Expert Modes panel while preserving preview behavior.
+- Guarded `/api/upgrade` so checkout sessions cannot be created while Gate A is closed.
+- Added focused regression coverage for the disabled pricing CTA and closed upgrade endpoint.
+
+Validation:
+- `npm test -- tests/contracts/upgrade-expert-source.test.ts tests/app/pricing-monetization-gate.test.tsx --runInBand` passed, 2/2 tests.
+- `npm run check:i18n` passed with 0 missing HE strings and 0 invalid strings.
+- `npx eslint 'src/app/[locale]/pricing/page.tsx' src/app/api/upgrade/route.ts src/components/paywall/upgrade-modal.tsx src/components/expert/ExpertModesPanel.tsx src/lib/monetization-gate.ts tests/contracts/upgrade-expert-source.test.ts tests/app/pricing-monetization-gate.test.tsx` passed.
+- `npm run lint` passed with existing warnings only.
+- `npm run build` passed.
+- `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S4 files.
+
+Not done:
+- Did not wire Stripe or open Gate A.
+- Did not start WP-29 S5.
+
 ## 2026-07-03 — WP-29 S3 word-count and error preservation
 WP-29 S3 completed on branch `codex/wp29-s3-word-count-errors`.
 
@@ -70,14 +93,14 @@ Fix (branch `fix/expert-workflows-validation-retry`): `generateValidatedOutput()
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: WP-29 Resumely web funnel P0 fixes — S1-S3 completed; S4 decision gate is next.
-Active Story: WP-29 S4 — resolve the signed-in upgrade CTA dead end only after founder chooses hide/disable, waitlist/notify-me, or real checkout. Do not wire Stripe or open Gate A without explicit approval.
-Last Completed Story: WP-29 S3 — aligned public ATS checker minimum at 100 words across widget/API, surfaced server errors verbatim, and preserved uploaded file/JD input on ats-check failure. Branch `codex/wp29-s3-word-count-errors`.
-Next Recommended Story: WP-29 S4 — founder decision on upgrade CTA behavior, then a small scoped implementation matching that choice.
+Current Phase: WP-29 Resumely web funnel P0 fixes — S1-S4 completed; S5 anonymous-session carryover is next.
+Active Story: WP-29 S5 — carry anonymous check results through signup into the new account/dashboard.
+Last Completed Story: WP-29 S4 — disabled Premium CTAs while Gate A is closed, guarded `/api/upgrade`, and recorded the option A decision in Agentic OS `DECISIONS.md`. Branch `codex/wp29-s4-disable-premium-cta`.
+Next Recommended Story: WP-29 S5 — design and implement anonymous session carryover after signup so the first dashboard is not empty.
 Estimated Completion: Web is live; scoring-accuracy work is incremental
-Blockers: WP-29 S4 needs a founder decision before implementation because the upgrade CTA touches the monetization gate.
+Blockers: Gate A remains closed by decision; do not wire Stripe or re-enable Premium CTAs until the gate is explicitly reopened.
 Risks: `npx tsc --noEmit` still has pre-existing test typing/export failures; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
-Last Validation: WP-29 S3 branch `codex/wp29-s3-word-count-errors` — focused API/UI tests 6/6 passed, `npm run check:i18n` passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S3 files.
+Last Validation: WP-29 S4 branch `codex/wp29-s4-disable-premium-cta` — focused pricing/upgrade tests 2/2 passed, `npm run check:i18n` passed, targeted eslint passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S4 files.
 Last Updated: 2026-07-03
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 

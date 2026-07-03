@@ -210,6 +210,8 @@
         "support": "Priority support"
       },
       "cta": "Upgrade to Premium",
+      "gateClosedCta": "Premium is not open yet",
+      "gateClosedNote": "We are keeping paid upgrades closed while we improve the activation flow.",
       "processing": "Processing...",
       "securePayment": "Secure checkout via Stripe",
       "maybeLater": "Maybe later",
@@ -277,7 +279,9 @@
       "feature1": "Unlimited resume optimizations",
       "feature2": "Expert Modes: rewrite, quantifier, ATS report, summary lab",
       "feature3": "Premium templates and priority support",
-      "cta": "Upgrade to Premium"
+      "cta": "Upgrade to Premium",
+      "gatedCta": "Premium is not open yet",
+      "gatedNote": "We are keeping paid upgrades closed while we improve the activation flow."
     },
     "footnote": "Prices in USD. Taxes may apply based on your region."
   },
