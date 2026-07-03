@@ -1,20 +1,41 @@
 # Project Progress
 
+## 2026-07-03 — WP-29 S1 optimization review crash guard
+WP-29 S1 completed on branch `codex/wp29-s1-optimization-review-crash`.
+
+Completed:
+- Confirmed `src/app/[locale]/dashboard/optimizations/[id]/page.tsx` already wraps the optimization review tree in `SectionSelectionProvider` on current `origin/main`, covering both `DesignRenderer` and `ChatSidebar`.
+- Added regression coverage in `tests/app/optimization-review-section-provider.test.tsx`:
+  - source-level guard that `DesignRenderer` and `ChatSidebar` stay inside `SectionSelectionProvider`
+  - render-level guard proving the real review consumers throw the production error without the provider and render with it
+
+Validation:
+- `npm test -- tests/app/optimization-review-section-provider.test.tsx --runInBand` passed, 2/2 tests.
+- `npx eslint 'src/app/[locale]/dashboard/optimizations/[id]/page.tsx' tests/app/optimization-review-section-provider.test.tsx` passed.
+- `git diff --check` passed.
+- `npm run lint` passed with existing warnings only.
+- `npm run build` passed.
+- `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S1 files.
+
+Not done:
+- Did not start WP-29 S2.
+- Did not run the live resume-optimizer eval harness because it can call paid external AI services.
+
 ## 2026-06-24 — Expert-workflows 500 on LLM variance fixed (submit pack + cover letter root cause)
 Founder reported submit pack "not working at all" and cover letter "not visible" in the iOS app. Root-caused to the backend: `runExpertWorkflow` (src/lib/expert-workflows/orchestrator.ts) validated model output AFTER the network-retry loop and threw on any schema miss → HTTP 500. Normal LLM output variance (e.g. 2 cover-letter variants instead of exactly 3, or an out-of-enum `suggested_placement`) intermittently 500s. iOS Submit Package requires the cover-letter workflow with no client retry, so one 500 kills the whole flow → no cover letter. Same class as the `suggested_placement is invalid` 500 seen live in the founder's device log.
 Fix (branch `fix/expert-workflows-validation-retry`): `generateValidatedOutput()` regenerates with the validation error fed back into the prompt, up to `MAX_VALIDATION_ATTEMPTS` (3), before failing. Generic across all workflow types — fixes cover-letter/submit-package AND the ATS-report path. Strict validation unchanged; only adds self-correcting retries. Generator injectable for unit tests. New `expert-workflow-validation-retry.test.ts` (5 tests) green; full expert-workflow suite 39/39; changed files lint-clean; pre-existing 23 tsc test-typing errors unaffected. **Awaiting founder approval to merge → auto-deploy to production**, then verify submit-pack/cover-letter end-to-end before the iOS build-6 submission.
 
 Project: ResumeBuilder AI (Web)
 Status: Active
-Current Phase: ATS scoring accuracy — both compounding causes from the 2026-06-21 diagnosis are resolved. PR #80 and PR #81 both merged to main. Story 2's metric-nudge follow-up is parked for a future build (founder decision 2026-06-21/22: leave metrics_presence as-is for now, plan the nudge feature via PM skill before building).
-Active Story: None — between stories. Awaiting founder direction on next priority (e.g. PM-planning the parked metrics-nudge feature, or other work).
-Last Completed Story: PR #80 merged (keyword-substring word-boundary fix). Story 1: fixed `extractFromLinkedIn`'s heading-matching so non-literal section headings ("What You Will Be Doing", "What We Are Looking For", "Added bonus") are classified by keyword family instead of requiring an exact phrase match — verified against the real Fresha LinkedIn posting (job 4425913724, the same one that scored 34/100 in prod). Branch fix/ats-jd-requirements-and-metrics, commit 3c0a4ee, PR #81 open.
-Next Recommended Story: Story 2 was investigated, not implemented — traced the d30a6841 optimization back to its pre-optimization source resume (`resumes.raw_text` for resume_id b797b20e) and confirmed it has ZERO quantified metrics anywhere in the original, founder-authored text (only "15+ years" in the summary). The AI optimizer correctly preserved this truthfully per its "never fabricate metrics" rule — `metrics_presence: 0` is accurate, not a defect. No fix implemented. Founder decision needed: ship a UX nudge prompting users with metric-free resumes to add real numbers (new feature, out of this session's scope), or accept the score as correctly reflecting genuinely metric-free input.
+Current Phase: WP-29 Resumely web funnel P0 fixes — S1 optimization review crash guard completed against current `origin/main`; S2 missing EN funnel messages is next.
+Active Story: WP-29 S2 — add missing EN funnel messages and locale key parity guard. Do not start S3 until S2 is implemented, verified, and reported.
+Last Completed Story: WP-29 S1 — optimization review route already wraps `DesignRenderer` and `ChatSidebar` in `SectionSelectionProvider`; added regression coverage proving the real consumers fail without the provider and render with it. Branch `codex/wp29-s1-optimization-review-crash`.
+Next Recommended Story: WP-29 S2 — create the EN sibling for `src/messages-overrides/funnel/he.json` keys (`landing.score.mainIssues.*`, `landing.popup.*`) using Fit/Match positioning, then add a key-parity guard so EN/HE funnel override keys cannot diverge again.
 Estimated Completion: Web is live; scoring-accuracy work is incremental
-Blockers: Founder decision on Story 2's framing above. Also still open from before: keyword_phrase (12% weight) re-weighting — requires verbatim 3-6 word n-gram overlap, near-0 for any paraphrased resume by design, not a bug.
-Risks: keyword_phrase analyzer (12%) requires verbatim 3-6 word n-gram overlap — near-0 for any paraphrased resume; this is a design weakness, not a bug. metrics_presence (10%) correctly penalizes genuinely metric-free resumes — confirmed via the actual pre-optimization source text, not just the AI output.
-Last Validation: fix/ats-jd-requirements-and-metrics (commit 3c0a4ee) — new regression test (`tests/unit/linkedin-job-extractor.test.ts` + fixture `guest-fragment-varied-headings.html`), 32/32 unit tests pass, lint clean, tsc 21 pre-existing errors only (none in touched files). Real-data repro against live Fresha LinkedIn guest fragment confirmed responsibilities/requirements/nice_to_have all populate where they were previously null.
-Last Updated: 2026-06-22
+Blockers: WP-29 S4 still needs a founder decision before implementation because the upgrade CTA touches the monetization gate. No blocker for S2.
+Risks: `npx tsc --noEmit` still has pre-existing test typing/export failures; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
+Last Validation: WP-29 S1 branch `codex/wp29-s1-optimization-review-crash` — focused regression 2/2 passed, targeted eslint passed, `git diff --check` passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S1 files.
+Last Updated: 2026-07-03
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--
