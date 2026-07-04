@@ -6,6 +6,7 @@ import posthog from 'posthog-js';
 
 export function initPostHog() {
   if (typeof window === 'undefined') return;
+  if (posthog.__loaded) return;
 
   const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   const apiHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com';
@@ -18,7 +19,7 @@ export function initPostHog() {
   posthog.init(apiKey, {
     api_host: apiHost,
     person_profiles: 'identified_only',
-    capture_pageview: true,
+    capture_pageview: false, // SPA pageviews tracked manually in PostHogProvider
     capture_pageleave: true,
     persistence: 'localStorage+cookie',
     autocapture: false, // Explicit event tracking only
