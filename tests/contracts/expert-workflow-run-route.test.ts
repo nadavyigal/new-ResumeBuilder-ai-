@@ -160,7 +160,8 @@ describe('POST /api/v1/expert-workflows/run', () => {
   });
 
   it('returns structured workflow status for surfaced workflows', async () => {
-    const { POST, createRouteHandlerClient, runExpertWorkflow } = loadRouteHarness();
+    const { POST, createRouteHandlerClient, captureServerEvent, runExpertWorkflow } =
+      loadRouteHarness();
     createRouteHandlerClient.mockResolvedValue(
       buildSupabaseClient({
         user: { id: 'user-1', user_metadata: { is_premium: true } },
@@ -199,5 +200,11 @@ describe('POST /api/v1/expert-workflows/run', () => {
         },
       })
     );
+
+    const capturedEvents = captureServerEvent.mock.calls.map((call) => call[1]);
+    expect(capturedEvents.filter((event) => event === 'expert_mode_run_started')).toHaveLength(1);
+    expect(capturedEvents.filter((event) => event === 'expert_mode_run_completed')).toHaveLength(1);
+    expect(capturedEvents).not.toContain('expert_run_started');
+    expect(capturedEvents).not.toContain('expert_run_completed');
   });
 });

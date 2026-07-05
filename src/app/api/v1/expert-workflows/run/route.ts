@@ -82,12 +82,6 @@ export async function POST(request: NextRequest) {
       source: 'api_v1_expert_workflows_run',
       is_premium: premium,
     });
-    await captureServerEvent(user.id, 'expert_run_started', {
-      workflow_type: workflowType,
-      optimization_id: optimizationId,
-      source: 'api_v1_expert_workflows_run',
-      is_premium: premium,
-    });
     if (!premium) {
       await captureServerEvent(user.id, 'expert_mode_locked', {
         workflow_type: workflowType,
@@ -117,14 +111,6 @@ export async function POST(request: NextRequest) {
     });
 
     await captureServerEvent(user.id, 'expert_mode_run_completed', {
-      workflow_type: workflowType,
-      optimization_id: optimizationId,
-      run_id: result.run_id,
-      status: result.status,
-      needs_user_input: result.needs_user_input,
-      is_premium: true,
-    });
-    await captureServerEvent(user.id, 'expert_run_completed', {
       workflow_type: workflowType,
       optimization_id: optimizationId,
       run_id: result.run_id,
