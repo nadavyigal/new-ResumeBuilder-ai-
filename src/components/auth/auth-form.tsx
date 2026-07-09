@@ -27,7 +27,8 @@ function getSafeRelativePath(value: string | null) {
 }
 
 async function convertPendingAtsSession(sessionId: string | null, accessToken?: string | null) {
-  if (!sessionId) return;
+  const trimmedSessionId = sessionId?.trim();
+  if (!trimmedSessionId) return;
 
   try {
     const headers: Record<string, string> = {
@@ -40,8 +41,15 @@ async function convertPendingAtsSession(sessionId: string | null, accessToken?: 
     const response = await fetch("/api/public/convert-session", {
       method: "POST",
       headers,
-      body: JSON.stringify({ sessionId }),
+      body: JSON.stringify({ sessionId: trimmedSessionId }),
     });
+
+    if (response.status === 404) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(ATS_SESSION_STORAGE_KEY);
+      }
+      return;
+    }
 
     if (!response.ok) {
       console.error("Anonymous ATS session conversion failed:", await response.text());

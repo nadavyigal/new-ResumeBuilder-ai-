@@ -279,16 +279,19 @@ export function FreeATSChecker() {
             </div>
 
             <div className="min-w-0 rounded-3xl border-2 border-border bg-card/95 p-6 shadow-xl shadow-mobile-cta/10 md:p-8">
-              {(step === "upload" || step === "processing") && (
+              {(step === "upload" || step === "processing" || step === "rate-limited") && (
                 <div className="space-y-6">
                   {step === "processing" && <LoadingState />}
-                  <div className={step === "processing" ? "hidden" : undefined}>
+                  <div className={step !== "upload" ? "hidden" : undefined}>
                     <UploadForm
                       onSubmit={handleSubmit}
                       onFileSelected={handleFileSelected}
                       errorMessage={errorMessage}
                     />
                   </div>
+                  {step === "rate-limited" && rateLimitResetAt && (
+                    <RateLimitMessage resetAt={rateLimitResetAt} onBackToChecker={handleBackToChecker} />
+                  )}
                 </div>
               )}
               {step === "results" && scoreData && (
@@ -298,9 +301,6 @@ export function FreeATSChecker() {
                   onCheckAnother={handleBackToChecker}
                   checksRemainingLabel={checksRemainingLabel}
                 />
-              )}
-              {step === "rate-limited" && rateLimitResetAt && (
-                <RateLimitMessage resetAt={rateLimitResetAt} onBackToChecker={handleBackToChecker} />
               )}
             </div>
           </div>

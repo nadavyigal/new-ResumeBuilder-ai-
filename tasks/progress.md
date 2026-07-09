@@ -1,5 +1,11 @@
 # Project Progress
 
+## 2026-07-09 — WP-37 S5 Web JD fragment filter + anon conversion quiet
+Shipped two cleanups. (1) `filterRequirementFragments()` in `job-data-resolver.ts` drops bare pronouns and single-word fragments ("We", "go") from `parsed_data.requirements` at normalize time. (2) `auth-form.tsx` skips noisy console error on 404 session-not-found during anon conversion and clears stale `ats_session_id` from localStorage. **Validation:** `ats-prepare-input` + rate-limit preservation tests pass; eslint clean; `npm run build` succeeded.
+
+## 2026-07-08 — WP-37 S2 Web rate-limit input preservation
+Fixed anonymous ATS checker wiping resume + JD after a 429 rate-limit response. Root cause: `FreeATSChecker` unmounted `UploadForm` when `step === "rate-limited"`, so `handleBackToChecker` remounted a fresh form. Fix: keep `UploadForm` mounted (hidden) during rate-limit, same pattern as the processing step. **Files:** `src/components/landing/FreeATSChecker.tsx`, `tests/app/free-ats-checker-failure-preserves-input.test.tsx`. **Validation:** new + existing preservation tests pass; `npm run check:i18n` clean; `git diff --check` clean; `npm run lint` 0 errors; `npm run build` succeeded.
+
 ## 2026-07-03 — WP-29 S4 Premium CTA gate
 WP-29 S4 completed on branch `codex/wp29-s4-disable-premium-cta`.
 

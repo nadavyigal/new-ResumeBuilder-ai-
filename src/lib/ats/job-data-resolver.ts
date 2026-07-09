@@ -24,6 +24,31 @@ export function normalizeStringList(value: unknown): string[] {
   return [];
 }
 
+/** Drop sentence fragments and bare pronouns from JD requirement bullets before persisting for UI. */
+export function filterRequirementFragments(items: string[]): string[] {
+  const fragmentStops = new Set([
+    'a', 'an', 'the', 'and', 'or', 'to', 'in', 'on', 'at', 'is', 'it', 'as', 'be', 'by', 'if', 'of',
+    'we', 'you', 'our', 'your', 'they', 'their', 'go', 'do', 'so', 'no', 'up',
+  ]);
+
+  return items
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item) => {
+      const normalized = item.toLowerCase();
+      if (fragmentStops.has(normalized)) {
+        return false;
+      }
+
+      const words = normalized.split(/\s+/).filter(Boolean);
+      if (words.length === 1) {
+        return normalized.length >= 3 && !fragmentStops.has(normalized);
+      }
+
+      return words.some((word) => word.length >= 3 && !fragmentStops.has(word));
+    });
+}
+
 export function mergeUniqueLists(...lists: string[][]): string[] {
   const seen = new Set<string>();
   const merged: string[] = [];
@@ -229,12 +254,12 @@ export function buildJobDataFromExtractedJson(
  * Normalize scraper output so requirements is populated when only qualifications exist.
  */
 export function normalizeParsedJobData(parsed: ExtractedJobData): ExtractedJobData {
-  const requirements = normalizeStringList(parsed.requirements);
+  const requirements = filterRequirementFragments(normalizeStringList(parsed.requirements));
   if (requirements.length > 0) {
     return { ...parsed, requirements };
   }
 
-  const merged = resolveMustHaveFromExtracted(toParsedJobRecord(parsed));
+  const merged = filterRequirementFragments(resolveMustHaveFromExtracted(toParsedJobRecord(parsed)));
   if (merged.length === 0) {
     return parsed;
   }

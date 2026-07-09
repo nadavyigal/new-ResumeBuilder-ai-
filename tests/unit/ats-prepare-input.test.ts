@@ -2,6 +2,7 @@ import {
   buildJobDataFromExtractedJson,
   buildJobDescriptionTextFromParsed,
   buildParsedDataFromPlainText,
+  filterRequirementFragments,
   normalizeParsedJobData,
   resolveJobDescriptionText,
 } from '@/lib/ats/job-data-resolver';
@@ -93,6 +94,17 @@ describe('ats job-data resolver', () => {
     const normalized = normalizeParsedJobData(parsedData);
     expect(normalized.requirements).not.toBeNull();
     expect(normalized.requirements?.length).toBeGreaterThan(0);
+  });
+
+  it('filters sentence fragments from requirement bullets', () => {
+    const filtered = filterRequirementFragments([
+      'SQL',
+      'leadership',
+      'We',
+      'go',
+      '5+ years B2B sales',
+    ]);
+    expect(filtered).toEqual(['SQL', 'leadership', '5+ years B2B sales']);
   });
 
   it('builds parsed_data from pasted plain text', () => {

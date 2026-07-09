@@ -34,6 +34,11 @@ const translations: Record<string, string> = {
   'landing.uploadForm.hints.jobUrlRequired': 'Add a job post URL to continue.',
   'landing.uploadForm.hints.minimumWords': 'Job description must include at least {count} words.',
   'landing.uploadForm.hints.validUrlRequired': 'Add a valid job post URL.',
+  'landing.rateLimit.title': 'You have used your free checks for now',
+  'landing.rateLimit.description': 'You can run another check in {time}, or create a free account for more checks and saved results.',
+  'landing.rateLimit.cta': 'Create free account',
+  'landing.rateLimit.backToChecker': 'Back to checker',
+  'landing.rateLimit.time.minutes': '{count} minutes',
 };
 
 function formatMessage(template: string, values?: Record<string, unknown>) {
@@ -154,6 +159,57 @@ describe('FreeATSChecker failure handling', () => {
     await flushReact();
 
     expect(container.textContent).toContain('Server says the job description is too thin.');
+    expect(container.textContent).toContain('Selected file: nadav-resume.pdf');
+    expect((container.querySelector('[data-testid="job-description-input"]') as HTMLTextAreaElement).value)
+      .toBe(longJobDescription);
+  });
+
+  it('keeps the selected file and job description after a rate-limit response and back to checker', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: false,
+      status: 429,
+      json: async () => ({ resetAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() }),
+    } as Response)) as unknown as typeof fetch;
+
+    const { FreeATSChecker } = require('@/components/landing/FreeATSChecker');
+
+    await act(async () => {
+      root.render(<FreeATSChecker />);
+    });
+
+    const fileInput = container.querySelector('[data-testid="resume-upload"]') as HTMLInputElement;
+    const jobDescriptionInput = container.querySelector('[data-testid="job-description-input"]') as HTMLTextAreaElement;
+    const resumeFile = new File(['%PDF test'], 'nadav-resume.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      Object.defineProperty(fileInput, 'files', {
+        value: [resumeFile],
+        configurable: true,
+      });
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+      changeValue(jobDescriptionInput, longJobDescription);
+    });
+    await flushReact();
+
+    await act(async () => {
+      container.querySelector('form')?.dispatchEvent(new Event('submit', {
+        bubbles: true,
+        cancelable: true,
+      }));
+    });
+    await flushReact();
+
+    expect(container.querySelector('[data-testid="rate-limit-message"]')).toBeTruthy();
+    expect(container.textContent).toContain('You have used your free checks for now');
+
+    const backButton = Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent?.includes('Back to checker'));
+
+    await act(async () => {
+      backButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await flushReact();
+
     expect(container.textContent).toContain('Selected file: nadav-resume.pdf');
     expect((container.querySelector('[data-testid="job-description-input"]') as HTMLTextAreaElement).value)
       .toBe(longJobDescription);
