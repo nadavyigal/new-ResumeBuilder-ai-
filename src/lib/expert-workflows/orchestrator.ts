@@ -785,7 +785,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
       .eq('optimization_id', optimization.id);
   }
 
-  await db
+  const { error: finalizeError } = await db
     .from('expert_workflow_runs')
     .update({
       status: 'completed',
@@ -799,6 +799,10 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     })
     .eq('id', runRow.id)
     .eq('user_id', params.userId);
+
+  if (finalizeError) {
+    throw new Error(finalizeError.message || 'Failed to finalize expert workflow run.');
+  }
 
   return {
     success: true,

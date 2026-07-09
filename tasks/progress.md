@@ -1,5 +1,15 @@
 # Project Progress
 
+## 2026-07-09 — WP-39 S4 post-migration re-test PASS + P1 finalize error handling
+**Part 1 (go/no-go): PASS** — after production migration `20260303000000_expert_workflow_assets_and_new_types` (`applied_assets_json` column live).
+
+- Retried Apply on existing run `4102da8d-0bde-4692-a133-321f396e3f20` (optimization `5d6b526e-6ce9-42fc-995b-84cae5d9227e`) via authenticated production `POST .../apply` (`apply_mode: skills_only`).
+- **HTTP 200** `{ success: true, apply_mode: "skills_only", ... }`.
+- **DB after:** `applied_at` = `2026-07-09 11:18:34.446+00`, `status` = `completed`, `apply_mode` = `skills_only`, `applied_assets_json` = `[]`.
+- **Supabase REST:** `PATCH expert_workflow_runs` → **204** (was **400** pre-migration on 2026-07-09 morning test).
+
+**Part 2 (P1):** `applyExpertWorkflowRun()` now checks `{ error }` on the finalize `expert_workflow_runs` UPDATE and throws (apply route returns **500** / `success: false`) instead of swallowing PostgREST failures. Regression test added in `tests/contracts/expert-workflow-apply-behavior.test.ts` (mock finalize PATCH error → expect throw, not success). **Branch:** `fix/expert-apply-finalize-error-handling`.
+
 ## 2026-07-09 — WP-39 S4 live smoke test: Expert Apply regression confirmed (Outcome B)
 Live production test on `main` @ `1a37fc4`. **Verdict: Outcome (B) — API returns `success: true` but `expert_workflow_runs.applied_at` stays NULL.**
 
