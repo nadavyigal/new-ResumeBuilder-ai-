@@ -1,5 +1,38 @@
 # Project Progress
 
+## 2026-07-09 — WP-39 S4 + D4 Expert apply dead-path + anon RPC security read (investigation only)
+Read-only investigation on `main` @ `b7db662`. No code changes, no migrations, no grant revokes.
+
+### S4 — Expert-workflow Apply path
+**Verdict: scenario (a) — Apply exists and is reachable; users are not completing the second step.** Not a dead/orphaned code path and not a small reconnect regression.
+
+**Where `applied_at` is written:** sole writer is `applyExpertWorkflowRun()` in `src/lib/expert-workflows/orchestrator.ts` (sets `applied_at`, `status: completed`, apply metadata on `expert_workflow_runs`). Invoked only from `POST /api/v1/expert-workflows/runs/[id]/apply` (auth required via `createRouteHandlerClient` + `getUser()`).
+
+**UI triggers (reachable today):**
+- **Web:** `ExpertModesPanel` on `dashboard/optimizations/[id]` — secondary Apply / Save Selection button appears whenever `runResult` exists (not gated on `status === completed` or premium; only Run is premium-gated). Posts to apply route; tracks `expert_apply_clicked` / `expert_mode_apply_completed`.
+- **iOS:** `ExpertModesView` → `ExpertModesViewModel.apply()` → same apply API. Apply buttons shown in per-workflow output views and `ExpertReportView` (`showApplyButton: true` even when `needs_user_input`).
+- **iOS Submit Package:** `submit()` runs cover-letter + screening workflows but does **not** call apply; `savePackageToMe()` calls apply then `saveExpertReport` — apply only lands if user completes save-to-Me.
+- **Chat:** `POST /api/v1/chat` can `runExpertWorkflow()` inline but never calls apply; response text says "Open Expert Modes panel to review and apply."
+
+**Git history around 2026-03-10:** `applied_at` column added 2026-03-02 (`20260302000000_application_expert_reports_and_apply_metadata.sql`). Last DB `applied_at` ~2026-03-10 aligns with first-week dogfooding after Expert Modes shipped (2026-03-01–02). 2026-03-09 `a8d97a6` hardened apply response shape and tests — did **not** remove Apply UI or route. 2026-03-12 `optimization_review_runs` added a separate, healthier apply flow (12/16 applied in 14d per founder SQL) that likely absorbed resume-edit intent.
+
+**Why runs exist without `applied_at`:** Run (`POST /api/v1/expert-workflows/run` or chat) persists `expert_workflow_runs` + `expert_workflow_artifacts` immediately. Apply is a deliberate second action. Most runs are `needs_user_input` (validator sets status when `missing_evidence` non-empty) — Apply is still offered but UX shows warning banners; users may stop after reviewing output. Artifacts (334 rows) confirm generation works; finalize step is skipped.
+
+**Recommended next story (out of scope here):** UX/product — auto-apply option, merge run+apply for document workflows, surface Apply CTA when `needs_user_input`, or instrument `expert_apply_clicked` vs `expert_mode_run_completed` in PostHog to quantify drop-off. Not a ≤3-file wire fix.
+
+### D4 — Anon-executable SECURITY DEFINER RPCs
+**Verdict: `consume_credit` and `grant_apple_credits` are exploitable if anon EXECUTE is live on production; `generate_file_path` is low risk.**
+
+| Function | App call sites | Internal auth guard | Exploitability (if anon RPC works) |
+|----------|----------------|---------------------|-------------------------------------|
+| `consume_credit(p_user_id, p_reason)` | `src/lib/credits.ts` → `POST /api/ats/score`, `POST /api/v1/refine-section` (both require session; pass `user.id`) | **None** — decrements `profiles.credit_balance` for arbitrary `p_user_id` | **High** — unauthenticated caller can drain any user's credits |
+| `grant_apple_credits(...)` | `POST /api/v1/iap/verify` only (session + `verifyAppleTransaction` before RPC) | **None** — grants credits for arbitrary `p_user_id`; idempotency is `apple_transaction_id` only | **High** — bypasses Apple verification and API route; mint credits with attacker-chosen transaction IDs |
+| `generate_file_path(user_uuid, filename, file_type)` | **No app RPC usage** (types only in `database.ts`) | **None** — pure string builder | **Low** — no DB writes; storage RLS still requires `auth.uid()` on upload paths |
+
+**Repo vs production:** `supabase/migrations/20260503000000_credit_ledger.sql` grants credit functions to `authenticated` only; no `REVOKE EXECUTE FROM PUBLIC/anon`. `generate_file_path` created without restrictive grants in `20250915000001_setup_storage.sql`; remote schema dump marks it `SECURITY DEFINER`. Supabase advisor flag implies production still allows `anon` EXECUTE (schema drift or default PUBLIC grants).
+
+**Follow-up migration scope (founder decision):** `REVOKE EXECUTE ON FUNCTION ... FROM anon, PUBLIC`; `GRANT EXECUTE ... TO authenticated, service_role` only; add `IF auth.uid() IS NULL OR auth.uid() <> p_user_id THEN RAISE` inside credit functions; keep `grant_apple_credits` service-role-only (edge function) or add signed-server secret check.
+
 ## 2026-07-09 — WP-39 S1 PostHog auth URL sanitizer (P0 privacy leak)
 Fixed PostHog capturing Supabase auth-callback URLs with `access_token` / `refresh_token` / `code` / `email` in `$current_url`. **Root cause:** unsanitized `window.location.href` in manual `$pageview` capture plus no `before_send` hook, so posthog-js auto-attached tokens on every event. **Fix:** (1) `sanitizeAnalyticsUrl()` + `before_send` in `src/lib/posthog.ts` — auth routes (`/auth/callback`, `/auth/reset-password`) reduced to pathname only; sensitive params stripped globally from query/hash on all routes. (2) `PostHogProvider` uses `sanitizeAnalyticsUrl()` for manual pageviews. **Files:** `src/lib/posthog.ts`, `src/components/providers/posthog-provider.tsx`, `tests/unit/posthog-url-sanitizer.test.ts`. **Validation:** eslint clean on touched files; new regression test 5/5 pass; verified red state (all 5 fail with sanitizer removed, then restored). Full `npm test` has pre-existing failures (17 suites, `@react-pdf` ESM parse) unrelated to this change. **PostHog historical leak check:** no personal API key in env — could not query dashboard/HogQL; recommend manual audit in PostHog for `$current_url` containing `access_token` or `/auth/callback#`. **Branch:** `fix/posthog-auth-url-sanitizer`.
 
