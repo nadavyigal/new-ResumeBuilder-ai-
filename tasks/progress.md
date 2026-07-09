@@ -1,5 +1,41 @@
 # Project Progress
 
+## 2026-07-09 — WP-39 S4 live smoke test: Expert Apply regression confirmed (Outcome B)
+Live production test on `main` @ `1a37fc4`. **Verdict: Outcome (B) — API returns `success: true` but `expert_workflow_runs.applied_at` stays NULL.**
+
+### Test setup
+- Account: `nadav.yigal+fable-qa-jul03@gmail.com` (existing QA, production sign-in OK).
+- Flow: upload resume → optimize → save approved draft → optimization `5d6b526e-6ce9-42fc-995b-84cae5d9227e`.
+- Expert run: `ats_optimization_report`, run id `4102da8d-0bde-4692-a133-321f396e3f20` (created via production `runExpertWorkflow` orchestrator; UI Preview blocked `402 PREMIUM_REQUIRED` for free tier).
+- Apply: authenticated `POST /api/v1/expert-workflows/runs/4102da8d-0bde-4692-a133-321f396e3f20/apply` from active browser session (same fetch path as ExpertModesPanel Apply).
+
+### Observed behavior
+| Layer | Result |
+|-------|--------|
+| HTTP apply response | **200**, `{ success: true, updated_fields: ["skills.technical"], ats_impact: { before: 42, after: 55, delta: 13 } }` |
+| `optimizations` row | **Updated** — `ats_score_optimized` 42→55, `rewrite_data.skills` expanded, `updated_at` 2026-07-09 10:50:29Z |
+| `expert_workflow_runs` row | **NOT finalized** — `applied_at` NULL, `apply_mode` NULL, `status` still `needs_user_input` |
+| Supabase REST log | `PATCH expert_workflow_runs` → **400**; `PATCH optimizations` → **204** |
+
+### Root cause (not UX abandonment)
+Production schema drift: code writes `applied_assets_json` in `applyExpertWorkflowRun()` (`orchestrator.ts` ~L788–801), but production `expert_workflow_runs` **has no `applied_assets_json` column**.
+
+- Repo migration exists: `supabase/migrations/20260303000000_expert_workflow_assets_and_new_types.sql` (adds `applied_assets_json`).
+- Production `schema_migrations` has `20260301000000`, `20260302000000` only — **`20260303000000` never applied**.
+- Cliff timing matches: `applied_at` metadata landed 2026-03-02 (`20260302000000`); apply payload gained `applied_assets_json` in Mar-9 hardening (`a8d97a6`); migration dated 2026-03-03 never shipped → every apply PATCH 400s.
+- Secondary bug: final `expert_workflow_runs` UPDATE **does not check `{ error }`** — partial apply (optimization writes succeed) still returns `success: true` to the UI. Matches silent-failure pattern in production metrics (0 applies since ~2026-03-10).
+
+### Decisive outcome
+**(B) Live regression** — frontend/API report success; `applied_at` write fails. Prior S4 scenario-(a) verdict **rejected**.
+
+### Recommended fix (not implemented — >1 file / needs migration approval)
+1. **P0:** Apply migration `20260303000000` to production Supabase (`brtdyamysfmctrhuankn`).
+2. **P1:** In `applyExpertWorkflowRun`, check and propagate errors from the `expert_workflow_runs` UPDATE (return 500 / `success: false` when PATCH fails).
+3. Re-run this smoke test after migration; expect Outcome (A).
+
+### Extra finding (run gate)
+Free-tier users cannot create expert runs via UI (`Preview workflow` → `402 PREMIUM_REQUIRED`). Apply is not reachable end-to-end without premium or service-role run creation — separate from the `applied_at` bug but worsens completion rate.
+
 ## 2026-07-09 — WP-39 S4 + D4 Expert apply dead-path + anon RPC security read (investigation only)
 Read-only investigation on `main` @ `b7db662`. No code changes, no migrations, no grant revokes.
 
