@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { initPostHog, posthog } from '@/lib/posthog';
+import { initPostHog, posthog, sanitizeAnalyticsUrl } from '@/lib/posthog';
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -49,7 +49,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     // Track pageviews on route change
     if (pathname && posthog && typeof window !== 'undefined') {
       posthog.capture('$pageview', {
-        $current_url: window.location.href,
+        $current_url: sanitizeAnalyticsUrl(window.location.href),
       });
     }
   }, [pathname]);
