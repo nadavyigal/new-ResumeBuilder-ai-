@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 type QueryResult = { data: any; error: any };
 
-function buildUpdateChain() {
+function buildUpdateChain(finalizeError: QueryResult['error'] = null) {
   return {
     eq() {
       return {
         error: null,
-        eq: async () => ({ error: null }),
+        eq: async () => ({ error: finalizeError }),
       };
     },
   };
@@ -42,6 +42,7 @@ function buildSupabaseMock(config: {
   optimizationResult: QueryResult;
   resumeResult: QueryResult;
   jobDescriptionResult: QueryResult;
+  finalizeRunUpdateError?: QueryResult['error'];
 }) {
   const optimizationUpdates: Record<string, unknown>[] = [];
   const applicationUpdates: Record<string, unknown>[] = [];
@@ -56,7 +57,7 @@ function buildSupabaseMock(config: {
           },
           update(payload: Record<string, unknown>) {
             runUpdates.push(payload);
-            return buildUpdateChain();
+            return buildUpdateChain(config.finalizeRunUpdateError ?? null);
           },
         };
       }
@@ -123,7 +124,7 @@ function loadApplyHarness() {
     scoreOptimization,
   }));
 
-  const { applyExpertWorkflowRun } = require('@/lib/expert-workflows');
+  const { applyExpertWorkflowRun } = require('@/lib/expert-workflows/orchestrator');
   return { applyExpertWorkflowRun, scoreOptimization };
 }
 
@@ -413,5 +414,66 @@ describe('expert workflow apply behavior', () => {
 
     expect((supabase as any).getOptimizationUpdates()).toHaveLength(0);
     expect((supabase as any).getRunUpdates()).toHaveLength(0);
+  });
+
+  it('throws when expert_workflow_runs finalize update fails instead of reporting success', async () => {
+    const { applyExpertWorkflowRun } = loadApplyHarness();
+
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-finalize-fail',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'cover_letter_architect',
+          output_json: {
+            recommended_index: 0,
+            cover_letter_variants: [
+              { angle: 'concise', title: 'A', opening_paragraph: 'A', letter: 'L1', rationale: 'R1' },
+            ],
+          },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: {
+          id: 'opt-1',
+          rewrite_data: { summary: 'No change' },
+          resume_id: 'resume-1',
+          jd_id: 'jd-1',
+          ats_score_optimized: 62,
+          match_score: 62,
+        },
+        error: null,
+      },
+      resumeResult: {
+        data: { raw_text: 'Original resume text' },
+        error: null,
+      },
+      jobDescriptionResult: {
+        data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' },
+        error: null,
+      },
+      finalizeRunUpdateError: {
+        message: 'Could not find the applied_assets_json column of expert_workflow_runs in the schema cache',
+        code: 'PGRST204',
+      },
+    });
+
+    await expect(
+      applyExpertWorkflowRun({
+        supabase,
+        userId: 'user-1',
+        runId: 'run-finalize-fail',
+        applyMode: 'select_cover_letter_variant',
+        selectionIndex: 0,
+      })
+    ).rejects.toThrow('Could not find the applied_assets_json column');
+
+    expect((supabase as any).getRunUpdates()).toHaveLength(1);
+    expect((supabase as any).getRunUpdates()[0]).toMatchObject({
+      status: 'completed',
+      apply_mode: 'select_cover_letter_variant',
+    });
   });
 });
