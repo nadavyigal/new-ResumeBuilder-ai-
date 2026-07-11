@@ -1,5 +1,21 @@
 # Project Progress
 
+## 2026-07-10 — Web export wall diagnosis + observability fix
+
+**Verdict:** production PDF export is functional; the proven web defect was a complete analytics blind spot around the export action, not a universal paywall/auth/PDF failure.
+
+- Fresh production QA flow completed signup → upload → optimization review → approved draft → PDF download. Production optimization: `d4f0ff18-871b-483a-a5af-843c2f361f9a`; browser observed a real download with no console error.
+- Supabase/PostHog reconciliation found seven organic web users from February reached `/dashboard/optimizations/{id}` but had no export events. Historical session replay is outside the 30-day retention window, and the web button used a raw `window.location.href`, so past click-vs-abandonment cannot be distinguished.
+- The cited 2026-07-06 iOS zero-export result is now stale: refreshed founder-excluded iOS funnel through 2026-07-10 is 9 `resume_uploaded` people → 2 `optimization_completed` → 1 `export_success`.
+- Fix: the optimization page now emits `optimized_viewed`, `export_cta_seen`, and `export_pdf_tapped` with `optimization_id`, `platform=web`, and source. The authenticated download route now emits `export_started`, terminal `export_success`, or `export_failed` with format and renderer/error code.
+- QA exclusion: `nadav.yigal+export-wall-qa-jul10@gmail.com` / user `fe2cc2bc-75e6-4b64-8036-a2aac07f4917` is tagged in PostHog with `is_internal_tester=true`, `qa_account=true`, purpose `export_wall_jul10`; founder-excluded queries also retain the `-qa-` email convention exclusion.
+- TDD: `tests/contracts/web-export-observability.test.ts` failed 3/3 before implementation and passes 3/3 after. Targeted eslint clean; full lint 0 errors / 11 pre-existing warnings; production build succeeded. `npx tsc --noEmit` retains only documented pre-existing test errors and has no story-file errors.
+- Post-fix local smoke against the real QA optimization: authenticated route loaded the row, generated a 7,328-byte PDF through the jsPDF fallback, and logged `Sending download response`.
+
+**Expected funnel movement:** `optimization_completed` → `optimized_viewed` → `export_cta_seen` becomes measurable on web; a click then resolves to `export_pdf_tapped` → `export_started` → exactly one of `export_success` / `export_failed`.
+
+**Not deployed:** branch `codex/fix-web-export-observability` remains local for review; no production deployment was authorized in this story.
+
 ## 2026-07-09 — WP-39 S4 live smoke test: Expert Apply regression confirmed (Outcome B)
 Live production test on `main` @ `1a37fc4`. **Verdict: Outcome (B) — API returns `success: true` but `expert_workflow_runs.applied_at` stays NULL.**
 

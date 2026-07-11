@@ -5,6 +5,7 @@ import { resolvePdfDesignContext, type PdfDesignContext } from "@/lib/pdf-design
 import { callPDFService } from "@/lib/pdf-service-client";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { logger } from "@/lib/agent/utils/logger";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export const runtime = "nodejs";
 
@@ -48,6 +49,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   logger.info('Optimization data fetched successfully for download', { optimizationId: id, userId: user.id });
+
+  const analyticsProperties = {
+    optimization_id: id,
+    format,
+    platform: "web",
+    source: "web_download_route",
+  };
+  await captureServerEvent(user.id, "export_started", analyticsProperties);
 
   const resumeData = optimizationData.rewrite_data as OptimizedResume;
 
@@ -139,6 +148,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       errorDetails.stack = error.stack;
     }
     logger.error('Error generating download file', errorDetails, error);
+    await captureServerEvent(user.id, "export_failed", {
+      ...analyticsProperties,
+      error_code: "generation_failed",
+    });
     throw error;
   }
 
@@ -162,6 +175,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   logger.info('Sending download response', { optimizationId: id, filename, contentType });
+  await captureServerEvent(user.id, "export_success", {
+    ...analyticsProperties,
+    renderer: format === "pdf" ? pdfResult?.renderer ?? "unknown" : "docx",
+  });
   const body = fileBuffer as unknown as BodyInit;
   return new NextResponse(body, { headers });
 }
