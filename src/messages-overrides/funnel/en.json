@@ -36,6 +36,7 @@
       },
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
+      "heroCta": "Check my resume →",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "connection": "We could not reach the server. Please try again.",
@@ -49,6 +50,8 @@
     "uploadForm": {
       "resumeLabel": "Resume (PDF)",
       "selectedFile": "Selected file: {fileName}",
+      "dropzoneCta": "Choose a file",
+      "fileConstraints": "PDF only, up to 5MB. Processed privately, never stored.",
       "jobDescriptionLabel": "Job description",
       "inputModes": {
         "text": "Paste text",
@@ -61,9 +64,15 @@
       "minimumWords": "Minimum {count} words",
       "wordCount": "{count} words",
       "urlHelper": "Paste a public job post URL and we will fetch the description.",
+      "shortTextNudge": "Short on text? Switch to \"From URL\" and paste the job link instead.",
+      "linkedinWarning": "LinkedIn blocks automated fetch. Paste the description text instead for an accurate score.",
       "checking": "Running ATS check...",
       "submit": "Get my Match Score",
       "invalidUrl": "Enter a valid job post URL.",
+      "checklist": {
+        "resume": "Add your resume",
+        "job": "Add a job description — 100+ words or a job link"
+      },
       "hints": {
         "resumeRequired": "Upload your resume to start.",
         "jobDescriptionRequired": "Paste the job description to continue.",
