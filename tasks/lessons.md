@@ -4,6 +4,22 @@
 
 ---
 
+## Jest 30 async mocks can infer `never` in contract tests
+
+**Symptom:** `npx tsc --noEmit` reports `TS2345` because values passed to `mockResolvedValue` or `mockRejectedValue` are not assignable to `never`, even though Jest executes the test successfully.
+**Root cause:** An untyped `jest.fn()` does not provide enough return-type context for Jest 30's resolved/rejected value helpers under this repo's TypeScript configuration.
+**Fix:** Define the async implementation directly, for example `jest.fn(async () => value)` or `jest.fn(async () => { throw error; })`, so TypeScript infers the promise result from the function body. When matcher typing also needs argument types, use a typed rest tuple and `void args`; underscore-prefixed unused parameters still trigger this repo's ESLint rule.
+
+---
+
+## `status` is a read-only parameter in zsh
+
+**Symptom:** A verification wrapper exits immediately with `zsh: read-only variable: status` before it can inspect the command result.
+**Root cause:** zsh reserves `status` for the previous command's exit code.
+**Fix:** Store exit codes in a neutral variable such as `exit_code` rather than assigning to `status`.
+
+---
+
 ## ATS keyword extractor matched tech terms as substrings (fabricated skills → low scores)
 
 **Symptom:** Non-technical roles (Business Development, Partnership Manager) scored ~34 even with a fully-scraped 6KB JD. `must_have` for a Fresha BD role came out as `["rust","express","api","Fresha\nAbout","Trusted"]`.

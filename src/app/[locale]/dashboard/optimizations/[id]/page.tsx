@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLocale, useTranslations } from "next-intl";
+import { posthog } from "@/lib/posthog";
 
 
 // Disable static generation for this dynamic page
@@ -48,6 +49,7 @@ export default function OptimizationPage() {
   const [fabPosition, setFabPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const exportVisibilityTrackedRef = useRef<string | null>(null);
 
   // ATS v2 state
   const [atsV2Data, setAtsV2Data] = useState<ResolvedAtsDisplay | null>(null);
@@ -338,6 +340,27 @@ export default function OptimizationPage() {
     fetchOptimizationData();
   }, [fetchOptimizationData]);
 
+  useEffect(() => {
+    const optimizationId = String(params.id || "");
+    if (
+      !optimizationId ||
+      !optimizedResume ||
+      isDemoOptimization ||
+      exportVisibilityTrackedRef.current === optimizationId
+    ) {
+      return;
+    }
+
+    exportVisibilityTrackedRef.current = optimizationId;
+    const properties = {
+      optimization_id: optimizationId,
+      platform: 'web',
+      source: 'web_optimization_page',
+    };
+    posthog.capture('optimized_viewed', properties);
+    posthog.capture('export_cta_seen', properties);
+  }, [isDemoOptimization, optimizedResume, params.id]);
+
   // Refresh resume data and design when chat sends a message
   const handleChatMessageSent = async (immediateAts?: {
     original?: number | null;
@@ -612,7 +635,16 @@ export default function OptimizationPage() {
   };
 
   const handleDownloadPDF = () => {
-    window.location.href = `/api/download/${params.id}?fmt=pdf`;
+    const optimizationId = String(params.id || "");
+    if (!optimizationId) return;
+
+    posthog.capture('export_pdf_tapped', {
+      optimization_id: optimizationId,
+      format: 'pdf',
+      platform: 'web',
+      source: 'web_optimization_page',
+    });
+    window.location.href = `/api/download/${optimizationId}?fmt=pdf`;
   };
 
 
