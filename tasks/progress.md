@@ -1,5 +1,22 @@
 # Project Progress
 
+## 2026-07-11 — WP-43: Free ATS Checker entry-funnel activation (Tier A), merged PR #115
+
+Shipped all 6 Tier A stories from a live cold first-time-user walkthrough of resumelybuilderai.com. Copy/design + client-only, no backend changes.
+
+- S1: above-the-fold "Check my resume →" CTA on mobile, scrolls to and focuses the upload card. Fires `ats_checker_hero_cta_clicked`.
+- S2: styled dropzone replacing the raw native `<input type="file">`; states PDF-only + 5MB + privacy up front.
+- S3: two-item live checklist (resume / job description) replaces the old single-priority hint so both requirements show at once.
+- S4: nudges users under the 100-word minimum toward the backend-supported URL path (which skips the word-count gate) instead of just blocking them.
+- S5: warns inline when a pasted URL is `linkedin.com` — the documented thin-scrape failure (see 2026-06-21 entry below) returns a false low score with no error surfaced.
+- S6: moves "Already have an account? Log in" below the tool on mobile via a duplicated, breakpoint-hidden pair; desktop DOM/layout is pixel-identical (verified via preview server screenshot at both breakpoints).
+
+**Validation:** `tsc --noEmit` clean on touched files (19 pre-existing errors in unrelated test files, same count on unmodified `main`); `eslint` clean; `npm run check:i18n` 0 missing EN/HE keys; existing 3 tests + 3 new tests green (6/6); live-verified in a preview server at mobile and desktop widths — all 6 stories confirmed working, desktop confirmed visually unchanged.
+
+**Not done:** Tier B (DOCX support on the free path, resume-only first score before the JD ask) — both need backend work, explicitly deferred. Companion iOS packet WP-44's S1 (picker directory fix) turned out to be blocked (no iCloud capability in the app) — see ResumeBuilder iOS `tasks/progress.md`.
+
+Ties to the Resumely activation funnel re-read scheduled 2026-07-18 (minimum check) / 2026-07-25 (definitive).
+
 ## 2026-07-10 — Web export wall diagnosis + observability fix
 
 **Verdict:** production PDF export is functional; the proven web defect was a complete analytics blind spot around the export action, not a universal paywall/auth/PDF failure.
