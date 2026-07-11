@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
 import { RateLimitMessage } from "@/components/landing/RateLimitMessage";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/constants";
 import type { SuggestionAction } from "@/lib/ats/types";
 
@@ -103,6 +104,15 @@ export function FreeATSChecker() {
       fileSize: file.size,
       fileType: file.type || "unknown",
     });
+  };
+
+  const handleHeroCtaClick = () => {
+    posthog.capture("ats_checker_hero_cta_clicked");
+    const uploadCard = document.getElementById("ats-upload");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    uploadCard?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+    const fileInput = document.getElementById("resume") as HTMLInputElement | null;
+    fileInput?.focus();
   };
 
   const handleSubmit = async (
@@ -241,6 +251,15 @@ export function FreeATSChecker() {
                 </p>
               </div>
 
+              <Button
+                type="button"
+                data-testid="ats-checker-hero-cta"
+                onClick={handleHeroCtaClick}
+                className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)] lg:hidden"
+              >
+                {t("heroCta")}
+              </Button>
+
               <div className="flex flex-wrap gap-3">
                 <Badge variant="secondary" className="gap-2">
                   <ShieldCheck className="w-4 h-4" />
@@ -265,7 +284,7 @@ export function FreeATSChecker() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-border/50">
+              <div className="hidden pt-4 border-t border-border/50 lg:block">
                 <p className="text-sm text-foreground/60">
                   {t("existingAccount")}{" "}
                   <Link
@@ -278,7 +297,10 @@ export function FreeATSChecker() {
               </div>
             </div>
 
-            <div className="min-w-0 rounded-3xl border-2 border-border bg-card/95 p-6 shadow-xl shadow-mobile-cta/10 md:p-8">
+            <div
+              id="ats-upload"
+              className="min-w-0 rounded-3xl border-2 border-border bg-card/95 p-6 shadow-xl shadow-mobile-cta/10 md:p-8"
+            >
               {(step === "upload" || step === "processing" || step === "rate-limited") && (
                 <div className="space-y-6">
                   {step === "processing" && <LoadingState />}
@@ -303,6 +325,18 @@ export function FreeATSChecker() {
                 />
               )}
             </div>
+          </div>
+
+          <div className="pt-4 mt-2 border-t border-border/50 text-center lg:hidden">
+            <p className="text-sm text-foreground/60">
+              {t("existingAccount")}{" "}
+              <Link
+                href="/auth/signin"
+                className="text-mobile-cta hover:underline font-semibold"
+              >
+                {t("loginLink")}
+              </Link>
+            </p>
           </div>
         </div>
       </div>

@@ -36,6 +36,7 @@
       },
       "existingAccount": "כבר יש לכם חשבון?",
       "loginLink": "התחברו",
+      "heroCta": "בדקו את קורות החיים שלי ←",
       "errors": {
         "generic": "משהו השתבש. נסו שוב.",
         "connection": "לא הצלחנו להתחבר לשרת. נסו שוב.",
@@ -49,6 +50,8 @@
     "uploadForm": {
       "resumeLabel": "קורות חיים (PDF)",
       "selectedFile": "קובץ נבחר: {fileName}",
+      "dropzoneCta": "בחרו קובץ",
+      "fileConstraints": "PDF בלבד, עד 5MB. מעובד באופן פרטי, לא נשמר.",
       "jobDescriptionLabel": "תיאור משרה",
       "inputModes": {
         "text": "הדבקת טקסט",
@@ -61,9 +64,15 @@
       "minimumWords": "מינימום {count} מילים",
       "wordCount": "{count} מילים",
       "urlHelper": "הדביקו קישור ציבורי למשרה ואנחנו נשלוף את התיאור.",
+      "shortTextNudge": "הטקסט קצר מדי? עברו ל\"מקישור\" והדביקו את קישור המשרה במקום.",
+      "linkedinWarning": "לינקדאין חוסם שליפה אוטומטית. הדביקו את טקסט התיאור במקום, לקבלת ציון מדויק.",
       "checking": "מריצים בדיקת ATS...",
       "submit": "לקבל ציון התאמה",
       "invalidUrl": "הזינו קישור תקין למשרה.",
+      "checklist": {
+        "resume": "הוסיפו את קורות החיים שלכם",
+        "job": "הוסיפו תיאור משרה — 100+ מילים או קישור למשרה"
+      },
       "hints": {
         "resumeRequired": "העלו קורות חיים כדי להתחיל.",
         "jobDescriptionRequired": "הדביקו תיאור משרה כדי להמשיך.",

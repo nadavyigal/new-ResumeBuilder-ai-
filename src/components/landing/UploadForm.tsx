@@ -48,6 +48,8 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
   const hasValidUrl = inputMode !== "url" || isLikelyJobUrl(jobDescriptionUrl);
   const hasJobInput = inputMode === "text" ? jobDescription.trim() : jobDescriptionUrl.trim();
   const hasStartedTextInput = inputMode === "text" && jobDescription.trim().length > 0;
+  const isLinkedInUrl = inputMode === "url" && /linkedin\.com/i.test(jobDescriptionUrl);
+  const jobRequirementMet = Boolean(hasJobInput) && hasValidWordCount && hasValidUrl;
 
   const canSubmit = Boolean(
     resumeFile
@@ -55,18 +57,6 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
     && hasValidWordCount
     && hasValidUrl
   );
-
-  const submitHint = useMemo(() => {
-    if (submitting) return null;
-    if (!resumeFile) return t("hints.resumeRequired");
-    if (inputMode === "text" && !jobDescription.trim()) return t("hints.jobDescriptionRequired");
-    if (inputMode === "url" && !jobDescriptionUrl.trim()) return t("hints.jobUrlRequired");
-    if (inputMode === "text" && !hasValidWordCount) {
-      return t("hints.minimumWords", { count: PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS });
-    }
-    if (inputMode === "url" && !hasValidUrl) return t("hints.validUrlRequired");
-    return null;
-  }, [submitting, resumeFile, inputMode, jobDescription, jobDescriptionUrl, hasValidWordCount, hasValidUrl, t]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
@@ -96,6 +86,15 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
     <form className="space-y-6" onSubmit={handleSubmit}>
       <div className="space-y-2">
         <Label htmlFor="resume">{t("resumeLabel")}</Label>
+        <label
+          htmlFor="resume"
+          className="flex w-full cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-border bg-muted/40 px-4 py-6 text-center transition-colors hover:border-mobile-cta/60 hover:bg-mobile-cta/5"
+        >
+          <span className="rounded-full bg-mobile-cta/10 px-4 py-2 text-sm font-semibold text-mobile-cta">
+            {t("dropzoneCta")}
+          </span>
+          <span className="text-xs text-foreground/60">{t("fileConstraints")}</span>
+        </label>
         <Input
           id="resume"
           type="file"
@@ -103,6 +102,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           required
+          className="sr-only"
         />
         {resumeFile && (
           <p className="break-all text-xs text-foreground/60">
@@ -148,6 +148,9 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
                 {t("wordCount", { count: wordCount })}
               </span>
             </div>
+            {hasStartedTextInput && !hasValidWordCount && (
+              <p className="text-xs text-foreground/65">{t("shortTextNudge")}</p>
+            )}
           </>
         ) : (
           <>
@@ -170,6 +173,9 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             {!hasValidUrl && jobDescriptionUrl.trim() && (
               <p className="text-xs text-destructive">{t("invalidUrl")}</p>
             )}
+            {isLinkedInUrl && (
+              <p className="text-xs text-destructive">{t("linkedinWarning")}</p>
+            )}
           </>
         )}
       </div>
@@ -188,10 +194,17 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       >
         {submitting ? t("checking") : t("submit")}
       </Button>
-      {submitHint && (
-        <p className="text-xs text-foreground/65 text-center" role="status">
-          {submitHint}
-        </p>
+      {!submitting && (
+        <ul className="space-y-1 text-xs text-foreground/65" role="status" data-testid="submit-checklist">
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true">{resumeFile ? "✓" : "○"}</span>
+            {t("checklist.resume")}
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden="true">{jobRequirementMet ? "✓" : "○"}</span>
+            {t("checklist.job")}
+          </li>
+        </ul>
       )}
     </form>
   );
