@@ -43,7 +43,7 @@ export async function POST(
       filename,
       display_name: displayName ?? null,
     })
-    .select('id, filename, display_name, size_bytes, created_at')
+    .select('id, filename, display_name, size_bytes, created_at, optimization_id')
     .single();
 
   if (insertError) {
@@ -58,6 +58,7 @@ export async function POST(
       display_name: saved.display_name,
       created_at: saved.created_at,
       size_bytes: saved.size_bytes,
+      optimization_id: saved.optimization_id,
     },
   });
 }

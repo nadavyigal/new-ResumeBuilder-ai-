@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('saved_resumes')
-    .select('id, filename, display_name, size_bytes, created_at')
+    .select('id, filename, display_name, size_bytes, created_at, optimization_id')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     display_name: r.display_name ?? null,
     created_at: r.created_at,
     size_bytes: r.size_bytes ?? null,
+    optimization_id: r.optimization_id ?? null,
   }));
 
   return NextResponse.json({ resumes });
