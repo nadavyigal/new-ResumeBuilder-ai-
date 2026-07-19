@@ -56,7 +56,7 @@ export async function PATCH(
     .update({ display_name: displayName, filename, updated_at: new Date().toISOString() })
     .eq('id', id)
     .eq('user_id', user.id)
-    .select('id, filename, display_name, size_bytes, created_at')
+    .select('id, filename, display_name, size_bytes, created_at, optimization_id')
     .single();
 
   if (error) {
@@ -71,6 +71,7 @@ export async function PATCH(
       display_name: updated.display_name,
       created_at: updated.created_at,
       size_bytes: updated.size_bytes,
+      optimization_id: updated.optimization_id,
     },
   });
 }
