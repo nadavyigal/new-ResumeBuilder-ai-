@@ -141,6 +141,8 @@ Backend-only scorer integrity pass. Triggered by a moderated user session (Meira
 
 **Not done:** the migration has NOT been applied to production (no approval given, and the packet forbids it). No deployment. Not live-verified end-to-end against a real signup — the evidence above is build/lint/type/unit only. The Privacy Policy page (`privacy` block in `src/messages/*.json`) was not edited and likely needs a matching line about short-term anonymous resume retention.
 
+**Hold cleared 2026-07-20 (rebased onto main 2026-08-05).** PR #117 was held, not rejected, on a deploy-ordering hazard: the 42703/PGRST204 guard covered only the `ats-check` insert, while the three read paths selected the six new columns with no fallback, so deploying ahead of the migration would have silently stopped session conversion. `selectAnonymousScoreWithFallback` now wraps all three reads and materialization is skipped when a row is read without the carryover columns. Full detail in `tasks/session-log.md`. **The migration is still unapplied by design** — carryover degrades to score-only until a founder applies `20260720000000`; nothing is broken without it.
+
 ## 2026-07-11 — WP-43: Free ATS Checker entry-funnel activation (Tier A), merged PR #115
 
 Shipped all 6 Tier A stories from a live cold first-time-user walkthrough of resumelybuilderai.com. Copy/design + client-only, no backend changes.
