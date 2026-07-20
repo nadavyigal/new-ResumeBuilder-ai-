@@ -8,6 +8,12 @@ type ScoreRow = {
   ats_suggestions: unknown[];
   created_at: string;
   converted_at: string | null;
+  resume_text?: string | null;
+  job_description_text?: string | null;
+  job_title?: string | null;
+  job_source_url?: string | null;
+  resume_id?: string | null;
+  job_description_id?: string | null;
 };
 
 function makeRequest(body: unknown) {
@@ -20,7 +26,26 @@ function createServiceRoleStore(rows: ScoreRow[]) {
   return {
     rows,
     updates: [] as Array<{ id: number; values: Partial<ScoreRow> }>,
+    artifactInserts: [] as Array<{ table: string; values: Record<string, unknown> }>,
     from: jest.fn((table: string) => {
+      // WP-49: converting a session also materializes owned resume / job
+      // description rows from the carried anonymous text.
+      if (table === 'resumes' || table === 'job_descriptions') {
+        return {
+          insert: jest.fn((values: Record<string, unknown>) => {
+            store.artifactInserts.push({ table, values });
+            return {
+              select: jest.fn(() => ({
+                maybeSingle: jest.fn(async () => ({
+                  data: { id: `${table}-id` },
+                  error: null,
+                })),
+              })),
+            };
+          }),
+        } as any;
+      }
+
       if (table !== 'anonymous_ats_scores') {
         throw new Error(`Unexpected table: ${table}`);
       }
@@ -187,6 +212,42 @@ describe('/api/public/convert-session', () => {
 
     expect(response.status).toBe(200);
     expect(payload.scoreData.ats_score).toBe(43);
+  });
+
+  it('carries the anonymous resume and job description into the new account', async () => {
+    const { POST } = loadRoute([
+      {
+        id: 3,
+        session_id: 'session-1',
+        user_id: null,
+        ats_score: 43,
+        ats_suggestions: [],
+        created_at: '2026-07-20T09:00:00.000Z',
+        converted_at: null,
+        resume_text: 'Jane Doe\nSenior Product Manager\nGrew revenue 30%.',
+        job_description_text: 'Senior Product Manager\nOwn the roadmap and strategy.',
+        job_title: 'Senior Product Manager',
+        resume_id: null,
+        job_description_id: null,
+      },
+    ]);
+
+    const response = await POST(makeRequest({ sessionId: 'session-1' }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    // The dashboard needs both ids to offer a one-click optimize.
+    expect(payload.scoreData.resume_id).toBe('resumes-id');
+    expect(payload.scoreData.job_description_id).toBe('job_descriptions-id');
+    expect(store.artifactInserts.map((insert) => insert.table)).toEqual(
+      expect.arrayContaining(['resumes', 'job_descriptions']),
+    );
+    expect(
+      store.artifactInserts.every((insert) => insert.values.user_id === 'user-1'),
+    ).toBe(true);
+    // The anonymous copies are dropped once the user owns them.
+    expect(store.rows[0].resume_text).toBeNull();
+    expect(store.rows[0].job_description_text).toBeNull();
   });
 
   it('rejects conversion when no user is signed in', async () => {
