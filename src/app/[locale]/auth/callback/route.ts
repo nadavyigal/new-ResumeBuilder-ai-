@@ -5,6 +5,7 @@ import { captureServerEvent } from '@/lib/posthog-server';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import {
   materializeAnonymousCarryover,
+  selectAnonymousScoreWithFallback,
   type AnonymousCarryoverRow,
 } from '@/lib/anonymous-carryover';
 import { defaultLocale, locales, type Locale } from '@/locales';
@@ -115,16 +116,17 @@ export async function GET(
       if (sessionId) {
         try {
           const serviceRole = createServiceRoleClient();
-          const { data: anonScore } = await serviceRole
-            .from('anonymous_ats_scores')
-            .select(
-              'id, session_id, ats_score, ats_suggestions, created_at, converted_at, resume_text, job_description_text, job_title, job_source_url, resume_id, job_description_id'
-            )
-            .eq('session_id', sessionId)
-            .is('user_id', null)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+          const { data: anonScore, carryoverColumnsAvailable } =
+            await selectAnonymousScoreWithFallback<AnonymousCarryoverRow>((columns) =>
+              serviceRole
+                .from('anonymous_ats_scores')
+                .select(columns)
+                .eq('session_id', sessionId)
+                .is('user_id', null)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle(),
+            );
 
           if (anonScore) {
             await serviceRole
@@ -135,11 +137,15 @@ export async function GET(
               })
               .eq('id', anonScore.id);
 
-            const artifacts = await materializeAnonymousCarryover(
-              serviceRole,
-              anonScore as AnonymousCarryoverRow,
-              data.user.id,
-            );
+            // Materialization needs the carryover columns; the conversion above
+            // does not. Skip it rather than fail the conversion.
+            const artifacts = carryoverColumnsAvailable
+              ? await materializeAnonymousCarryover(
+                  serviceRole,
+                  anonScore as AnonymousCarryoverRow,
+                  data.user.id,
+                )
+              : { resumeId: null, jobDescriptionId: null };
 
             await captureServerEvent(data.user.id, 'ats_checker_session_converted', {
               sessionId,

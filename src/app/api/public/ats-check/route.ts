@@ -15,6 +15,7 @@ import {
   type FitSource,
 } from '@/lib/ats/public-ats-check-response';
 import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
+import { isUndefinedColumnError } from '@/lib/anonymous-carryover';
 
 export const runtime = 'nodejs';
 
@@ -285,12 +286,6 @@ export async function POST(request: NextRequest) {
 
 export function formatResponse(score: any, sessionId: string, remaining: number, fitSource?: FitSource) {
   return buildPublicAtsCheckResponse(score, sessionId, remaining, fitSource);
-}
-
-// Postgres 42703 = undefined_column. PostgREST also reports the schema-cache
-// miss as PGRST204 before the cache reloads.
-function isUndefinedColumnError(error: { code?: string | null } | null) {
-  return error?.code === '42703' || error?.code === 'PGRST204';
 }
 
 function countWords(text: string) {
