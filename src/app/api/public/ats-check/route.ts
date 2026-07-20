@@ -15,6 +15,7 @@ import {
   type FitSource,
 } from '@/lib/ats/public-ats-check-response';
 import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
+import { isUndefinedColumnError } from '@/lib/anonymous-carryover';
 
 export const runtime = 'nodejs';
 
@@ -229,20 +230,47 @@ export async function POST(request: NextRequest) {
     generateQuickWins: true, // Enable Quick Wins for free ATS checker
   });
 
-  const { data: insertedScore, error: insertError } = await supabase
+  const baseScoreRow = {
+    session_id: sessionId,
+    ip_address: ip,
+    ats_score: scoreResult.ats_score_optimized,
+    ats_subscores: scoreResult.subscores,
+    ats_suggestions: scoreResult.suggestions,
+    ats_quick_wins: scoreResult.quick_wins || [], // Save quick wins
+    resume_hash: resumeHash,
+    job_description_hash: jobHash,
+  };
+
+  // WP-49: retained only so signup can carry the check into the new account;
+  // cleared on conversion, expired otherwise.
+  const carryoverColumns = {
+    resume_text: resumeText,
+    job_description_text: jobDescription,
+    job_title: jobData.title || null,
+    job_source_url: jobDescriptionUrl || null,
+  };
+
+  let { data: insertedScore, error: insertError } = await supabase
     .from('anonymous_ats_scores')
-    .insert({
-      session_id: sessionId,
-      ip_address: ip,
-      ats_score: scoreResult.ats_score_optimized,
-      ats_subscores: scoreResult.subscores,
-      ats_suggestions: scoreResult.suggestions,
-      ats_quick_wins: scoreResult.quick_wins || [], // Save quick wins
-      resume_hash: resumeHash,
-      job_description_hash: jobHash,
-    })
+    .insert({ ...baseScoreRow, ...carryoverColumns })
     .select('*')
     .single();
+
+  // If migration 20260720000000 has not been applied yet, fall back to the
+  // score-only row rather than failing the whole free check. The user loses the
+  // artifact carryover, not the product. Ref: WP-39, where code shipped ahead
+  // of an unapplied migration and silently broke the write path.
+  if (insertError && isUndefinedColumnError(insertError)) {
+    console.error(
+      'Anonymous carryover columns missing — apply migration 20260720000000. Falling back to score-only insert.',
+      insertError,
+    );
+    ({ data: insertedScore, error: insertError } = await supabase
+      .from('anonymous_ats_scores')
+      .insert(baseScoreRow)
+      .select('*')
+      .single());
+  }
 
   if (insertError || !insertedScore) {
     console.error('Anonymous score insert error:', insertError);

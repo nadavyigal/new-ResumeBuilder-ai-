@@ -30,7 +30,7 @@
       },
       "bullets": {
         "v2Engine": "Trained on 50,000+ real job postings",
-        "hashPrivacy": "Your resume stays encrypted and private",
+        "hashPrivacy": "Your resume is stored securely and never shared",
         "unlockFixes": "Sign up free to see all recommendations"
       },
       "existingAccount": "Already have an account?",
@@ -450,7 +450,8 @@
       },
       "retention": {
         "title": "5. Data Retention",
-        "body": "We retain your personal information for as long as your account is active or as needed to provide you services. If you delete your account, we will delete your personal data within 30 days, except where retention is required by law or for legitimate business purposes (e.g., fraud prevention, resolving disputes)."
+        "body": "We retain your personal information for as long as your account is active or as needed to provide you services. If you delete your account, we will delete your personal data within 30 days, except where retention is required by law or for legitimate business purposes (e.g., fraud prevention, resolving disputes).",
+        "anonymous": "If you run a free ATS check without an account, we store the resume text and job description from that check for up to 7 days so you can carry the result into an account if you sign up. If you sign up within that window, those items are moved into your account. If you do not, they are deleted automatically when the 7 days elapse."
       },
       "rights": {
         "title": "6. Your Rights and Choices",
@@ -724,7 +725,10 @@
       "conversion": {
         "title": "You scored {score}% on your last check",
         "description": "{count} quick fixes ready to copy.",
-        "cta": "See What to Fix"
+        "cta": "See What to Fix",
+        "optimizeCta": "Optimize This Resume",
+        "optimizing": "Optimizing…",
+        "optimizeError": "We could not start the optimization. Please try again."
       },
       "actions": {
         "uploadTitle": "Check a New Resume",

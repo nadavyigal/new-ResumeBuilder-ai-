@@ -409,6 +409,12 @@ export interface Database {
           converted_at: string | null;
           created_at: string;
           expires_at: string;
+          resume_text: string | null;
+          job_description_text: string | null;
+          job_title: string | null;
+          job_source_url: string | null;
+          resume_id: string | null;
+          job_description_id: string | null;
         },
         {
           id?: number;
@@ -425,6 +431,12 @@ export interface Database {
           converted_at?: string | null;
           created_at?: string;
           expires_at?: string;
+          resume_text?: string | null;
+          job_description_text?: string | null;
+          job_title?: string | null;
+          job_source_url?: string | null;
+          resume_id?: string | null;
+          job_description_id?: string | null;
         },
         {
           id?: number;
@@ -441,6 +453,12 @@ export interface Database {
           converted_at?: string | null;
           created_at?: string;
           expires_at?: string;
+          resume_text?: string | null;
+          job_description_text?: string | null;
+          job_title?: string | null;
+          job_source_url?: string | null;
+          resume_id?: string | null;
+          job_description_id?: string | null;
         }
       >;
       rate_limits: Table<

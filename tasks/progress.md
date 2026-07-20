@@ -1,5 +1,35 @@
 # Project Progress
 
+- Status: In review (PR #117 open, migration NOT applied — deploy-order hazard now resolved)
+- Current Phase: WP-49 — anonymous ATS carryover (WP-29 S5)
+- Active Story: none
+- Last Completed Story: WP-49 hold cleared — column-fallback guards on all three carryover read paths, so the code is safe to merge and deploy ahead of the migration
+- Next Recommended Story: merge PR #117, then apply migration `20260720000000` to production (needs explicit founder approval) and live-verify the funnel. Deploy order is no longer load-bearing.
+- Blockers: none blocking merge. Migration `20260720000000` remains unapplied by design; carryover degrades to score-only (not broken) until it runs.
+- Last Validation: 2026-07-20 — tsc 0 `src/` errors (identical to pre-change baseline), eslint clean on all touched files, contracts suite 51 passed / 9 failed where the same 9 fail on the untouched baseline, 3 new regression tests verified to fail when the fallback is disabled
+- Last Updated: 2026-07-20
+
+## 2026-07-20 — WP-49: anonymous ATS check carryover through signup (WP-29 S5)
+
+**Finding first:** the score half of S5 was already shipped and passing (`convert-session` route, auth-form handoff, auth callback, dashboard card). The actual leak was narrower and worse: `anonymous_ats_scores` stored only `resume_hash` / `job_description_hash`, never the text. So a converted user saw "You scored X%" and was then sent to `/upload` to re-upload the same PDF and re-paste the same job description. The funnel's payoff was discarded at the account boundary even though the session converted correctly.
+
+**Persistence mechanism decision (the packet asked for this explicitly): server-side, extending the existing anonymous session.** A signed client token was rejected — the resume text is far too large for a cookie or JWT, it is PII that would then live in the client, and the token would not survive the email-confirmation path where signup finishes in a different browser or on a phone. The server-side row already exists and already carries the score, so the artifacts ride the same mechanism.
+
+**What changed**
+- Migration `20260720000000_anonymous_carryover_artifacts.sql` adds `resume_text`, `job_description_text`, `job_title`, `job_source_url`, `resume_id`, `job_description_id` to `anonymous_ats_scores`.
+- `src/lib/anonymous-carryover.ts` (new) copies the anonymous artifacts into `resumes` + `job_descriptions` rows the new account owns. Idempotent (a row already carrying both ids is returned as-is, so the auth-callback and client-side conversions cannot double-insert) and best-effort (a failure degrades to score-only rather than failing signup).
+- `/api/public/ats-check` persists the artifacts on insert.
+- `/api/public/convert-session` and `/auth/callback` both materialize on conversion and return the ids.
+- Dashboard conversion card now offers one-click **Optimize This Resume** — it POSTs the carried `resumeId` + `jobDescriptionId` to `/api/optimize` (which already accepted exactly that pair) and routes to the review. Falls back to the old `/upload` link when the ids are absent.
+- Retention: the anonymous copies are nulled the moment they are copied into the user's own rows; unconverted rows still fall under the table's 7-day `expires_at`.
+- Copy: the landing bullet "Your resume stays encrypted and private" was inaccurate once anonymous resume text is stored, so it now reads "Your resume is stored securely and never shared" (EN + HE).
+
+**Migration-gap guard.** Per the WP-39 failure (code shipped against migration `20260303000000`, which was never applied, silently 400ing every apply), the `ats-check` insert detects `42703` / `PGRST204` and retries without the new columns. An unapplied migration therefore costs the artifact carryover, not the entire free ATS funnel.
+
+**Validation:** `npm run build` succeeded. `npm run lint` 0 errors / 18 warnings, none in touched files. `npx tsc --noEmit` has no errors in touched files; the 19 remaining are the documented pre-existing test-file errors. `npm run check:i18n` 0 missing HE keys. Targeted suites 36/36 passing. Full-suite baseline comparison: `origin/main` 80 failed / 171 passed vs branch 80 failed / 177 passed — same pre-existing failures (Playwright specs collected by Jest), +6 from the new tests. Red-state check performed: removing the idempotency guard and the text-clearing each failed the corresponding test, so the tests are not tautological.
+
+**Not done:** the migration has NOT been applied to production (no approval given, and the packet forbids it). No deployment. Not live-verified end-to-end against a real signup — the evidence above is build/lint/type/unit only. The Privacy Policy page (`privacy` block in `src/messages/*.json`) was not edited and likely needs a matching line about short-term anonymous resume retention.
+
 ## 2026-07-11 — WP-43: Free ATS Checker entry-funnel activation (Tier A), merged PR #115
 
 Shipped all 6 Tier A stories from a live cold first-time-user walkthrough of resumelybuilderai.com. Copy/design + client-only, no backend changes.
