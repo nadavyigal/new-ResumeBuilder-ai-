@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import {
   materializeAnonymousCarryover,
+  selectAnonymousScoreWithFallback,
   type AnonymousCarryoverRow,
 } from '@/lib/anonymous-carryover';
 
 export const runtime = 'nodejs';
-
-const SCORE_COLUMNS =
-  'id, session_id, ats_score, ats_suggestions, created_at, converted_at, resume_text, job_description_text, job_title, job_source_url, resume_id, job_description_id';
 
 type AnonymousAtsScoreRow = AnonymousCarryoverRow;
 
@@ -44,14 +42,17 @@ export async function GET() {
   if (!user) return response;
 
   const serviceRole = createServiceRoleClient();
-  const { data: convertedScore, error } = await serviceRole
-    .from('anonymous_ats_scores')
-    .select(SCORE_COLUMNS)
-    .eq('user_id', user.id)
-    .not('converted_at', 'is', null)
-    .order('converted_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const { data: convertedScore, error } = await selectAnonymousScoreWithFallback(
+    (columns) =>
+      serviceRole
+        .from('anonymous_ats_scores')
+        .select(columns)
+        .eq('user_id', user.id)
+        .not('converted_at', 'is', null)
+        .order('converted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+  );
 
   if (error) {
     console.error('Converted session lookup error:', error);
@@ -76,14 +77,20 @@ export async function POST(request: NextRequest) {
   }
 
   const serviceRole = createServiceRoleClient();
-  const { data: anonScore, error: lookupError } = await serviceRole
-    .from('anonymous_ats_scores')
-    .select(SCORE_COLUMNS)
-    .eq('session_id', sessionId)
-    .is('user_id', null)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const {
+    data: anonScore,
+    error: lookupError,
+    carryoverColumnsAvailable,
+  } = await selectAnonymousScoreWithFallback<AnonymousAtsScoreRow>((columns) =>
+    serviceRole
+      .from('anonymous_ats_scores')
+      .select(columns)
+      .eq('session_id', sessionId)
+      .is('user_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  );
 
   if (lookupError) {
     console.error('Anonymous session lookup error:', lookupError);
@@ -91,15 +98,18 @@ export async function POST(request: NextRequest) {
   }
 
   if (!anonScore) {
-    const { data: convertedScore, error: convertedLookupError } = await serviceRole
-      .from('anonymous_ats_scores')
-      .select(SCORE_COLUMNS)
-      .eq('session_id', sessionId)
-      .eq('user_id', user.id)
-      .not('converted_at', 'is', null)
-      .order('converted_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: convertedScore, error: convertedLookupError } =
+      await selectAnonymousScoreWithFallback((columns) =>
+        serviceRole
+          .from('anonymous_ats_scores')
+          .select(columns)
+          .eq('session_id', sessionId)
+          .eq('user_id', user.id)
+          .not('converted_at', 'is', null)
+          .order('converted_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      );
 
     if (convertedLookupError) {
       console.error('Converted session lookup error:', convertedLookupError);
@@ -131,11 +141,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to convert session.' }, { status: 500 });
   }
 
-  const artifacts = await materializeAnonymousCarryover(
-    serviceRole,
-    anonScore as AnonymousAtsScoreRow,
-    user.id,
-  );
+  // Conversion above is the guaranteed part of the funnel and has already
+  // succeeded. Materialization needs the carryover columns, so skip it when the
+  // row was read without them.
+  const artifacts = carryoverColumnsAvailable
+    ? await materializeAnonymousCarryover(serviceRole, anonScore as AnonymousAtsScoreRow, user.id)
+    : { resumeId: null, jobDescriptionId: null };
 
   return NextResponse.json({
     success: true,

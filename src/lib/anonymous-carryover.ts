@@ -33,6 +33,60 @@ export type CarryoverArtifacts = {
 
 const CARRIED_RESUME_FILENAME = 'ats-check-resume.pdf';
 
+/** Columns that exist once migration 20260720000000 is applied. */
+export const CARRYOVER_SCORE_COLUMNS =
+  'id, session_id, ats_score, ats_suggestions, created_at, converted_at, resume_text, job_description_text, job_title, job_source_url, resume_id, job_description_id';
+
+/** Columns that exist regardless of migration state. */
+export const LEGACY_SCORE_COLUMNS =
+  'id, session_id, ats_score, ats_suggestions, created_at, converted_at';
+
+/**
+ * Postgres 42703 = undefined_column. PostgREST also reports the schema-cache
+ * miss as PGRST204 before the cache reloads.
+ */
+export function isUndefinedColumnError(error: { code?: string | null } | null) {
+  return error?.code === '42703' || error?.code === 'PGRST204';
+}
+
+export type CarryoverSelectResult<T> = {
+  data: T | null;
+  error: { code?: string | null } | null;
+  /**
+   * False when the row was read without the carryover columns. Callers must not
+   * attempt materialization in that case — the artifacts are not in the row.
+   */
+  carryoverColumnsAvailable: boolean;
+};
+
+/**
+ * Read an `anonymous_ats_scores` row, tolerating an unapplied migration.
+ *
+ * Deploying the carryover code ahead of migration 20260720000000 makes a select
+ * of the six new columns fail with 42703. Without this fallback the caller
+ * treats that as a hard lookup failure, `user_id`/`converted_at` never get set,
+ * and session conversion — which works today — silently stops. Retrying with
+ * the narrow column list keeps conversion working and makes deploy order
+ * irrelevant. Ref: WP-39, where code shipped ahead of an unapplied migration.
+ */
+export async function selectAnonymousScoreWithFallback<T>(
+  run: (columns: string) => PromiseLike<{ data: T | null; error: { code?: string | null } | null }>,
+): Promise<CarryoverSelectResult<T>> {
+  const primary = await run(CARRYOVER_SCORE_COLUMNS);
+
+  if (!primary.error || !isUndefinedColumnError(primary.error)) {
+    return { ...primary, carryoverColumnsAvailable: true };
+  }
+
+  console.error(
+    'Anonymous carryover columns missing — apply migration 20260720000000. Falling back to score-only read.',
+    primary.error,
+  );
+
+  const fallback = await run(LEGACY_SCORE_COLUMNS);
+  return { ...fallback, carryoverColumnsAvailable: false };
+}
+
 /**
  * Copy an anonymous session's resume and job description into rows owned by
  * `userId`.

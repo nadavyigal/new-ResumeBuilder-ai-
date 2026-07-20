@@ -111,6 +111,7 @@ export default async function PrivacyPolicy({ params }: PrivacyPageProps) {
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.retention.title')}</h2>
         <p className="mb-6">{t('sections.retention.body')}</p>
+        <p className="mb-6">{t('sections.retention.anonymous')}</p>
 
         <h2 className="text-2xl font-bold mt-8 mb-4">{t('sections.rights.title')}</h2>
         <p className="mb-4">{t('sections.rights.intro')}</p>
