@@ -1,12 +1,12 @@
 # Project Progress
 
-- Status: In review (PR open, migration NOT applied)
+- Status: In review (PR #117 open, migration NOT applied — deploy-order hazard now resolved)
 - Current Phase: WP-49 — anonymous ATS carryover (WP-29 S5)
 - Active Story: none
-- Last Completed Story: WP-49 anonymous check → signup → dashboard artifact carryover
-- Next Recommended Story: apply migration `20260720000000` to production, then live-verify the funnel
-- Blockers: migration `20260720000000` is unapplied; carryover degrades to score-only until it runs
-- Last Validation: 2026-07-20 — build OK, lint 0 errors, tsc no new errors, 36/36 targeted tests
+- Last Completed Story: WP-49 hold cleared — column-fallback guards on all three carryover read paths, so the code is safe to merge and deploy ahead of the migration
+- Next Recommended Story: merge PR #117, then apply migration `20260720000000` to production (needs explicit founder approval) and live-verify the funnel. Deploy order is no longer load-bearing.
+- Blockers: none blocking merge. Migration `20260720000000` remains unapplied by design; carryover degrades to score-only (not broken) until it runs.
+- Last Validation: 2026-07-20 — tsc 0 `src/` errors (identical to pre-change baseline), eslint clean on all touched files, contracts suite 51 passed / 9 failed where the same 9 fail on the untouched baseline, 3 new regression tests verified to fail when the fallback is disabled
 - Last Updated: 2026-07-20
 
 ## 2026-07-20 — WP-49: anonymous ATS check carryover through signup (WP-29 S5)
