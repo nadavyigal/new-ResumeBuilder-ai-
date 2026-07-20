@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
+import {
+  materializeAnonymousCarryover,
+  type AnonymousCarryoverRow,
+} from '@/lib/anonymous-carryover';
 
 export const runtime = 'nodejs';
 
-type AnonymousAtsScoreRow = {
-  id: number;
-  session_id?: string | null;
-  ats_score: number;
-  ats_suggestions: unknown;
-  created_at: string;
-  converted_at?: string | null;
-};
+const SCORE_COLUMNS =
+  'id, session_id, ats_score, ats_suggestions, created_at, converted_at, resume_text, job_description_text, job_title, job_source_url, resume_id, job_description_id';
 
-function serializeScoreData(score: AnonymousAtsScoreRow) {
+type AnonymousAtsScoreRow = AnonymousCarryoverRow;
+
+function serializeScoreData(
+  score: AnonymousAtsScoreRow,
+  artifacts?: { resumeId: string | null; jobDescriptionId: string | null },
+) {
   return {
     session_id: score.session_id,
     ats_score: score.ats_score,
@@ -20,6 +23,8 @@ function serializeScoreData(score: AnonymousAtsScoreRow) {
     converted_at: score.converted_at ?? null,
     score: score.ats_score,
     suggestions: score.ats_suggestions,
+    resume_id: artifacts?.resumeId ?? score.resume_id ?? null,
+    job_description_id: artifacts?.jobDescriptionId ?? score.job_description_id ?? null,
   };
 }
 
@@ -41,7 +46,7 @@ export async function GET() {
   const serviceRole = createServiceRoleClient();
   const { data: convertedScore, error } = await serviceRole
     .from('anonymous_ats_scores')
-    .select('id, session_id, ats_score, ats_suggestions, created_at, converted_at')
+    .select(SCORE_COLUMNS)
     .eq('user_id', user.id)
     .not('converted_at', 'is', null)
     .order('converted_at', { ascending: false })
@@ -73,7 +78,7 @@ export async function POST(request: NextRequest) {
   const serviceRole = createServiceRoleClient();
   const { data: anonScore, error: lookupError } = await serviceRole
     .from('anonymous_ats_scores')
-    .select('id, session_id, ats_score, ats_suggestions, created_at, converted_at')
+    .select(SCORE_COLUMNS)
     .eq('session_id', sessionId)
     .is('user_id', null)
     .order('created_at', { ascending: false })
@@ -88,7 +93,7 @@ export async function POST(request: NextRequest) {
   if (!anonScore) {
     const { data: convertedScore, error: convertedLookupError } = await serviceRole
       .from('anonymous_ats_scores')
-      .select('id, session_id, ats_score, ats_suggestions, created_at, converted_at')
+      .select(SCORE_COLUMNS)
       .eq('session_id', sessionId)
       .eq('user_id', user.id)
       .not('converted_at', 'is', null)
@@ -126,11 +131,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to convert session.' }, { status: 500 });
   }
 
+  const artifacts = await materializeAnonymousCarryover(
+    serviceRole,
+    anonScore as AnonymousAtsScoreRow,
+    user.id,
+  );
+
   return NextResponse.json({
     success: true,
-    scoreData: serializeScoreData({
-      ...(anonScore as AnonymousAtsScoreRow),
-      converted_at: convertedAt,
-    }),
+    scoreData: serializeScoreData(
+      {
+        ...(anonScore as AnonymousAtsScoreRow),
+        converted_at: convertedAt,
+      },
+      artifacts,
+    ),
   });
 }

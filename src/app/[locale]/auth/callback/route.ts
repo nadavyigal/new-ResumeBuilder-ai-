@@ -3,6 +3,10 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { captureServerEvent } from '@/lib/posthog-server';
 import { createServiceRoleClient } from '@/lib/supabase-server';
+import {
+  materializeAnonymousCarryover,
+  type AnonymousCarryoverRow,
+} from '@/lib/anonymous-carryover';
 import { defaultLocale, locales, type Locale } from '@/locales';
 
 function resolveLocale(value?: string): Locale {
@@ -113,7 +117,9 @@ export async function GET(
           const serviceRole = createServiceRoleClient();
           const { data: anonScore } = await serviceRole
             .from('anonymous_ats_scores')
-            .select('id, ats_score, created_at')
+            .select(
+              'id, session_id, ats_score, ats_suggestions, created_at, converted_at, resume_text, job_description_text, job_title, job_source_url, resume_id, job_description_id'
+            )
             .eq('session_id', sessionId)
             .is('user_id', null)
             .order('created_at', { ascending: false })
@@ -129,10 +135,17 @@ export async function GET(
               })
               .eq('id', anonScore.id);
 
+            const artifacts = await materializeAnonymousCarryover(
+              serviceRole,
+              anonScore as AnonymousCarryoverRow,
+              data.user.id,
+            );
+
             await captureServerEvent(data.user.id, 'ats_checker_session_converted', {
               sessionId,
               score: anonScore.ats_score,
               convertedAt: new Date().toISOString(),
+              carriedArtifacts: Boolean(artifacts.resumeId && artifacts.jobDescriptionId),
             });
           }
         } catch (conversionError) {

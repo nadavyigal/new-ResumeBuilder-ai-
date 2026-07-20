@@ -30,7 +30,7 @@
       },
       "bullets": {
         "v2Engine": "Trained on 50,000+ real job postings",
-        "hashPrivacy": "Your resume stays encrypted and private",
+        "hashPrivacy": "Your resume is stored securely and never shared",
         "unlockFixes": "Sign up free to see all recommendations"
       },
       "existingAccount": "Already have an account?",
@@ -724,7 +724,10 @@
       "conversion": {
         "title": "You scored {score}% on your last check",
         "description": "{count} quick fixes ready to copy.",
-        "cta": "See What to Fix"
+        "cta": "See What to Fix",
+        "optimizeCta": "Optimize This Resume",
+        "optimizing": "Optimizing…",
+        "optimizeError": "We could not start the optimization. Please try again."
       },
       "actions": {
         "uploadTitle": "Check a New Resume",
