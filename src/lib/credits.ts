@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { hasLegacyFreeAccess } from '@/lib/entitlements';
 
 export type CreditConsumeResult =
   | { ok: true; remaining: number | null }
@@ -10,6 +11,11 @@ export async function consumeCredit(
   userId: string,
   reason: string
 ): Promise<CreditConsumeResult> {
+  if (await hasLegacyFreeAccess(supabase, userId)) {
+    const balance = await getCreditBalance(supabase, userId);
+    return { ok: true, remaining: balance };
+  }
+
   const { data, error } = await (supabase as any).rpc('consume_credit', {
     p_user_id: userId,
     p_reason: reason,

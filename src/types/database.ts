@@ -26,6 +26,8 @@ export interface Database {
           plan_type: 'free' | 'premium';
           optimizations_used: number;
           max_optimizations: number;
+          credit_balance: number;
+          legacy_free_access: boolean;
           created_at: string;
           updated_at: string;
         },
@@ -37,6 +39,8 @@ export interface Database {
           plan_type?: 'free' | 'premium';
           optimizations_used?: number;
           max_optimizations?: number;
+          credit_balance?: number;
+          legacy_free_access?: boolean;
           created_at?: string;
           updated_at?: string;
         },
@@ -48,6 +52,8 @@ export interface Database {
           plan_type?: 'free' | 'premium';
           optimizations_used?: number;
           max_optimizations?: number;
+          credit_balance?: number;
+          legacy_free_access?: boolean;
           created_at?: string;
           updated_at?: string;
         }

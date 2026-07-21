@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { hasUnlimitedAccess } from '@/lib/entitlements';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
 import { processUnifiedMessage } from '@/lib/chat-manager/unified-processor';
 import type { ChatSendMessageRequest, ChatSendMessageResponse, ChatSession } from '@/types/chat';
@@ -168,18 +169,7 @@ function detectExpertWorkflowType(message: string): SurfacedExpertWorkflowType |
 }
 
 async function isPremiumUser(supabase: any, user: any): Promise<boolean> {
-  const metadata = user?.user_metadata || {};
-  if (metadata.is_premium === true || metadata.plan_type === 'premium') {
-    return true;
-  }
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('plan_type')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  return data?.plan_type === 'premium';
+  return hasUnlimitedAccess(supabase, user.id, user?.user_metadata);
 }
 
 export async function POST(request: NextRequest) {

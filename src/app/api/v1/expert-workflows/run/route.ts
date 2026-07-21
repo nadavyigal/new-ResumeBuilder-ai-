@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { hasUnlimitedAccess } from '@/lib/entitlements';
 import { captureServerEvent } from '@/lib/posthog-server';
 import { runExpertWorkflow } from '@/lib/expert-workflows/orchestrator';
 import {
@@ -27,18 +28,7 @@ function getLockedPreview(workflowType: SurfacedExpertWorkflowType) {
 }
 
 async function isPremiumUser(supabase: any, userId: string, user: any): Promise<boolean> {
-  const metadata = user?.user_metadata || {};
-  if (metadata.is_premium === true || metadata.plan_type === 'premium') {
-    return true;
-  }
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('plan_type')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  return data?.plan_type === 'premium';
+  return hasUnlimitedAccess(supabase, userId, user?.user_metadata);
 }
 
 export async function POST(request: NextRequest) {

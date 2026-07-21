@@ -273,7 +273,10 @@ export async function requireSubscription(
   }
 
   if (tier === 'premium' && profile.plan_type !== 'premium') {
-    throw new Error('Premium subscription required')
+    const legacyFreeAccess = (profile as { legacy_free_access?: boolean }).legacy_free_access === true;
+    if (!legacyFreeAccess) {
+      throw new Error('Premium subscription required')
+    }
   }
 
   return profile
