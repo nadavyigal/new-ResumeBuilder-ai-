@@ -1,5 +1,27 @@
 # Project Progress
 
+## 2026-07-24 — WP-45 S1: repair the three dead scoring components (PR #119)
+
+Backend-only scorer integrity pass. Triggered by a moderated user session (Meirav) that showed a fit score of 45, then 42 before / 44 after optimizing. The audit found the composite was structurally incapable of doing better.
+
+**Evidence (privacy-safe aggregates, 60 days, pulled 2026-07-24):** free checker `anonymous_ats_scores` n=67, mean 34.5, max 51, zero at or above 75. Authenticated `optimizations` n=59, 32.2 -> 41.6, max after 62, and 24 of 59 (41%) ended at +4 or worse. Across all non-tester `fit_check_completed` events, `strong` has never once been emitted against its own >= 75 threshold.
+
+**Four defects, all confirmed in code and in the subscore means:**
+- `keyword_phrase` (12% weight): 0.6 -> 4.2. Scores verbatim 3-6 word JD reuse, so only keyword stuffing moves it. Withdrawn from the weighting; remaining weights rescaled old/0.88. Analyzer still runs.
+- `metrics_presence` (10%): 6.2 -> 7.2. Clamps to 0 without metrics and `penalties.ts` subtracted another 5 for the same fact, on both sides of every pair, unescapable because `stripFabricatedMetrics` correctly forbids inventing figures. Penalty removed.
+- `format_parseability` (14%): 87.8 -> 87.8, identical on all 59 rows. `core.ts` and `index.ts` built one `format_report` and passed it to both analyzer runs. Now resolved per side, in both orchestrators.
+- `recency_fit` (8%): 50.0 -> 12.7. The original arrives as raw text and hits the constant-50 fallback while the optimized side has JSON. New conservative text extractor derives dated roles, returning null rather than guessing.
+
+**Effect:** an excellent candidate whose resume has no quantified metrics scored 72, now 87 — `strong` is reachable for someone who deserves it. A typical resume moves 33 -> 44 and stays below the strong band. A clear mismatch stays low.
+
+**The review pass mattered.** An adversarial review of the first commit found two own-goals that would have inflated the delta: the derived work history was reaching four analyzers that branch on `resume_json`, collapsing the original side's `section_completeness` from ~100 to 25; and `integration.ts` compared `generateFormatReport` (base 85) against `analyzeFormatWithTemplate` (base 100), manufacturing ~+2.4 points on every run. Both corrected in the second commit, plus a NaN path in `getAdjustedWeights` newly reachable via the zero weight.
+
+**Validation:** 30 new deterministic tests, no network. 6 gates verified to fail on the pre-fix source, 5 further regression gates verified to fail on the first commit. Reference fixtures pinned to exact composite values so reverting D1 or D2 fails loudly. Full suite 17 pre-existing suite failures before and after (identical on origin/main), passing 171 -> 201. eslint clean. tsc 26 errors before and after, 0 in `src/lib/ats`. `next build` passes on a clean checkout.
+
+**Not done:** `core.ts`/`index.ts` remain duplicate orchestrators (both patched identically). `SubScoreBreakdown.tsx` still renders `keyword_phrase` as a normal bar. Historical `ats_score_original` rows are not comparable to new ones — that is WP-45 S9 and rescoring needs separate approval. Free-checker scores rise ~11-13 points, so the >= 75 "Strong" verdict may start firing there; band calibration is WP-45 S5.
+
+**Open question:** 15 distinct non-tester people recorded a fit score of exactly 51 and 17 recorded exactly 68. Identical scores across many people suggests a cached or default value; worth 30 minutes before S5 calibration.
+
 ## 2026-07-11 — WP-43: Free ATS Checker entry-funnel activation (Tier A), merged PR #115
 
 Shipped all 6 Tier A stories from a live cold first-time-user walkthrough of resumelybuilderai.com. Copy/design + client-only, no backend changes.
