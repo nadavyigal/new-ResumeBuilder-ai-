@@ -18,6 +18,7 @@ import { applyPenalties } from '../scorers/penalties';
 import { SUB_SCORE_WEIGHTS, validateWeights } from '../config/weights';
 import { deriveResumeJsonFromText } from '../extractors/experience-text-extractor';
 import { scoreResume } from '../core';
+import { scoreOptimization } from '../integration';
 import type { AnalyzerResult, SubScoreKey, SubScores, ATSScoreInput, FormatReport } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -202,11 +203,24 @@ describe('WP-45 G2: every weighted component can move the score', () => {
 // ---------------------------------------------------------------------------
 
 describe('WP-45 D2: no double penalty for missing metrics', () => {
-  it('does not subtract a metrics penalty when metrics_presence is already 0', () => {
-    const { appliedPenalties } = applyPenalties(60, { ...PERFECT_MATCH, metrics_presence: 0 }, {});
-    expect(appliedPenalties.map(p => p.reason)).not.toContain(
-      'No quantified metrics found in resume'
+  it('applies no penalty at all to a strong candidate who simply lacks metrics', () => {
+    // Asserting on the penalty list rather than on a string literal: the old
+    // reason text no longer exists in the source, so a `not.toContain` on it
+    // would pass even with the penalty fully restored.
+    const { appliedPenalties, penalizedScore } = applyPenalties(
+      60,
+      STRONG_CANDIDATE_WITHOUT_METRICS,
+      {}
     );
+    expect(appliedPenalties).toHaveLength(0);
+    expect(penalizedScore).toBe(60);
+  });
+
+  it('scores the two reference fixtures at their exact expected values', () => {
+    // Absolute values, not band membership. Reverting either D1 (weights) or
+    // D2 (penalty) moves these, which band assertions alone would not catch.
+    expect(compositeFor(STRONG_CANDIDATE_WITHOUT_METRICS)).toBe(87);
+    expect(compositeFor(TYPICAL_OPTIMIZED)).toBe(44);
   });
 
   it('still penalises genuine format risk', () => {
@@ -260,6 +274,159 @@ BSc Computer Science - Technion
     // original side while the optimized side gets a real number is exactly the
     // asymmetry that made every reported delta ~3 points too small.
     expect(result.subscores_original.recency_fit).not.toBe(50);
+  });
+
+  it('scores recency above the old constant, not below it', async () => {
+    // The failure mode this guards: a misparse that finds a role but attributes
+    // no achievements to it drives recency toward 0, which is strictly worse
+    // than the 50 it replaced. "Not 50" alone would pass in that case.
+    const result = await scoreResume(buildInput({ originalText: RESUME_WITH_DATES }));
+    expect(result.subscores_original.recency_fit).toBeGreaterThan(50);
+  });
+
+  it('does not treat education or certification dates as jobs', () => {
+    const derived = deriveResumeJsonFromText(`
+EXPERIENCE
+
+Data Engineer at Harbor Systems
+2019 - 2021
+• Maintained ETL jobs in Airflow
+
+EDUCATION
+BSc Computer Science
+Technion, 2012 - 2016
+
+CERTIFICATIONS
+AWS Solutions Architect, 2020 - 2023
+`);
+    expect(derived).not.toBeNull();
+    expect(derived!.experience).toHaveLength(1);
+    // The recency analyzer treats index 0 as the current role, so a degree
+    // parsed as a job would be read as the candidate's present position.
+    expect(derived!.experience[0].company).toContain('Harbor');
+  });
+
+  it('does not spawn a phantom role from a date range inside a bullet', () => {
+    const derived = deriveResumeJsonFromText(`
+EXPERIENCE
+
+Senior Data Engineer at Nimbus
+Jan 2022 - Present
+• Cut infra spend 30% across the 2019 - 2021 legacy stack
+• Owned the Snowflake migration
+`);
+    expect(derived!.experience).toHaveLength(1);
+    expect(derived!.experience[0].endDate.toLowerCase()).toContain('present');
+  });
+
+  it('captures prose achievements, not only bulleted ones', () => {
+    const derived = deriveResumeJsonFromText(`
+EXPERIENCE
+
+Senior Product Manager
+Acme Corp
+Jan 2020 - Present
+Led the migration of the billing platform to a new vendor.
+Managed a team of six engineers across two time zones.
+
+Product Manager
+Beta Inc
+2017 - 2019
+Owned the onboarding funnel.
+`);
+    expect(derived!.experience).toHaveLength(2);
+    // Empty achievements starve checkLatestRoleRelevance, which is what pushed
+    // recency below the constant it replaced.
+    expect(derived!.experience[0].achievements.length).toBeGreaterThanOrEqual(2);
+    expect(derived!.experience[0].achievements.join(' ')).toContain('billing platform');
+    // ...and they must not leak into the next role.
+    expect(derived!.experience[0].achievements.join(' ')).not.toContain('onboarding funnel');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The regression this whole packet exists to prevent
+// ---------------------------------------------------------------------------
+
+const REAL_RESUME = `Jane Cohen
+jane@example.com | Tel Aviv
+
+PROFESSIONAL SUMMARY
+Data engineer focused on streaming systems.
+
+SKILLS
+Kafka, Spark, SQL, Python
+
+EXPERIENCE
+
+Senior Data Engineer at Nimbus Analytics
+Jan 2022 - Present
+• Built streaming pipelines on Kafka and Spark
+
+EDUCATION
+BSc Computer Science - Technion
+`;
+
+describe('WP-45: the repairs must not widen the delta for the wrong reasons', () => {
+  it('does not deflate the original side just because it lacks structured JSON', async () => {
+    const result = await scoreResume(buildInput({ originalText: REAL_RESUME }));
+
+    // The original resume plainly has a summary, skills, experience and
+    // education. If the derived work-history stub were handed to
+    // section_completeness it would see empty summary/skills/education and
+    // score 25 — pushing the original score down and making the optimization
+    // look better than it was. That is the exact dishonesty WP-45 forbids.
+    expect(result.subscores_original.section_completeness).toBeGreaterThan(70);
+  });
+
+  it('keeps format on the same measurement basis for both sides', async () => {
+    const result = await scoreResume(buildInput({}));
+    expect(result.subscores.format_parseability).toBe(
+      result.subscores_original.format_parseability
+    );
+  });
+
+  it('does not manufacture a format gain on the real optimize path', async () => {
+    // This is the path that ships (optimize-pipeline -> scoreOptimization), and
+    // it is where the fabrication lived: generateFormatReport (base 85) for the
+    // original against analyzeFormatWithTemplate (base 100) for the optimized
+    // resume handed every single optimization ~2.4 points of delta that
+    // reflected which function ran, not the user's formatting.
+    const result = await scoreOptimization({
+      resumeOriginalText: REAL_RESUME,
+      resumeOptimizedJson: {
+        summary: 'Senior data engineer specialising in Kafka and Spark.',
+        contact: { name: 'Jane Cohen', email: 'jane@example.com', phone: '', location: 'Tel Aviv' },
+        skills: { technical: ['Kafka', 'Spark', 'Snowflake', 'SQL', 'Python'], soft: [] },
+        experience: [
+          {
+            title: 'Senior Data Engineer',
+            company: 'Nimbus Analytics',
+            location: 'Tel Aviv',
+            startDate: 'Jan 2022',
+            endDate: 'Present',
+            achievements: ['Built streaming pipelines on Kafka and Spark'],
+          },
+        ],
+        education: [
+          {
+            degree: 'BSc Computer Science',
+            institution: 'Technion',
+            location: 'Haifa',
+            graduationDate: '2016',
+          },
+        ],
+        matchScore: 0,
+        keyImprovements: [],
+        missingKeywords: [],
+      },
+      jobDescriptionText:
+        'Senior Data Engineer to build streaming pipelines with Kafka, Spark and Snowflake. SQL and Python required.',
+    });
+
+    expect(result.subscores.format_parseability).toBe(
+      result.subscores_original.format_parseability
+    );
   });
 });
 

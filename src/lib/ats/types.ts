@@ -439,6 +439,18 @@ export interface AnalyzerInput {
   /** Format report */
   format_report?: FormatReport;
 
+  /**
+   * Dated work history recovered from plain resume text, for the recency
+   * analyzer only.
+   *
+   * This is deliberately NOT `resume_json`. Four other analyzers branch on
+   * `resume_json` and would read a derived stub's empty summary/skills/
+   * education as genuinely missing sections, collapsing the original side's
+   * scores and widening the before/after delta for reasons that have nothing
+   * to do with the optimization (WP-45 D4).
+   */
+  recency_json?: OptimizedResume;
+
   /** Timestamp for recency calculations */
   timestamp?: Date;
 }

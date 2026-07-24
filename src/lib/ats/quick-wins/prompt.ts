@@ -7,6 +7,7 @@
 
 import type { JobExtraction, SubScores, SubScoreKey } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
+import { SUB_SCORE_WEIGHTS } from '../config/weights';
 
 interface QuickWinsPromptParams {
   resume_text: string;
@@ -94,6 +95,10 @@ function identifyWeakSpots(subscores: SubScores): WeakSpot[] {
   const entries = Object.entries(subscores) as Array<[SubScoreKey, number]>;
 
   return entries
+    // Skip components that carry no weight — they are structurally low, so
+    // they would crowd out the fixable dimensions and steer the model at
+    // advice that cannot move the score (WP-45 D1).
+    .filter(([key]) => SUB_SCORE_WEIGHTS[key] > 0)
     .filter(([, score]) => score < 70) // Only include weak scores
     .sort((a, b) => a[1] - b[1]) // Sort ascending (worst first)
     .slice(0, 3) // Top 3 weakest

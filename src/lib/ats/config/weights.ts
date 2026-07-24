@@ -29,10 +29,17 @@ import type { SubScoreKey } from '../types';
  * the score on a component nobody can earn cost every user ~11.5 points and
  * was a large part of why "strong" (>= 75) had never once been awarded.
  *
- * The analyzer still runs and still feeds suggestions; it just no longer sits
- * in the denominator. The remaining weights are the original ratios rescaled
- * onto the smaller pool (old / 0.88), which preserves the relative ranking
- * documented above. Final weights are S5's decision, not this file's.
+ * The analyzer still runs and its evidence is still recorded in ats_subscores.
+ * Its user-facing suggestions do drop out, because estimateImpact multiplies
+ * the projected gain by the component's weight and the result then falls under
+ * SUGGESTION_THRESHOLDS.min_gain — which is the honest outcome: advice that
+ * cannot move the score should not be presented as if it can.
+ *
+ * The remaining weights are the original ratios rescaled onto the smaller pool
+ * (old / 0.88), preserving the relative ranking documented above. recency_fit
+ * carries the +0.0001 rounding residue so the set sums to exactly 1.0; it is
+ * otherwise identical to section_completeness as before. Final weights are
+ * S5's decision, not this file's.
  */
 export const SUB_SCORE_WEIGHTS: Record<SubScoreKey, number> = {
   keyword_exact: 0.25,
@@ -94,6 +101,14 @@ export function getAdjustedWeights(failedAnalyzers: SubScoreKey[]): Record<SubSc
 
   // Calculate remaining weight
   const remainingWeight = 1.0 - failedWeight;
+
+  // Every surviving analyzer carries zero weight (possible now that
+  // keyword_phrase is weighted 0 — if it is the only one that succeeded,
+  // failedWeight sums to 1.0). Dividing here would yield NaN and propagate a
+  // NaN score all the way to the database.
+  if (remainingWeight <= 0) {
+    return SUB_SCORE_WEIGHTS;
+  }
 
   // Redistribute proportionally
   const adjusted: Record<string, number> = {};

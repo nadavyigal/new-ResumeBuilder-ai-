@@ -71,7 +71,8 @@ export async function scoreResume(
         ...preparedInput,
         format_report: preparedInput.format_report_original,
         resume_text: input.resume_original_text,
-        resume_json: resolveOriginalResumeJson(input),
+        resume_json: input.resume_original_json,
+        recency_json: resolveOriginalResumeJson(input),
       }),
       runAllAnalyzers({
         ...preparedInput,
@@ -268,6 +269,13 @@ async function prepareInput(input: ATSScoreInput) {
  * real number. Deriving a minimal structure from the text makes the two sides
  * comparable. Returns undefined when nothing dated can be read, preserving the
  * previous behavior rather than scoring against a guess (WP-45 D4).
+ *
+ * The result is passed as `recency_json`, never as `resume_json`: the derived
+ * object has no summary, skills or education, and section_completeness,
+ * metrics_presence, title_alignment and semantic all branch on `resume_json`.
+ * Feeding them the stub would read those empty fields as missing sections and
+ * push the ORIGINAL score down, widening the reported improvement for reasons
+ * unrelated to the optimization.
  */
 function resolveOriginalResumeJson(input: ATSScoreInput) {
   if (input.resume_original_json) return input.resume_original_json;

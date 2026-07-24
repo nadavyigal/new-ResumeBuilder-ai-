@@ -33,9 +33,23 @@ const DATE_RANGE = new RegExp(
 const NON_TITLE_LINE =
   /^(experience|work experience|professional experience|employment|education|skills|core competencies|key skills|technical expertise|certifications|projects|summary|professional summary|contact|languages|tools|frameworks)\b/i;
 
+/**
+ * Sections whose date ranges are not employment. Graduation years and
+ * certification dates otherwise parse as jobs, and because the recency analyzer
+ * treats the first entry as the current role, a degree from 2016 can be read as
+ * the candidate's present position.
+ */
+const NON_EMPLOYMENT_SECTION =
+  /^(education|certifications?|licenses?|projects?|publications?|awards?|volunteering|courses?|training)\b/i;
+
+/** Sections that contain employment. Re-entering one resumes parsing. */
+const EMPLOYMENT_SECTION =
+  /^(experience|work experience|professional experience|employment|career history|work history)\b/i;
+
 const BULLET = /^\s*(?:[•·▪◦*\-–—]|\d+[.)])\s+/;
 
 const MAX_TITLE_LOOKBACK = 3;
+const MAX_ACHIEVEMENTS = 12;
 
 export interface DerivedExperience {
   title: string;
@@ -77,6 +91,68 @@ function isPlausibleTitleLine(line: string): boolean {
 }
 
 /**
+ * Does this leftover text read like a job title rather than a location or a
+ * stray fragment? Used to decide whether the date line carries its own role:
+ * "Data Engineer | 2019 - 2021" does, "Tel Aviv | Jan 2022 - Present" does not.
+ */
+function isRoleLike(text: string): boolean {
+  if (!isPlausibleTitleLine(text)) return false;
+  if (/\s+(?:at|@)\s+/i.test(text)) return true;
+  return text.split(/\s+/).filter(Boolean).length >= 3;
+}
+
+/** Does a dated role begin within the next few non-blank lines? */
+function startsNewRole(lines: string[], from: number): boolean {
+  let seen = 0;
+  for (let i = from; i < lines.length && seen < 3; i++) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) continue;
+    if (NON_TITLE_LINE.test(trimmed)) return true;
+    if (DATE_RANGE.test(lines[i])) return true;
+    seen++;
+  }
+  return false;
+}
+
+/**
+ * Collect what the person did in this role.
+ *
+ * Bulleted resumes are the easy case. Plain-prose resumes are common in PDF
+ * exports, and treating every unbulleted line as the start of the next role
+ * left achievements empty — which drove recency_fit toward 0, strictly worse
+ * than the constant 50 it was meant to replace, because the only text left to
+ * match against the job description was the title.
+ */
+function collectAchievements(lines: string[], dateLineIndex: number): string[] {
+  const achievements: string[] = [];
+
+  for (let ahead = dateLineIndex + 1; ahead < lines.length; ahead++) {
+    if (achievements.length >= MAX_ACHIEVEMENTS) break;
+    const line = lines[ahead];
+    const trimmed = line.trim();
+
+    // A new dated role, or a new section, ends this one.
+    if (DATE_RANGE.test(line)) break;
+    if (trimmed && !BULLET.test(line) && NON_TITLE_LINE.test(trimmed)) break;
+
+    if (BULLET.test(line)) {
+      achievements.push(line.replace(BULLET, '').trim());
+      continue;
+    }
+
+    if (!trimmed) {
+      // A blank line ends the role only when the next role starts right after.
+      if (startsNewRole(lines, ahead + 1)) break;
+      continue;
+    }
+
+    achievements.push(trimmed);
+  }
+
+  return achievements;
+}
+
+/**
  * Extract dated roles from plain resume text, most recent first (document
  * order — the recency analyzer treats index 0 as the current role, which is
  * the near-universal resume convention).
@@ -88,47 +164,51 @@ export function extractExperienceFromText(text: string): DerivedExperience[] {
 
   const lines = text.split(/\r?\n/);
   const roles: DerivedExperience[] = [];
+  let inNonEmploymentSection = false;
 
   for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+
+    // Track which section we are in, so education and certification dates are
+    // never read as jobs.
+    if (trimmed && !BULLET.test(lines[i])) {
+      if (NON_EMPLOYMENT_SECTION.test(trimmed)) {
+        inNonEmploymentSection = true;
+      } else if (EMPLOYMENT_SECTION.test(trimmed)) {
+        inNonEmploymentSection = false;
+      }
+    }
+    if (inNonEmploymentSection) continue;
+
+    // A date range inside a bullet describes the work, it does not start a new
+    // role: "Cut infra spend 30% across the 2019 - 2021 legacy stack" would
+    // otherwise duplicate the role above it with the wrong end date.
+    if (BULLET.test(lines[i])) continue;
+
     const dateMatch = lines[i].match(DATE_RANGE);
     if (!dateMatch) continue;
 
-    // Walk back for the nearest line that looks like a role heading.
-    let titleLine = '';
-    for (let back = 1; back <= MAX_TITLE_LOOKBACK && i - back >= 0; back++) {
-      const candidate = lines[i - back];
-      if (isPlausibleTitleLine(candidate)) {
-        titleLine = candidate;
-        break;
-      }
-    }
+    // The date line may itself carry the role ("Data Engineer | 2019 - 2021").
+    // Prefer it only when the leftover text actually looks like a role — a bare
+    // "Tel Aviv" left over from "Tel Aviv | Jan 2022 - Present" does not.
+    const residual = lines[i].replace(DATE_RANGE, '').replace(/[|,–—-]\s*$/, '').trim();
+    let titleLine = isRoleLike(residual) ? residual : '';
 
-    // The date line itself may carry the role ("Data Engineer | 2019 - 2021").
+    // Otherwise walk back for the nearest line that looks like a role heading.
     if (!titleLine) {
-      const withoutDates = lines[i].replace(DATE_RANGE, '').replace(/[|,–—-]\s*$/, '').trim();
-      if (isPlausibleTitleLine(withoutDates)) {
-        titleLine = withoutDates;
+      for (let back = 1; back <= MAX_TITLE_LOOKBACK && i - back >= 0; back++) {
+        const candidate = lines[i - back];
+        if (isPlausibleTitleLine(candidate)) {
+          titleLine = candidate;
+          break;
+        }
       }
     }
 
+    if (!titleLine && isPlausibleTitleLine(residual)) titleLine = residual;
     if (!titleLine) continue;
 
     const { title, company } = splitTitleAndCompany(titleLine);
-
-    // Collect the bullets that follow, until the next blank-line-separated block.
-    const achievements: string[] = [];
-    for (let ahead = i + 1; ahead < lines.length; ahead++) {
-      const line = lines[ahead];
-      if (BULLET.test(line)) {
-        achievements.push(line.replace(BULLET, '').trim());
-        continue;
-      }
-      if (!line.trim()) {
-        if (achievements.length > 0) break;
-        continue;
-      }
-      if (DATE_RANGE.test(line) || isPlausibleTitleLine(line)) break;
-    }
 
     roles.push({
       title,
@@ -136,7 +216,7 @@ export function extractExperienceFromText(text: string): DerivedExperience[] {
       location: '',
       startDate: dateMatch[1].trim(),
       endDate: dateMatch[2].trim(),
-      achievements,
+      achievements: collectAchievements(lines, i),
     });
   }
 
@@ -144,10 +224,15 @@ export function extractExperienceFromText(text: string): DerivedExperience[] {
 }
 
 /**
- * Build the minimal OptimizedResume shape the analyzers need from plain text.
+ * Build the minimal OptimizedResume shape the recency analyzer needs from
+ * plain text.
  *
  * Returns null when no dated role can be read, so callers fall back to today's
  * behavior instead of scoring against an invented structure.
+ *
+ * The result must be passed as `recency_json`, never as `resume_json` — the
+ * object has no summary, skills or education, and the analyzers that branch on
+ * `resume_json` would read those empty fields as genuinely missing sections.
  */
 export function deriveResumeJsonFromText(text: string): OptimizedResume | null {
   const experience = extractExperienceFromText(text);
