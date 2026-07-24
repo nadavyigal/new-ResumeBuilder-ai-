@@ -27,8 +27,21 @@ export interface ATSScoreInput {
   /** Structured data extracted from job description */
   job_extracted_json: JobExtraction;
 
-  /** Format analysis report for both resumes */
+  /**
+   * Format analysis report. Used for both resumes unless a per-side report is
+   * supplied below.
+   *
+   * Prefer the per-side fields: sharing one report across the before/after pair
+   * freezes format_parseability so the optimized resume is graded on the
+   * original's formatting (WP-45 D3).
+   */
   format_report: FormatReport;
+
+  /** Format report for the original resume. Wins over `format_report`. */
+  format_report_original?: FormatReport;
+
+  /** Format report for the optimized resume. Wins over `format_report`. */
+  format_report_optimized?: FormatReport;
 
   /** Timestamp for recency calculations (defaults to now) */
   timestamp?: Date;

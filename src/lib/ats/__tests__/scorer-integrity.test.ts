@@ -1,0 +1,323 @@
+/**
+ * WP-45 S1 — Scorer integrity
+ *
+ * These tests encode the gates from the work packet:
+ *   G1  a perfect-match resume must be able to reach the top band (>= 85)
+ *   G2  every weighted component must be able to vary
+ *   D2  the no-metrics penalty must not fire on top of an already-low component
+ *   D3  format_parseability must be computed per side of the before/after pair
+ *   D4  recency_fit must not compare a real value against a constant fallback
+ *
+ * They are deterministic and require no network: the semantic analyzer falls
+ * back to a fixed neutral score when no OPENAI_API_KEY is present, and every
+ * other analyzer is pure.
+ */
+
+import { aggregateScores } from '../scorers/aggregator';
+import { applyPenalties } from '../scorers/penalties';
+import { SUB_SCORE_WEIGHTS, validateWeights } from '../config/weights';
+import { deriveResumeJsonFromText } from '../extractors/experience-text-extractor';
+import { scoreResume } from '../core';
+import type { AnalyzerResult, SubScoreKey, SubScores, ATSScoreInput, FormatReport } from '../types';
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+/** Feed a fixed set of sub-scores through the real aggregation + penalty path. */
+function compositeFor(subscores: SubScores): number {
+  const results = new Map<SubScoreKey, AnalyzerResult>(
+    (Object.entries(subscores) as Array<[SubScoreKey, number]>).map(([key, score]) => [
+      key,
+      { score, evidence: {}, confidence: 1.0, warnings: [] } as AnalyzerResult,
+    ])
+  );
+  const aggregate = aggregateScores(results);
+  return applyPenalties(aggregate.finalScore, aggregate.subscores, {}).penalizedScore;
+}
+
+/**
+ * A flawless candidate for the role.
+ *
+ * Two components are deliberately NOT set to 100, because pinning them there
+ * would test a resume that cannot exist and the gate would pass on a score no
+ * user can reach:
+ *
+ *  - format_parseability is 88, the value a clean, well-structured resume
+ *    actually produces through analyzeFormatWithTemplate (production mean over
+ *    60 days is 87.8).
+ *  - keyword_phrase is 5, its realistic ceiling. It requires verbatim 3-6 word
+ *    job-description reuse, so even an ideal resume scores near zero unless it
+ *    copy-pastes the posting.
+ */
+const PERFECT_MATCH: SubScores = {
+  keyword_exact: 100,
+  keyword_phrase: 5,
+  semantic_relevance: 100,
+  title_alignment: 100,
+  metrics_presence: 100,
+  section_completeness: 100,
+  format_parseability: 88,
+  recency_fit: 100,
+};
+
+/**
+ * The case that actually broke: a candidate who is a genuinely excellent match
+ * on every dimension the product can influence, whose resume simply has no
+ * quantified figures in it.
+ *
+ * This is common — plenty of strong resumes describe scope rather than
+ * percentages — and the optimizer cannot fix it, because stripFabricatedMetrics
+ * (correctly) forbids inventing numbers. Before S1 this candidate scored 72:
+ * metrics_presence contributed 0 of its 10 points AND triggered a further -5
+ * penalty for the same fact, putting "strong" out of reach for someone who
+ * deserved it.
+ */
+const STRONG_CANDIDATE_WITHOUT_METRICS: SubScores = {
+  ...PERFECT_MATCH,
+  metrics_presence: 0,
+};
+
+const CLEAR_MISMATCH: SubScores = {
+  keyword_exact: 5,
+  keyword_phrase: 0,
+  semantic_relevance: 20,
+  title_alignment: 0,
+  metrics_presence: 0,
+  section_completeness: 40,
+  format_parseability: 60,
+  recency_fit: 10,
+};
+
+/**
+ * The shape a real user's resume actually produces today, taken from the
+ * 60-day production means (n=59, optimized side). keyword_phrase and
+ * metrics_presence are the two components the audit found cannot be earned.
+ */
+const TYPICAL_OPTIMIZED: SubScores = {
+  keyword_exact: 39,
+  keyword_phrase: 4,
+  semantic_relevance: 71,
+  title_alignment: 38,
+  metrics_presence: 7,
+  section_completeness: 100,
+  format_parseability: 88,
+  recency_fit: 13,
+};
+
+const NEUTRAL_FORMAT: FormatReport = {
+  has_tables: false,
+  has_images: false,
+  has_headers_footers: false,
+  has_nonstandard_fonts: false,
+  has_odd_glyphs: false,
+  has_multi_column: false,
+  format_safety_score: 90,
+  issues: [],
+};
+
+const RISKY_FORMAT: FormatReport = {
+  has_tables: true,
+  has_images: false,
+  has_headers_footers: false,
+  has_nonstandard_fonts: false,
+  has_odd_glyphs: false,
+  has_multi_column: true,
+  format_safety_score: 30,
+  issues: ['Tables detected', 'Multi-column layout detected'],
+};
+
+// ---------------------------------------------------------------------------
+// G1 — the scale must be able to reach its own top band
+// ---------------------------------------------------------------------------
+
+describe('WP-45 G1: a perfect-match resume can reach the top band', () => {
+  it('scores a flawless candidate at or above the strong threshold of 75', () => {
+    expect(compositeFor(PERFECT_MATCH)).toBeGreaterThanOrEqual(85);
+  });
+
+  it('lets an excellent candidate whose resume has no metrics reach strong', () => {
+    // The gate that matters. Pre-S1 this scored 72 — the component contributed
+    // nothing and then a penalty subtracted 5 more for the same shortcoming,
+    // so a deserving candidate was capped below the strong band by a fact the
+    // product had already decided it would not fix for them.
+    expect(compositeFor(STRONG_CANDIDATE_WITHOUT_METRICS)).toBeGreaterThanOrEqual(75);
+  });
+
+  it('charges a missing-metrics resume once, not twice', () => {
+    // Losing the metrics component is legitimate. Losing it AND taking a
+    // separate penalty for the same fact is double jeopardy.
+    const gap = compositeFor(PERFECT_MATCH) - compositeFor(STRONG_CANDIDATE_WITHOUT_METRICS);
+    expect(gap).toBeLessThanOrEqual(Math.round(SUB_SCORE_WEIGHTS.metrics_presence * 100) + 1);
+  });
+
+  it('still scores a clear mismatch low', () => {
+    // The repairs must not compress the whole scale upward.
+    expect(compositeFor(CLEAR_MISMATCH)).toBeLessThan(35);
+  });
+
+  it('keeps a wide spread between a flawless and a hopeless candidate', () => {
+    expect(compositeFor(PERFECT_MATCH) - compositeFor(CLEAR_MISMATCH)).toBeGreaterThan(50);
+  });
+
+  it('leaves a typical real-world optimized resume below the strong band', () => {
+    // Honesty check: repairing dead components must not hand everybody a
+    // "strong" verdict. A resume that is genuinely a partial match stays a
+    // partial match.
+    const typical = compositeFor(TYPICAL_OPTIMIZED);
+    expect(typical).toBeGreaterThan(30);
+    expect(typical).toBeLessThan(75);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// G2 — no component may sit in the denominator without being earnable
+// ---------------------------------------------------------------------------
+
+describe('WP-45 G2: every weighted component can move the score', () => {
+  const weighted = (Object.keys(SUB_SCORE_WEIGHTS) as SubScoreKey[]).filter(
+    key => SUB_SCORE_WEIGHTS[key] > 0
+  );
+
+  it('has weights that still sum to 1.0', () => {
+    expect(validateWeights().valid).toBe(true);
+  });
+
+  it.each(weighted)('moving %s alone changes the composite', key => {
+    const floor = compositeFor({ ...CLEAR_MISMATCH, [key]: 0 });
+    const ceiling = compositeFor({ ...CLEAR_MISMATCH, [key]: 100 });
+    expect(ceiling - floor).toBeGreaterThanOrEqual(5);
+  });
+
+  it('drops keyword_phrase from the weighting', () => {
+    // The analyzer keeps running so suggestions still work, but a component
+    // that requires verbatim 3-6 word JD reuse cannot be earned without
+    // keyword stuffing, so it must not sit in the composite. See WP-45 D1.
+    expect(SUB_SCORE_WEIGHTS.keyword_phrase).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D2 — the metrics penalty must not double-count
+// ---------------------------------------------------------------------------
+
+describe('WP-45 D2: no double penalty for missing metrics', () => {
+  it('does not subtract a metrics penalty when metrics_presence is already 0', () => {
+    const { appliedPenalties } = applyPenalties(60, { ...PERFECT_MATCH, metrics_presence: 0 }, {});
+    expect(appliedPenalties.map(p => p.reason)).not.toContain(
+      'No quantified metrics found in resume'
+    );
+  });
+
+  it('still penalises genuine format risk', () => {
+    const { appliedPenalties } = applyPenalties(
+      60,
+      { ...PERFECT_MATCH, format_parseability: 20 },
+      {}
+    );
+    expect(appliedPenalties.some(p => p.reason.includes('format risk'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D4 — the original side must not be scored against a constant
+// ---------------------------------------------------------------------------
+
+describe('WP-45 D4: recency is derived from the original resume, not a constant', () => {
+  const RESUME_WITH_DATES = `
+Jane Cohen
+jane@example.com | Tel Aviv
+
+EXPERIENCE
+
+Senior Data Engineer at Nimbus Analytics
+Tel Aviv | Jan 2022 - Present
+• Built streaming pipelines on Kafka and Spark
+• Owned the migration to Snowflake
+
+Data Engineer at Harbor Systems
+Tel Aviv | 2019 - 2021
+• Maintained ETL jobs in Airflow
+
+EDUCATION
+BSc Computer Science - Technion
+`;
+
+  it('derives dated experience from plain resume text', () => {
+    const derived = deriveResumeJsonFromText(RESUME_WITH_DATES);
+    expect(derived).not.toBeNull();
+    expect(derived!.experience.length).toBeGreaterThanOrEqual(2);
+    expect(derived!.experience[0].endDate.toLowerCase()).toContain('present');
+  });
+
+  it('returns null rather than guessing when the text has no dated roles', () => {
+    expect(deriveResumeJsonFromText('Jane Cohen\nSkilled engineer.\n')).toBeNull();
+  });
+
+  it('does not report the 50-point fallback for an original resume that has real dates', async () => {
+    const result = await scoreResume(buildInput({ originalText: RESUME_WITH_DATES }));
+    // 50 is the "no experience data available" constant. Seeing it on the
+    // original side while the optimized side gets a real number is exactly the
+    // asymmetry that made every reported delta ~3 points too small.
+    expect(result.subscores_original.recency_fit).not.toBe(50);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D3 — format must be measured per side
+// ---------------------------------------------------------------------------
+
+describe('WP-45 D3: format_parseability is computed per side', () => {
+  it('reports different format scores when the two sides have different formats', async () => {
+    const result = await scoreResume(
+      buildInput({
+        formatOriginal: RISKY_FORMAT,
+        formatOptimized: NEUTRAL_FORMAT,
+      })
+    );
+
+    expect(result.subscores_original.format_parseability).toBe(
+      RISKY_FORMAT.format_safety_score
+    );
+    expect(result.subscores.format_parseability).toBe(NEUTRAL_FORMAT.format_safety_score);
+    expect(result.subscores.format_parseability).not.toBe(
+      result.subscores_original.format_parseability
+    );
+  });
+
+  it('falls back to the shared report when no per-side reports are supplied', async () => {
+    const result = await scoreResume(buildInput({}));
+    expect(result.subscores_original.format_parseability).toBe(
+      NEUTRAL_FORMAT.format_safety_score
+    );
+    expect(result.subscores.format_parseability).toBe(NEUTRAL_FORMAT.format_safety_score);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+function buildInput(opts: {
+  originalText?: string;
+  formatOriginal?: FormatReport;
+  formatOptimized?: FormatReport;
+}): ATSScoreInput {
+  return {
+    resume_original_text: opts.originalText ?? 'Jane Cohen\nData engineer with Kafka experience.',
+    resume_optimized_text:
+      'Jane Cohen\nSenior Data Engineer\nKafka, Spark, Snowflake, Airflow, SQL, Python.',
+    job_clean_text:
+      'We are hiring a Senior Data Engineer to build streaming pipelines with Kafka, Spark and Snowflake. SQL and Python required.',
+    job_extracted_json: {
+      title: 'Senior Data Engineer',
+      must_have: ['kafka', 'spark', 'snowflake', 'sql', 'python'],
+      nice_to_have: ['airflow'],
+      responsibilities: ['Build streaming pipelines'],
+      seniority: 'senior',
+software_keywords: [],
+    } as unknown as ATSScoreInput['job_extracted_json'],
+    format_report: NEUTRAL_FORMAT,
+    format_report_original: opts.formatOriginal,
+    format_report_optimized: opts.formatOptimized,
+    timestamp: new Date('2026-07-24T00:00:00Z'),
+  };
+}

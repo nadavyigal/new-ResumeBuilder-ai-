@@ -9,6 +9,7 @@ import type { ATSScoreInput, JobExtraction, FormatReport, ATSScoreOutput } from 
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { extractJobData } from './extractors/jd-extractor';
 import { buildJobDataFromExtractedJson } from './job-data-resolver';
+import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 
 /**
  * Extract keywords and requirements from job description text
@@ -168,7 +169,10 @@ export async function scoreOptimization(params: {
     ? buildJobDataFromExtractedJson(jobExtractedJson, jobDescriptionText)
     : extractJobRequirements(jobDescriptionText, jobTitle);
 
-  // Generate format reports
+  // Generate format reports — one per side. The original is only available as
+  // text, so it uses the text heuristic; the optimized side is structured, so
+  // it gets the real template-aware analysis. Passing a single shared report
+  // froze format_parseability across the pair (WP-45 D3).
   const formatReport = generateFormatReport(resumeOriginalText);
 
   // Prepare ATS input
@@ -178,7 +182,11 @@ export async function scoreOptimization(params: {
     job_clean_text: jobDescriptionText,
     job_extracted_json: jobExtraction,
     format_report: formatReport,
-    resume_original_json: undefined, // Don't have structured original
+    format_report_original: formatReport,
+    format_report_optimized: analyzeFormatWithTemplate(resumeOptimizedJson, null),
+    // Left undefined on purpose: the scorer derives a minimal structure from
+    // the original text so recency is measured the same way on both sides.
+    resume_original_json: undefined,
     resume_optimized_json: resumeOptimizedJson,
   };
 

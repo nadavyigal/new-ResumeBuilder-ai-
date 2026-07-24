@@ -11,24 +11,38 @@ import type { SubScoreKey } from '../types';
  * Sub-score weights (must sum to 1.0)
  *
  * Rationale for weight distribution:
- * - keyword_exact (22%): Most critical - ATS primarily keyword-match
- * - semantic_relevance (16%): Important for quality beyond keywords
- * - format_parseability (14%): Critical for ATS systems to parse
- * - keyword_phrase (12%): Captures context beyond single keywords
- * - title_alignment (10%): Important for role match
- * - metrics_presence (10%): Demonstrates impact
- * - section_completeness (8%): Basic hygiene factor
- * - recency_fit (8%): Nice-to-have but not critical
+ * - keyword_exact (25%): Most critical - ATS primarily keyword-match
+ * - semantic_relevance (18.18%): Important for quality beyond keywords
+ * - format_parseability (15.91%): Critical for ATS systems to parse
+ * - title_alignment (11.36%): Important for role match
+ * - metrics_presence (11.36%): Demonstrates impact
+ * - section_completeness (9.09%): Basic hygiene factor
+ * - recency_fit (9.1%): Nice-to-have but not critical
+ * - keyword_phrase (0%): withdrawn, see below
+ *
+ * keyword_phrase was withdrawn from the composite on 2026-07-24 (WP-45 D1).
+ * It measures verbatim 3-6 word n-gram reuse between the job description and
+ * the resume. Over 60 days of production scoring (n=59) it averaged 0.6 on
+ * original resumes and 4.2 on optimized ones, out of 100 — the only way to
+ * move it is to paste job-description sentences into the resume, which is the
+ * keyword-stuffing behavior we do not want to optimize toward. Carrying 12% of
+ * the score on a component nobody can earn cost every user ~11.5 points and
+ * was a large part of why "strong" (>= 75) had never once been awarded.
+ *
+ * The analyzer still runs and still feeds suggestions; it just no longer sits
+ * in the denominator. The remaining weights are the original ratios rescaled
+ * onto the smaller pool (old / 0.88), which preserves the relative ranking
+ * documented above. Final weights are S5's decision, not this file's.
  */
 export const SUB_SCORE_WEIGHTS: Record<SubScoreKey, number> = {
-  keyword_exact: 0.22,
-  keyword_phrase: 0.12,
-  semantic_relevance: 0.16,
-  title_alignment: 0.10,
-  metrics_presence: 0.10,
-  section_completeness: 0.08,
-  format_parseability: 0.14,
-  recency_fit: 0.08,
+  keyword_exact: 0.25,
+  keyword_phrase: 0,
+  semantic_relevance: 0.1818,
+  title_alignment: 0.1136,
+  metrics_presence: 0.1136,
+  section_completeness: 0.0909,
+  format_parseability: 0.1591,
+  recency_fit: 0.091,
 };
 
 /**
