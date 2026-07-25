@@ -1,6 +1,7 @@
 import type { JobExtraction } from '@/lib/ats/types';
 import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import { scoreSkillCoverage } from '@/lib/ats/skill-match';
+import { assessExtractionQuality } from '@/lib/ats/extraction-quality';
 
 type FitVerdict = 'Strong' | 'Stretch' | 'Skip';
 
@@ -32,6 +33,23 @@ export function buildPublicAtsCheckResponse(score: any, sessionId: string, remai
   const quickWins = Array.isArray(score.ats_quick_wins) ? score.ats_quick_wins : [];
   const missingKeywords = getMissingMustHave(fitSource);
 
+  // A verdict is only worth as much as the requirements behind it. When the
+  // extraction was thin or mostly page furniture, say so and withhold the
+  // verdict rather than presenting a confident-looking "Skip" built out of
+  // headings like "About us" (WP-45 S4).
+  const extraction = fitSource
+    ? assessExtractionQuality({
+        requirements: [
+          ...(fitSource.jobData?.must_have ?? []),
+          ...(fitSource.jobData?.nice_to_have ?? []),
+        ],
+        jobText: fitSource.jobDescription,
+        title: fitSource.jobData?.title ?? null,
+      })
+    : null;
+
+  const fitAvailable = extraction ? extraction.available : true;
+
   return {
     success: true,
     sessionId,
@@ -47,10 +65,21 @@ export function buildPublicAtsCheckResponse(score: any, sessionId: string, remai
     quickWins,
     checksRemaining: remaining,
     fit: {
-      verdict: getFitVerdict(score.ats_score),
+      available: fitAvailable,
+      extractionQuality: extraction?.quality ?? 'medium',
+      requirementCount: extraction?.credibleRequirements.length ?? missingKeywords.length,
+      // Keys stay constant whether or not a verdict could be produced. A union
+      // shape would force every consumer — including the iOS decoder — to
+      // narrow before reading anything, which is how a field silently stops
+      // being read.
+      verdict: fitAvailable ? getFitVerdict(score.ats_score) : null,
+      recoveryReason: fitAvailable ? null : extraction?.reason ?? null,
       scoreNote: FIT_SCORE_NOTE,
-      topGaps: missingKeywords.slice(0, 3),
-      missingKeywords,
+      // Only ever surface requirements that survived the credibility gate, so
+      // "about" and "role objective" cannot reappear as things the user is
+      // missing from their resume.
+      topGaps: (extraction?.available ? missingKeywords : []).slice(0, 3),
+      missingKeywords: extraction?.available ? missingKeywords : [],
     },
   };
 }
