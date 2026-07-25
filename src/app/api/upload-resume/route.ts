@@ -19,6 +19,7 @@ export const runtime = 'nodejs';
 // Allow up to 120 s: PDF parse + job scrape + gpt-4o optimization + ATS embedding calls
 export const maxDuration = 120;
 import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
@@ -248,6 +249,15 @@ export async function POST(req: NextRequest) {
       },
     });
     const optimizedResume = pipelineResult.optimizedResume;
+
+    // See WP-45 S2 — count runs that failed to improve on the starting resume.
+    if (!pipelineResult.lift.meaningful) {
+      await captureServerEvent(user.id, 'optimization_no_lift', {
+        ...pipelineResult.lift.analyticsProperties,
+        platform: 'web',
+        source: 'upload-resume',
+      });
+    }
 
     const { reviewId, reviewRun } = await createOptimizationReviewRun({
       supabase,

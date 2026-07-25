@@ -66,19 +66,34 @@ export async function scoreResume(
     // format_parseability and recency_fit are measured the same way on both
     // sides of the comparison (WP-45 D3/D4). Sharing them made 22% of the
     // weighting either frozen or asymmetric across the before/after pair.
+    // Both sides must be measured by the same function, so the comparison
+    // reflects the resume rather than which representation happened to be
+    // available. section_completeness, title_alignment, metrics_presence and
+    // semantic_relevance all branch on `resume_json`, and in the shipping path
+    // only the optimized side has it — production shows section_completeness
+    // reading 99.7 optimized against 66.5 original, with 58 of 59 rows at 100,
+    // because one side was measured by field presence and the other by a
+    // header regex over messy extracted text (WP-45 S2).
+    //
+    // So: use the structured path only when BOTH sides are structured.
+    // Recency is exempt — it takes `recency_json`, which is reconstructed for
+    // the original side precisely so it stays comparable.
+    const useStructured = Boolean(input.resume_original_json && input.resume_optimized_json);
+
     const [originalResults, optimizedResults] = await Promise.all([
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_original,
         resume_text: input.resume_original_text,
-        resume_json: input.resume_original_json,
+        resume_json: useStructured ? input.resume_original_json : undefined,
         recency_json: resolveOriginalResumeJson(input),
       }),
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_optimized,
         resume_text: input.resume_optimized_text,
-        resume_json: input.resume_optimized_json,
+        resume_json: useStructured ? input.resume_optimized_json : undefined,
+        recency_json: input.resume_optimized_json,
       }),
     ]);
 
@@ -237,19 +252,26 @@ async function prepareInput(input: ATSScoreInput) {
         issues: [],
       };
 
-  // Resolve a report per side. Callers that supply only the shared
-  // `format_report` keep today's behavior; callers that supply per-side
-  // reports get an honest format comparison (WP-45 D3).
+  // Resolve a report per side (WP-45 D3). An explicit per-side report always
+  // wins — callers are responsible for deriving both from the same function.
+  //
+  // The analyzeFormatWithTemplate fallback only applies when BOTH sides are
+  // structured. Applying it to whichever side happens to have JSON would score
+  // one side with the JSON heuristic (base 100) and the other with whatever
+  // the shared report holds, which is the same two-different-functions
+  // comparison this field exists to eliminate (WP-45 S2).
+  const bothStructured = Boolean(input.resume_original_json && input.resume_optimized_json);
+
   const format_report_original =
     input.format_report_original ??
-    (input.resume_original_json
-      ? analyzeFormatWithTemplate(input.resume_original_json, null)
+    (bothStructured
+      ? analyzeFormatWithTemplate(input.resume_original_json!, null)
       : format_report);
 
   const format_report_optimized =
     input.format_report_optimized ??
-    (input.resume_optimized_json
-      ? analyzeFormatWithTemplate(input.resume_optimized_json, null)
+    (bothStructured
+      ? analyzeFormatWithTemplate(input.resume_optimized_json!, null)
       : format_report);
 
   return {
