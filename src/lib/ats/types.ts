@@ -326,6 +326,15 @@ export interface ScoringMetadata {
   /** Version of the scoring engine (always 2) */
   version: number;
 
+  /**
+   * The scoring regime that produced this result.
+   *
+   * Scores are not comparable across versions — see SCORE_VERSION in core.ts.
+   * Anything that trends, averages or compares stored scores must filter to a
+   * single value here (WP-45 S9).
+   */
+  score_version?: string;
+
   /** Timestamp when scoring was performed */
   scored_at: Date;
 

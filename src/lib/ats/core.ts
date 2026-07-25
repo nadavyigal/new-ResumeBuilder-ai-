@@ -5,7 +5,7 @@
  * Coordinates all analyzers and generates complete scoring output.
  */
 
-import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey } from './types';
+import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey, QuickWinSuggestion } from './types';
 import {  KeywordExactAnalyzer } from './analyzers/keyword-exact';
 import { KeywordPhraseAnalyzer } from './analyzers/keyword-phrase';
 import { SemanticAnalyzer } from './analyzers/semantic';
@@ -25,6 +25,16 @@ import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import { deriveResumeJsonFromText } from './extractors/experience-text-extractor';
 
 /**
+ * Identifies the scoring regime that produced a result.
+ *
+ * Scores are not comparable across versions. The scale shifted materially on
+ * 2026-06-18 when keyword matching was tightened without recalibration, and
+ * again with the WP-45 S1/S2 repairs. Anything that trends, averages or
+ * compares stored scores must filter to one version (WP-45 S9).
+ */
+export const SCORE_VERSION = 'ats_v2.1_wp45';
+
+/**
  * Normalize ATS score — clamps to valid [0, 100] range.
  * Real score lift comes from the multi-pass pipeline, not artificial inflation.
  */
@@ -40,7 +50,8 @@ function normalizeATSScore(rawScore: number): number {
  * @returns Complete ATS scoring output with original and optimized scores
  */
 export async function scoreResume(
-  input: ATSScoreInput
+  input: ATSScoreInput,
+  options?: { generateQuickWins?: boolean }
 ): Promise<ATSScoreOutput> {
   const startTime = Date.now();
   const warnings: string[] = [];
@@ -151,6 +162,28 @@ export async function scoreResume(
       jobData: preparedInput.job_data,
     });
 
+    // Generate quick wins if requested
+    let quickWins: QuickWinSuggestion[] | undefined;
+
+    if (options?.generateQuickWins) {
+      try {
+        const { generateQuickWins } = await import('./quick-wins/generator');
+
+        quickWins = await generateQuickWins({
+          resume_text: input.resume_optimized_text,
+          resume_json: input.resume_optimized_json || {} as any,
+          job_data: preparedInput.job_data,
+          subscores: optimizedAggregate.subscores,
+          current_ats_score: Math.round(normalizedOptimized),
+        });
+
+        console.log('✨ Generated quick wins:', quickWins.length);
+      } catch (error) {
+        console.error('Quick wins generation failed, skipping:', error);
+        // Don't block scoring if quick wins fail
+      }
+    }
+
     // Collect warnings
     if (originalAggregate.failedAnalyzers.length > 0) {
       warnings.push(`Some analyzers failed: ${originalAggregate.failedAnalyzers.join(', ')}`);
@@ -168,9 +201,11 @@ export async function scoreResume(
       subscores: optimizedAggregate.subscores,
       subscores_original: originalAggregate.subscores,
       suggestions,
+      ...(quickWins ? { quick_wins: quickWins } : {}),
       confidence: confidenceResult.confidence,
       metadata: {
         version: 2,
+        score_version: SCORE_VERSION,
         scored_at: new Date(),
         processing_time_ms: Date.now() - startTime,
         warnings,
