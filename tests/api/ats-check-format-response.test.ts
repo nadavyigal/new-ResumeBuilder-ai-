@@ -45,11 +45,38 @@ describe('formatResponse', () => {
     });
 
     expect(response.fit).toEqual({
+      // WP-45 S4 added availability/provenance to the fit block. A verdict is
+      // only reported when the extraction behind it survived the credibility
+      // gate, so consumers can tell "Skip" from "we could not read this job".
+      available: true,
+      extractionQuality: 'low',
+      requirementCount: 4,
       verdict: 'Stretch',
+      recoveryReason: null,
       scoreNote: 'Estimated fit vs this job, not a hiring guarantee.',
       topGaps: ['strategic partnerships', 'payment platforms', 'senior executives'],
       missingKeywords: ['strategic partnerships', 'payment platforms', 'senior executives'],
     });
+  });
+
+  it('withholds the verdict when the job extraction is mostly page furniture', () => {
+    // "About us" / "role objective" style scrapes must not produce a confident
+    // Skip built out of headings (WP-45 S4).
+    const response = buildPublicAtsCheckResponse(scoreRow, 'session-1', 3, {
+      resumeText: 'I led market research for partner expansion.',
+      jobData: {
+        ...jobData,
+        must_have: ['About us', 'role objective', 'key responsibilities build'],
+        nice_to_have: ['Benefits', 'Apply now'],
+      },
+      jobDescription: 'Partnership role requiring market research and payment platforms.',
+    });
+
+    expect(response.fit.available).toBe(false);
+    expect(response.fit.extractionQuality).toBe('unavailable');
+    expect(response.fit.verdict).toBeNull();
+    expect(response.fit.recoveryReason).toBe('too_few_credible_requirements');
+    expect(response.fit.missingKeywords).toEqual([]);
   });
 
   it('keeps the pre-existing response fields unchanged outside the additive fit block', () => {

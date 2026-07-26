@@ -1,5 +1,19 @@
 # Project Progress
 
+## 2026-07-24 — WP-45 S2: symmetric comparison + no-regression invariant (PR #120, stacked on #119)
+
+**The invariant.** `optimize-pipeline.ts` chose between pass 1 and pass 2 by comparing them to each other and never to the resume the user started with, so a run that moved the score +2 — or moved it down — was returned as a result. That is the 42 -> 44 from the Meirav session, and it is not rare: 24 of 59 optimizations in 60 days ended at +4 or worse, 6 of them lower than they started. Pass 2 now also triggers when a run has not meaningfully beaten the original, and every result carries a `LiftAssessment` from the new `src/lib/ats/lift.ts`. That module never raises a score, never clamps a delta positive and never applies a floor — `lift.displayScores` tells the caller to show what changed and what is still missing instead of a number pair. Floor is a named constant at 5, provisional until S5 picks it from the labelled benchmark.
+
+**Fifth measurement defect found.** Four analyzers branch on `resume_json` — section_completeness, title_alignment, metrics_presence, semantic — and in the shipping path only the optimized side ever has it. section_completeness scores field presence via `hasRequiredSections()` with JSON and a header regex over messy extracted text without it. Production 60d: optimized mean 99.7 with 58 of 59 rows at or above 99 (min 85), against 66.5 original. Roughly +3 points of fake delta on every optimization. The structured path is now used only when both sides are structured; recency is exempt because it takes `recency_json`, reconstructed in S1 for exactly this reason.
+
+**S1 follow-on caught by the new tests:** `prepareInput`'s format fallback was still applying `analyzeFormatWithTemplate` to whichever side happened to have JSON, reintroducing the D3 two-different-functions comparison in a new place. Fixed.
+
+**Signal:** both routes running the pipeline emit `optimization_no_lift`, bucketed (negative / 0_to_4 / 5_to_9 / 10_plus) plus a stalled-component name. No resume or job content.
+
+**Validation:** 12 new deterministic tests. Both symmetry gates verified failing against the S1 head — the first needed a messy-extraction fixture, because a clean original with proper headers scores 100 on either path and hides the defect. A guard test confirms genuine improvements still register. Full suite 17 pre-existing suite failures before and after, passing 201 -> 213. eslint clean, tsc 26 before and after, `next build` passes on a clean checkout.
+
+**Not done:** no UI change — `lift.displayScores` is produced but nothing consumes it, that is S8, so users still see the raw pair for now. Absolute scores move for everyone as the optimized side loses an unearned advantage on four components, which makes historical rows even less comparable (S9). The floor of 5 is a placeholder for S5.
+
 ## 2026-07-24 — WP-45 S1: repair the three dead scoring components (PR #119)
 
 Backend-only scorer integrity pass. Triggered by a moderated user session (Meirav) that showed a fit score of 45, then 42 before / 44 after optimizing. The audit found the composite was structurally incapable of doing better.

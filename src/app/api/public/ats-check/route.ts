@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parsePdf } from '@/lib/pdf-parser';
 import { scoreResume } from '@/lib/ats';
+import { generateFormatReport } from '@/lib/ats/integration';
+import { generateQuickWins } from '@/lib/ats/quick-wins/generator';
 import type { ATSScoreInput, JobExtraction } from '@/lib/ats/types';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limiting/check-rate-limit';
@@ -30,16 +32,11 @@ const DEFAULT_JOB_DATA: JobExtraction = {
   responsibilities: [],
 };
 
-const DEFAULT_FORMAT_REPORT = {
-  has_tables: false,
-  has_images: false,
-  has_headers_footers: false,
-  has_nonstandard_fonts: false,
-  has_odd_glyphs: false,
-  has_multi_column: false,
-  format_safety_score: 70,
-  issues: [],
-};
+// The free checker used to score format from a hardcoded 70 while the optimize
+// path derived it from the resume via generateFormatReport (85 baseline, plus
+// real table/tab/glyph detection). Same resume, same job, two different
+// numbers — that is the 45-here-42-there the moderated session hit. Both
+// surfaces now build the scorer's input the same way (WP-45 S3/D5).
 
 export async function POST(request: NextRequest) {
   const ip = getClientIP(request);
@@ -222,11 +219,14 @@ export async function POST(request: NextRequest) {
     resume_optimized_text: resumeText,
     job_clean_text: jobDescription,
     job_extracted_json: jobData,
-    format_report: DEFAULT_FORMAT_REPORT,
+    format_report: generateFormatReport(resumeText),
   };
 
   const scoreResult = await scoreResume(atsInput, {
-    generateQuickWins: true, // Enable Quick Wins for free ATS checker
+    // Injected, not imported by the scorer: the quick-wins module reaches
+    // posthog-node and core.ts is transitively imported by a client page, so
+    // importing it there breaks the production build (WP-58).
+    quickWinsGenerator: generateQuickWins,
   });
 
   const { data: insertedScore, error: insertError } = await supabase

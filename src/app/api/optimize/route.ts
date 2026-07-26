@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
+import { captureServerEvent } from "@/lib/posthog-server";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
 import { logger } from "@/lib/agent/utils/logger";
@@ -99,6 +100,16 @@ export async function POST(req: NextRequest) {
       },
     );
     const optimizedResume = pipelineResult.optimizedResume;
+
+    // An optimization that did not meaningfully improve on the user's starting
+    // resume is a failure worth counting, not a quiet +2 (WP-45 S2). Payload is
+    // bucketed and carries no resume or job content.
+    if (!pipelineResult.lift.meaningful) {
+      await captureServerEvent(user.id, 'optimization_no_lift', {
+        ...pipelineResult.lift.analyticsProperties,
+        platform: 'web',
+      });
+    }
 
     const { reviewId } = await createOptimizationReviewRun({
       supabase,

@@ -5,7 +5,8 @@
  * Coordinates all analyzers and generates complete scoring output.
  */
 
-import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey } from './types';
+import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey, QuickWinSuggestion, JobExtraction, SubScores } from './types';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 import {  KeywordExactAnalyzer } from './analyzers/keyword-exact';
 import { KeywordPhraseAnalyzer } from './analyzers/keyword-phrase';
 import { SemanticAnalyzer } from './analyzers/semantic';
@@ -25,6 +26,29 @@ import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import { deriveResumeJsonFromText } from './extractors/experience-text-extractor';
 
 /**
+ * Identifies the scoring regime that produced a result.
+ *
+ * Scores are not comparable across versions. The scale shifted materially on
+ * 2026-06-18 when keyword matching was tightened without recalibration, and
+ * again with the WP-45 S1/S2 repairs. Anything that trends, averages or
+ * compares stored scores must filter to one version (WP-45 S9).
+ */
+export const SCORE_VERSION = 'ats_v2.1_wp45';
+
+/**
+ * Produces the free checker's quick wins. Injected by server callers so that
+ * core.ts stays free of any module reaching Node built-ins — see the note on
+ * `quickWinsGenerator` below.
+ */
+export type QuickWinsGenerator = (args: {
+  resume_text: string;
+  resume_json: OptimizedResume;
+  job_data: JobExtraction;
+  subscores: SubScores;
+  current_ats_score: number;
+}) => Promise<QuickWinSuggestion[]>;
+
+/**
  * Normalize ATS score — clamps to valid [0, 100] range.
  * Real score lift comes from the multi-pass pipeline, not artificial inflation.
  */
@@ -40,7 +64,20 @@ function normalizeATSScore(rawScore: number): number {
  * @returns Complete ATS scoring output with original and optimized scores
  */
 export async function scoreResume(
-  input: ATSScoreInput
+  input: ATSScoreInput,
+  options?: {
+    /**
+     * Supply the quick-wins generator to have quick wins produced.
+     *
+     * Injected rather than imported. That module reaches posthog-node, which
+     * needs node:readline, and core.ts is transitively imported by a client
+     * page via integration.ts -> optimization-review -> the review page. A
+     * static or dynamic import here puts a Node built-in in the browser bundle
+     * and the production build fails (WP-58). Server callers pass the
+     * generator in; the browser never sees it.
+     */
+    quickWinsGenerator?: QuickWinsGenerator;
+  }
 ): Promise<ATSScoreOutput> {
   const startTime = Date.now();
   const warnings: string[] = [];
@@ -65,19 +102,34 @@ export async function scoreResume(
     // format_parseability and recency_fit are measured the same way on both
     // sides of the comparison (WP-45 D3/D4). Sharing them made 22% of the
     // weighting either frozen or asymmetric across the before/after pair.
+    // Both sides must be measured by the same function, so the comparison
+    // reflects the resume rather than which representation happened to be
+    // available. section_completeness, title_alignment, metrics_presence and
+    // semantic_relevance all branch on `resume_json`, and in the shipping path
+    // only the optimized side has it — production shows section_completeness
+    // reading 99.7 optimized against 66.5 original, with 58 of 59 rows at 100,
+    // because one side was measured by field presence and the other by a
+    // header regex over messy extracted text (WP-45 S2).
+    //
+    // So: use the structured path only when BOTH sides are structured.
+    // Recency is exempt — it takes `recency_json`, which is reconstructed for
+    // the original side precisely so it stays comparable.
+    const useStructured = Boolean(input.resume_original_json && input.resume_optimized_json);
+
     const [originalResults, optimizedResults] = await Promise.all([
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_original,
         resume_text: input.resume_original_text,
-        resume_json: input.resume_original_json,
+        resume_json: useStructured ? input.resume_original_json : undefined,
         recency_json: resolveOriginalResumeJson(input),
       }),
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_optimized,
         resume_text: input.resume_optimized_text,
-        resume_json: input.resume_optimized_json,
+        resume_json: useStructured ? input.resume_optimized_json : undefined,
+        recency_json: input.resume_optimized_json,
       }),
     ]);
 
@@ -136,6 +188,26 @@ export async function scoreResume(
       jobData: preparedInput.job_data,
     });
 
+    // Generate quick wins if requested
+    let quickWins: QuickWinSuggestion[] | undefined;
+
+    if (options?.quickWinsGenerator) {
+      try {
+        quickWins = await options.quickWinsGenerator({
+          resume_text: input.resume_optimized_text,
+          resume_json: input.resume_optimized_json || {} as any,
+          job_data: preparedInput.job_data,
+          subscores: optimizedAggregate.subscores,
+          current_ats_score: Math.round(normalizedOptimized),
+        });
+
+        console.log('✨ Generated quick wins:', quickWins.length);
+      } catch (error) {
+        console.error('Quick wins generation failed, skipping:', error);
+        // Don't block scoring if quick wins fail
+      }
+    }
+
     // Collect warnings
     if (originalAggregate.failedAnalyzers.length > 0) {
       warnings.push(`Some analyzers failed: ${originalAggregate.failedAnalyzers.join(', ')}`);
@@ -153,9 +225,11 @@ export async function scoreResume(
       subscores: optimizedAggregate.subscores,
       subscores_original: originalAggregate.subscores,
       suggestions,
+      ...(quickWins ? { quick_wins: quickWins } : {}),
       confidence: confidenceResult.confidence,
       metadata: {
         version: 2,
+        score_version: SCORE_VERSION,
         scored_at: new Date(),
         processing_time_ms: Date.now() - startTime,
         warnings,
@@ -213,19 +287,26 @@ async function prepareInput(input: ATSScoreInput) {
         issues: [],
       };
 
-  // Resolve a report per side. Callers that supply only the shared
-  // `format_report` keep today's behavior; callers that supply per-side
-  // reports get an honest format comparison (WP-45 D3).
+  // Resolve a report per side (WP-45 D3). An explicit per-side report always
+  // wins — callers are responsible for deriving both from the same function.
+  //
+  // The analyzeFormatWithTemplate fallback only applies when BOTH sides are
+  // structured. Applying it to whichever side happens to have JSON would score
+  // one side with the JSON heuristic (base 100) and the other with whatever
+  // the shared report holds, which is the same two-different-functions
+  // comparison this field exists to eliminate (WP-45 S2).
+  const bothStructured = Boolean(input.resume_original_json && input.resume_optimized_json);
+
   const format_report_original =
     input.format_report_original ??
-    (input.resume_original_json
-      ? analyzeFormatWithTemplate(input.resume_original_json, null)
+    (bothStructured
+      ? analyzeFormatWithTemplate(input.resume_original_json!, null)
       : format_report);
 
   const format_report_optimized =
     input.format_report_optimized ??
-    (input.resume_optimized_json
-      ? analyzeFormatWithTemplate(input.resume_optimized_json, null)
+    (bothStructured
+      ? analyzeFormatWithTemplate(input.resume_optimized_json!, null)
       : format_report);
 
   return {

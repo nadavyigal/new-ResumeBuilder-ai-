@@ -8,6 +8,7 @@ import {
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
+import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import type { ATSScoreOutput } from '@/lib/ats/types';
@@ -16,6 +17,15 @@ export interface OptimizationPipelineResult {
   optimizedResume: OptimizedResume;
   atsResult: ATSScoreOutput;
   passesUsed: number;
+  /**
+   * Whether this run actually improved on where the user started (WP-45 S2).
+   *
+   * The pipeline previously compared pass 1 against pass 2 and never against
+   * the original, so a run that moved the score by +2 — or moved it down —
+   * was returned as a result. Callers must consult `lift.displayScores` before
+   * showing a before/after pair.
+   */
+  lift: LiftAssessment;
 }
 
 type OptimizationPipelineOptions = {
@@ -247,13 +257,19 @@ export async function runOptimizePipeline(
     console.warn('Pipeline: scoring returned zero-confidence fallback, pass 2 will likely also fail');
   }
 
+  const lift1 = liftFor(score1, 1);
+
+  // Run the second pass when the result is weak in absolute terms, when the
+  // gain is thin, or — the case the old condition missed entirely — when the
+  // run has not meaningfully beaten the resume the user started with.
   const shouldRunPass2 =
     score1.ats_score_optimized < 75 ||
-    score1.ats_score_optimized - score1.ats_score_original < 10;
+    score1.ats_score_optimized - score1.ats_score_original < 10 ||
+    !lift1.meaningful;
 
   if (!shouldRunPass2) {
     console.log('Pipeline: pass 2 not needed, returning pass 1 result');
-    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1 };
+    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1, lift: lift1 };
   }
 
   // Step 4: Conditional pass 2
@@ -271,7 +287,7 @@ export async function runOptimizePipeline(
 
   if (!candidate2Raw) {
     console.warn('Pipeline pass 2 failed, keeping pass 1 candidate');
-    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1 };
+    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1, lift: lift1 };
   }
 
   const candidate2 = stripFabricatedMetrics(candidate2Raw, resumeText);
@@ -291,15 +307,43 @@ export async function runOptimizePipeline(
 
   if (score2.ats_score_optimized === 0 && score2.confidence === 0) {
     console.warn('Pipeline pass 2: scoring returned zero-confidence fallback, keeping pass 1 result');
-    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 2 };
+    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 2, lift: liftFor(score1, 2) };
   }
 
   // Keep the winner
   if (score2.ats_score_optimized >= score1.ats_score_optimized) {
     console.log('Pipeline: pass 2 wins');
-    return { optimizedResume: candidate2, atsResult: score2, passesUsed: 2 };
+    return { optimizedResume: candidate2, atsResult: score2, passesUsed: 2, lift: liftFor(score2, 2) };
   }
 
   console.log('Pipeline: pass 1 wins over pass 2');
-  return { optimizedResume: candidate1, atsResult: score1, passesUsed: 2 };
+  return { optimizedResume: candidate1, atsResult: score1, passesUsed: 2, lift: liftFor(score1, 2) };
+}
+
+/**
+ * Judge a scored candidate against the resume the user started with.
+ *
+ * Note what this does NOT do: it never raises a score, never clamps the delta
+ * positive, and never applies a minimum. A run that failed to improve the
+ * resume stays reported as a run that failed to improve the resume — the
+ * caller decides how to say so (WP-45 S2).
+ */
+function liftFor(score: ATSScoreOutput, passesUsed: number): LiftAssessment {
+  const lift = assessLift({
+    original: score.ats_score_original,
+    optimized: score.ats_score_optimized,
+    subscoresOriginal: score.subscores_original,
+    subscores: score.subscores,
+    passesUsed,
+  });
+
+  if (!lift.meaningful) {
+    console.warn('Pipeline: no meaningful lift', {
+      delta: lift.delta,
+      floor: MIN_MEANINGFUL_LIFT,
+      stalled: lift.stalledComponents,
+    });
+  }
+
+  return lift;
 }

@@ -1,5 +1,29 @@
 # Lessons Learned — ResumeBuilder
 
+## Tightening a scorer without recalibrating its bands silently breaks it (2026-07-24)
+
+**Symptom:** users were told "Skip" on three quarters of checks and "Strong" was never
+awarded to anyone. The 60-day observed maximum was 51 on the free checker and 62 on
+authenticated optimizations, against a Strong threshold of 75.
+
+**Cause:** four correct fixes landed 2026-06-18 to 2026-06-26 — word-bound keyword
+extraction (#80), requirement atomization (#82), the junk-phrase filter (#85), and
+stripFabricatedMetrics. Each removed a source of inflation. None was followed by a
+recalibration pass, so the top third of the scale became unreachable while the bands
+stayed where they were. Monthly optimized-score means: 60.7 in May, 38.8 in June.
+
+**Rule:** any change that alters what the scorer counts is a scale change. Re-run the
+calibration benchmark (`src/lib/ats/benchmark/`) in the same PR and either confirm the
+bands still separate the labelled cases or move them deliberately with the date recorded.
+Never compare or average scores across a boundary — use `src/lib/ats/score-regime.ts`.
+
+**Second-order rule, learned the same day:** when fixing a measurement asymmetry, verify
+the change does not move the ORIGINAL side of a before/after pair, not just that the
+composite went up. Two attempts at this in one session made the reported improvement
+wider for reasons unrelated to the optimization — a derived stub reaching four analyzers
+that branch on `resume_json`, and two different format functions being compared to each
+other. Both flattered the product.
+
 > Read this before any triage session. Add a new lesson whenever a recurring bug is fixed.
 
 ---

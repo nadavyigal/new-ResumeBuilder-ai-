@@ -6,6 +6,7 @@ import type { JobExtraction } from './types';
 import { extractJobData } from './extractors/jd-extractor';
 import { extractSkillPhrases } from './extractors/skill-phrase-extractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+import { isCredibleRequirement } from './extraction-quality';
 
 export function toParsedJobRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object') {
@@ -24,29 +25,20 @@ export function normalizeStringList(value: unknown): string[] {
   return [];
 }
 
-/** Drop sentence fragments and bare pronouns from JD requirement bullets before persisting for UI. */
+/**
+ * Drop section furniture and truncated fragments from JD requirement bullets.
+ *
+ * This used to be a stop list of short function words, which "about",
+ * "role objective" and "key responsibilities build" all sail through — all
+ * three were shown to a real user as things missing from their resume. The
+ * credibility rules live in extraction-quality.ts so the scorer, the response
+ * builder and this filter apply exactly one definition (WP-45 S4).
+ */
 export function filterRequirementFragments(items: string[]): string[] {
-  const fragmentStops = new Set([
-    'a', 'an', 'the', 'and', 'or', 'to', 'in', 'on', 'at', 'is', 'it', 'as', 'be', 'by', 'if', 'of',
-    'we', 'you', 'our', 'your', 'they', 'their', 'go', 'do', 'so', 'no', 'up',
-  ]);
-
   return items
     .map((item) => item.trim())
     .filter(Boolean)
-    .filter((item) => {
-      const normalized = item.toLowerCase();
-      if (fragmentStops.has(normalized)) {
-        return false;
-      }
-
-      const words = normalized.split(/\s+/).filter(Boolean);
-      if (words.length === 1) {
-        return normalized.length >= 3 && !fragmentStops.has(normalized);
-      }
-
-      return words.some((word) => word.length >= 3 && !fragmentStops.has(word));
-    });
+    .filter(isCredibleRequirement);
 }
 
 export function mergeUniqueLists(...lists: string[][]): string[] {
