@@ -12,6 +12,7 @@ import { createRouteHandlerClient } from "@/lib/supabase-server";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { scoreOptimization } from "@/lib/ats/integration";
+import { assessLift } from "@/lib/ats/lift";
 import { mapSuggestionsToBlockers } from "@/lib/ats/blocker-mapper";
 import type { Suggestion } from "@/lib/ats/types";
 
@@ -182,6 +183,20 @@ export async function GET(
 
   const blockers = mapSuggestionsToBlockers(row.ats_suggestions as Suggestion[] | null);
 
+  const before = toIntPercent(row.ats_score_original);
+  const after = toIntPercent(row.ats_score_optimized);
+  const lift =
+    typeof before === 'number' && typeof after === 'number'
+      ? (() => {
+          const assessment = assessLift({ original: before, optimized: after });
+          return {
+            delta: assessment.delta,
+            meaningful: assessment.meaningful,
+            displayScores: assessment.displayScores,
+          };
+        })()
+      : null;
+
   return NextResponse.json({
     sections,
     contact,
@@ -194,6 +209,12 @@ export async function GET(
     ats_score_after: toIntPercent(row.ats_score_optimized),
     atsBlockers: blockers,
     ats_blockers: blockers,
+    // WP-45 S2/S8. The scores above stay honest; `lift` tells the client
+    // whether they are worth SHOWING. A run that moved the score by +2, or
+    // moved it down, is a pipeline failure, and a before/after pair reads as a
+    // promise the run did not keep. Clients must consult `displayScores`
+    // before rendering the pair.
+    lift,
   });
 }
 

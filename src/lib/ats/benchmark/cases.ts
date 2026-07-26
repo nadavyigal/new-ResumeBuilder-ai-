@@ -486,6 +486,245 @@ Photoshop, Illustrator, InDesign, עיצוב מותג
 תואר ראשון בעיצוב
 `,
   },
+
+  // --- Additional coverage (WP-45 S5 expansion to the packet's 30-50 range) --
+
+  {
+    id: 'de-senior-strong-2',
+    label: 'strong',
+    rationale: 'Platform engineer with the full streaming stack and mentoring, different wording to the JD.',
+    jobTitle: 'Senior Data Engineer',
+    jobText: SENIOR_DE_JOB,
+    requirements: SENIOR_DE_REQS,
+    resumeText: resume({
+      title: 'Staff Data Engineer',
+      summary: 'Staff engineer owning event streaming and warehouse modelling for a retail platform.',
+      skills: 'Kafka, Spark, Snowflake, Airflow, SQL, Python, AWS, data modelling, mentoring engineers',
+      roles: [
+        { title: 'Staff Data Engineer', company: 'Orchard Retail', dates: 'Feb 2020 - Present',
+          bullets: ['Run the Kafka event backbone and the Spark jobs on top of it',
+                    'Own Snowflake modelling and the Airflow schedule on AWS',
+                    'Mentor engineers across two squads and set data quality standards'] },
+      ],
+    }),
+  },
+  {
+    id: 'de-mid-stretch',
+    label: 'stretch',
+    rationale: 'Has Kafka and SQL but no warehouse, no orchestration, and one seniority level short.',
+    jobTitle: 'Senior Data Engineer',
+    jobText: SENIOR_DE_JOB,
+    requirements: SENIOR_DE_REQS,
+    resumeText: resume({
+      title: 'Data Engineer',
+      summary: 'Data engineer with four years on ingestion services.',
+      skills: 'Kafka, Python, SQL, Docker, Postgres',
+      roles: [
+        { title: 'Data Engineer', company: 'Signal Systems', dates: 'Jan 2022 - Present',
+          bullets: ['Maintain Kafka consumers feeding the operational store', 'Write Python and SQL for ad hoc analysis'] },
+      ],
+    }),
+  },
+  {
+    id: 'de-devops-weak',
+    holdout: true,
+    label: 'weak',
+    rationale: 'Infrastructure engineer, adjacent tooling but no data engineering.',
+    jobTitle: 'Senior Data Engineer',
+    jobText: SENIOR_DE_JOB,
+    requirements: SENIOR_DE_REQS,
+    resumeText: resume({
+      title: 'DevOps Engineer',
+      summary: 'DevOps engineer focused on Kubernetes and CI pipelines.',
+      skills: 'Kubernetes, Terraform, Jenkins, Bash, AWS',
+      roles: [
+        { title: 'DevOps Engineer', company: 'Cloudworks', dates: '2021 - Present',
+          bullets: ['Run the Kubernetes platform and CI pipelines'] },
+      ],
+    }),
+  },
+  {
+    id: 'ae-strong-2',
+    label: 'strong',
+    rationale: 'Enterprise closer with quota, forecasting, negotiation and exec relationships.',
+    jobTitle: 'Account Executive',
+    jobText: AE_JOB,
+    requirements: AE_REQS,
+    resumeText: resume({
+      title: 'Senior Account Executive',
+      summary: 'Senior AE closing SaaS deals into operations and supply chain teams.',
+      skills: 'B2B sales, quota ownership, CRM, pipeline management, contract negotiation, quarterly forecasting, SaaS, stakeholder management',
+      roles: [
+        { title: 'Senior Account Executive', company: 'Northwind Software', dates: 'Mar 2019 - Present',
+          bullets: ['Carry and consistently retire a mid-market quota',
+                    'Forecast quarterly and manage the pipeline end to end in the CRM',
+                    'Negotiate terms directly with senior executives'] },
+      ],
+    }),
+  },
+  {
+    id: 'ae-cs-stretch',
+    label: 'stretch',
+    rationale: 'Customer success manager: commercial exposure and renewals, but never carried new-business quota.',
+    jobTitle: 'Account Executive',
+    jobText: AE_JOB,
+    requirements: AE_REQS,
+    resumeText: resume({
+      title: 'Customer Success Manager',
+      summary: 'CSM owning renewals and expansion for mid-market accounts.',
+      skills: 'renewals, account management, CRM, stakeholder management, upselling',
+      roles: [
+        { title: 'Customer Success Manager', company: 'Vector Software', dates: '2021 - Present',
+          bullets: ['Own renewals and expansion across forty mid-market accounts', 'Work the CRM daily and coordinate with the AE team'] },
+      ],
+    }),
+  },
+  {
+    id: 'ae-marketing-weak',
+    label: 'weak',
+    rationale: 'Marketing specialist with no selling, no quota and no pipeline ownership.',
+    jobTitle: 'Account Executive',
+    jobText: AE_JOB,
+    requirements: AE_REQS,
+    resumeText: resume({
+      title: 'Marketing Specialist',
+      summary: 'Marketing specialist running email campaigns and events.',
+      skills: 'email marketing, campaign management, copywriting, event logistics',
+      roles: [
+        { title: 'Marketing Specialist', company: 'Brightline', dates: '2022 - Present',
+          bullets: ['Plan and run demand generation campaigns'] },
+      ],
+    }),
+  },
+  {
+    id: 'ops-strong-2',
+    label: 'strong',
+    rationale: 'Site manager covering planning, inventory, lean, suppliers, safety and WMS reporting.',
+    jobTitle: 'Operations Manager',
+    jobText: OPS_JOB,
+    requirements: OPS_REQS,
+    resumeText: resume({
+      title: 'Site Operations Manager',
+      summary: 'Site operations manager for a regional distribution centre.',
+      skills: 'shift planning, inventory management, team leadership, lean, supplier management, health and safety compliance, WMS, SQL',
+      roles: [
+        { title: 'Site Operations Manager', company: 'Meridian Logistics', dates: '2018 - Present',
+          bullets: ['Plan shifts for twenty-five staff and own inventory accuracy',
+                    'Lead lean continuous improvement and manage supplier schedules',
+                    'Report throughput and cost per unit from the WMS using SQL'] },
+      ],
+    }),
+  },
+  {
+    id: 'ops-admin-weak',
+    label: 'weak',
+    rationale: 'Office administrator with no operations, inventory or team leadership.',
+    jobTitle: 'Operations Manager',
+    jobText: OPS_JOB,
+    requirements: OPS_REQS,
+    resumeText: resume({
+      title: 'Office Administrator',
+      summary: 'Office administrator handling scheduling and correspondence.',
+      skills: 'diary management, correspondence, filing, reception',
+      roles: [
+        { title: 'Office Administrator', company: 'Grey & Co', dates: '2023 - Present',
+          bullets: ['Manage diaries and office correspondence'] },
+      ],
+    }),
+  },
+  {
+    id: 'ops-junior-stretch',
+    holdout: true,
+    label: 'stretch',
+    rationale: 'Team leader with genuine warehouse operations but no budget or supplier ownership.',
+    jobTitle: 'Operations Manager',
+    jobText: OPS_JOB,
+    requirements: OPS_REQS,
+    resumeText: resume({
+      title: 'Warehouse Team Leader',
+      summary: 'Team leader running a picking team in a distribution centre.',
+      skills: 'shift planning, team leadership, inventory management, health and safety, WMS',
+      roles: [
+        { title: 'Warehouse Team Leader', company: 'Meridian Logistics', dates: '2021 - Present',
+          bullets: ['Lead a picking team of ten and run daily shift plans', 'Maintain inventory accuracy in the WMS'] },
+      ],
+    }),
+  },
+  {
+    id: 'heb-stretch',
+    label: 'stretch',
+    rationale: 'Hebrew frontend engineer moving to backend: some overlap, missing the core stack.',
+    jobTitle: 'מהנדס תוכנה',
+    jobText: HEB_JOB,
+    requirements: HEB_REQS,
+    resumeText: `מועמד לדוגמה
+candidate@example.com
+
+תקציר מקצועי
+מפתח פרונטאנד עם שלוש שנות ניסיון.
+
+כישורים
+React, TypeScript, SQL, עבודת צוות, אנגלית ברמה גבוהה
+
+ניסיון תעסוקתי
+
+מפתח פרונטאנד at Example Ltd
+2023 - Present
+• פיתוח ממשקי משתמש ב-React
+• עבודה בצוות אג'ייל
+
+השכלה
+תואר ראשון במדעי המחשב
+`,
+  },
+  {
+    id: 'heb-strong-2',
+    label: 'strong',
+    rationale: 'Hebrew backend engineer matching the stack with more depth than the minimum.',
+    jobTitle: 'מהנדס תוכנה',
+    jobText: HEB_JOB,
+    requirements: HEB_REQS,
+    resumeText: `מועמד לדוגמה
+candidate@example.com
+
+תקציר מקצועי
+מהנדס תוכנה בכיר עם שבע שנות ניסיון בפיתוח בקאנד ומערכות בקנה מידה גדול.
+
+כישורים
+Node.js, SQL, Docker, Kubernetes, ניסיון בפיתוח, עבודת צוות, אנגלית ברמה גבוהה
+
+ניסיון תעסוקתי
+
+מהנדס תוכנה at Scale Systems
+2019 - Present
+• פיתוח שירותים ב-Node.js מול בסיסי נתונים
+• עבודה בסביבת ענן עם Docker ו-Kubernetes
+• כתיבת בדיקות ועבודה בצוות אג'ייל
+
+השכלה
+תואר ראשון במדעי המחשב
+`,
+  },
+  {
+    id: 'switch-strong',
+    holdout: true,
+    label: 'strong',
+    rationale: 'Analytics engineer who genuinely made the move: owns the full pipeline stack now.',
+    jobTitle: 'Senior Data Engineer',
+    jobText: SENIOR_DE_JOB,
+    requirements: SENIOR_DE_REQS,
+    resumeText: resume({
+      title: 'Analytics Engineer',
+      summary: 'Analytics engineer who moved into platform work and now owns ingestion end to end.',
+      skills: 'Kafka, Spark, Snowflake, Airflow, SQL, Python, AWS, dbt, data modelling',
+      roles: [
+        { title: 'Analytics Engineer', company: 'Lumen Data', dates: 'Apr 2021 - Present',
+          bullets: ['Own Snowflake modelling and the Airflow orchestration',
+                    'Built the Kafka and Spark ingestion path with the platform team',
+                    'Mentor two analysts moving into engineering'] },
+      ],
+    }),
+  },
 ];
 
 export const CALIBRATION_CASES = BENCHMARK_CASES.filter(c => !c.holdout);

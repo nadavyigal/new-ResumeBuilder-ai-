@@ -10,6 +10,7 @@ import { scoreResume } from '../core';
 import { generateFormatReport } from '../integration';
 import { BENCHMARK_CASES, type BandLabel, type BenchmarkCase } from './cases';
 import type { ATSScoreInput } from '../types';
+import { FIT_BANDS } from '../config/bands';
 
 export interface BandThresholds {
   /** At or above this is 'strong'. */
@@ -19,12 +20,13 @@ export interface BandThresholds {
 }
 
 /**
- * Current published bands, mirroring FitVerdict.swift on iOS.
+ * The bands the product actually ships, mirroring FitVerdict.swift on iOS.
  *
- * These were set when the scoring scale was materially different. They are the
- * subject of this benchmark, not an input to it.
+ * Adopted 2026-07-26 from this benchmark. The previous 75/50 belonged to the
+ * pre-2026-06-18 scale and produced a 26.7% false-Weak rate on the labelled
+ * set. See config/bands.ts for the full evidence.
  */
-export const PUBLISHED_BANDS: BandThresholds = { strong: 75, stretch: 50 };
+export const PUBLISHED_BANDS: BandThresholds = { strong: FIT_BANDS.strong, stretch: FIT_BANDS.stretch };
 
 export function bandFor(score: number, thresholds: BandThresholds): BandLabel {
   if (score >= thresholds.strong) return 'strong';
@@ -41,9 +43,28 @@ export interface CaseResult {
   /** A Strong or Stretch pair predicted Weak — the costliest error. */
   falseWeak: boolean;
   holdout: boolean;
+  /** True when the semantic analyzer fell back, so this score is not trustworthy. */
+  semanticDegraded: boolean;
 }
 
+/** How many cases in a run were scored with a degraded semantic analyzer. */
+export function degradedCount(results: CaseResult[]): number {
+  return results.filter(r => r.semanticDegraded).length;
+}
+
+/**
+ * The semantic analyzer returns exactly this when an embedding call fails.
+ * A run where cases hit it is measuring a degraded scorer, not the scorer.
+ */
+const SEMANTIC_FALLBACK = 50;
+
 export async function scoreCase(testCase: BenchmarkCase): Promise<number> {
+  return (await scoreCaseDetailed(testCase)).score;
+}
+
+export async function scoreCaseDetailed(
+  testCase: BenchmarkCase
+): Promise<{ score: number; semanticDegraded: boolean }> {
   const input: ATSScoreInput = {
     resume_original_text: testCase.resumeText,
     resume_optimized_text: testCase.resumeText,
@@ -60,17 +81,24 @@ export async function scoreCase(testCase: BenchmarkCase): Promise<number> {
   };
 
   const result = await scoreResume(input);
-  return result.ats_score_optimized;
+  return {
+    score: result.ats_score_optimized,
+    semanticDegraded: result.subscores.semantic_relevance === SEMANTIC_FALLBACK,
+  };
 }
 
 export async function runBenchmark(
   thresholds: BandThresholds = PUBLISHED_BANDS,
   cases: BenchmarkCase[] = BENCHMARK_CASES
 ): Promise<CaseResult[]> {
-  const scores = await Promise.all(cases.map(scoreCase));
+  // Parallel, matching the run the shipped bands were derived from. Sequential
+  // scoring was tried and did not improve stability, so the extra wall-clock
+  // bought nothing. `semanticDegraded` is the real safeguard: it reports when
+  // an embedding failure has made a run unfit to calibrate against.
+  const scores = await Promise.all(cases.map(scoreCaseDetailed));
 
   return cases.map((testCase, i) => {
-    const score = scores[i];
+    const { score, semanticDegraded } = scores[i];
     const predicted = bandFor(score, thresholds);
     return {
       id: testCase.id,
@@ -80,6 +108,7 @@ export async function runBenchmark(
       correct: predicted === testCase.label,
       falseWeak: predicted === 'weak' && testCase.label !== 'weak',
       holdout: Boolean(testCase.holdout),
+      semanticDegraded,
     };
   });
 }
