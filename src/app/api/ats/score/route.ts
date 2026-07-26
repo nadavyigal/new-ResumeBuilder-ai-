@@ -9,6 +9,7 @@ import { scoreResume } from '@/lib/ats';
 import type { ATSScoreInput } from '@/lib/ats/types';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { consumeCredit } from '@/lib/credits';
+import { generateQuickWins } from '@/lib/ats/quick-wins/generator';
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,9 +68,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Score the resume with optional quick wins
+    // Score the resume with optional quick wins. The generator is injected
+    // rather than imported by the scorer — it reaches posthog-node, and
+    // core.ts is transitively imported by a client page (WP-58).
     const result = await scoreResume(input, {
-      generateQuickWins: generate_quick_wins === true,
+      ...(generate_quick_wins === true ? { quickWinsGenerator: generateQuickWins } : {}),
     });
 
     return NextResponse.json(result);
