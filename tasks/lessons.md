@@ -1,5 +1,25 @@
 # Lessons Learned — ResumeBuilder
 
+## A shared module's imports decide which bundle it lands in (2026-07-26)
+
+**Symptom:** `npm run build` failed with `node:readline` unresolved in a browser bundle,
+after a refactor that touched no routing and no client code.
+
+**Cause:** deduplicating two scorer orchestrators moved a `await import('./quick-wins/generator')`
+into `src/lib/ats/core.ts`. That module reaches posthog-node. core.ts is transitively imported
+by a client page through `optimization-review/index.ts` → `integration.ts`, so the Node built-in
+was pulled into the client graph. **Webpack traces dynamic imports too** — `await import()` is
+not an escape hatch from the client/server boundary.
+
+**Rule:** when a module is reachable from both a route handler and a page component, it must not
+import anything Node-only. Inject the dependency instead: declare a function type, let server
+callers pass the real implementation. And re-run a clean `next build` after ANY change to what a
+shared module imports — jest, eslint and tsc all pass while the bundle is broken.
+
+**Companion rule:** read the total `tsc --noEmit` error count, not a `grep`-filtered subset. A
+filter scoped to the directory I was editing hid a second broken call site in another route, and
+the production type-check found it after I had already declared the fix complete.
+
 ## Tightening a scorer without recalibrating its bands silently breaks it (2026-07-24)
 
 **Symptom:** users were told "Skip" on three quarters of checks and "Strong" was never
