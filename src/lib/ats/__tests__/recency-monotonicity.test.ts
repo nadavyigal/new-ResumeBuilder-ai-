@@ -18,6 +18,7 @@
 
 import { RecencyAnalyzer } from '../analyzers/recency-fit';
 import type { AnalyzerInput, JobExtraction, OptimizedResume } from '../types';
+import { RECENCY_THRESHOLDS } from '../config/thresholds';
 
 const JOB: JobExtraction = {
   title: 'Senior Backend Engineer',
@@ -96,6 +97,55 @@ describe('recency_fit information monotonicity', () => {
     // Relevance must still move the number — the fix bounds its influence,
     // it does not remove it.
     expect(related.score).toBeGreaterThan(unrelated.score);
+  });
+
+  it('never scores stale dated history below the no-data fallback', async () => {
+    // The corner the first version of this fix missed. Decay bottoms out at
+    // (1 - max_decay_rate) and relevance at relevance_floor, so the worst real
+    // score is 100 * 0.72 * 0.7 = 50.4. At the previous max_decay_rate of 0.5
+    // it was 35, and a resume with genuinely old dated roles scored BELOW one
+    // the parser could not read — the same defect, other corner.
+    const ancient: OptimizedResume = {
+      experience: [
+        {
+          title: 'Product Manager',
+          company: 'Acme Retail',
+          startDate: '1998-01',
+          endDate: '2001-06',
+          achievements: ['Ran the pricing roadmap'],
+        },
+      ],
+    } as unknown as OptimizedResume;
+
+    const result = await new RecencyAnalyzer().analyze(inputWith(ancient));
+
+    expect(result.score).toBeGreaterThanOrEqual(NO_DATA_FALLBACK);
+  });
+
+  it('keeps the thresholds in a relationship that preserves monotonicity', () => {
+    // Asserted on the constants directly: any future edit to either value that
+    // pushes the worst real score under the fallback fails here, with the
+    // reason, rather than silently reintroducing the regression.
+    const worstRealScore =
+      100 * (1 - RECENCY_THRESHOLDS.max_decay_rate) * RECENCY_THRESHOLDS.relevance_floor;
+
+    expect(worstRealScore).toBeGreaterThanOrEqual(NO_DATA_FALLBACK);
+  });
+
+  it('does not treat undated experience as current', async () => {
+    // `estimateYearsAgo` falls back to "index 0 is the current role" when an
+    // entry has no parseable date, so an undated list would read as perfectly
+    // current and inflate. It must reach the analyzer as no-data instead.
+    const undated: OptimizedResume = {
+      experience: [
+        { title: 'Product Manager', company: 'Acme Retail', achievements: ['Ran pricing'] },
+      ],
+    } as unknown as OptimizedResume;
+
+    const result = await new RecencyAnalyzer().analyze(inputWith(undated));
+
+    // Scored as a current role it would land at 70; it must not.
+    expect(result.score).toBeLessThan(70);
   });
 
   it('still decays genuinely old experience', async () => {

@@ -128,9 +128,8 @@ export async function scoreResume(
     // the two documents (WP-45 D7).
     const originalRecency = resolveOriginalResumeJson(input);
     const optimizedRecency = resolveOptimizedResumeJson(input);
-    const bothSidesDated = Boolean(
-      originalRecency?.experience?.length && optimizedRecency?.experience?.length
-    );
+    const bothSidesDated =
+      hasDatedExperience(originalRecency) && hasDatedExperience(optimizedRecency);
 
     const [originalRecencyJson, optimizedRecencyJson] = bothSidesDated
       ? [originalRecency, optimizedRecency]
@@ -355,8 +354,33 @@ async function prepareInput(input: ATSScoreInput) {
  * unrelated to the optimization.
  */
 function resolveOriginalResumeJson(input: ATSScoreInput) {
-  if (input.resume_original_json) return input.resume_original_json;
-  return deriveResumeJsonFromText(input.resume_original_text) ?? undefined;
+  if (hasDatedExperience(input.resume_original_json)) return input.resume_original_json;
+  return (
+    deriveResumeJsonFromText(input.resume_original_text) ??
+    input.resume_original_json ??
+    undefined
+  );
+}
+
+/**
+ * Does this resume carry work history the recency analyzer can actually date?
+ *
+ * `experience.length` alone is not enough. `estimateYearsAgo` falls back to
+ * "index 0 is the current role" when an entry has no parseable end date, so an
+ * undated list reads as perfectly current and inflates the score. Worse, it
+ * would satisfy the both-sides-dated gate below and let a real measurement be
+ * compared against a guess.
+ */
+function hasDatedExperience(resume: { experience?: unknown } | null | undefined): boolean {
+  const experience = resume?.experience;
+  if (!Array.isArray(experience) || experience.length === 0) return false;
+
+  return experience.some(entry => {
+    const role = entry as { startDate?: unknown; endDate?: unknown };
+    return [role.startDate, role.endDate].some(
+      value => typeof value === 'string' && /\b(19|20)\d{2}\b|present/i.test(value)
+    );
+  });
 }
 
 /**
@@ -371,7 +395,7 @@ function resolveOriginalResumeJson(input: ATSScoreInput) {
  * representation parsed and the other did not (WP-45 D7).
  */
 function resolveOptimizedResumeJson(input: ATSScoreInput) {
-  if (input.resume_optimized_json?.experience?.length) {
+  if (hasDatedExperience(input.resume_optimized_json)) {
     return input.resume_optimized_json;
   }
   return (

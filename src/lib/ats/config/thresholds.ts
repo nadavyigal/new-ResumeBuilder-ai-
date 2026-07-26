@@ -137,8 +137,19 @@ export const RECENCY_THRESHOLDS = {
   /** Years before decay starts (skills/roles older than this decay) */
   decay_start_years: 3,
 
-  /** Maximum decay rate for old skills */
-  max_decay_rate: 0.5,
+  /**
+   * Maximum decay rate for old skills.
+   *
+   * Bounded so that the worst real score stays at or above the 50 no-data
+   * fallback: 100 * (1 - 0.28) * relevance_floor = 50.4. At the previous 0.5
+   * the floor was 35, so a resume with genuinely stale dated history scored
+   * BELOW one the parser could not read at all — the same "more information
+   * scores you lower" defect this work removes, just in its other corner.
+   *
+   * Raising this above 0.28, or lowering relevance_floor, reopens it. The
+   * relationship is asserted in recency-monotonicity.test.ts.
+   */
+  max_decay_rate: 0.28,
 
   /** Boost if latest role contains most JD keywords */
   latest_role_boost: 10,

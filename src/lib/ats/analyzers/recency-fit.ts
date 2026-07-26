@@ -30,6 +30,15 @@ export class RecencyAnalyzer extends BaseAnalyzer {
         return this.createResult(50, { error: 'No experience data available' }, 0.6);
       }
 
+      // Entries with no parseable date are not usable history. `estimateYearsAgo`
+      // falls back to "index 0 is the current role", so an undated list would
+      // score as perfectly current and inflate. core.ts gates `recency_json` on
+      // this, but `resume_json` reaches here ungated whenever both sides are
+      // structured, so the check belongs at the point of use as well.
+      if (!this.hasParseableDates(resume.experience)) {
+        return this.createResult(50, { error: 'No dated experience available' }, 0.6);
+      }
+
       // Analyze latest role
       const latestRole = getLatestRole(resume);
       if (!latestRole) {
@@ -102,6 +111,15 @@ export class RecencyAnalyzer extends BaseAnalyzer {
     } catch (error) {
       return this.createFailedResult(`Recency analysis failed: ${(error as Error).message}`);
     }
+  }
+
+  /** Does any entry carry a year or an explicit "present" we can date from? */
+  private hasParseableDates(experience: any[]): boolean {
+    return experience.some(exp =>
+      [exp?.startDate, exp?.endDate].some(
+        value => typeof value === 'string' && /\b(19|20)\d{2}\b|present/i.test(value)
+      )
+    );
   }
 
   /**
