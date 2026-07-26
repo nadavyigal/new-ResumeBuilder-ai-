@@ -81,8 +81,8 @@ describe('WP-45 S9: stored scores are not rewritten', () => {
     // Rescoring stored rows is a production data change needing its own
     // decision: a user who already saw a number should not find it silently
     // different later. This module classifies; it never rewrites.
-    const module = await import('../score-regime');
-    const names = Object.keys(module).join(' ').toLowerCase();
+    const regimeModule = await import('../score-regime');
+    const names = Object.keys(regimeModule).join(' ').toLowerCase();
     expect(names).not.toMatch(/rescore|backfill|migrate|update|write/);
   });
 });

@@ -202,7 +202,10 @@ describe('POST /api/public/ats-check resumeId input', () => {
         resume_optimized_text: (expect as any).stringContaining('SwiftUI'),
         job_clean_text: longJobDescription,
       }),
-      { generateQuickWins: true }
+      // The scorer no longer imports the quick-wins module; the route injects
+      // it, because that module reaches posthog-node and core.ts is
+      // transitively imported by a client page (WP-58).
+      { quickWinsGenerator: (expect as any).any(Function) }
     );
   });
 
