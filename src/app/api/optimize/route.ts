@@ -123,7 +123,38 @@ export async function POST(req: NextRequest) {
       optimizedResume,
     });
 
-    return NextResponse.json({ reviewId, nextStep: "review" });
+    // The fit check the user sees between optimizing and accepting.
+    //
+    // The pipeline already measured all of this and we were discarding it, so
+    // the app had nothing to show and jumped straight to the accept screen —
+    // which is why the fit check "disappeared" (founder, device test
+    // 2026-07-26). `current` is the resume as it stands today against this job;
+    // `potential` is where accepting the tailored rewrite takes it.
+    //
+    // `displayScores` carries the WP-45 S2 rule: when the run did not
+    // meaningfully improve on the starting resume, the client shows the gaps
+    // and the next step rather than a numeric pair that reads as a promise the
+    // run did not keep.
+    const ats = pipelineResult.atsResult;
+    return NextResponse.json({
+      reviewId,
+      nextStep: "review",
+      fit: {
+        currentScore: ats.ats_score_original,
+        potentialScore: ats.ats_score_optimized,
+        delta: pipelineResult.lift.delta,
+        displayScores: pipelineResult.lift.displayScores,
+        confidence: ats.confidence,
+        scoreVersion: ats.metadata?.score_version ?? null,
+        // Already filtered through the S4 credibility gate upstream, so page
+        // furniture like "about" or "key responsibilities" cannot appear here.
+        topGaps: (ats.suggestions ?? []).slice(0, 3).map(s => ({
+          title: s.text,
+          estimatedGain: s.estimated_gain,
+          category: s.category,
+        })),
+      },
+    });
 
   } catch (error: unknown) {
     logger.error('Error optimizing resume via API', { userId: user.id, resumeId, jobDescriptionId }, error);
