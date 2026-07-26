@@ -14,6 +14,7 @@ export {
   rescoreOptimization,
   SCORE_VERSION,
 } from './core';
+export type { QuickWinsGenerator } from './core';
 
 // Export all components for advanced usage
 export * from './types';

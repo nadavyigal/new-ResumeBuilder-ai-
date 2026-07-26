@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { parsePdf } from '@/lib/pdf-parser';
 import { scoreResume } from '@/lib/ats';
 import { generateFormatReport } from '@/lib/ats/integration';
+import { generateQuickWins } from '@/lib/ats/quick-wins/generator';
 import type { ATSScoreInput, JobExtraction } from '@/lib/ats/types';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import { checkRateLimit } from '@/lib/rate-limiting/check-rate-limit';
@@ -222,7 +223,10 @@ export async function POST(request: NextRequest) {
   };
 
   const scoreResult = await scoreResume(atsInput, {
-    generateQuickWins: true, // Enable Quick Wins for free ATS checker
+    // Injected, not imported by the scorer: the quick-wins module reaches
+    // posthog-node and core.ts is transitively imported by a client page, so
+    // importing it there breaks the production build (WP-58).
+    quickWinsGenerator: generateQuickWins,
   });
 
   const { data: insertedScore, error: insertError } = await supabase

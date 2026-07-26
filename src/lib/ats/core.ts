@@ -5,7 +5,8 @@
  * Coordinates all analyzers and generates complete scoring output.
  */
 
-import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey, QuickWinSuggestion } from './types';
+import type { ATSScoreInput, ATSScoreOutput, AnalyzerResult, SubScoreKey, QuickWinSuggestion, JobExtraction, SubScores } from './types';
+import type { OptimizedResume } from '@/lib/ai-optimizer';
 import {  KeywordExactAnalyzer } from './analyzers/keyword-exact';
 import { KeywordPhraseAnalyzer } from './analyzers/keyword-phrase';
 import { SemanticAnalyzer } from './analyzers/semantic';
@@ -35,6 +36,19 @@ import { deriveResumeJsonFromText } from './extractors/experience-text-extractor
 export const SCORE_VERSION = 'ats_v2.1_wp45';
 
 /**
+ * Produces the free checker's quick wins. Injected by server callers so that
+ * core.ts stays free of any module reaching Node built-ins — see the note on
+ * `quickWinsGenerator` below.
+ */
+export type QuickWinsGenerator = (args: {
+  resume_text: string;
+  resume_json: OptimizedResume;
+  job_data: JobExtraction;
+  subscores: SubScores;
+  current_ats_score: number;
+}) => Promise<QuickWinSuggestion[]>;
+
+/**
  * Normalize ATS score — clamps to valid [0, 100] range.
  * Real score lift comes from the multi-pass pipeline, not artificial inflation.
  */
@@ -51,7 +65,19 @@ function normalizeATSScore(rawScore: number): number {
  */
 export async function scoreResume(
   input: ATSScoreInput,
-  options?: { generateQuickWins?: boolean }
+  options?: {
+    /**
+     * Supply the quick-wins generator to have quick wins produced.
+     *
+     * Injected rather than imported. That module reaches posthog-node, which
+     * needs node:readline, and core.ts is transitively imported by a client
+     * page via integration.ts -> optimization-review -> the review page. A
+     * static or dynamic import here puts a Node built-in in the browser bundle
+     * and the production build fails (WP-58). Server callers pass the
+     * generator in; the browser never sees it.
+     */
+    quickWinsGenerator?: QuickWinsGenerator;
+  }
 ): Promise<ATSScoreOutput> {
   const startTime = Date.now();
   const warnings: string[] = [];
@@ -165,11 +191,9 @@ export async function scoreResume(
     // Generate quick wins if requested
     let quickWins: QuickWinSuggestion[] | undefined;
 
-    if (options?.generateQuickWins) {
+    if (options?.quickWinsGenerator) {
       try {
-        const { generateQuickWins } = await import('./quick-wins/generator');
-
-        quickWins = await generateQuickWins({
+        quickWins = await options.quickWinsGenerator({
           resume_text: input.resume_optimized_text,
           resume_json: input.resume_optimized_json || {} as any,
           job_data: preparedInput.job_data,
