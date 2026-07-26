@@ -143,6 +143,17 @@ export const RECENCY_THRESHOLDS = {
   /** Boost if latest role contains most JD keywords */
   latest_role_boost: 10,
 
+  /**
+   * Floor of the relevance modifier applied to the recency score.
+   *
+   * Relevance of the newest role scales recency between this value and 1.0.
+   * At 0.7, a current role with no keyword overlap still scores 70 rather than
+   * the 0 the previous multiplicative form produced. Recency measures how
+   * recent the experience is; keyword_exact measures overlap, at 0.25 weight.
+   * Lowering this back toward 0 re-couples the two (WP-45 D7).
+   */
+  relevance_floor: 0.7,
+
   /** Minimum keyword ratio in latest role for boost */
   latest_role_keyword_ratio: 0.6,
 } as const;

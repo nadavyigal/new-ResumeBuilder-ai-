@@ -33,7 +33,7 @@ import { deriveResumeJsonFromText } from './extractors/experience-text-extractor
  * again with the WP-45 S1/S2 repairs. Anything that trends, averages or
  * compares stored scores must filter to one version (WP-45 S9).
  */
-export const SCORE_VERSION = 'ats_v2.1_wp45';
+export const SCORE_VERSION = 'ats_v2.2_wp45_d7';
 
 /**
  * Produces the free checker's quick wins. Injected by server callers so that
@@ -116,20 +116,40 @@ export async function scoreResume(
     // the original side precisely so it stays comparable.
     const useStructured = Boolean(input.resume_original_json && input.resume_optimized_json);
 
+    // Recency has to be measured with the same information on both sides, or
+    // its delta reports which side happened to parse rather than what the
+    // optimization did. Resolving each side independently was not enough:
+    // cases remained where one side read 85 and the other fell back to 50,
+    // handing the comparison a ~3-point swing no content change earned.
+    //
+    // So when either side has no dated history, neither side gets one. Both
+    // land on the analyzer's no-data constant and recency contributes exactly
+    // zero to the delta, which is the honest answer when we cannot date one of
+    // the two documents (WP-45 D7).
+    const originalRecency = resolveOriginalResumeJson(input);
+    const optimizedRecency = resolveOptimizedResumeJson(input);
+    const bothSidesDated = Boolean(
+      originalRecency?.experience?.length && optimizedRecency?.experience?.length
+    );
+
+    const [originalRecencyJson, optimizedRecencyJson] = bothSidesDated
+      ? [originalRecency, optimizedRecency]
+      : [undefined, undefined];
+
     const [originalResults, optimizedResults] = await Promise.all([
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_original,
         resume_text: input.resume_original_text,
         resume_json: useStructured ? input.resume_original_json : undefined,
-        recency_json: resolveOriginalResumeJson(input),
+        recency_json: originalRecencyJson,
       }),
       runAllAnalyzers({
         ...preparedInput,
         format_report: preparedInput.format_report_optimized,
         resume_text: input.resume_optimized_text,
         resume_json: useStructured ? input.resume_optimized_json : undefined,
-        recency_json: input.resume_optimized_json,
+        recency_json: optimizedRecencyJson,
       }),
     ]);
 
@@ -337,6 +357,28 @@ async function prepareInput(input: ATSScoreInput) {
 function resolveOriginalResumeJson(input: ATSScoreInput) {
   if (input.resume_original_json) return input.resume_original_json;
   return deriveResumeJsonFromText(input.resume_original_text) ?? undefined;
+}
+
+/**
+ * The same resolution for the optimized side, so a comparison is never made
+ * between one side that has dated work history and one that fell back.
+ *
+ * The original side alone used to get this treatment, which left the exact
+ * asymmetry it was written to remove — just pointing the other way. A
+ * benchmark case scored recency 93 original against 50 optimized, purely
+ * because the optimized JSON carried no parseable dates, and reported the
+ * optimization as -4. An optimization must not lose points because one
+ * representation parsed and the other did not (WP-45 D7).
+ */
+function resolveOptimizedResumeJson(input: ATSScoreInput) {
+  if (input.resume_optimized_json?.experience?.length) {
+    return input.resume_optimized_json;
+  }
+  return (
+    deriveResumeJsonFromText(input.resume_optimized_text) ??
+    input.resume_optimized_json ??
+    undefined
+  );
 }
 
 /**

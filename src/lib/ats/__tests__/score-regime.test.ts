@@ -20,6 +20,15 @@ describe('WP-45 S9: identifying the regime that produced a score', () => {
     // or re-dated row must not be able to lie about which engine scored it.
     expect(
       regimeFor({ scoredAt: '2026-01-01T00:00:00Z', scoreVersion: SCORE_VERSION })
+    ).toBe(SCORE_REGIMES.wp45_recency_fixed);
+  });
+
+  it('keeps the earlier WP-45 stamp in its own regime', () => {
+    // Both versions contain "wp45". They are not the same engine: D7 changed
+    // recency_fit materially, so a substring match that lumped them together
+    // would average across a boundary this module exists to expose.
+    expect(
+      regimeFor({ scoredAt: '2026-07-25T00:00:00Z', scoreVersion: 'ats_v2.1_wp45' })
     ).toBe(SCORE_REGIMES.wp45_repaired);
   });
 

@@ -48,15 +48,33 @@ export class RecencyAnalyzer extends BaseAnalyzer {
         currentDate
       );
 
-      // Base score from latest role relevance
-      let score = latestRoleBonus;
-
-      // Adjust based on overall experience recency
+      // How recent the experience is. This is what the subscore is named after
+      // and it is the base of the score, not a multiplier on something else.
       const avgDecay = experienceDecay.reduce((sum, d) => sum + d.decayFactor, 0) / experienceDecay.length;
-      score = score * avgDecay;
 
-      // Cap score
-      score = Math.min(100, score);
+      // Relevance of the newest role MODULATES recency within a bounded band —
+      // it never zeroes it.
+      //
+      // This was `latestRoleBonus * avgDecay`, which multiplied recency by the
+      // share of the job's must-have keywords appearing in the newest role.
+      // A candidate in a current role whose title and bullets happened not to
+      // echo the job's keywords scored 0 on *recency*, and the real 2026-07-26
+      // run did exactly that: 0, while the same resume scored the 50 fallback
+      // through the free check because no structured JSON was available there.
+      // Having MORE information about a resume made it score LOWER — a 5-point
+      // drop between two endpoints for one unchanged document (WP-45 D7).
+      //
+      // Keyword overlap is already measured by keyword_exact at 0.25 weight,
+      // nearly 3x this one, so multiplying it in here also double-counted it.
+      const relevanceModifier =
+        RECENCY_THRESHOLDS.relevance_floor +
+        (1 - RECENCY_THRESHOLDS.relevance_floor) * (latestRoleBonus / 100);
+
+      // Floor of relevance_floor and decay floor of (1 - max_decay_rate) put
+      // the real range at 35..100, entirely at or above the 50 no-data
+      // fallback for any current role. Learning more about a resume can now
+      // only raise its score, never drop it.
+      const score = Math.min(100, 100 * avgDecay * relevanceModifier);
 
       const confidence = this.calculateConfidence({
         hasRequiredData: true,
