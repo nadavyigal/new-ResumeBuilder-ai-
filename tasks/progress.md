@@ -1,5 +1,21 @@
 # Project Progress
 
+## 2026-07-26 — WP-58: landed the WP-45 scorer stack on main
+
+Nine commits of scorer-integrity work were stacked three PRs deep with none of it on `main`. All of it is now merged: S1 via PR #119, S2 through S9 plus the WP-58 build fixes via PR #121.
+
+**The #121 Vercel failure was mine.** S3 deduplicated the two orchestrators by folding index.ts's quick-wins block into core.ts. That block does `await import('./quick-wins/generator')`, which reaches posthog-ai → posthog-server → posthog-node → `node:readline`. core.ts is transitively imported by a client page (`optimization-reviews/[id]/page.tsx` → optimization-review/index.ts → integration.ts → core.ts), so a Node built-in landed in the browser bundle and `npm run build` failed. Webpack traces dynamic imports too. The generator is now injected rather than imported: core.ts declares a `QuickWinsGenerator` type and calls whatever the caller passes; the two server routes import the real one and hand it in. S3's single-implementation goal is intact — index.ts still re-exports core.ts's `scoreResume` and the identity test still holds.
+
+**Workers check confirmed pre-existing.** `Workers Builds: match1resume1to1job` fails on `main` commit `bd3ba59b` as well as on every PR in the stack. Unrelated to this work; it is not a signal.
+
+**The 51/68 anomaly is answered — the data is not contaminated.** Deduplicating `anonymous_ats_scores` by `(resume_hash, job_description_hash)` over 60 days: 67 raw rows collapse to 36 unique pairs. The 16 rows scoring exactly 51 come from just **2 distinct resumes and 2 distinct jobs** inside a 5-day window. They are genuinely computed scores for the same two documents re-submitted, each run minting a new anonymous session — the "15 distinct people" was an artefact of anonymous session identity, the same artefact that made `is_internal_tester=true` look like 32 people. **S5's bands are unaffected: the benchmark uses synthetic fixtures, not production scores.** The descriptive stats were mildly optimistic and get slightly worse when deduplicated: mean 34.5 → 31.4, median 36 → 28.5. Maximum stays 51 and the count at or above 75 stays 0, so every headline finding holds.
+
+**Merge mechanics worth remembering:** merging #119 with `--delete-branch` removed #120's base branch, which auto-closed #120. The commits were safe on the branch; recovery was to merge `main` forward into the top branch and retarget. Also `gh pr edit --base` fails on this repo with a Projects-classic GraphQL error — use `gh api -X PATCH .../pulls/N -f base=main`.
+
+**Validation on merged `main` (4e7b56f):** suite 17 pre-existing suite failures / 80 failing tests — identical to the recorded baseline — with passing count 277. `tsc` 27 errors, all in pre-existing files, **0 in `src/lib/ats`** (the 27th vs the recorded 26 is in an untracked stray `route 2.ts` that does not exist in CI). `eslint` clean. `next build` passes on a clean checkout of merged `main`.
+
+**Two verification lessons, both mine:** I verified S3 through S9 with jest, eslint and tsc but re-ran `next build` only up to the S2 commit — a clean production build is the only check that sees the client/server module boundary. And I grepped `tsc` output to a filtered subset instead of reading the total count, which hid a second broken call site in `api/ats/score/route.ts`.
+
 ## 2026-07-24 — WP-45 S2: symmetric comparison + no-regression invariant (PR #120, stacked on #119)
 
 **The invariant.** `optimize-pipeline.ts` chose between pass 1 and pass 2 by comparing them to each other and never to the resume the user started with, so a run that moved the score +2 — or moved it down — was returned as a result. That is the 42 -> 44 from the Meirav session, and it is not rare: 24 of 59 optimizations in 60 days ended at +4 or worse, 6 of them lower than they started. Pass 2 now also triggers when a run has not meaningfully beaten the original, and every result carries a `LiftAssessment` from the new `src/lib/ats/lift.ts`. That module never raises a score, never clamps a delta positive and never applies a floor — `lift.displayScores` tells the caller to show what changed and what is still missing instead of a number pair. Floor is a named constant at 5, provisional until S5 picks it from the labelled benchmark.
