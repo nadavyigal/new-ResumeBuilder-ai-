@@ -30,6 +30,8 @@ export const SCORE_REGIMES = {
   tightened_uncalibrated: 'tightened_uncalibrated',
   /** WP-45 S1/S2 repairs; dead components withdrawn, symmetric comparison. */
   wp45_repaired: 'wp45_repaired',
+  /** WP-45 D7; recency decoupled from keyword overlap and made two-sided. */
+  wp45_recency_fixed: 'wp45_recency_fixed',
 } as const;
 
 export type ScoreRegime = (typeof SCORE_REGIMES)[keyof typeof SCORE_REGIMES];
@@ -41,6 +43,18 @@ export const TIGHTENING_BOUNDARY = new Date('2026-06-18T00:00:00Z');
 export const WP45_BOUNDARY = new Date('2026-07-24T00:00:00Z');
 
 /**
+ * The day recency_fit stopped being a keyword multiplier (WP-45 D7).
+ *
+ * Recency was `latestRoleBonus * avgDecay`, so a current role that did not echo
+ * the job's keywords scored 0, and the subscore was only resolved on one side
+ * of the comparison. Fixing both raises recency for most resumes — typically
+ * from 0-50 into the 70-100 band — which moves the composite by several points
+ * for reasons that have nothing to do with the resumes. Scores either side of
+ * this boundary are not comparable.
+ */
+export const RECENCY_BOUNDARY = new Date('2026-07-26T00:00:00Z');
+
+/**
  * Which regime produced a stored score?
  *
  * `scoreVersion` is authoritative when present — it is stamped at scoring time.
@@ -48,12 +62,19 @@ export const WP45_BOUNDARY = new Date('2026-07-24T00:00:00Z');
  * is why the version stamp exists.
  */
 export function regimeFor(row: { scoredAt: Date | string; scoreVersion?: string | null }): ScoreRegime {
-  if (row.scoreVersion && row.scoreVersion.includes('wp45')) {
+  // Most specific version first. A plain `includes('wp45')` check would sort
+  // the D7 recency regime into wp45_repaired and hide the boundary it exists
+  // to mark.
+  if (row.scoreVersion?.includes('d7')) {
+    return SCORE_REGIMES.wp45_recency_fixed;
+  }
+  if (row.scoreVersion?.includes('wp45')) {
     return SCORE_REGIMES.wp45_repaired;
   }
 
   const scoredAt = row.scoredAt instanceof Date ? row.scoredAt : new Date(row.scoredAt);
 
+  if (scoredAt >= RECENCY_BOUNDARY) return SCORE_REGIMES.wp45_recency_fixed;
   if (scoredAt >= WP45_BOUNDARY) return SCORE_REGIMES.wp45_repaired;
   if (scoredAt >= TIGHTENING_BOUNDARY) return SCORE_REGIMES.tightened_uncalibrated;
   return SCORE_REGIMES.legacy_loose;

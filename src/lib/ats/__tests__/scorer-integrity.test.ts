@@ -268,8 +268,34 @@ BSc Computer Science - Technion
     expect(deriveResumeJsonFromText('Jane Cohen\nSkilled engineer.\n')).toBeNull();
   });
 
+  // A real optimization rewrites bullets; it does not delete the work history.
+  // These cases pass a dated optimized side because that is what the product
+  // produces — and because recency is now only measured when BOTH sides can be
+  // dated, so an undated optimized side would (correctly) pin both to the
+  // fallback and test nothing about derivation (WP-45 D7).
+  const OPTIMIZED_WITH_DATES = `
+Jane Cohen
+jane@example.com | Tel Aviv
+
+EXPERIENCE
+
+Senior Data Engineer at Nimbus Analytics
+Tel Aviv | Jan 2022 - Present
+• Built streaming pipelines on Kafka and Spark processing 4TB daily
+• Led the Snowflake migration, cutting query cost 38%
+
+Data Engineer at Harbor Systems
+Tel Aviv | 2019 - 2021
+• Maintained ETL jobs in Airflow across 60 SQL and Python pipelines
+
+EDUCATION
+BSc Computer Science - Technion
+`;
+
   it('does not report the 50-point fallback for an original resume that has real dates', async () => {
-    const result = await scoreResume(buildInput({ originalText: RESUME_WITH_DATES }));
+    const result = await scoreResume(
+      buildInput({ originalText: RESUME_WITH_DATES, optimizedText: OPTIMIZED_WITH_DATES })
+    );
     // 50 is the "no experience data available" constant. Seeing it on the
     // original side while the optimized side gets a real number is exactly the
     // asymmetry that made every reported delta ~3 points too small.
@@ -280,8 +306,20 @@ BSc Computer Science - Technion
     // The failure mode this guards: a misparse that finds a role but attributes
     // no achievements to it drives recency toward 0, which is strictly worse
     // than the 50 it replaced. "Not 50" alone would pass in that case.
-    const result = await scoreResume(buildInput({ originalText: RESUME_WITH_DATES }));
+    const result = await scoreResume(
+      buildInput({ originalText: RESUME_WITH_DATES, optimizedText: OPTIMIZED_WITH_DATES })
+    );
     expect(result.subscores_original.recency_fit).toBeGreaterThan(50);
+  });
+
+  it('measures recency on both sides or neither, never one', async () => {
+    // The 2026-07-26 production failure in its general form: one side dated,
+    // the other not, so the delta carried a swing that no content change
+    // earned. Both sides must land on the same footing.
+    const result = await scoreResume(
+      buildInput({ originalText: RESUME_WITH_DATES, optimizedText: 'Jane Cohen\nData engineer.' })
+    );
+    expect(result.subscores_original.recency_fit).toBe(result.subscores.recency_fit);
   });
 
   it('does not treat education or certification dates as jobs', () => {
@@ -465,12 +503,14 @@ describe('WP-45 D3: format_parseability is computed per side', () => {
 
 function buildInput(opts: {
   originalText?: string;
+  optimizedText?: string;
   formatOriginal?: FormatReport;
   formatOptimized?: FormatReport;
 }): ATSScoreInput {
   return {
     resume_original_text: opts.originalText ?? 'Jane Cohen\nData engineer with Kafka experience.',
     resume_optimized_text:
+      opts.optimizedText ??
       'Jane Cohen\nSenior Data Engineer\nKafka, Spark, Snowflake, Airflow, SQL, Python.',
     job_clean_text:
       'We are hiring a Senior Data Engineer to build streaming pipelines with Kafka, Spark and Snowflake. SQL and Python required.',
