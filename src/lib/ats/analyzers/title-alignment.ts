@@ -114,7 +114,11 @@ export class TitleAlignmentAnalyzer extends BaseAnalyzer {
       .toLowerCase()
       .replace(/\b(jr|sr|senior|junior|lead|staff|principal)\b/g, '') // Remove seniority markers
       .replace(/\b(i|ii|iii|iv|v|1|2|3|4|5)\b/g, '') // Remove level numbers
-      .replace(/[^\w\s]/g, ' ')
+      // Unicode-aware. \w is ASCII-only, so [^\w\s] deleted every Hebrew
+      // character and normalised every Hebrew title to the empty string —
+      // which then compared EQUAL to every other Hebrew title and returned a
+      // perfect 1.0 similarity for completely unrelated roles (WP-45).
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
       .replace(/\s+/g, ' ')
       .trim();
   }
@@ -164,10 +168,23 @@ export class TitleAlignmentAnalyzer extends BaseAnalyzer {
   private extractTitlesFromText(text: string): string[] {
     const titles: string[] = [];
 
-    // Common title patterns
+    // Common title patterns.
+    //
+    // The first pattern relies on capitalisation to tell a job title from
+    // ordinary prose. Hebrew has no case, so it matched nothing and the
+    // analyzer fell through to its "no job titles found" floor of 20 for every
+    // Hebrew resume — including ones whose title was an exact match for the
+    // role. The third pattern covers caseless scripts by anchoring on the same
+    // "<title> at <company>" shape instead of on capitalisation (WP-45).
     const patterns = [
       /(?:^|\n)([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,4})\s*(?:at|@|\||,)/gm,
       /(?:position|role|title):\s*([^\n]+)/gi,
+      // Caseless scripts, currently Hebrew. Add further ranges here rather
+      // than loosening the Latin pattern, which would start matching prose.
+      // Space and tab only, never \n: a plain \s here lets the lazy quantifier
+      // run across lines and swallow the section heading above the role
+      // ("ניסיון תעסוקתי\n\nמהנדס תוכנה" came back as a single title).
+      /(?:^|\n)([\u0590-\u05FF][\u0590-\u05FF \t'"-]{1,58}?)[ \t]*(?:at|@|\|)/gmu,
     ];
 
     for (const pattern of patterns) {

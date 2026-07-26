@@ -56,20 +56,46 @@ export class SectionCompletenessAnalyzer extends BaseAnalyzer {
    * Analyze sections in plain text (fallback)
    */
   private analyzeTextSections(text: string): AnalyzerResult {
-    const sectionHeaders = [
-      'summary', 'profile', 'objective',
-      'skills', 'technical skills', 'competencies',
-      'experience', 'work experience', 'employment',
-      'education', 'academic background',
-    ];
+    // Grouped by the section each heading denotes, so a resume is credited once
+    // per section rather than once per synonym it happens to use.
+    //
+    // Hebrew is here because the product ships in Hebrew. Without it a fully
+    // structured Hebrew resume matched nothing and scored 0 for "no sections",
+    // which cost roughly 9 points of composite to every Hebrew user (WP-45).
+    const sectionHeaders: Record<string, string[]> = {
+      summary: [
+        'summary', 'profile', 'objective',
+        'תקציר', 'תקציר מקצועי', 'פרופיל', 'אודות',
+      ],
+      skills: [
+        'skills', 'technical skills', 'competencies',
+        'כישורים', 'מיומנויות', 'כישורים טכניים', 'תחומי מומחיות',
+      ],
+      experience: [
+        'experience', 'work experience', 'employment',
+        'ניסיון', 'ניסיון תעסוקתי', 'ניסיון מקצועי', 'תעסוקה',
+      ],
+      education: [
+        'education', 'academic background',
+        'השכלה', 'לימודים', 'רקע אקדמי',
+      ],
+    };
 
     const foundSections: string[] = [];
 
-    for (const header of sectionHeaders) {
-      const pattern = new RegExp(`\\b${header}\\b`, 'i');
-      if (pattern.test(text)) {
-        foundSections.push(header);
-      }
+    for (const [section, headers] of Object.entries(sectionHeaders)) {
+      const matched = headers.some(header => {
+        // \b is an ASCII word boundary: between a space and a Hebrew letter it
+        // does not match, so \bתקציר\b can never fire. This Unicode-aware
+        // boundary keeps the "not inside another word" property that \b gave
+        // the English headings — "skillset" still must not count as Skills.
+        const pattern = new RegExp(
+          `(?<![\\p{L}\\p{N}])${escapeRegExp(header)}(?![\\p{L}\\p{N}])`,
+          'iu'
+        );
+        return pattern.test(text);
+      });
+      if (matched) foundSections.push(section);
     }
 
     const score = (foundSections.length / 4) * 100; // Expect at least 4 sections
@@ -128,4 +154,9 @@ export class SectionCompletenessAnalyzer extends BaseAnalyzer {
 
     return bonus;
   }
+}
+
+/** Escape a literal heading before embedding it in a RegExp. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

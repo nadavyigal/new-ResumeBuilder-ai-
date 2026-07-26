@@ -2,6 +2,7 @@ import type { JobExtraction } from '@/lib/ats/types';
 import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import { scoreSkillCoverage } from '@/lib/ats/skill-match';
 import { assessExtractionQuality } from '@/lib/ats/extraction-quality';
+import { fitBandFor } from '@/lib/ats/config/bands';
 
 type FitVerdict = 'Strong' | 'Stretch' | 'Skip';
 
@@ -14,9 +15,12 @@ export interface FitSource {
 const FIT_SCORE_NOTE = 'Estimated fit vs this job, not a hiring guarantee.';
 
 function getFitVerdict(overallScore: unknown): FitVerdict {
-  const score = Number(overallScore);
-  if (Number.isFinite(score) && score >= 75) return 'Strong';
-  if (Number.isFinite(score) && score >= 50) return 'Stretch';
+  // Thresholds live in config/bands.ts, chosen from the labelled benchmark.
+  // They were 75/50, set for a scale that stopped existing on 2026-06-18
+  // (WP-45 S5).
+  const band = fitBandFor(Number(overallScore));
+  if (band === 'strong') return 'Strong';
+  if (band === 'stretch') return 'Stretch';
   return 'Skip';
 }
 

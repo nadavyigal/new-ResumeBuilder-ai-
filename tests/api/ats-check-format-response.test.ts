@@ -51,7 +51,7 @@ describe('formatResponse', () => {
       available: true,
       extractionQuality: 'low',
       requirementCount: 4,
-      verdict: 'Stretch',
+      verdict: 'Strong',
       recoveryReason: null,
       scoreNote: 'Estimated fit vs this job, not a hiring guarantee.',
       topGaps: ['strategic partnerships', 'payment platforms', 'senior executives'],
@@ -106,9 +106,14 @@ describe('formatResponse', () => {
   });
 
   it.each([
-    [75, 'Strong'],
-    [50, 'Stretch'],
-    [49, 'Skip'],
+    // Bands recalibrated 2026-07-26 from the labelled benchmark: strong >= 57,
+    // stretch >= 42. The old 75/50 belonged to the pre-2026-06-18 scale and
+    // classified 4 of 19 labelled pairs as Weak that a human called Strong or
+    // Stretch. See src/lib/ats/config/bands.ts.
+    [57, 'Strong'],
+    [56, 'Stretch'],
+    [42, 'Stretch'],
+    [41, 'Skip'],
   ])('maps score %i to the locked %s fit verdict', (atsScore, verdict) => {
     const response = buildPublicAtsCheckResponse({ ...scoreRow, ats_score: atsScore }, 'session-1', 3);
 
