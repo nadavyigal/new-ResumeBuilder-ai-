@@ -168,8 +168,19 @@ export async function scoreOptimization(params: {
     ? buildJobDataFromExtractedJson(jobExtractedJson, jobDescriptionText)
     : extractJobRequirements(jobDescriptionText, jobTitle);
 
-  // Generate format reports
-  const formatReport = generateFormatReport(resumeOriginalText);
+  // Generate format reports — one per side, but from the SAME function.
+  //
+  // Both sides must be measured the same way or the comparison is meaningless.
+  // Running generateFormatReport (text heuristic, base 85) against the original
+  // and analyzeFormatWithTemplate (JSON heuristic, base 100) against the
+  // optimized resume would hand every optimization a free ~15-point format gain
+  // that reflects which function ran, not the user's formatting (WP-45 D3).
+  //
+  // In practice these two reports usually agree, because the optimized resume
+  // is rendered through our own template. That is the honest answer: optimizing
+  // content does not change format safety much.
+  const formatReportOriginal = generateFormatReport(resumeOriginalText);
+  const formatReportOptimized = generateFormatReport(resumeOptimizedText);
 
   // Prepare ATS input
   const atsInput: ATSScoreInput = {
@@ -177,8 +188,12 @@ export async function scoreOptimization(params: {
     resume_optimized_text: resumeOptimizedText,
     job_clean_text: jobDescriptionText,
     job_extracted_json: jobExtraction,
-    format_report: formatReport,
-    resume_original_json: undefined, // Don't have structured original
+    format_report: formatReportOriginal,
+    format_report_original: formatReportOriginal,
+    format_report_optimized: formatReportOptimized,
+    // Left undefined on purpose: the scorer derives a minimal structure from
+    // the original text so recency is measured the same way on both sides.
+    resume_original_json: undefined,
     resume_optimized_json: resumeOptimizedJson,
   };
 
@@ -219,8 +234,10 @@ export async function rescoreAfterTipImplementation(params: {
     ? buildJobDataFromExtractedJson(jobExtractedJson, jobDescriptionText)
     : extractJobRequirements(jobDescriptionText, jobTitle);
 
-  // Generate format reports
-  const formatReport = generateFormatReport(resumeOriginalText);
+  // Same per-side treatment as scoreOptimization, from the same function, so
+  // the two entry points in this file cannot drift apart (WP-45 D3).
+  const formatReportOriginal = generateFormatReport(resumeOriginalText);
+  const formatReportOptimized = generateFormatReport(resumeOptimizedText);
 
   // Prepare ATS input - we only need to score the optimized resume
   const atsInput: ATSScoreInput = {
@@ -228,7 +245,9 @@ export async function rescoreAfterTipImplementation(params: {
     resume_optimized_text: resumeOptimizedText,
     job_clean_text: jobDescriptionText,
     job_extracted_json: jobExtraction,
-    format_report: formatReport,
+    format_report: formatReportOriginal,
+    format_report_original: formatReportOriginal,
+    format_report_optimized: formatReportOptimized,
     resume_original_json: undefined,
     resume_optimized_json: resumeOptimizedJson,
   };

@@ -20,12 +20,18 @@ export class RecencyAnalyzer extends BaseAnalyzer {
     try {
       const currentDate = input.timestamp || new Date();
 
-      if (!input.resume_json || !input.resume_json.experience || input.resume_json.experience.length === 0) {
+      // `recency_json` carries work history recovered from a plain-text resume
+      // when no structured JSON exists, so the original and optimized sides of
+      // a comparison are both scored on real dates instead of one of them
+      // falling back to the constant below (WP-45 D4).
+      const resume = input.resume_json ?? input.recency_json;
+
+      if (!resume || !resume.experience || resume.experience.length === 0) {
         return this.createResult(50, { error: 'No experience data available' }, 0.6);
       }
 
       // Analyze latest role
-      const latestRole = getLatestRole(input.resume_json);
+      const latestRole = getLatestRole(resume);
       if (!latestRole) {
         return this.createResult(40, { error: 'Could not extract latest role' }, 0.5);
       }
@@ -38,7 +44,7 @@ export class RecencyAnalyzer extends BaseAnalyzer {
 
       // Calculate temporal decay for older roles
       const experienceDecay = this.calculateExperienceDecay(
-        input.resume_json.experience,
+        resume.experience,
         currentDate
       );
 

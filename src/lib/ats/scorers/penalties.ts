@@ -22,14 +22,18 @@ export function applyPenalties(
   let penalizedScore = score;
   const appliedPenalties: Array<{ reason: string; amount: number }> = [];
 
-  // Penalty 1: No metrics found
-  if (subscores.metrics_presence < 10) {
-    penalizedScore -= PENALTY_THRESHOLDS.no_metrics_penalty;
-    appliedPenalties.push({
-      reason: 'No quantified metrics found in resume',
-      amount: PENALTY_THRESHOLDS.no_metrics_penalty,
-    });
-  }
+  // Penalty 1 (withdrawn 2026-07-24, WP-45 D2): "no quantified metrics".
+  //
+  // metrics_presence is already a weighted component, and it hard-clamps to 0
+  // when a resume has no metrics — so subtracting another 5 points for the same
+  // fact charged every user twice for one shortcoming. Production means were
+  // 6.2 before and 7.2 after optimization, i.e. the < 10 trigger fired on
+  // essentially every scoring run on both sides of the before/after pair. It
+  // could not be escaped either: stripFabricatedMetrics (correctly) stops the
+  // optimizer from inventing figures, so no amount of optimizing cleared it.
+  //
+  // The component still carries the signal, and the suggestion generator still
+  // tells the user to add quantified achievements.
 
   // Penalty 2: Title/seniority mismatch
   if (subscores.title_alignment < 40) {
@@ -75,7 +79,9 @@ export function checkPenaltyRisks(subscores: SubScores): string[] {
   const risks: string[] = [];
 
   if (subscores.metrics_presence < 10) {
-    risks.push('Missing quantified metrics will reduce score');
+    // No longer a separate penalty (WP-45 D2) — it lowers the metrics_presence
+    // component itself, which is already weighted.
+    risks.push('Missing quantified metrics is lowering the impact score');
   }
 
   if (subscores.title_alignment < 40) {

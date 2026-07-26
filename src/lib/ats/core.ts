@@ -22,6 +22,7 @@ import { extractJobData, isJobExtractionComplete } from './extractors/jd-extract
 import { buildJobDataFromExtractedJson } from './job-data-resolver';
 import { extractResumeText } from './extractors/resume-text-extractor';
 import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
+import { deriveResumeJsonFromText } from './extractors/experience-text-extractor';
 
 /**
  * Normalize ATS score — clamps to valid [0, 100] range.
@@ -58,15 +59,23 @@ export async function scoreResume(
       responsibilities_count: preparedInput.job_data.responsibilities.length,
     });
 
-    // Run all analyzers in parallel for both original and optimized resumes
+    // Run all analyzers in parallel for both original and optimized resumes.
+    //
+    // Each side gets its own format report and its own structured resume, so
+    // format_parseability and recency_fit are measured the same way on both
+    // sides of the comparison (WP-45 D3/D4). Sharing them made 22% of the
+    // weighting either frozen or asymmetric across the before/after pair.
     const [originalResults, optimizedResults] = await Promise.all([
       runAllAnalyzers({
         ...preparedInput,
+        format_report: preparedInput.format_report_original,
         resume_text: input.resume_original_text,
         resume_json: input.resume_original_json,
+        recency_json: resolveOriginalResumeJson(input),
       }),
       runAllAnalyzers({
         ...preparedInput,
+        format_report: preparedInput.format_report_optimized,
         resume_text: input.resume_optimized_text,
         resume_json: input.resume_optimized_json,
       }),
@@ -204,12 +213,49 @@ async function prepareInput(input: ATSScoreInput) {
         issues: [],
       };
 
+  // Resolve a report per side. Callers that supply only the shared
+  // `format_report` keep today's behavior; callers that supply per-side
+  // reports get an honest format comparison (WP-45 D3).
+  const format_report_original =
+    input.format_report_original ??
+    (input.resume_original_json
+      ? analyzeFormatWithTemplate(input.resume_original_json, null)
+      : format_report);
+
+  const format_report_optimized =
+    input.format_report_optimized ??
+    (input.resume_optimized_json
+      ? analyzeFormatWithTemplate(input.resume_optimized_json, null)
+      : format_report);
+
   return {
     job_text: input.job_clean_text,
     job_data,
     format_report,
+    format_report_original,
+    format_report_optimized,
     timestamp: input.timestamp || new Date(),
   };
+}
+
+/**
+ * The original resume usually arrives as plain text with no structured JSON,
+ * which sends the recency analyzer down its "no experience data" path and pins
+ * it at a constant 50 — while the optimized side, which always has JSON, gets a
+ * real number. Deriving a minimal structure from the text makes the two sides
+ * comparable. Returns undefined when nothing dated can be read, preserving the
+ * previous behavior rather than scoring against a guess (WP-45 D4).
+ *
+ * The result is passed as `recency_json`, never as `resume_json`: the derived
+ * object has no summary, skills or education, and section_completeness,
+ * metrics_presence, title_alignment and semantic all branch on `resume_json`.
+ * Feeding them the stub would read those empty fields as missing sections and
+ * push the ORIGINAL score down, widening the reported improvement for reasons
+ * unrelated to the optimization.
+ */
+function resolveOriginalResumeJson(input: ATSScoreInput) {
+  if (input.resume_original_json) return input.resume_original_json;
+  return deriveResumeJsonFromText(input.resume_original_text) ?? undefined;
 }
 
 /**

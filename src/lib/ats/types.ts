@@ -27,8 +27,21 @@ export interface ATSScoreInput {
   /** Structured data extracted from job description */
   job_extracted_json: JobExtraction;
 
-  /** Format analysis report for both resumes */
+  /**
+   * Format analysis report. Used for both resumes unless a per-side report is
+   * supplied below.
+   *
+   * Prefer the per-side fields: sharing one report across the before/after pair
+   * freezes format_parseability so the optimized resume is graded on the
+   * original's formatting (WP-45 D3).
+   */
   format_report: FormatReport;
+
+  /** Format report for the original resume. Wins over `format_report`. */
+  format_report_original?: FormatReport;
+
+  /** Format report for the optimized resume. Wins over `format_report`. */
+  format_report_optimized?: FormatReport;
 
   /** Timestamp for recency calculations (defaults to now) */
   timestamp?: Date;
@@ -425,6 +438,18 @@ export interface AnalyzerInput {
 
   /** Format report */
   format_report?: FormatReport;
+
+  /**
+   * Dated work history recovered from plain resume text, for the recency
+   * analyzer only.
+   *
+   * This is deliberately NOT `resume_json`. Four other analyzers branch on
+   * `resume_json` and would read a derived stub's empty summary/skills/
+   * education as genuinely missing sections, collapsing the original side's
+   * scores and widening the before/after delta for reasons that have nothing
+   * to do with the optimization (WP-45 D4).
+   */
+  recency_json?: OptimizedResume;
 
   /** Timestamp for recency calculations */
   timestamp?: Date;
