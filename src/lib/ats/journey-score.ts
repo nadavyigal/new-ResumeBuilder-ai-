@@ -59,21 +59,47 @@ export function isImpossibleMeasurement(subscores: Partial<SubScores> | null | u
     key => (subscores[key] ?? 0) === 0
   );
 
-  // Semantic relevance is the load-bearing one. Its own no-data fallback is 50,
-  // so a 0 means the analyzer threw or was handed nothing.
-  const semanticIsZero = (subscores.semantic_relevance ?? 0) === 0;
+  // Three independent analyzers at exactly zero AND nothing for the format
+  // analyzer to complain about. That combination describes an empty document
+  // and nothing else: a real resume that matched no keywords still has
+  // sections, and one with no sections still has some semantic similarity.
+  //
+  // Deliberately requires all of it. Keying on a zero semantic score alone
+  // would fire wherever embeddings are unavailable — every test environment
+  // without an API key — and turn a missing integration into a hard failure on
+  // documents that scored perfectly well otherwise.
   const formatLooksPerfect = (subscores.format_parseability ?? 0) >= 95;
 
-  return semanticIsZero && (zeroed.length >= 3 || formatLooksPerfect);
+  return zeroed.length >= 3 && formatLooksPerfect;
 }
 
 export class ImpossibleMeasurementError extends Error {
-  constructor(readonly subscores: Partial<SubScores> | null | undefined) {
+  constructor(
+    readonly subscores: Partial<SubScores> | null | undefined,
+    readonly side: 'original' | 'optimized' | 'unspecified' = 'unspecified'
+  ) {
     super(
-      'Refusing to store an ATS measurement whose original side reads as an empty document. ' +
+      `Refusing to return an ATS measurement whose ${side} side reads as an empty document. ` +
         'This is a scoring-input failure, not a low-scoring resume.'
     );
     this.name = 'ImpossibleMeasurementError';
+  }
+}
+
+/**
+ * Throw rather than return a score that cannot be true.
+ *
+ * Called on both sides of every comparison, inside the scorer, so no caller can
+ * opt out by forgetting. A thrown error becomes a retry or an honest failure
+ * message; a wrong number becomes a user who stops believing the product
+ * (founder direction 2026-07-27).
+ */
+export function assertMeasurable(
+  subscores: Partial<SubScores> | null | undefined,
+  side: 'original' | 'optimized'
+): void {
+  if (isImpossibleMeasurement(subscores)) {
+    throw new ImpossibleMeasurementError(subscores, side);
   }
 }
 
