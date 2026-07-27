@@ -747,13 +747,24 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
 
         newAtsScore = scoreResult.ats_score_optimized;
 
+        // `ats_score_original` is deliberately absent from this update.
+        //
+        // An expert pass rewrites the optimized resume, so re-measuring the
+        // optimized side is correct. It does not touch the ORIGINAL document,
+        // so that side has nothing new to say — and writing it here made this
+        // the sixth place in the codebase that could move the one number the
+        // user's whole journey is anchored to. It is what turned a real run on
+        // 2026-07-27 into "29 to 60" after an expert pass, when the user had
+        // started at 39 (WP-45 D8).
+        //
+        // `ats_subscores_original` goes with it: keeping a fresh original-side
+        // subscore vector against a baseline it did not produce is how the
+        // stored evidence stops matching the stored score.
         await params.supabase
           .from('optimizations')
           .update({
-            ats_score_original: scoreResult.ats_score_original,
             ats_score_optimized: scoreResult.ats_score_optimized,
             ats_subscores: scoreResult.subscores,
-            ats_subscores_original: scoreResult.subscores_original,
             ats_suggestions: scoreResult.suggestions,
             ats_confidence: scoreResult.confidence,
             match_score: scoreResult.ats_score_optimized,
