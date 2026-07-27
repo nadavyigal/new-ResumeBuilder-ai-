@@ -1,6 +1,11 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { scoreOptimization } from "@/lib/ats/integration";
+import {
+  isImpossibleMeasurement,
+  ImpossibleMeasurementError,
+  resolveJourneyScores,
+} from "@/lib/ats/journey-score";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import {
   buildATSPreview,
@@ -198,6 +203,12 @@ export async function applyOptimizationReviewRun({
   if (resumeError || !resumeRow) {
     throw new Error("Original resume not found for this review.");
   }
+  // Previously `resumeRow.raw_text || ""`, which silently scored an empty
+  // document when the text was missing and persisted the result as the user's
+  // real score. An absent resume is a failure, not a zero (WP-45 D8).
+  if (!resumeRow.raw_text || resumeRow.raw_text.trim().length === 0) {
+    throw new Error("Original resume text is missing; refusing to score an empty document.");
+  }
 
   const { data: jdRow, error: jdError } = await supabase
     .from("job_descriptions")
@@ -221,22 +232,58 @@ export async function applyOptimizationReviewRun({
   let finalATSResult: ATSScoreOutput | null = null;
   try {
     const atsResult = await scoreOptimization({
-      resumeOriginalText: resumeRow.raw_text || "",
+      resumeOriginalText: resumeRow.raw_text,
       resumeOptimizedJson: finalResume,
       jobDescriptionText,
       jobTitle: jdRow.title || "Position",
       jobExtractedJson: parsedData,
     });
+    // The baseline is NOT taken from this run. It was measured when the review
+    // was created and is immutable from then on; re-deriving it here is what
+    // moved one user's starting point from 39 to 29 mid-journey (WP-45 D8).
+    //
+    // Only the optimized side is re-measured, because accepting a subset of the
+    // changes genuinely produces a different document — and measuring it against
+    // the same fixed baseline is what makes a partial acceptance show a smaller
+    // gain instead of a different starting point.
+    if (isImpossibleMeasurement(atsResult.subscores_original)) {
+      // The original side read as an empty document. That is an input failure,
+      // and the previous code stored its output as the user's score.
+      console.error(
+        "Discarding apply-time re-score: original side is not a real measurement",
+        atsResult.subscores_original
+      );
+      throw new ImpossibleMeasurementError(atsResult.subscores_original);
+    }
+
     finalATSResult = atsResult;
 
+    const baselineScore = reviewRun.ats_preview_json?.before;
+    const pair = resolveJourneyScores({
+      baseline: {
+        score: typeof baselineScore === "number" ? baselineScore : atsResult.ats_score_original,
+        source: typeof baselineScore === "number" ? "review_run" : "initial_scoring",
+      },
+      measuredOptimized: atsResult.ats_score_optimized,
+      promisedOptimized: reviewRun.ats_preview_json?.after,
+    });
+
+    if (pair.regressed) {
+      console.warn("Approved selection measured below the baseline", {
+        baseline: pair.before,
+        measured: pair.measuredAfter,
+      });
+    }
+
     finalATSPreview = {
-      before: atsResult.ats_score_original,
-      after: atsResult.ats_score_optimized,
-      delta: Number((atsResult.ats_score_optimized - atsResult.ats_score_original).toFixed(2)),
+      before: pair.before,
+      after: pair.after,
+      delta: Number((pair.after - pair.before).toFixed(2)),
       confidence: atsResult.confidence,
       suggestions: atsResult.suggestions,
     };
   } catch (error) {
+    if (error instanceof ImpossibleMeasurementError) throw error;
     console.error("Failed to score approved review selection:", error);
   }
 

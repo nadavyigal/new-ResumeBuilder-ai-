@@ -24,6 +24,7 @@ import { buildJobDataFromExtractedJson } from './job-data-resolver';
 import { extractResumeText } from './extractors/resume-text-extractor';
 import { analyzeFormatWithTemplate } from './extractors/format-analyzer';
 import { deriveResumeJsonFromText } from './extractors/experience-text-extractor';
+import { assertMeasurable } from './journey-score';
 
 /**
  * Identifies the scoring regime that produced a result.
@@ -190,6 +191,23 @@ export async function scoreResume(
       corrected: normalizedOptimized === normalizedOriginal && originalPenalized.penalizedScore !== optimizedPenalized.penalizedScore
     });
 
+    // A number we cannot stand behind must never leave this function.
+    //
+    // Founder direction 2026-07-27, and it is the right rule: "no way users see
+    // a score that is not measured". The accept path used to persist an
+    // original side reading keyword_exact 0, semantic_relevance 0,
+    // section_completeness 0 and format_parseability 100 — the signature of
+    // scoring an empty document — and a user was shown 29 for a real 3376
+    // character resume.
+    //
+    // Guarding at the one call site that produced the report would have left
+    // the fit check, the free check and every rescan free to do the same thing,
+    // so the check lives here, at the single point every score passes through.
+    // Failing loudly is the point: an error surfaces as a retry, while a wrong
+    // number surfaces as a user deciding the product is untrustworthy.
+    assertMeasurable(originalAggregate.subscores, 'original');
+    assertMeasurable(optimizedAggregate.subscores, 'optimized');
+
     // Estimate confidence
     const jdCompleteness = isJobExtractionComplete(preparedInput.job_data);
     const confidenceResult = estimateConfidence({
@@ -263,8 +281,17 @@ export async function scoreResume(
   } catch (error) {
     console.error('ATS scoring failed:', error);
 
-    // Return fallback scores
-    return createFallbackOutput(error as Error, startTime);
+    // Rethrow. This used to return `createFallbackOutput`, an all-zero score
+    // object with score 0 and every subscore 0, which callers then persisted
+    // and displayed as though it had been measured.
+    //
+    // That is the mechanism behind "the app showed me a number that was never
+    // measured": any failure anywhere in the pipeline became a confident-looking
+    // 0 rather than an error. Founder direction 2026-07-27 — "no way users see a
+    // score that is not measured" — makes this a hard failure. A caller that
+    // cannot score must say so, retry, or show nothing; it may not invent a
+    // number (WP-45 D8).
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 
@@ -451,37 +478,6 @@ async function runAllAnalyzers(analyzerInput: any): Promise<Map<SubScoreKey, Ana
   return resultsMap;
 }
 
-/**
- * Create fallback output when scoring fails
- */
-function createFallbackOutput(error: Error, startTime: number): ATSScoreOutput {
-  const fallbackSubscores = {
-    keyword_exact: 0,
-    keyword_phrase: 0,
-    semantic_relevance: 0,
-    title_alignment: 0,
-    metrics_presence: 0,
-    section_completeness: 0,
-    format_parseability: 0,
-    recency_fit: 0,
-  };
-
-  return {
-    ats_score_original: 0,
-    ats_score_optimized: 0,
-    subscores: fallbackSubscores,
-    subscores_original: fallbackSubscores,
-    suggestions: [],
-    confidence: 0,
-    metadata: {
-      version: 2,
-      scored_at: new Date(),
-      processing_time_ms: Date.now() - startTime,
-      warnings: [`Fatal error: ${error.message}`],
-      analyzers_used: [],
-    },
-  };
-}
 
 /**
  * Re-score an existing optimization (for migration or rescan)
