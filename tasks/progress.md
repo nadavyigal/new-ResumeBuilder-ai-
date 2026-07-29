@@ -30,6 +30,14 @@ With the founder included it reads 1 and 1, which is the sanity check confirming
 
 **The honest read:** the instrument is no longer the constraint and neither, now, is this defect. **Traffic is.** 95 launches in five months and zero since the current release is not a funnel problem that more engineering solves.
 
+**Post-deploy live verification, 2026-07-29 08:10 UTC.** Optimization `1cdce873-65e1-4ba3-a7be-72d7ccb6fa02` on iOS 1.4.7 (17) against the deployed backend: **5 roles, 14 bullets, every role populated** (3/3/3/3/2), bullets substantive at 110-134 characters. `optimized_preview_rendered` fired. Score 44 → 85. The document renders with content; the defect is gone from the live path.
+
+**But read what this run actually proves, because it is less than it looks.** Every role carries both keys — `achievements` populated and `responsibilities` present but **empty**. That means **the model named the key correctly on its own and the normalizer had nothing to rescue.** The fix path was never exercised. Since the model already complied on 372 of 384 runs (96.9%), one compliant run is exactly what the *pre-fix* baseline predicts, so **this is not evidence that the prompt change lowered the drift rate.** What it does prove: the deploy did not break anything, and the end-to-end path is healthy. The rescue path's evidence is the unit and integration tests (`4a`, `4b`), which were confirmed failing on the parent commit. Proving the prompt change needs `evals/resume-optimizer/` across many runs, not one.
+
+**A limitation the guards do not cover, now visible.** The source resume carries 18 bullets (recoverable from the backfilled rows); this run produced 14, a 22% reduction. `losesContentAgainst` compares **pass 2 against pass 1**, and pass 1's input is raw text with no structural bullet count, so **under-generation relative to the user's original document is undetectable by design**. Closing it means parsing the source resume into structure before optimizing, or counting source bullets heuristically and threading that through. Not attempted.
+
+**The event-duplication defect is unchanged and visible again in this trace**: `optimized_viewed` ×2, `export_cta_seen` ×2, `saved_resume_prompt_viewed` ×2, and `optimization_completed` emitted by both client (with version) and server (without).
+
 **Not done:** (1) `response_format: json_schema` — the key name is still enforced by instruction rather than by the API. (2) The fix is not yet verified against a live model call; `evals/resume-optimizer/` is where the prompt change should be proven to lower the drift rate, and the nightly eval ran at 05:36 UTC *before* this merge. (3) The event-duplication defect found in the same trace (several events firing 2-4x, `optimization_completed` emitted by both client and server) is recorded but has no packet. (4) The founder's 38 → 61 must not enter any activation or quality series.
 
 **Last Updated:** 2026-07-29
