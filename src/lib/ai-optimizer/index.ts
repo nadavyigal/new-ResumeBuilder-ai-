@@ -5,6 +5,7 @@ import {
   RESUME_OPTIMIZATION_USER_PROMPT,
   OPTIMIZATION_CONFIG,
 } from '../prompts/resume-optimizer';
+import { normalizeExperienceBullets } from './normalize-experience';
 
 /**
  * Optimized resume structure returned by AI
@@ -133,7 +134,13 @@ export async function optimizeResume(
       };
     }
 
-    const optimizedResume = JSON.parse(responseContent) as OptimizedResume;
+    // WP-64: the model sometimes names the per-role bullet array
+    // `responsibilities` rather than `achievements`, and every consumer reads
+    // `achievements` only — so the bullets were silently discarded. Normalize
+    // at the parse boundary, before anything downstream sees the object.
+    const optimizedResume = normalizeExperienceBullets(
+      JSON.parse(responseContent) as OptimizedResume
+    );
 
     return {
       success: true,
