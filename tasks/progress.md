@@ -1,5 +1,31 @@
 # Project Progress
 
+## 2026-07-29 — WP-64: the optimizer was deleting every experience bullet
+
+**Found from a live user report, not a test.** The founder ran an optimization on iOS 1.4.7 (17) at 05:16 UTC and got back a resume with all five roles present and not one bullet under any of them: "it cut all my experience."
+
+**Root cause.** `RESUME_OPTIMIZATION_SYSTEM_PROMPT` specifies the per-role bullet array as `achievements`. gpt-4o sometimes returns **`responsibilities`** instead, with `achievements` present but empty. Every consumer reads `achievements` and skips on empty — `DesignRenderer.tsx:525`, `ats-resume-template.tsx:118`, `api/v1/optimizations/[id]/route.ts:60`, `lib/ats/integration.ts:102` — and **nothing in the codebase reads a resume role's `responsibilities`**. The role survived with title, company and dates; every bullet was discarded. Structurally intact, substantively empty, which is exactly why it read as "lean" rather than "broken".
+
+**The scorer could not catch it, because it reads the same empty key.** The founder's run scored `ats_score_original` 38 → `ats_score_optimized` **61**. The product deleted the user's evidence, graded the remains on summary and skills alone, and reported a 23-point improvement. Any guard built on the score would have passed this.
+
+**Scope, measured in production:** 12 of 384 stored optimizations carrying an `experience` array lost every bullet this way (3.1%), earliest 2026-05-28, most recent the founder's run. All 12 belong to one account — **but that account holds 357 of 384 runs (93%)**, so at the observed 3.4% rate the other 27 runs would be expected to produce roughly one event and produced zero. **The data cannot distinguish a resume-specific trigger from a background rate affecting every user**, and it is not reported as founder-only.
+
+**Fix is three layers, because a prompt is not an enforcement mechanism** (same posture as `stripFabricatedMetrics` and RunSmart's `enforcePlanSafety`):
+
+1. **`src/lib/ai-optimizer/normalize-experience.ts`** coalesces the bullet key at **both** parse sites — `index.ts` pass 1 and `optimize-pipeline.ts` gap pass, which is a second independent model call that drifts the same way. Accepts `achievements`, `responsibilities`, `bullets`, `highlights`, `accomplishments`; first non-empty wins; never overwrites real achievements; always returns an array. Its only import is type-only, so it adds nothing at runtime and cannot cycle with `./index` or cross the client/server bundle boundary (WP-58).
+2. **Two preservation guards in the pipeline.** `hasTotalBulletLoss` rejects a candidate whose roles carry no bullets at all and retries pass 1 once. `losesContentAgainst` keeps pass 1 when pass 2 drops more than a third of the evidence — **pass 2 starts from pass 1's output and never sees the original resume, so its losses are permanent by construction**. Both are deliberately narrow so genuine consolidation still passes.
+3. **The prompt** now states that every role must appear with its bullets, that an empty bullet list is not allowed, and that the array is named `achievements` and must not be renamed. The schema example is annotated so a single role reads as the shape rather than the expected count.
+
+**Validation.** 25 new tests, all passing. Two of them (`4a`, `4b`) drive the real `runOptimizePipeline` rather than the pure helpers, and **both were confirmed failing on the parent commit** — `Array []` where the bullets belong, and `passesUsed 2` where the emptied pass 2 wins on score. That second one is the point: the guard has to beat the score, because the score prefers the broken document.
+
+Full suite **17 failed suites / 80 failed tests, identical to baseline**, passing **311 → 336** (exactly the 25 added). `tsc` **27 errors, exactly baseline**, none in touched files — an intermediate version added 19 and was rewritten. `eslint` 0 errors, its single warning pre-existing and unchanged. **`next build` verified on a clean detached worktree of the fix commit**, not the working tree: the working tree fails on `src/app/[locale]/auth/callback/route 2.ts`, an untracked iCloud duplicate that does not exist in CI, and building in place would have reported a red build for a green change.
+
+**Not done:** (1) **The 12 affected historical rows are not backfilled.** Their bullets are intact in `rewrite_data` under `responsibilities` and simply are not read; moving them into `achievements` is a production write and needs explicit approval. (2) **No `response_format: json_schema`** — instruction-level enforcement only; a strict schema would make the key name impossible to get wrong and is the real fix for layer 3. (3) The founder's 38 → 61 is not a valid measurement of anything and must not enter any activation or quality series. (4) Not verified against a live model call; the eval harness at `evals/resume-optimizer/` would be the place to prove the prompt change actually lowers the drift rate.
+
+**Related:** the iOS repo's 2026-07-27 entry recorded "the optimizer still degrades resumes" (`keyword_exact` 60 → 40) and asked for its own packet. **That is a different, less severe defect** — a scoring regression, not content deletion — and remains open. Both come from the same gap: until now nothing compared the optimizer's output against its input.
+
+**Last Updated:** 2026-07-29
+
 ## 2026-07-26 — WP-58: landed the WP-45 scorer stack on main
 
 Nine commits of scorer-integrity work were stacked three PRs deep with none of it on `main`. All of it is now merged: S1 via PR #119, S2 through S9 plus the WP-58 build fixes via PR #121.
