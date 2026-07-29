@@ -1,5 +1,47 @@
 # Project Progress
 
+## 2026-07-29 (later) — WP-64 shipped to production, and the 12 rows are repaired
+
+**Merged and deployed.** PR #126 squash-merged to `main` as `3c1c58c` at 07:52 UTC. CI `build-test` success, Vercel production deploy success on the merge commit, `https://www.resumelybuilderai.com` responding 200. Checks that passed: build-test, Vercel, GitGuardian, CodeRabbit. The one failure was `Workers Builds: match1resume1to1job`, which fails on every PR in this repo including `main` and is not a signal.
+
+**This fixed the live iOS app without an App Store release.** The optimizer runs server-side and iOS 1.4.7 calls `resumelybuilderai.com`, so the deploy repaired the shipping binary's behaviour with no Apple review in the loop. Worth remembering as a general property: **defects in the optimize/score path are hot-fixable; only client-side defects need a build.**
+
+**Backfill applied to the 12 affected rows.** Each role's `responsibilities` was copied into `achievements`, only where `achievements` was empty and `responsibilities` was not.
+
+- Dry run first, as a pure SELECT: 12 rows, `roles_before` = `roles_after` = 5 on every row, and the company list byte-identical in the same order before and after. Role identity and ordering were the two things that could silently break, and both were checked before the write, not after.
+- `jsonb_agg(... ORDER BY ord)` is load-bearing. Without the explicit ordinality ordering, role order is not guaranteed and the resumes would have been silently reshuffled.
+- Applied: 12 rows updated, 0 → **214 bullets restored**.
+- Post-write verification across the whole table: **384 rows with an experience array, 0 still empty, 384 with bullets, 4,611 bullets total, 0 rows with unrepaired key drift.**
+
+**The backfill is reversible.** `responsibilities` was deliberately left in place rather than moved, so undoing it is setting the same roles' `achievements` back to `[]`. Nothing was destroyed; the repair is additive.
+
+**`updated_at` was bumped.** Deliberate: the row content genuinely changed, and any consumer caching on `updated_at` has to see it or it will keep serving the empty version, which is the entire point of the backfill. The cost is that these 12 rows now read as recently modified when the user did not modify them — noted here so nobody reads it as user activity.
+
+**Activation as of this write, and it is the real headline.** Pinned window from the 1.4.7 release (2026-07-28T19:30:45Z) to now, person-level internal exclusion, founder person `a6441489-...` excluded:
+
+| Step | People |
+|---|---|
+| `app_launched` | **0** |
+| `optimized_preview_rendered` | **0** |
+
+With the founder included it reads 1 and 1, which is the sanity check confirming the query resolves, not a result. **Lifetime (365d, same exclusions): 95 launched → 2 activated → 4 exported.** Against EXD-022's gate of >=20 clean activations that is **2 of 20**, and 1.4.7 has contributed nothing because nobody outside the founder has opened it.
+
+**4 exported against 2 activated is structurally impossible** — you cannot export a preview you never rendered. That is the pre-1.4.5 broken-milestone residue still showing through, and it means the lifetime 2 is itself not a clean figure. Any activation claim built on it needs that caveat attached.
+
+**The honest read:** the instrument is no longer the constraint and neither, now, is this defect. **Traffic is.** 95 launches in five months and zero since the current release is not a funnel problem that more engineering solves.
+
+**Post-deploy live verification, 2026-07-29 08:10 UTC.** Optimization `1cdce873-65e1-4ba3-a7be-72d7ccb6fa02` on iOS 1.4.7 (17) against the deployed backend: **5 roles, 14 bullets, every role populated** (3/3/3/3/2), bullets substantive at 110-134 characters. `optimized_preview_rendered` fired. Score 44 → 85. The document renders with content; the defect is gone from the live path.
+
+**But read what this run actually proves, because it is less than it looks.** Every role carries both keys — `achievements` populated and `responsibilities` present but **empty**. That means **the model named the key correctly on its own and the normalizer had nothing to rescue.** The fix path was never exercised. Since the model already complied on 372 of 384 runs (96.9%), one compliant run is exactly what the *pre-fix* baseline predicts, so **this is not evidence that the prompt change lowered the drift rate.** What it does prove: the deploy did not break anything, and the end-to-end path is healthy. The rescue path's evidence is the unit and integration tests (`4a`, `4b`), which were confirmed failing on the parent commit. Proving the prompt change needs `evals/resume-optimizer/` across many runs, not one.
+
+**A limitation the guards do not cover, now visible.** The source resume carries 18 bullets (recoverable from the backfilled rows); this run produced 14, a 22% reduction. `losesContentAgainst` compares **pass 2 against pass 1**, and pass 1's input is raw text with no structural bullet count, so **under-generation relative to the user's original document is undetectable by design**. Closing it means parsing the source resume into structure before optimizing, or counting source bullets heuristically and threading that through. Not attempted.
+
+**The event-duplication defect is unchanged and visible again in this trace**: `optimized_viewed` ×2, `export_cta_seen` ×2, `saved_resume_prompt_viewed` ×2, and `optimization_completed` emitted by both client (with version) and server (without).
+
+**Not done:** (1) `response_format: json_schema` — the key name is still enforced by instruction rather than by the API. (2) The fix is not yet verified against a live model call; `evals/resume-optimizer/` is where the prompt change should be proven to lower the drift rate, and the nightly eval ran at 05:36 UTC *before* this merge. (3) The event-duplication defect found in the same trace (several events firing 2-4x, `optimization_completed` emitted by both client and server) is recorded but has no packet. (4) The founder's 38 → 61 must not enter any activation or quality series.
+
+**Last Updated:** 2026-07-29
+
 ## 2026-07-29 — WP-64: the optimizer was deleting every experience bullet
 
 **Found from a live user report, not a test.** The founder ran an optimization on iOS 1.4.7 (17) at 05:16 UTC and got back a resume with all five roles present and not one bullet under any of them: "it cut all my experience."
