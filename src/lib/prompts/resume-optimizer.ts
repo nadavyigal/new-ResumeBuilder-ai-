@@ -38,6 +38,12 @@ What to optimize:
 - Keep sections complete and easy to parse.
 - Experience bullets should be concise, action-first, and result-oriented.
 
+5. Completeness (non-negotiable)
+- Every role present in the original resume must appear in the output, with its bullets.
+- Never return a role with an empty bullet list. If a role's source material is thin, keep the bullets short rather than dropping them.
+- You may merge or reword bullets. You may not silently delete a role's evidence.
+- The bullet array is named "achievements". Do not rename it to "responsibilities", "bullets", "highlights", or anything else. This is the single most common failure mode for this task, and it causes the user's entire work history to disappear from the rendered document.
+
 Output requirements:
 - Return valid JSON only.
 - Do not wrap output in markdown.
@@ -68,6 +74,8 @@ Output requirements:
         "Another optimized bullet"
       ]
     }
+    // ... repeat this object for EVERY role in the original resume.
+    // One object shown here is the shape, not the expected count.
   ],
   "education": [
     {
@@ -96,6 +104,8 @@ Output requirements:
 
 Validation checklist before finalizing:
 - JSON is valid and complete.
+- Every role from the original resume is present, and each one has a non-empty "achievements" array.
+- The bullet arrays are named "achievements" and nothing else.
 - matchScore is a number from 0 to 100 with no percent sign.
 - Output reflects only supported, truthful content.
 - Writing is concise, professional, and ATS-friendly.`;

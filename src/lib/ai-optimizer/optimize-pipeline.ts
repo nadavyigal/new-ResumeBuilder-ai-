@@ -7,6 +7,7 @@ import {
   type ResumeOptimizationGaps,
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
+import { normalizeExperienceBullets, countBullets } from './normalize-experience';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
@@ -86,7 +87,11 @@ async function callOpenAIWithGapPrompt(
       return null;
     }
 
-    return JSON.parse(responseContent) as OptimizedResume;
+    // WP-64: normalize the bullet key here too — the gap pass is a second,
+    // independent model call and drifts the same way.
+    return normalizeExperienceBullets(
+      JSON.parse(responseContent) as OptimizedResume
+    );
   } catch (error) {
     console.error('Gap-prompt OpenAI call failed:', error);
     return null;
@@ -148,6 +153,40 @@ export function stripFabricatedMetrics(resume: OptimizedResume, originalResumeTe
   });
 
   return { ...resume, experience };
+}
+
+/**
+ * WP-64 — a candidate that returns roles with no bullets under any of them has
+ * deleted the candidate's evidence, whatever the score says. On the 2026-07-29
+ * live run that shape scored 61 against an original of 38, because the scorer
+ * reads the same empty `achievements` key the renderer does, so nothing in the
+ * scoring path can be relied on to catch it.
+ *
+ * Deliberately narrow: only the total-loss case. Legitimate optimizations do
+ * merge and drop individual bullets, and this must not fight them.
+ */
+export function hasTotalBulletLoss(candidate: OptimizedResume | null | undefined): boolean {
+  const roles = Array.isArray(candidate?.experience) ? candidate.experience : [];
+  return roles.length > 0 && countBullets(candidate) === 0;
+}
+
+/**
+ * WP-64 — pass 2 starts from pass 1's output and never sees the original
+ * resume, so any content it drops is unrecoverable. Comparing the two candidate
+ * bullet counts is therefore the only place content loss across passes can be
+ * detected at all. Mirrors the WP-45 S2 posture for scores: a pass must be
+ * compared against what it started from, not only against the other pass.
+ */
+export function losesContentAgainst(
+  candidate: OptimizedResume | null | undefined,
+  previous: OptimizedResume
+): boolean {
+  const after = countBullets(candidate);
+  const before = countBullets(previous);
+  if (before === 0) return false;
+  // A pass may consolidate; losing more than a third of the evidence is not
+  // consolidation.
+  return after < Math.ceil(before * (2 / 3));
 }
 
 function buildInitialGaps(resumeText: string, mustHave: string[]): ResumeOptimizationGaps {
@@ -240,6 +279,23 @@ export async function runOptimizePipeline(
 
   candidate1 = stripFabricatedMetrics(candidate1, resumeText);
 
+  // WP-64: if pass 1 came back with roles and no bullets under any of them, the
+  // candidate's evidence is gone. Normalization has already recovered the known
+  // key-drift cause, so reaching here means a genuinely empty generation —
+  // retry once through the plain optimizer rather than returning a skeleton.
+  if (hasTotalBulletLoss(candidate1)) {
+    console.warn('Pipeline pass 1 returned roles with zero bullets (WP-64), retrying once');
+    const retry = await optimizeResume(resumeText, jobDescription, options?.aiTrace);
+    const retryCandidate = retry.success && retry.optimizedResume
+      ? stripFabricatedMetrics(retry.optimizedResume, resumeText)
+      : null;
+    if (retryCandidate && !hasTotalBulletLoss(retryCandidate)) {
+      candidate1 = retryCandidate;
+    } else {
+      console.error('Pipeline: retry also produced zero bullets (WP-64), returning it unrepaired');
+    }
+  }
+
   // Step 3: Score pass 1 candidate
   const score1 = await scoreOptimization({
     resumeOriginalText: resumeText,
@@ -291,6 +347,17 @@ export async function runOptimizePipeline(
   }
 
   const candidate2 = stripFabricatedMetrics(candidate2Raw, resumeText);
+
+  // WP-64: pass 2 never sees the original resume, so anything it drops is gone
+  // for good. Keep pass 1 rather than shipping a thinner document, regardless of
+  // how pass 2 scores — the score cannot see this loss.
+  if (hasTotalBulletLoss(candidate2) || losesContentAgainst(candidate2, candidate1)) {
+    console.warn('Pipeline pass 2 lost experience content (WP-64), keeping pass 1 candidate', {
+      pass1Bullets: countBullets(candidate1),
+      pass2Bullets: countBullets(candidate2),
+    });
+    return { optimizedResume: candidate1, atsResult: score1, passesUsed: 1, lift: lift1 };
+  }
 
   // Score pass 2 candidate
   const score2 = await scoreOptimization({

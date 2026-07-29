@@ -436,3 +436,91 @@ describe('stripFabricatedMetrics', () => {
     expect(cleaned.experience[0].achievements[0]).not.toMatch(/40%/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Suite 4: WP-64 — bullet-key drift and content preservation, end to end
+//
+// These exercise runOptimizePipeline itself rather than the pure helpers, so
+// they prove the normalizer and the guards are actually wired into the path a
+// user's request takes. Without the fix, 4a returns a resume whose only role
+// has zero achievements — the exact document the founder received on
+// 2026-07-29, which scored 61 against an original of 38.
+// ---------------------------------------------------------------------------
+describe('runOptimizePipeline — WP-64 bullet preservation', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockExtractJobData.mockReturnValue(DEFAULT_JD_EXTRACTION);
+    process.env.OPENAI_API_KEY = 'test-key';
+  });
+
+  /** The live failure shape: bullets under `responsibilities`, achievements empty. */
+  const RESUME_JSON_KEY_DRIFT = {
+    ...makeResumeJson(),
+    experience: [
+      {
+        title: 'Head of Product',
+        company: 'Acme',
+        location: 'Tel Aviv',
+        startDate: 'Jan 2020',
+        endDate: 'Present',
+        achievements: [],
+        responsibilities: ['Led discovery', 'Shipped v2', 'Grew the team'],
+      },
+    ],
+  };
+
+  it('4a: recovers bullets when the model names the array `responsibilities`', async () => {
+    buildOpenAIMock(RESUME_JSON_KEY_DRIFT);
+    mockScoreOptimization.mockResolvedValue(makeAtsScore(60, 80));
+
+    const result = await runOptimizePipeline('resume text', 'job description');
+
+    expect(result.optimizedResume.experience[0].achievements).toEqual([
+      'Led discovery',
+      'Shipped v2',
+      'Grew the team',
+    ]);
+  });
+
+  it('4b: keeps pass 1 when pass 2 empties the experience, even though pass 2 scores higher', async () => {
+    const pass1 = {
+      ...makeResumeJson(),
+      experience: [
+        {
+          title: 'Head of Product',
+          company: 'Acme',
+          location: 'Tel Aviv',
+          startDate: 'Jan 2020',
+          endDate: 'Present',
+          achievements: ['Led discovery', 'Shipped v2', 'Grew the team'],
+        },
+      ],
+    };
+    const pass2Empty = {
+      ...pass1,
+      experience: [{ ...pass1.experience[0], achievements: [] }],
+    };
+
+    const createMock = jest.fn()
+      .mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(pass1) } }] } as any)
+      .mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify(pass2Empty) } }] } as any);
+    const mockInstance = { chat: { completions: { create: createMock } } };
+    (OpenAI as jest.MockedClass<typeof OpenAI>).mockImplementation(() => mockInstance as any);
+
+    // Pass 1 scores 40->60 so pass 2 runs. Pass 2 would score 40->90, i.e. the
+    // score prefers the emptied document. The guard must win anyway.
+    mockScoreOptimization
+      .mockResolvedValueOnce(makeAtsScore(40, 60))
+      .mockResolvedValueOnce(makeAtsScore(40, 90));
+
+    const result = await runOptimizePipeline('resume text', 'job description');
+
+    expect(result.passesUsed).toBe(1);
+    expect(result.optimizedResume.experience[0].achievements).toEqual([
+      'Led discovery',
+      'Shipped v2',
+      'Grew the team',
+    ]);
+    expect(result.atsResult.ats_score_optimized).toBe(60);
+  });
+});
