@@ -1,5 +1,67 @@
 # Project Progress
 
+- Status: WP-70 complete except the PR #100 product decision
+- Current Phase: WP-70 — land the stalled ResumeBuilder Web PRs
+- Active Story: none
+- Last Completed Story: WP-70 stories 1, 2, 3, 5, 6 — PRs #117, #118, #112 merged; working tree cleared; PostHog dashboards audited
+- Next Recommended Story: founder decision on PR #100 (grandfather free users), then apply migration `20260720000000`
+- Blockers: **Founder decision required on PR #100.** Migration `20260720000000` remains unapplied by design.
+- Last Validation: 2026-08-05 — build OK, lint clean on touched files, tsc 19 errors identical to baseline, i18n 0 missing HE keys, suite 74 suites / 435 tests
+- Last Updated: 2026-08-05
+
+## 2026-08-05 — WP-70: four stalled PRs landed, and two measurement defects found on the way
+
+**Three of the four open PRs are merged**, plus two found during the work. `main` went from five open PRs carrying ~34 days of accumulated open time to one deliberate hold.
+
+| PR | Age at merge | Landed as |
+|---|---|---|
+| #128 working-tree cleanup (new) | — | `1432fb0` |
+| #117 anonymous carryover (WP-29 S5) | 16 days | `2faa817` |
+| #118 resume-optimizer eval preflight | 15 days | `9a79abe` |
+| #129 jest duplicate-suite fix (new) | — | `6b1c4ca` |
+| #112 expert apply finalize errors | 27 days | `e27d26a` |
+| #100 grandfather free users | 34 days | **still open — founder decision** |
+
+**#117 needed a real rebase, and the rebase was verified rather than assumed.** Both conflicts were in `tasks/progress.md` only. Per-file comparison against the pre-rebase branch showed seven of eight source files byte-identical and the eighth, `api/public/ats-check/route.ts`, differing by exactly main's own WP-45 S3/D5 change (hardcoded format report to `generateFormatReport`) — so nothing was lost from either side. `git range-diff` agreed: the middle commit identical, the two touched ones differing only where progress.md was resolved.
+
+**The migration is still unapplied, deliberately.** `20260720000000_anonymous_carryover_artifacts.sql` shipped with the code but has NOT been run. That is safe because the branch's second commit wraps all three read paths in `selectAnonymousScoreWithFallback`; carryover degrades to score-only rather than breaking session conversion. Applying it needs explicit founder approval and is the next step before S5 can be live-verified.
+
+**Defect found: half of every jest run was a stale clone of itself.** `.claude/worktrees/` holds live git worktrees checked out inside the repo, and `modulePathIgnorePatterns` did not exclude them. Measured at `2faa817`: **148 suites / 869 tests / 156 failing with them, 74 / 435 / 76 without.** The duplicate contributed 80 of the 156 failures. This matters beyond noise — **the "17 failed suites / 80 failed tests" baseline cited repeatedly in this file was measured with the duplicate present**, so it was partly counting an old copy of itself. Any future "identical to baseline" claim must use the new numbers. Fixed in #129. Same defect class as the iCloud ` 2.ts` files deleted in #128: a glob picking up the wrong copy. It surfaced only because #112's four "failures" all turned out to belong to a different tree; its real result is 5/5 passing.
+
+**#112 fixes a whole failing suite.** main at `2faa817` measured 17 suites / 80 tests failing; with #112, 16 / 76. The four-line change stops `applyExpertWorkflowRun` discarding the finalize UPDATE's error and reporting `success: true` over a DB failure.
+
+## 2026-08-05 — WP-70 S6: the PostHog exclusion audit, and what it actually found
+
+**Headline: no saved dashboard number is currently wrong — but not for the reason the dashboards claim.**
+
+Every "clean" card was checked directly rather than by reading its description. All five iOS cards on dashboard 1775579 (Clean Current-Build Activation, Clean User Lifecycle, Clean 14-Day Launch Retention, Daily Activity All-vs-Clean, and the web Export Funnel on 1801425) carry **two** exclusions: an `is_internal_tester` person-property filter **and** a 15-entry `person_id` prefix list. The two SQL cards on 1801425 use the prefix list alone with `GROUP BY person_id`.
+
+**The `is_internal_tester` filter is genuinely leak-prone, and it is measured.** This project runs person-on-events, so `person.properties.*` reflects the value snapshotted at ingestion, not the person's current value. Exactly one person in 365 days carries more than one value for the flag — `a6441489…`, the founder — and their 3,686 events split:
+
+| flag at ingestion | events |
+|---|---|
+| null (before 2026-07-08) | 2,440 |
+| `false` | 831 |
+| `true` | 415 |
+
+An `is_not 'true'` filter therefore **keeps 3,271 of 3,686 (89%) of that person's events**. The filter excludes 11% of the person it names.
+
+**Why the numbers are nonetheless clean: the `person_id` prefix list is doing all the work.** `person_id` is stable per person, so the prefix exclusion is genuinely person-level, and `a6441489` — the only person the flag leaks — is in every one of those prefix lists. The flag is contributing nothing.
+
+**The live risk is forward-looking, not historical.** Any *new* internal tester flagged with `is_internal_tester` and not hand-added to the hardcoded 15-prefix list will be roughly 11% excluded and 89% counted. The dashboards are correct today by redundancy, not by construction.
+
+**Separate defect, and this one does bite: the pinned Founder Daily Readout (1794349) under-excludes.** Its two cards use cohort 394227, defined as `email = nadav.yigal@gmail.com OR email icontains '+fable-qa'` — 2 persons. Of the 15 identities the canonical dashboards exclude, that cohort covers **exactly one**. The other 14 have **null email** and can never be matched by an email cohort:
+
+| identities | events, 90d | covered by cohort 394227 |
+|---|---|---|
+| `a6441489` (founder) | 2,508 | yes |
+| 14 automation/QA identities | 552 | **no** |
+
+So WAU and the 30-day activation-step counts on that pinned dashboard carry 552 automation events they should not. It is the smaller surface, but it is the one a founder opens daily.
+
+**Not done:** neither dashboard was edited. Replacing the flag filter with a maintained person-level cohort, and repointing 1794349's two cards at the 15-identity exclusion, are changes to a founder-owned analytics surface and were left for explicit approval. The hardcoded prefix lists remain a maintenance hazard by construction — they are correct only as long as someone remembers to extend them.
+
+
 ## 2026-07-29 (later) — WP-64 shipped to production, and the 12 rows are repaired
 
 **Merged and deployed.** PR #126 squash-merged to `main` as `3c1c58c` at 07:52 UTC. CI `build-test` success, Vercel production deploy success on the merge commit, `https://www.resumelybuilderai.com` responding 200. Checks that passed: build-test, Vercel, GitGuardian, CodeRabbit. The one failure was `Workers Builds: match1resume1to1job`, which fails on every PR in this repo including `main` and is not a signal.
