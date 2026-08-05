@@ -9,8 +9,16 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'jest-environment-jsdom',
-  // Avoid scanning nested duplicate project tree to prevent haste collisions
-  modulePathIgnorePatterns: ['<rootDir>/resume-builder-ai/'],
+  // Avoid scanning nested duplicate project trees to prevent haste collisions.
+  // `.claude/worktrees/` holds live git worktrees checked out INSIDE the repo, so
+  // without this jest collects a second, older copy of the whole suite and reports
+  // its failures as if they were this tree's. Measured 2026-08-05: 148 suites /
+  // 869 tests with it, 74 / 435 without — exactly half the run was a stale clone,
+  // contributing 80 of 156 failures.
+  modulePathIgnorePatterns: [
+    '<rootDir>/resume-builder-ai/',
+    '<rootDir>/.claude/worktrees/',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
