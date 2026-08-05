@@ -6,7 +6,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "@/navigation";
+import { Link, useRouter } from "@/navigation";
 import { Upload, Palette, Briefcase, TrendingUp, Sparkles, CheckCircle } from "@/lib/icons";
 import { ROUTES } from "@/lib/constants";
 import { useTranslations } from "next-intl";
@@ -16,13 +16,18 @@ type ConvertedScore = {
   ats_score: number;
   ats_suggestions: unknown;
   converted_at: string | null;
+  resume_id?: string | null;
+  job_description_id?: string | null;
 };
 
 export default function DashboardPage() {
   const t = useTranslations("dashboard.home");
   const { user, loading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [convertedScore, setConvertedScore] = useState<any | null>(null);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState<string | null>(null);
   const suggestionsCount = useMemo(() => {
     if (!convertedScore || !Array.isArray(convertedScore.ats_suggestions)) return 0;
     return convertedScore.ats_suggestions.length;
@@ -43,6 +48,48 @@ export default function DashboardPage() {
 
     loadConvertedScore();
   }, [user]);
+
+  // WP-49: the anonymous check carried its resume and job description into this
+  // account, so the user can optimize without re-uploading either one.
+  const carriedResumeId = convertedScore?.resume_id ?? null;
+  const carriedJobDescriptionId = convertedScore?.job_description_id ?? null;
+  const canOptimizeCarryover = Boolean(carriedResumeId && carriedJobDescriptionId);
+
+  const handleOptimizeCarryover = async () => {
+    if (!canOptimizeCarryover || optimizing) return;
+
+    setOptimizing(true);
+    setOptimizeError(null);
+
+    posthog.capture("carryover_optimize_started", {
+      score: convertedScore?.ats_score,
+      source: "dashboard_conversion_card",
+    });
+
+    try {
+      const response = await fetch("/api/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resumeId: carriedResumeId,
+          jobDescriptionId: carriedJobDescriptionId,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || !payload?.reviewId) {
+        setOptimizeError(payload?.error || t("conversion.optimizeError"));
+        return;
+      }
+
+      router.push(`${ROUTES.optimizationReviews}/${payload.reviewId}`);
+    } catch {
+      setOptimizeError(t("conversion.optimizeError"));
+    } finally {
+      setOptimizing(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -111,12 +158,27 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <Button asChild className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
-                  <Link href={ROUTES.upload}>
-                    {t("conversion.cta")}
-                  </Link>
-                </Button>
+              <CardContent className="space-y-3">
+                {canOptimizeCarryover ? (
+                  <Button
+                    type="button"
+                    data-testid="carryover-optimize-cta"
+                    onClick={handleOptimizeCarryover}
+                    disabled={optimizing}
+                    className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white"
+                  >
+                    {optimizing ? t("conversion.optimizing") : t("conversion.optimizeCta")}
+                  </Button>
+                ) : (
+                  <Button asChild className="bg-[hsl(142_76%_24%)] hover:bg-[hsl(142_76%_20%)] text-white">
+                    <Link href={ROUTES.upload}>
+                      {t("conversion.cta")}
+                    </Link>
+                  </Button>
+                )}
+                {optimizeError && (
+                  <p className="text-sm text-destructive font-medium">{optimizeError}</p>
+                )}
               </CardContent>
             </Card>
           )}
