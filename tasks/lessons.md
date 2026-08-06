@@ -1,5 +1,34 @@
 # Lessons Learned — ResumeBuilder
 
+## A duplicate of the repo inside the repo poisons every glob (2026-08-05)
+
+**Symptom, twice in one session, from two different sources.** First, `npm run build` failed on
+`src/app/[locale]/auth/callback/route 2.ts` — an iCloud duplicate that exists on no branch and in
+no CI run. Then PR #112's test file reported 4 failures that belonged to a *different working
+tree*: `.claude/worktrees/wp69-score-version`, a live git worktree checked out inside the repo.
+
+**Cause.** Both are the same defect wearing different clothes: a tool that discovers files by
+pattern rather than by git. `next build` walks the app directory; jest walks `testMatch`. Neither
+asks git what is tracked. `modulePathIgnorePatterns` excluded `resume-builder-ai/` but nobody had
+thought of `.claude/worktrees/`.
+
+**Scale, measured, because the guess would have been far too low.** With nested worktrees
+collected: **148 suites / 869 tests / 156 failing.** Without: **74 / 435 / 76.** Exactly half of
+every run was a stale clone of itself, contributing 80 of the 156 failures.
+
+**The expensive part is not the noise, it is the baseline.** The "17 failed suites / 80 failed
+tests" figure quoted across `tasks/progress.md` as the comparison point for every change was
+measured with the duplicate present. Every "identical to baseline" claim built on it was
+comparing against a number that was partly an old copy of this repo. Re-measure before reusing it.
+
+**Rules:**
+1. Any tool that discovers files by glob needs an explicit ignore for `.claude/worktrees/` and for
+   iCloud ` 2.*` duplicates. Both are now in `jest.config.js` and `.gitignore` respectively.
+2. When a test fails, read the **path in the failure output** before reading the test. A path that
+   does not start where you expect is the whole diagnosis.
+3. Never create a git worktree inside the repo it belongs to. Put it in a temp directory.
+
+
 ## A shared module's imports decide which bundle it lands in (2026-07-26)
 
 **Symptom:** `npm run build` failed with `node:readline` unresolved in a browser bundle,
