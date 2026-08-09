@@ -169,14 +169,22 @@ export async function GET(
   // Improve Match is a one-time mutation for each saved optimization. Read the
   // durable server record so every client, including a fresh install, knows an
   // applied ATS report must not be offered again.
-  const { data: appliedATSRuns } = await supabase
+  const { data: appliedATSRuns, error: appliedATSRunsErr } = await supabase
     .from("expert_workflow_runs")
     .select("id")
     .eq("optimization_id", id)
     .eq("workflow_type", "ats_optimization_report")
     .not("applied_at", "is", null)
     .limit(1);
-  const atsImprovementApplied = (appliedATSRuns?.length ?? 0) > 0;
+  if (appliedATSRunsErr) {
+    console.error("Unable to read ATS improvement completion state:", appliedATSRunsErr);
+  }
+  // Fail closed when completion state cannot be read. The preview remains
+  // available, but a non-idempotent improvement is never offered twice merely
+  // because its guard query failed.
+  const atsImprovementApplied = appliedATSRunsErr
+    ? true
+    : (appliedATSRuns?.length ?? 0) > 0;
 
   const rewriteData = row.rewrite_data as OptimizedResume | null;
   const sections = rewriteData ? rewriteDataToSections(rewriteData) : [];
@@ -264,6 +272,7 @@ export async function PATCH(
   if (!rewriteData) {
     return NextResponse.json({ error: "rewrite_data is required" }, { status: 400 });
   }
+  const normalizedRewriteData = normalizeExperienceBullets(rewriteData);
 
   try {
     const userId = user.id;
@@ -308,7 +317,7 @@ export async function PATCH(
     try {
       const scored = await scoreOptimization({
         resumeOriginalText: (resumeRow as any)?.raw_text || "",
-        resumeOptimizedJson: rewriteData,
+        resumeOptimizedJson: normalizedRewriteData,
         jobDescriptionText: resolveJobDescriptionText({
           raw_text: (jdRow as any)?.raw_text,
           clean_text: (jdRow as any)?.clean_text,
@@ -325,7 +334,7 @@ export async function PATCH(
     await supabase
       .from("optimizations")
       .update({
-        rewrite_data: rewriteData,
+        rewrite_data: normalizedRewriteData,
         match_score: atsResult.ats_score_optimized ?? undefined,
         ats_score_optimized: atsResult.ats_score_optimized,
         ats_subscores: (atsResult as any).subscores ?? null,
@@ -349,7 +358,7 @@ export async function PATCH(
       optimization_id: id,
       session_id: null,
       version_number: nextVersion,
-      content: rewriteData,
+      content: normalizedRewriteData,
       change_summary: changeSummary || "Manual edit",
     });
 
