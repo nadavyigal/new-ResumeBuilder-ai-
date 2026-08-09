@@ -134,6 +134,14 @@ other. Both flattered the product.
 
 ---
 
+## Normalize compatibility aliases at every persistence boundary
+
+**Mistake:** Fixing `responsibilities` versus `achievements` only where the AI JSON is parsed, while a later canonicalizer accepts both keys and can persist `achievements: []` again.
+**Why it fails:** The optimizer output is not the final stored object. Review selection rebuilds and normalizes the résumé before insert, so a correct upstream object can be replaced by an original canonical role whose bullets remain under the alias. Renderers and scorers still read only the canonical key.
+**Fix:** Enforce the canonical field at every rebuild or persistence boundary, and keep tolerant fallbacks on read paths for historical rows. Regression fixtures must exercise the full review/apply shape, not only the model parse function.
+
+---
+
 ## Wrong Supabase project in env
 
 **Mistake:** `NEXT_PUBLIC_SUPABASE_URL` points at the wrong project (dev vs. prod).

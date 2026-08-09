@@ -209,6 +209,8 @@ function transformToJsonResume(resumeData: unknown): JsonResume {
     summary: asString(data.summary),
     work: experience.map((item) => {
       const exp = asRecord(item);
+      const achievements = asStringArray(exp.achievements);
+      const responsibilities = asStringArray(exp.responsibilities);
       return {
         name: asString(exp.company),
         position: asString(exp.title) || asString(exp.position),
@@ -216,7 +218,11 @@ function transformToJsonResume(resumeData: unknown): JsonResume {
         startDate: asString(exp.startDate),
         endDate: asString(exp.endDate) || 'Present',
         summary: asString(exp.description),
-        highlights: asStringArray(exp.achievements),
+        // Historical rows and the canonical review path may carry the role's
+        // real bullets under `responsibilities`. Prefer canonical achievements,
+        // but never render a headline-only role when the compatible alias has
+        // content (WP-64 recurrence, 2026-08-08).
+        highlights: achievements.length > 0 ? achievements : responsibilities,
       };
     }),
     education: education.map((item) => {

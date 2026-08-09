@@ -1,13 +1,23 @@
 # Project Progress
 
-- Status: WP-70 complete except the PR #100 product decision
-- Current Phase: WP-70 — land the stalled ResumeBuilder Web PRs
-- Active Story: none
-- Last Completed Story: WP-70 stories 1, 2, 3, 5, 6 — PRs #117, #118, #112 merged; working tree cleared; PostHog dashboards audited
-- Next Recommended Story: founder decision on PR #100 (grandfather free users), then apply migration `20260720000000`
-- Blockers: **Founder decision required on PR #100.** Migration `20260720000000` remains unapplied by design.
-- Last Validation: 2026-08-05 — build OK, lint clean on touched files, tsc 19 errors identical to baseline, i18n 0 missing HE keys, suite 74 suites / 435 tests
-- Last Updated: 2026-08-05
+- Status: P0 WP-64 recurrence fixed locally, not deployed
+- Current Phase: Review-path bullet preservation and one-pass fit contract
+- Active Story: make responsibilities-only rows readable and expose durable ATS-improvement completion
+- Last Completed Story: local implementation and regression verification
+- Next Recommended Story: review and merge this PR, deploy through the normal backend path, then verify the existing affected optimization read-only
+- Blockers: live verification requires the normal deploy; deployment is explicitly outside this session
+- Last Validation: 2026-08-09, 4 targeted suites / 21 tests passing, touched-file ESLint clean
+- Last Updated: 2026-08-09
+
+## 2026-08-09 — WP-64 recurred through the review path after the parser fix shipped
+
+**A new live row reproduced the same destructive shape after WP-64 was deployed and backfilled.** The founder's 2026-08-08 optimization contained five roles, zero `achievements`, and 17 populated `responsibilities`; its score was stored as 43 to 64. Read-only inspection only, no row was modified.
+
+**The prior fix was correct but incomplete.** Both AI parse sites normalize bullet aliases, but the optimization-review flow calls `normalizeOptimizedResume`. That canonicalizer explicitly retained `responsibilities` while leaving `achievements` empty. Applying a review could therefore reintroduce the exact invalid shape after the pipeline had repaired it. The detail and design-render paths then read only `achievements`, so the stored résumé appeared as role headlines with no content.
+
+**Fix:** canonicalization now promotes non-empty responsibilities when achievements are empty. The optimization-detail and design-preview read paths also accept that alias, which makes historical rows readable without a backfill. Optimization detail now returns `ats_improvement_applied` from applied `ats_optimization_report` runs so clients can enforce one improvement per saved optimization across devices. The live row already has three such applied runs, which confirms the need for a server-backed flag.
+
+**Validation:** `normalize-experience`, iOS optimization/design contracts, and both optimization-review provider suites pass, 21 tests total. Touched-file ESLint is clean. Full-repo `tsc` retains the existing unrelated test-contract errors. No deployment or production write was performed.
 
 ## 2026-08-05 — WP-70: four stalled PRs landed, and two measurement defects found on the way
 

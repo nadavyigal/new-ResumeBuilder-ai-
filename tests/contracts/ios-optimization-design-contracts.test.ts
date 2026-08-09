@@ -89,6 +89,28 @@ function optimizationDetailSupabase() {
         };
       }
 
+      if (table === 'expert_workflow_runs') {
+        return {
+          select() {
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      not() {
+                        return {
+                          limit: async () => ({ data: [{ id: 'run-applied' }], error: null }),
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+
       throw new Error(`Unexpected table: ${table}`);
     },
   };
@@ -134,6 +156,7 @@ describe('iOS optimization/design contracts', () => {
     });
     expect(payload.job_title).toBe('iOS Engineer');
     expect(payload.ats_score_after).toBe(82);
+    expect(payload.ats_improvement_applied).toBe(true);
   });
 
   it('renders UUID-backed templates differently and honors iOS customization keys', async () => {

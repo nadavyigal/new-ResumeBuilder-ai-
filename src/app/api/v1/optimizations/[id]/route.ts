@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { normalizeExperienceBullets } from "@/lib/ai-optimizer/normalize-experience";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { scoreOptimization } from "@/lib/ats/integration";
 import { assessLift } from "@/lib/ats/lift";
@@ -53,8 +54,9 @@ function flattenSkills(data: OptimizedResume): string {
 }
 
 function flattenExperience(data: OptimizedResume): string {
-  if (!Array.isArray(data.experience)) return "";
-  return data.experience
+  const normalized = normalizeExperienceBullets(data);
+  if (!Array.isArray(normalized.experience)) return "";
+  return normalized.experience
     .map((exp) => {
       const head = [exp.title, exp.company].filter(Boolean).join(" • ");
       const bullets = Array.isArray(exp.achievements)
@@ -164,6 +166,18 @@ export async function GET(
     return NextResponse.json({ error: "Optimization not found" }, { status: 404 });
   }
 
+  // Improve Match is a one-time mutation for each saved optimization. Read the
+  // durable server record so every client, including a fresh install, knows an
+  // applied ATS report must not be offered again.
+  const { data: appliedATSRuns } = await supabase
+    .from("expert_workflow_runs")
+    .select("id")
+    .eq("optimization_id", id)
+    .eq("workflow_type", "ats_optimization_report")
+    .not("applied_at", "is", null)
+    .limit(1);
+  const atsImprovementApplied = (appliedATSRuns?.length ?? 0) > 0;
+
   const rewriteData = row.rewrite_data as OptimizedResume | null;
   const sections = rewriteData ? rewriteDataToSections(rewriteData) : [];
   const contact = rewriteData ? rewriteDataToContact(rewriteData) : null;
@@ -209,6 +223,8 @@ export async function GET(
     ats_score_after: toIntPercent(row.ats_score_optimized),
     atsBlockers: blockers,
     ats_blockers: blockers,
+    atsImprovementApplied,
+    ats_improvement_applied: atsImprovementApplied,
     // WP-45 S2/S8. The scores above stay honest; `lift` tells the client
     // whether they are worth SHOWING. A run that moved the score by +2, or
     // moved it down, is a pipeline failure, and a before/after pair reads as a
