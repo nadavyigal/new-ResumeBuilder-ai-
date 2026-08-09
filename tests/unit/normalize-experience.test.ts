@@ -16,6 +16,8 @@ import {
   countBullets,
   BULLET_KEY_ALIASES,
 } from '@/lib/ai-optimizer/normalize-experience';
+import { normalizeOptimizedResume } from '@/lib/resume/canonicalize';
+import { renderDesignPreviewHtml } from '@/lib/design-manager/render-preview-html';
 
 describe('normalizeExperienceBullets', () => {
   it('promotes `responsibilities` into `achievements` when achievements is empty — the live WP-64 failure', () => {
@@ -182,5 +184,41 @@ describe('countBullets', () => {
     expect(countBullets({ experience: [{ achievements: ['a', 'b'] }, { achievements: ['c'] }] } as never)).toBe(3);
     expect(countBullets({} as never)).toBe(0);
     expect(countBullets({ experience: [] } as never)).toBe(0);
+  });
+});
+
+describe('WP-64 review-path compatibility', () => {
+  const responsibilitiesOnlyResume = {
+    summary: 'Product leader',
+    contact: {},
+    skills: {},
+    experience: [
+      {
+        title: 'Head of Product',
+        company: 'Acme',
+        achievements: [],
+        responsibilities: ['Led discovery', 'Shipped the new funnel'],
+      },
+    ],
+  };
+
+  it('canonicalization promotes responsibilities so review apply cannot reintroduce empty achievements', () => {
+    const normalized = normalizeOptimizedResume(responsibilitiesOnlyResume);
+
+    expect(normalized.experience[0].achievements).toEqual([
+      'Led discovery',
+      'Shipped the new funnel',
+    ]);
+  });
+
+  it('the design preview renders responsibilities-only historical rows with their content', () => {
+    const html = renderDesignPreviewHtml({
+      templateId: 'ats-clean',
+      resumeData: responsibilitiesOnlyResume,
+    });
+
+    expect(html).toContain('Head of Product');
+    expect(html).toContain('Led discovery');
+    expect(html).toContain('Shipped the new funnel');
   });
 });

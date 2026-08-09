@@ -162,14 +162,21 @@ export function normalizeOptimizedResume(
               item && typeof item === "object" && !Array.isArray(item)
                 ? (item as Record<string, unknown>)
                 : {};
+            const achievements = toStringArray(row.achievements);
+            const responsibilities = toStringArray(row.responsibilities);
             return {
               title: firstNonEmptyString(row.title),
               company: firstNonEmptyString(row.company),
               location: firstNonEmptyString(row.location),
               startDate: firstNonEmptyString(row.startDate),
               endDate: firstNonEmptyString(row.endDate),
-              achievements: toStringArray(row.achievements),
-              responsibilities: toStringArray(row.responsibilities),
+              // Every renderer and scorer consumes `achievements`. The
+              // canonical parser deliberately accepts `responsibilities`, so
+              // normalize that alias here too. Otherwise the review/apply path
+              // can undo WP-64's parse-boundary fix and persist role headers
+              // with every bullet stranded under the unread alias.
+              achievements: achievements.length > 0 ? achievements : responsibilities,
+              responsibilities,
             };
           })
           .filter((item) => item.title || item.company || item.achievements.length > 0)
