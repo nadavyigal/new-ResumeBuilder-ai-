@@ -151,6 +151,7 @@ export interface Database {
           ats_suggestions: Json | null;
           ats_confidence: number | null;
           ats_version: number | null;
+          score_version: string | null;
           ai_modification_count: number | null;
         },
         {
@@ -175,6 +176,7 @@ export interface Database {
           ats_suggestions?: Json | null;
           ats_confidence?: number | null;
           ats_version?: number | null;
+          score_version?: string | null;
           ai_modification_count?: number | null;
         },
         {
@@ -199,6 +201,7 @@ export interface Database {
           ats_suggestions?: Json | null;
           ats_confidence?: number | null;
           ats_version?: number | null;
+          score_version?: string | null;
           ai_modification_count?: number | null;
         },
         [
@@ -415,6 +418,7 @@ export interface Database {
           job_source_url: string | null;
           resume_id: string | null;
           job_description_id: string | null;
+          score_version: string | null;
         },
         {
           id?: number;
@@ -437,6 +441,7 @@ export interface Database {
           job_source_url?: string | null;
           resume_id?: string | null;
           job_description_id?: string | null;
+          score_version?: string | null;
         },
         {
           id?: number;
@@ -459,6 +464,7 @@ export interface Database {
           job_source_url?: string | null;
           resume_id?: string | null;
           job_description_id?: string | null;
+          score_version?: string | null;
         }
       >;
       rate_limits: Table<

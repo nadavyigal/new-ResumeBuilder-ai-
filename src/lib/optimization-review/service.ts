@@ -1,6 +1,7 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { scoreOptimization } from "@/lib/ats/integration";
+import { SCORE_VERSION } from "@/lib/ats";
 import {
   isImpossibleMeasurement,
   ImpossibleMeasurementError,
@@ -304,6 +305,7 @@ export async function applyOptimizationReviewRun({
       template_key: "natural",
       status: "completed",
       ats_version: 2,
+      score_version: finalATSResult?.metadata?.score_version ?? SCORE_VERSION,
       ats_score_original: finalATSPreview?.before ?? reviewRun.ats_preview_json?.before ?? null,
       ats_score_optimized: finalATSPreview?.after ?? reviewRun.ats_preview_json?.after ?? null,
       ats_subscores: finalATSResult?.subscores ?? null,

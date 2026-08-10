@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parsePdf } from '@/lib/pdf-parser';
-import { scoreResume } from '@/lib/ats';
+import { scoreResume, SCORE_VERSION } from '@/lib/ats';
 import { generateFormatReport } from '@/lib/ats/integration';
 import { generateQuickWins } from '@/lib/ats/quick-wins/generator';
 import type { ATSScoreInput, JobExtraction } from '@/lib/ats/types';
@@ -241,6 +241,13 @@ export async function POST(request: NextRequest) {
     job_description_hash: jobHash,
   };
 
+  // WP-69: which engine produced this score. Spread separately from baseScoreRow so the
+  // undefined-column fallback below drops it too if migration 20260805000000 has not been
+  // applied yet — a missing column must not cost the user their free check.
+  const versionColumn = {
+    score_version: scoreResult.metadata?.score_version ?? SCORE_VERSION,
+  };
+
   // WP-49: retained only so signup can carry the check into the new account;
   // cleared on conversion, expired otherwise.
   const carryoverColumns = {
@@ -252,7 +259,7 @@ export async function POST(request: NextRequest) {
 
   let { data: insertedScore, error: insertError } = await supabase
     .from('anonymous_ats_scores')
-    .insert({ ...baseScoreRow, ...carryoverColumns })
+    .insert({ ...baseScoreRow, ...carryoverColumns, ...versionColumn })
     .select('*')
     .single();
 

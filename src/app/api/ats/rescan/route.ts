@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
-import { rescoreOptimization } from '@/lib/ats';
+import { rescoreOptimization, SCORE_VERSION } from '@/lib/ats';
 import { logger } from '@/lib/agent/utils/logger';
 
 export async function POST(request: NextRequest) {
@@ -96,6 +96,7 @@ export async function POST(request: NextRequest) {
       .from('optimizations')
       .update({
         ats_version: 2,
+        score_version: result.metadata?.score_version ?? SCORE_VERSION,
         ats_score_optimized: result.ats_score_optimized,
         ats_subscores: result.subscores,
         ats_suggestions: result.suggestions,

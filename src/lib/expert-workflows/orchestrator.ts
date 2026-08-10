@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { scoreOptimization } from '@/lib/ats/integration';
+import { SCORE_VERSION } from '@/lib/ats';
 import { buildRewritePrompt } from './prompts/rewrite';
 import { buildQuantifierPrompt } from './prompts/quantifier';
 import { buildATSReportPrompt } from './prompts/ats-report';
@@ -769,6 +770,7 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
             ats_confidence: scoreResult.confidence,
             match_score: scoreResult.ats_score_optimized,
             ats_version: 2,
+            score_version: scoreResult.metadata?.score_version ?? SCORE_VERSION,
           })
           .eq('id', optimization.id);
       }
