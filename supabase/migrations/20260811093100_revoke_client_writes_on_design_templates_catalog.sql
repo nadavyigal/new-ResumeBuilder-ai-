@@ -1,0 +1,21 @@
+-- Defence in depth for the design template catalogue.
+--
+-- Not an open hole: its RLS write policies already require
+-- `auth.role() = 'service_role'`, so client writes are denied today. But the
+-- default blanket INSERT/UPDATE/DELETE/TRUNCATE grants to anon/authenticated
+-- are still present, which means a single future policy edit -- or a permissive
+-- policy added for an unrelated reason -- silently re-opens catalogue tampering
+-- (flipping `is_premium` to false unlocks paid templates for everyone).
+--
+-- This is a shared catalogue with no `user_id`: nothing client-side writes it,
+-- and every legitimate write is service_role. Removing the grant makes the
+-- policy the second line of defence rather than the only one.
+-- TRUNCATE is included because it bypasses RLS entirely.
+--
+-- Found by a sweep for tables that combine client write grants with a
+-- privileged column. The sweep's other hits were false positives: `plans`,
+-- `applications`, `optimizations`, `chat_sessions` and `conversation_messages`
+-- all carry a `status`/`role` column but are user-owned rows correctly scoped
+-- by RLS, where writing your own row is the intended behaviour.
+
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.design_templates FROM anon, authenticated;
