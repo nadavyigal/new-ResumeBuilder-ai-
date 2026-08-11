@@ -4,6 +4,13 @@ import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
+import { checkRateLimit as checkPersistentRateLimit } from "@/lib/rate-limiting/check-rate-limit";
+import { getClientIP } from "@/lib/rate-limiting/get-client-ip";
+import {
+  ANONYMOUS_OPTIMIZE_ENDPOINT,
+  ANONYMOUS_OPTIMIZE_LIMIT,
+  requiresAnonymousRateLimit,
+} from "@/lib/rate-limiting/anonymous-optimize-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
 
@@ -16,6 +23,54 @@ export async function POST(req: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Anonymous callers can rotate `user.id` at will, so the per-user limit below
+  // does not bind for them. Guard on IP instead — see
+  // `@/lib/rate-limiting/anonymous-optimize-limit` for why signed-in users are
+  // exempt and why this stays inert until anonymous sign-ins are enabled.
+  //
+  // Uses the Supabase-backed limiter, not `checkRateLimit` from
+  // `@/lib/utils/rate-limit`: that one is an in-memory Map, so it is
+  // per-instance and resets on restart, which makes it useless as an abuse
+  // control on serverless. This is the same limiter `/api/public/ats-check`
+  // already relies on.
+  if (requiresAnonymousRateLimit(user)) {
+    const ip = getClientIP(req);
+    try {
+      const anonymousLimit = await checkPersistentRateLimit(
+        ip,
+        ANONYMOUS_OPTIMIZE_ENDPOINT,
+        ANONYMOUS_OPTIMIZE_LIMIT,
+      );
+
+      if (!anonymousLimit.allowed) {
+        const retryAfter = Math.max(
+          1,
+          Math.ceil((anonymousLimit.resetAt.getTime() - Date.now()) / 1000),
+        );
+        return NextResponse.json(
+          { error: "Free optimization limit reached. Create an account to keep going." },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": retryAfter.toString(),
+              "X-RateLimit-Limit": ANONYMOUS_OPTIMIZE_LIMIT.maxRequests.toString(),
+              "X-RateLimit-Remaining": "0",
+            },
+          },
+        );
+      }
+    } catch (error) {
+      // Fail closed. This is the most expensive endpoint in the app, and an
+      // outage in the limiter must not become an open door on it. Matches the
+      // posture `/api/public/ats-check` already takes on the same failure.
+      logger.error("[optimize] anonymous rate limit check failed", { error });
+      return NextResponse.json(
+        { error: "Service temporarily unavailable. Please try again." },
+        { status: 503 },
+      );
+    }
   }
 
   let resumeId: string | undefined;
