@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
+import { hasPremiumAccess } from '@/lib/premium-access';
 import { runExpertWorkflow } from '@/lib/expert-workflows/orchestrator';
 import {
   SURFACED_EXPERT_WORKFLOW_TYPES,
@@ -24,21 +25,6 @@ function getLockedPreview(workflowType: SurfacedExpertWorkflowType) {
       'Preview: you will receive role-specific screening answers with evidence notes and confidence guidance.',
   };
   return previews[workflowType];
-}
-
-async function isPremiumUser(supabase: any, userId: string, user: any): Promise<boolean> {
-  const metadata = user?.user_metadata || {};
-  if (metadata.is_premium === true || metadata.plan_type === 'premium') {
-    return true;
-  }
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('plan_type')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  return data?.plan_type === 'premium';
 }
 
 export async function POST(request: NextRequest) {
@@ -75,14 +61,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const premium = await isPremiumUser(supabase, user.id, user);
+    const access = await hasPremiumAccess(supabase, user.id, user);
     await captureServerEvent(user.id, 'expert_mode_run_started', {
       workflow_type: workflowType,
       optimization_id: optimizationId,
       source: 'api_v1_expert_workflows_run',
-      is_premium: premium,
+      is_premium: access.allowed,
+      // Kept separate so the ungated period is still readable later: `entitled`
+      // is who would be paying, `gated` is whether the paywall was switched on
+      // at all. Reading is_premium alone would make every user look like a
+      // subscriber for as long as monetization is off.
+      entitled: access.entitled,
+      gated: access.gated,
     });
-    if (!premium) {
+    if (!access.allowed) {
       await captureServerEvent(user.id, 'expert_mode_locked', {
         workflow_type: workflowType,
         optimization_id: optimizationId,
