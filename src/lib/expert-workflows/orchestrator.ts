@@ -1,3 +1,4 @@
+import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
@@ -726,6 +727,8 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   }
 
   let newAtsScore: number | null = null;
+  let scoreDecreaseBlocked = false;
+  let measuredAtsScore: number | null = null;
   if (updatedFields.length > 0 && previousAtsScore !== null) {
     try {
       const [resumeResult, jdResult] = await Promise.all([
@@ -760,17 +763,32 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
         // `ats_subscores_original` goes with it: keeping a fresh original-side
         // subscore vector against a baseline it did not produce is how the
         // stored evidence stops matching the stored score.
-        await params.supabase
-          .from('optimizations')
-          .update({
-            ats_score_optimized: scoreResult.ats_score_optimized,
+        // An expert pass must not quietly lower the score. It rewrites the
+        // optimized résumé, so re-measuring is right, but a worse result is
+        // reported for the user to accept rather than written over the number
+        // they already have. `newAtsScore` below therefore follows what was
+        // stored, not what was measured.
+        const commit = await commitOptimizedScore({
+          supabase: params.supabase,
+          optimizationId: optimization.id,
+          measured: scoreResult.ats_score_optimized,
+          previous: previousAtsScore,
+          fields: {
             ats_subscores: scoreResult.subscores,
             ats_suggestions: scoreResult.suggestions,
             ats_confidence: scoreResult.confidence,
-            match_score: scoreResult.ats_score_optimized,
-            ats_version: 2,
-          })
-          .eq('id', optimization.id);
+          },
+          alwaysFields: { ats_version: 2 },
+        });
+        scoreDecreaseBlocked = commit.decreaseBlocked;
+        measuredAtsScore = commit.measured;
+        if (commit.decreaseBlocked) {
+          newAtsScore = commit.stored;
+          console.warn(
+            '[expert-workflow] run measured a lower score; keeping the stored one',
+            { optimizationId: optimization.id, stored: commit.previous, measured: commit.measured }
+          );
+        }
       }
     } catch (atsErr) {
       // Keep successful apply behavior even when ATS recomputation fails.
@@ -785,6 +803,10 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     delta:
       previousAtsScore !== null && finalAtsScore !== null
         ? Number((finalAtsScore - previousAtsScore).toFixed(2))
+        : null,
+    decrease_blocked:
+      scoreDecreaseBlocked && measuredAtsScore !== null
+        ? { kept: finalAtsScore, measured: measuredAtsScore }
         : null,
   };
 

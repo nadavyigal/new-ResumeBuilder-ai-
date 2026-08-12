@@ -200,7 +200,7 @@ describe('expert workflow apply behavior', () => {
     expect(result.success).toBe(true);
     expect(result.workflow_type).toBe('full_resume_rewrite');
     expect(result.updated_fields).toEqual(['entire_resume']);
-    expect(result.ats_impact).toEqual({ before: 62, after: 74, delta: 12 });
+    expect(result.ats_impact).toEqual({ before: 62, after: 74, delta: 12, decrease_blocked: null });
     expect(result.new_ats_score).toBe(74);
     expect((supabase as any).getOptimizationUpdates()[0]).toEqual({ rewrite_data: rewrittenResume });
     expect((supabase as any).getApplicationUpdates()[0]).toEqual({ ats_score: 74 });
@@ -266,7 +266,7 @@ describe('expert workflow apply behavior', () => {
     expect(result.workflow_type).toBe('cover_letter_architect');
     expect(result.updated_fields).toEqual([]);
     expect(result.applied_assets).toEqual(['cover_letter_variant:1']);
-    expect(result.ats_impact).toEqual({ before: null, after: null, delta: null });
+    expect(result.ats_impact).toEqual({ before: null, after: null, delta: null, decrease_blocked: null });
     expect(result.new_ats_score).toBeNull();
     expect((supabase as any).getOptimizationUpdates()).toHaveLength(0);
     expect((supabase as any).getApplicationUpdates()).toHaveLength(0);

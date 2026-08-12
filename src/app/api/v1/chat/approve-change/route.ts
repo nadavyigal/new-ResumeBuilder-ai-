@@ -4,6 +4,7 @@
  * Apply approved ATS tip changes to resume and recalculate ATS score
  */
 
+import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { scoreResume } from '@/lib/ats/scorer';
@@ -256,16 +257,20 @@ export async function POST(request: NextRequest) {
           jobDescription.embeddings || null
         );
 
-        // Update ATS score in database
-        const { error: scoreUpdateError } = await supabase
-          .from('optimizations')
-          .update({
-            match_score: scoreResult.ats_score_optimized,
-            ats_score_optimized: scoreResult.ats_score_optimized,
-            ats_subscores: scoreResult.subscores,
-          })
-          .eq('id', optimization_id)
-          .eq('user_id', user.id);
+        // Approving one change must not lower the overall score behind the
+        // user's back; a worse measurement is reported, not stored.
+        let scoreUpdateError: unknown = null;
+        try {
+          await commitOptimizedScore({
+            supabase,
+            optimizationId: optimization_id,
+            userId: user.id,
+            measured: scoreResult.ats_score_optimized,
+            fields: { ats_subscores: scoreResult.subscores },
+          });
+        } catch (err) {
+          scoreUpdateError = err;
+        }
 
         if (scoreUpdateError) {
           console.error('❌ Failed to update ATS score:', scoreUpdateError);

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
+import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import { logger } from '@/lib/agent/utils/logger';
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { optimization_id } = body;
+    // `accept_decrease` is set only after the user has been shown the drop and
+    // agreed to it. Absent, a lower score is reported but not stored.
+    const { optimization_id, accept_decrease } = body;
     optimizationId = optimization_id;
 
     if (!optimization_id) {
@@ -92,21 +95,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const { error: updateError } = await supabase
-      .from('optimizations')
-      .update({
-        ats_version: 2,
-        ats_score_optimized: result.ats_score_optimized,
+    // The floor lives in commitOptimizedScore, not here, because this was one of
+    // five places that could move this number and they disagreed with each other.
+    const commit = await commitOptimizedScore({
+      supabase,
+      optimizationId: optimization_id,
+      userId: user.id,
+      measured: result.ats_score_optimized,
+      previous: optimization.ats_score_optimized ?? null,
+      allowDecrease: accept_decrease === true,
+      fields: {
         ats_subscores: result.subscores,
         ats_suggestions: result.suggestions,
         ats_confidence: result.confidence,
-        match_score: result.ats_score_optimized,
-      })
-      .eq('id', optimization_id)
-      .eq('user_id', user.id);
+      },
+      alwaysFields: { ats_version: 2 },
+    });
 
-    if (updateError) {
-      throw updateError;
+    if (commit.decreaseBlocked) {
+      logger.warn('Rescan measured a lower score; keeping the stored one', {
+        optimizationId: optimization_id,
+        stored: commit.previous,
+        measured: commit.measured,
+      });
     }
 
     // Report the stored baseline, not the one just measured, so the client and
@@ -119,9 +130,17 @@ export async function POST(request: NextRequest) {
       optimization_id,
       scores: {
         original: baseline,
-        optimized: result.ats_score_optimized,
-        improvement: result.ats_score_optimized - baseline,
+        // The stored score, which is what the user sees. When a decrease was
+        // refused this is the previous score, not the one just measured.
+        optimized: commit.stored ?? result.ats_score_optimized,
+        improvement: (commit.stored ?? result.ats_score_optimized) - baseline,
       },
+      // Present when the rescan measured a drop and did not store it. The client
+      // shows both numbers and, if the user accepts, retries with
+      // `accept_decrease: true`.
+      score_decrease: commit.decreaseBlocked
+        ? { current: commit.previous, measured: commit.measured }
+        : null,
       suggestions_count: result.suggestions.length,
       confidence: result.confidence,
     });
