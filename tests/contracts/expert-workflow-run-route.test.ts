@@ -126,7 +126,9 @@ describe('POST /api/v1/expert-workflows/run', () => {
     expect(runExpertWorkflow).not.toHaveBeenCalled();
   });
 
-  it('returns a locked preview for non-premium users', async () => {
+  it('runs the workflow for a non-premium user while monetization is off', async () => {
+    // The default. MONETIZATION_ENABLED is unset, so nothing is gated and a free
+    // user gets the real workflow instead of a 402.
     const { POST, createRouteHandlerClient, captureServerEvent, runExpertWorkflow } =
       loadRouteHarness();
     createRouteHandlerClient.mockResolvedValue(
@@ -135,6 +137,11 @@ describe('POST /api/v1/expert-workflows/run', () => {
         profilePlan: 'free',
       })
     );
+    runExpertWorkflow.mockResolvedValue({
+      run_id: 'run-1',
+      status: 'completed',
+      output: { report: { headline: 'Report' } },
+    });
 
     const request = jsonRequest({
       optimization_id: 'opt-1',
@@ -142,21 +149,62 @@ describe('POST /api/v1/expert-workflows/run', () => {
     });
 
     const response = await POST(request);
-    const payload = await response.json();
 
-    expect(response.status).toBe(402);
-    expect(payload.code).toBe('PREMIUM_REQUIRED');
-    expect(payload.workflow_type).toBe('cover_letter_architect');
-    expect(typeof payload.locked_preview).toBe('string');
-    expect(captureServerEvent).toHaveBeenCalledWith(
+    expect(response.status).toBe(200);
+    expect(runExpertWorkflow).toHaveBeenCalled();
+    expect(captureServerEvent).not.toHaveBeenCalledWith(
       'user-1',
       'expert_mode_locked',
-      expect.objectContaining({
-        workflow_type: 'cover_letter_architect',
-        optimization_id: 'opt-1',
-      })
+      expect.anything()
     );
-    expect(runExpertWorkflow).not.toHaveBeenCalled();
+    expect(captureServerEvent).toHaveBeenCalledWith(
+      'user-1',
+      'expert_mode_run_started',
+      expect.objectContaining({ gated: false, entitled: false, is_premium: true })
+    );
+  });
+
+  it('returns a locked preview for non-premium users once monetization is enabled', async () => {
+    const previous = process.env.MONETIZATION_ENABLED;
+    process.env.MONETIZATION_ENABLED = 'true';
+    try {
+      const { POST, createRouteHandlerClient, captureServerEvent, runExpertWorkflow } =
+        loadRouteHarness();
+      createRouteHandlerClient.mockResolvedValue(
+        buildSupabaseClient({
+          user: { id: 'user-1', user_metadata: { is_premium: false } },
+          profilePlan: 'free',
+        })
+      );
+
+      const request = jsonRequest({
+        optimization_id: 'opt-1',
+        workflow_type: 'cover_letter_architect',
+      });
+
+      const response = await POST(request);
+      const payload = await response.json();
+
+      expect(response.status).toBe(402);
+      expect(payload.code).toBe('PREMIUM_REQUIRED');
+      expect(payload.workflow_type).toBe('cover_letter_architect');
+      expect(typeof payload.locked_preview).toBe('string');
+      expect(captureServerEvent).toHaveBeenCalledWith(
+        'user-1',
+        'expert_mode_locked',
+        expect.objectContaining({
+          workflow_type: 'cover_letter_architect',
+          optimization_id: 'opt-1',
+        })
+      );
+      expect(runExpertWorkflow).not.toHaveBeenCalled();
+    } finally {
+      if (previous === undefined) {
+        delete process.env.MONETIZATION_ENABLED;
+      } else {
+        process.env.MONETIZATION_ENABLED = previous;
+      }
+    }
   });
 
   it('returns structured workflow status for surfaced workflows', async () => {

@@ -24,6 +24,7 @@ import { detectIntentRegex } from '@/lib/agent/intents';
 import { handleTipImplementation } from '@/lib/agent/handlers/handleTipImplementation';
 import { handleColorCustomization } from '@/lib/agent/handlers/handleColorCustomization';
 import { runExpertWorkflow } from '@/lib/expert-workflows/orchestrator';
+import { hasPremiumAccess } from '@/lib/premium-access';
 import type { SurfacedExpertWorkflowType } from '@/lib/expert-workflows';
 import { ensureThread } from '@/lib/ai-assistant/thread-manager';
 import { recoverFromThreadError, sanitizeErrorForClient } from '@/lib/ai-assistant/error-recovery';
@@ -165,21 +166,6 @@ function detectExpertWorkflowType(message: string): SurfacedExpertWorkflowType |
     return 'screening_answer_studio';
   }
   return null;
-}
-
-async function isPremiumUser(supabase: any, user: any): Promise<boolean> {
-  const metadata = user?.user_metadata || {};
-  if (metadata.is_premium === true || metadata.plan_type === 'premium') {
-    return true;
-  }
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('plan_type')
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  return data?.plan_type === 'premium';
 }
 
 export async function POST(request: NextRequest) {
@@ -418,8 +404,8 @@ export async function POST(request: NextRequest) {
     const expertWorkflowType = detectExpertWorkflowType(message);
 
     if (expertWorkflowType) {
-      const premium = await isPremiumUser(supabase, user);
-      if (!premium) {
+      const access = await hasPremiumAccess(supabase, user.id, user);
+      if (!access.allowed) {
         const upgradeText = 'Expert Modes are available on Premium. Upgrade to run this workflow.';
         const { data: aiMessage } = await supabase
           .from('chat_messages')
