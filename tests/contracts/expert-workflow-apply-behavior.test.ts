@@ -212,6 +212,112 @@ describe('expert workflow apply behavior', () => {
     });
   });
 
+  it('applies nothing when the run would lower the score', async () => {
+    // The whole point of scoring before writing. There is no revert for résumé
+    // content, so a run that measures worse must leave the document and the
+    // score exactly as the user left them, and report both numbers so the app
+    // can ask. Writing first and apologising later is what this replaces.
+    const { applyExpertWorkflowRun, scoreOptimization } = loadApplyHarness();
+    scoreOptimization.mockResolvedValue({
+      ats_score_original: 55,
+      ats_score_optimized: 51,
+      subscores: {},
+      subscores_original: {},
+      suggestions: [],
+      confidence: 'high',
+    });
+
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-1',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'full_resume_rewrite',
+          output_json: { rewritten_resume: { summary: 'Worse summary' } },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: {
+          id: 'opt-1',
+          rewrite_data: { summary: 'Old summary' },
+          resume_id: 'resume-1',
+          jd_id: 'jd-1',
+          ats_score_optimized: 62,
+          match_score: 62,
+        },
+        error: null,
+      },
+      resumeResult: { data: { raw_text: 'Original resume text' }, error: null },
+      jobDescriptionResult: {
+        data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' },
+        error: null,
+      },
+    });
+
+    const result = await applyExpertWorkflowRun({ supabase, userId: 'user-1', runId: 'run-1' });
+
+    expect(result.success).toBe(false);
+    expect(result.updated_fields).toEqual([]);
+    expect(result.new_ats_score).toBe(62);
+    expect(result.ats_impact.decrease_blocked).toEqual({ kept: 62, measured: 51 });
+    expect((supabase as any).getOptimizationUpdates()).toHaveLength(0);
+  });
+
+  it('applies the lower score once the user has accepted it', async () => {
+    const { applyExpertWorkflowRun, scoreOptimization } = loadApplyHarness();
+    scoreOptimization.mockResolvedValue({
+      ats_score_original: 55,
+      ats_score_optimized: 51,
+      subscores: {},
+      subscores_original: {},
+      suggestions: [],
+      confidence: 'high',
+    });
+
+    const rewritten = { summary: 'Worse summary' };
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-1',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'full_resume_rewrite',
+          output_json: { rewritten_resume: rewritten },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: {
+          id: 'opt-1',
+          rewrite_data: { summary: 'Old summary' },
+          resume_id: 'resume-1',
+          jd_id: 'jd-1',
+          ats_score_optimized: 62,
+          match_score: 62,
+        },
+        error: null,
+      },
+      resumeResult: { data: { raw_text: 'Original resume text' }, error: null },
+      jobDescriptionResult: {
+        data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' },
+        error: null,
+      },
+    });
+
+    const result = await applyExpertWorkflowRun({
+      supabase,
+      userId: 'user-1',
+      runId: 'run-1',
+      acceptScoreDecrease: true,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ats_impact.decrease_blocked).toBeNull();
+    expect((supabase as any).getOptimizationUpdates()[0]).toEqual({ rewrite_data: rewritten });
+  });
+
   it('stores selected assets and keeps ATS impact null-safe for non-resume workflows', async () => {
     const { applyExpertWorkflowRun, scoreOptimization } = loadApplyHarness();
 

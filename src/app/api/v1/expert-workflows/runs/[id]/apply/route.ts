@@ -18,6 +18,9 @@ export async function POST(
     ? body.selected_fields.filter((value: unknown) => typeof value === 'string')
     : undefined;
 
+  // Set only after the user has been shown the drop and chosen to apply anyway.
+  const acceptScoreDecrease = body.accept_score_decrease === true;
+
   const supabase = await createRouteHandlerClient();
   const {
     data: { user },
@@ -55,6 +58,7 @@ export async function POST(
       selectionIndex,
       selectedIndices,
       selectedFields,
+      acceptScoreDecrease,
     });
 
     await captureServerEvent(user.id, 'expert_mode_apply_completed', {
