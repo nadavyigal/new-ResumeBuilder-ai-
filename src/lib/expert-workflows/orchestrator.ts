@@ -43,6 +43,12 @@ type ApplyWorkflowParams = {
   selectionIndex?: number;
   selectedIndices?: number[];
   selectedFields?: string[];
+  /**
+   * Set only after the user has been shown that this run would lower their
+   * match score and has chosen to apply it anyway. Without it a score-reducing
+   * run writes nothing at all.
+   */
+  acceptScoreDecrease?: boolean;
 };
 
 type RunRow = {
@@ -715,20 +721,24 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
     stories.forEach((_, index) => appliedAssets.push(`story:${index}`));
   }
 
-  if (updatedFields.length > 0) {
-    const { error: updateError } = await params.supabase
-      .from('optimizations')
-      .update({ rewrite_data: updatedResume })
-      .eq('id', optimization.id);
-
-    if (updateError) {
-      throw new Error(updateError.message || 'Failed to apply expert workflow output.');
-    }
-  }
-
+  // Score the candidate résumé BEFORE anything is persisted.
+  //
+  // This used to write `rewrite_data` first and score afterwards, which made a
+  // score drop unactionable: by the time the number was known the résumé had
+  // already been rewritten, and there is no revert for résumé content (only
+  // design has one; `approve-change/route.ts` still carries the TODO for a
+  // `resume_versions` snapshot). The user could be told their score fell but
+  // not offered anything to do about it.
+  //
+  // Scoring first turns the refusal into a real choice: when a run would lower
+  // the score and the user has not accepted it, nothing is written at all —
+  // not the résumé, not the score — and both numbers come back so the app can
+  // ask. Approving re-runs this with `acceptScoreDecrease`.
   let newAtsScore: number | null = null;
   let scoreDecreaseBlocked = false;
   let measuredAtsScore: number | null = null;
+  let scoreResultForCommit: Awaited<ReturnType<typeof scoreOptimization>> | null = null;
+
   if (updatedFields.length > 0 && previousAtsScore !== null) {
     try {
       const [resumeResult, jdResult] = await Promise.all([
@@ -749,6 +759,10 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
         });
 
         newAtsScore = scoreResult.ats_score_optimized;
+        measuredAtsScore = scoreResult.ats_score_optimized;
+        scoreResultForCommit = scoreResult;
+        scoreDecreaseBlocked =
+          scoreResult.ats_score_optimized < previousAtsScore && params.acceptScoreDecrease !== true;
 
         // `ats_score_original` is deliberately absent from this update.
         //
@@ -763,37 +777,71 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
         // `ats_subscores_original` goes with it: keeping a fresh original-side
         // subscore vector against a baseline it did not produce is how the
         // stored evidence stops matching the stored score.
-        // An expert pass must not quietly lower the score. It rewrites the
-        // optimized résumé, so re-measuring is right, but a worse result is
-        // reported for the user to accept rather than written over the number
-        // they already have. `newAtsScore` below therefore follows what was
-        // stored, not what was measured.
-        const commit = await commitOptimizedScore({
-          supabase: params.supabase,
-          optimizationId: optimization.id,
-          measured: scoreResult.ats_score_optimized,
-          previous: previousAtsScore,
-          fields: {
-            ats_subscores: scoreResult.subscores,
-            ats_suggestions: scoreResult.suggestions,
-            ats_confidence: scoreResult.confidence,
-          },
-          alwaysFields: { ats_version: 2 },
-        });
-        scoreDecreaseBlocked = commit.decreaseBlocked;
-        measuredAtsScore = commit.measured;
-        if (commit.decreaseBlocked) {
-          newAtsScore = commit.stored;
-          console.warn(
-            '[expert-workflow] run measured a lower score; keeping the stored one',
-            { optimizationId: optimization.id, stored: commit.previous, measured: commit.measured }
-          );
+        if (scoreDecreaseBlocked) {
+          // Report the score the user keeps, not the one just measured.
+          newAtsScore = previousAtsScore;
+          console.warn('[expert-workflow] run would lower the score; nothing applied', {
+            optimizationId: optimization.id,
+            current: previousAtsScore,
+            measured: scoreResult.ats_score_optimized,
+          });
         }
       }
     } catch (atsErr) {
-      // Keep successful apply behavior even when ATS recomputation fails.
+      // Keep successful apply behavior even when ATS recomputation fails. A run
+      // we could not score is not a run we know to be worse, so it applies.
       console.error('[expert-workflow] ATS rescoring failed for optimization', optimization.id, atsErr);
     }
+  }
+
+  // Nothing has been persisted yet. A refused run stops here, leaving the
+  // résumé and the score exactly as the user left them, and reports both
+  // numbers so the app can ask whether to apply it anyway.
+  if (scoreDecreaseBlocked && measuredAtsScore !== null) {
+    return {
+      success: false,
+      workflow_type: runRow.workflow_type,
+      updated_fields: [],
+      applied_assets: [],
+      new_ats_score: previousAtsScore,
+      ats_impact: {
+        before: previousAtsScore,
+        after: previousAtsScore,
+        delta: 0,
+        decrease_blocked: { kept: previousAtsScore, measured: measuredAtsScore },
+      },
+      apply_mode: applyMode,
+      selection_index: selectionIndex,
+    };
+  }
+
+  if (updatedFields.length > 0) {
+    const { error: updateError } = await params.supabase
+      .from('optimizations')
+      .update({ rewrite_data: updatedResume })
+      .eq('id', optimization.id);
+
+    if (updateError) {
+      throw new Error(updateError.message || 'Failed to apply expert workflow output.');
+    }
+  }
+
+  if (scoreResultForCommit) {
+    // allowDecrease is true because the decision was already made above: either
+    // the score did not fall, or the user accepted that it would.
+    await commitOptimizedScore({
+      supabase: params.supabase,
+      optimizationId: optimization.id,
+      measured: scoreResultForCommit.ats_score_optimized,
+      previous: previousAtsScore,
+      allowDecrease: true,
+      fields: {
+        ats_subscores: scoreResultForCommit.subscores,
+        ats_suggestions: scoreResultForCommit.suggestions,
+        ats_confidence: scoreResultForCommit.confidence,
+      },
+      alwaysFields: { ats_version: 2 },
+    });
   }
 
   const finalAtsScore = previousAtsScore === null ? null : newAtsScore ?? previousAtsScore;
