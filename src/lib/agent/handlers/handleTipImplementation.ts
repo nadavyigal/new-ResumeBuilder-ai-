@@ -1,3 +1,4 @@
+import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import { parseTipNumbers, validateTipNumbers } from '../parseTipNumbers';
 import { applySuggestionsWithTracking } from '../applySuggestions';
 import type { Suggestion } from '@/lib/ats/types';
@@ -175,10 +176,11 @@ export async function handleTipImplementation(
         }
       }
 
+      // The score is committed separately, through the floor: applying a tip
+      // rewrites the résumé, but a tip that measures worse must not silently
+      // take the user's score down with it.
       const updatePayload = {
         rewrite_data: updatedResume,
-        match_score: scoreAfter,
-        ats_score_optimized: scoreAfter,
         ai_modification_count: (optimization.ai_modification_count || 0) + modifications.length,
         updated_at: new Date().toISOString(),
       };
@@ -187,6 +189,13 @@ export async function handleTipImplementation(
         .from('optimizations')
         .update(updatePayload)
         .eq('id', optimizationId);
+
+      await commitOptimizedScore({
+        supabase,
+        optimizationId,
+        measured: scoreAfter,
+        previous: optimization.ats_score_optimized ?? null,
+      });
 
       return {
         intent: 'tip_implementation',
@@ -256,10 +265,10 @@ export async function handleTipImplementation(
     }
 
     // 8. Update database with REAL scores and modification count
+    // Score columns are committed below through the floor, so a tip that
+    // measures worse cannot take the user's score down with it.
     const updatePayload = {
       rewrite_data: updatedResume,
-      match_score: scoreAfter,
-      ats_score_optimized: scoreAfter,
       ats_subscores: atsResult.subscores,
       ats_suggestions: atsResult.suggestions,
       ats_confidence: atsResult.confidence,
@@ -274,6 +283,15 @@ export async function handleTipImplementation(
       .update(updatePayload)
       .eq('id', optimizationId)
       .select('id, updated_at, ats_score_optimized');
+
+    if (!updateError) {
+      await commitOptimizedScore({
+        supabase,
+        optimizationId,
+        measured: scoreAfter,
+        previous: optimization.ats_score_optimized ?? null,
+      });
+    }
 
     console.log('💡 [handleTipImplementation] Database update result:', { updateResult, updateError });
 

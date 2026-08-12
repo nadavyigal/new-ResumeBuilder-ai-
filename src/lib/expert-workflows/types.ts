@@ -74,6 +74,15 @@ export interface ExpertAtsImpact {
   before: number | null;
   after: number | null;
   delta: number | null;
+  /**
+   * Set when the run measured a lower score than the user already had. The
+   * lower score is NOT stored; `after` stays at the score they keep. The client
+   * shows both numbers and asks before anything is given up.
+   */
+  decrease_blocked?: {
+    kept: number | null;
+    measured: number;
+  } | null;
 }
 
 export interface ExpertApplyResult {
