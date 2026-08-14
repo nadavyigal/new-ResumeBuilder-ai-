@@ -10,7 +10,39 @@ const longJobDescription = Array(24)
   .fill('Senior product engineer role requiring SwiftUI, TypeScript, analytics, experimentation, collaboration, and shipped customer impact.')
   .join(' ');
 
-function buildResumeFormData() {
+// Deliberately starts with prose. A description beginning "Position: ..."
+// happens to parse as a URL with the scheme `position:`, which dodges the very
+// failure this test exists to pin.
+const pastedJobDescription = [
+  'We are looking for a Senior Product Engineer.',
+  '',
+  'You will own our mobile and web surfaces end to end.',
+  '',
+  'Requirements:',
+  '- 5+ years building production software with SwiftUI and TypeScript',
+  '- Experience with analytics instrumentation and experimentation',
+  '- Track record of shipping customer-facing features end to end',
+  '- Comfortable owning measurement, not just delivery',
+  '',
+  'Responsibilities:',
+  '- Ship and measure activation improvements across iOS and web',
+  '- Partner with design on funnel quality and onboarding',
+  '- Keep the analytics contract honest as the product changes',
+  '- Own the release train for both platforms and keep the funnel instrumented',
+  '- Review analytics contracts before they ship and reject unjoinable events',
+  '',
+  'Nice to have:',
+  '- Familiarity with Supabase, Postgres row level security and PostHog',
+  '- Experience with resume parsing, applicant tracking systems or search ranking',
+  '- Prior work on activation, onboarding funnels or growth engineering teams',
+  '- Comfort reading production telemetry and writing HogQL against it',
+  '',
+  'About the team: we are a small product engineering group that owns the whole',
+  'journey from the first anonymous visit through signup, optimization and export.',
+  'You will work directly with the founder on measurement quality and activation.',
+].join('\n');
+
+function buildResumeFormData(jobDescription: string = longJobDescription) {
   // jsdom's File has no arrayBuffer(), which the route needs before validation.
   const bytes = Buffer.from('%PDF-1.4 fake');
   const resumeFile = new File([bytes], 'resume.pdf', { type: 'application/pdf' });
@@ -20,7 +52,7 @@ function buildResumeFormData() {
 
   const formData = new FormData();
   formData.append('resume', resumeFile);
-  formData.append('jobDescription', longJobDescription);
+  formData.append('jobDescription', jobDescription);
   return formData;
 }
 
@@ -82,7 +114,7 @@ function createAnonymousScoreStore(options: { undefinedColumn?: boolean } = {}) 
   };
 }
 
-function loadRouteHarness(options: { undefinedColumn?: boolean } = {}) {
+function loadRouteHarness(options: { undefinedColumn?: boolean; realJobExtraction?: boolean } = {}) {
   jest.resetModules();
 
   const anonymousStore = createAnonymousScoreStore(options);
@@ -132,15 +164,28 @@ function loadRouteHarness(options: { undefinedColumn?: boolean } = {}) {
       quick_wins: [],
     })),
   }));
-  jest.doMock('@/lib/scraper/jobExtractor', () => ({
-    __esModule: true,
-    extractJob: jest.fn(async () => ({
-      job_title: 'Senior Product Engineer',
-      requirements: ['SwiftUI', 'TypeScript', 'analytics'],
-      nice_to_have: [],
-      responsibilities: [],
-    })),
-  }));
+  // This mock is why the paste path's extraction failure went unnoticed for so
+  // long: it makes the URL scraper succeed on input that is not a URL, which
+  // the real one cannot do. Tests that care about extraction must opt out.
+  //
+  // `dontMock` is required, not merely skipping the registration below:
+  // `jest.resetModules()` clears the module registry but NOT the `doMock`
+  // registrations, so a mock registered by an earlier test in this file is
+  // still in force here.
+  if (options.realJobExtraction) {
+    jest.dontMock('@/lib/scraper/jobExtractor');
+    jest.dontMock('@/lib/ats/extractors/jd-extractor');
+  } else {
+    jest.doMock('@/lib/scraper/jobExtractor', () => ({
+      __esModule: true,
+      extractJob: jest.fn(async () => ({
+        job_title: 'Senior Product Engineer',
+        requirements: ['SwiftUI', 'TypeScript', 'analytics'],
+        nice_to_have: [],
+        responsibilities: [],
+      })),
+    }));
+  }
   jest.doMock('@/lib/rate-limiting/check-rate-limit', () => ({
     __esModule: true,
     checkRateLimit: jest.fn(async () => ({
@@ -175,11 +220,44 @@ describe('POST /api/public/ats-check carryover persistence', () => {
 
     expect(response.status).toBe(200);
     expect(anonymousStore.insertPayloads).toHaveLength(1);
+    // No `job_title` assertion here on purpose. This fixture is a wall of
+    // repeated sentences with no title in it, so the real extractor correctly
+    // finds none. The old expectation of 'Senior Product Engineer' came from
+    // the mocked URL scraper, not from the text — title extraction is covered
+    // by the test below, against input that actually contains one.
     expect(anonymousStore.insertPayloads[0]).toMatchObject({
       resume_text: 'PDF resume text with SwiftUI and analytics.',
       job_description_text: longJobDescription,
-      job_title: 'Senior Product Engineer',
     });
+  });
+
+  /**
+   * The anonymous check is given a pasted job description, never a URL — the
+   * URL path resolves to text further up and hands the text down. Running the
+   * *URL* scraper over that text throws `TypeError: Invalid URL` on its very
+   * first line, the catch swallows it, and every anonymous check scores against
+   * an empty `JobExtraction`.
+   *
+   * Two consequences, one visible and one not. `job_title` is written null, so
+   * a converted user's carried job reads "Job Position at Company Name" — the
+   * first thing they see on the screen that is supposed to prove the app
+   * remembered them. And the free score itself is computed with no extracted
+   * requirements at all.
+   *
+   * Runs the real extractor deliberately. With the scraper mocked this passes
+   * while production fails.
+   */
+  it('extracts the job title from the pasted description rather than scraping it as a URL', async () => {
+    const formData = buildResumeFormData(pastedJobDescription);
+
+    const { POST, anonymousStore } = loadRouteHarness({ realJobExtraction: true });
+    const response = await POST({
+      headers: { get: () => 'session-1' },
+      formData: async () => formData,
+    } as any);
+
+    expect(response.status).toBe(200);
+    expect(anonymousStore.insertPayloads[0].job_title).toBe('Senior Product Engineer');
   });
 
   it('still returns a score when the carryover migration has not been applied', async () => {
