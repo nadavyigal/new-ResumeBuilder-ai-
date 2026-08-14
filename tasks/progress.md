@@ -1,13 +1,38 @@
 # Project Progress
 
-- Status: P0 WP-64 recurrence fixed locally, not deployed
-- Current Phase: Review-path bullet preservation and one-pass fit contract
-- Active Story: make responsibilities-only rows readable and expose durable ATS-improvement completion
-- Last Completed Story: local implementation and regression verification
-- Next Recommended Story: review and merge this PR, deploy through the normal backend path, then verify the existing affected optimization read-only
-- Blockers: live verification requires the normal deploy; deployment is explicitly outside this session
-- Last Validation: 2026-08-09, 4 targeted suites / 21 tests passing, touched-file ESLint clean
-- Last Updated: 2026-08-09
+- Status: WP-49 anonymous carryover is LIVE — migration applied to production and verified end to end
+- Current Phase: Resumely activation funnel (WP-49 carryover)
+- Active Story: none — Story B (apply migration + live-verify) is complete
+- Last Completed Story: WP-49 migration `20260720000000_anonymous_carryover_artifacts` applied to `brtdyamysfmctrhuankn` and live-verified against a real signup
+- Next Recommended Story: the two remaining carryover gaps — `auth-form.tsx` converts on the signup path only (a session that ends in sign-in never converts), and `anonymous_ats_scores.optimization_id` is never populated
+- Blockers: none
+- Last Validation: 2026-08-14, live end-to-end run against production Supabase (anonymous check → signup → dashboard one-click → review page), see the 2026-08-14 entry below
+- Last Updated: 2026-08-14
+
+## 2026-08-14 — WP-49: the carryover migration is applied and the funnel is verified live
+
+**The migration ran.** `20260720000000_anonymous_carryover_artifacts.sql` was applied to production project `brtdyamysfmctrhuankn` with founder authorization. All six columns (`resume_text`, `job_description_text`, `job_title`, `job_source_url`, `resume_id`, `job_description_id`) and both foreign keys (`resume_id → resumes`, `job_description_id → job_descriptions`, each `on delete set null`) were confirmed present afterwards. Additive, nullable, no defaults, so no table rewrite. The code had been live in fallback mode since 2026-08-05; it is now on the real path.
+
+**Recorded under a different version than the file.** The Supabase MCP stamped it `20260814065135 / anonymous_carryover_artifacts`, not `20260720000000`. The repo file therefore still reads as unapplied to `supabase db push`, which would re-run it — harmless, because every statement is `add column if not exists`, but worth knowing before someone panics at a duplicate.
+
+**Live end-to-end verification against a real signup**, dev server on the production database:
+
+| Step | Evidence |
+|---|---|
+| Anonymous check | `POST /api/public/ats-check` 200, score 61, row 103; `resume_text` 1,567 chars and `job_description_text` 1,073 chars persisted |
+| Real signup | `supabase.auth.signUp` returned a session immediately (email autoconfirm is on), user `2b154ed7-70e1-4dd0-b0d4-e1d6c3e328aa` |
+| Conversion | `POST /api/public/convert-session` 200; `user_id` and `converted_at` set; `resume_id` + `job_description_id` returned |
+| Materialization | `resumes` and `job_descriptions` rows created and owned by the new user; both carried texts nulled immediately, as designed |
+| Dashboard | Rendered "Your latest Match Score: 61", "8 suggested edits", and the one-click **Optimize This Resume** CTA — `canOptimizeCarryover` true |
+| One click | CTA → `POST /api/optimize` 200 in 12.0s → review page 200, 5 grouped changes, ATS support 65 → 75 |
+
+**The user never re-uploaded anything.** That was the whole point of the packet, and it is now true in production.
+
+**Two observations from the run, neither fixed here.** (1) `extractJob` failed with `TypeError: Invalid URL` in the local dev environment, so `job_title` stayed null and the carried job description was titled "Job Position at Company Name" — cosmetic, but it is the first thing a converted user reads on the review page, and it needs checking against production before it is dismissed as dev-only. (2) `anonymous_ats_scores.optimization_id` is still null after a successful carryover optimize, so the row cannot be joined to the optimization it produced — the known gap, still open.
+
+**QA account left in place, deliberately.** `nadav.yigal+wp49qa1786690855919@gmail.com` / user `2b154ed7-70e1-4dd0-b0d4-e1d6c3e328aa` is a real production signup created by this verification. It must be excluded from any activation number before that number is quoted, or it should be deleted. Deleting it was not done without a decision.
+
+**Not done:** no code changed in this story. The sign-in conversion gap (`auth-form.tsx` calls `convertPendingAtsSession` on the signup path only) and the unpopulated `optimization_id` are both still open.
 
 ## 2026-08-09 — WP-64 recurred through the review path after the parser fix shipped
 
