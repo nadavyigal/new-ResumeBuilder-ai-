@@ -12,6 +12,7 @@ import { isPdfUpload } from '@/lib/utils/pdf-validation';
 import { scrapeJobDescription } from '@/lib/job-scraper';
 import { extractJob } from '@/lib/scraper/jobExtractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import {
   buildPublicAtsCheckResponse,
   type FitSource,
@@ -169,18 +170,25 @@ export async function POST(request: NextRequest) {
   const jobHash = hashContent(jobDescription);
   const supabase = createServiceRoleClient();
 
-  // Extract job data from job description for better quick wins
+  // Extract job data from the job description TEXT.
+  //
+  // This used to call `extractJob`, the URL scraper, whose very first statement
+  // is `new URL(url)`. By this point `jobDescription` is always text — the URL
+  // path resolves the posting further up and hands the text down — so that call
+  // threw `TypeError: Invalid URL` on every ordinary paste, the catch below
+  // swallowed it, and `jobData` stayed `DEFAULT_JOB_DATA`. Two consequences:
+  // `job_title` was written null, so a converted user's carried job read
+  // "Job Position at Company Name"; and every free score was computed with no
+  // extracted requirements at all.
+  //
+  // (A description beginning "Position: ..." parses as a URL with the scheme
+  // `position:` and then failed a page fetch instead — same outcome, different
+  // exception, which is part of why this read as environmental.)
   let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
-    const extractedJob = await extractJob(jobDescription);
-    const requirements = extractedJob.requirements || [];
-    if (requirements.length > 0) {
-      jobData = {
-        title: extractedJob.job_title || '',
-        must_have: requirements,
-        nice_to_have: extractedJob.nice_to_have || [],
-        responsibilities: extractedJob.responsibilities || [],
-      };
+    const extracted = extractJobData(jobDescription);
+    if (extracted.must_have.length > 0 || extracted.title) {
+      jobData = extracted;
       console.log('✅ Extracted job data:', {
         title: jobData.title,
         must_have_count: jobData.must_have.length,
