@@ -9,7 +9,7 @@
 - Last Validation: 2026-08-14 — 16/16 carryover suites, 5/5 resume-id route, tsc clean in src/, eslint clean; full-suite control identical to the clean tree (16 failed suites / 76 failed tests, pre-existing Playwright specs)
 - Last Updated: 2026-08-14
 
-> **Measurement boundary, 2026-08-14.** #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+> **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
 
 ## 2026-08-14 — The carryover works, could not be counted, and was never extracting the job
 
