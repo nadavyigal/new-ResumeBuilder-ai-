@@ -405,7 +405,7 @@ export interface Database {
           resume_hash: string;
           job_description_hash: string;
           user_id: string | null;
-          optimization_id: number | null;
+          optimization_id: string | null;
           converted_at: string | null;
           created_at: string;
           expires_at: string;
@@ -427,7 +427,7 @@ export interface Database {
           resume_hash: string;
           job_description_hash: string;
           user_id?: string | null;
-          optimization_id?: number | null;
+          optimization_id?: string | null;
           converted_at?: string | null;
           created_at?: string;
           expires_at?: string;
@@ -449,7 +449,7 @@ export interface Database {
           resume_hash?: string;
           job_description_hash?: string;
           user_id?: string | null;
-          optimization_id?: number | null;
+          optimization_id?: string | null;
           converted_at?: string | null;
           created_at?: string;
           expires_at?: string;
