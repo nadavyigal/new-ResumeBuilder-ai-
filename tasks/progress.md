@@ -1,13 +1,75 @@
 # Project Progress
 
-- Status: WP-49 anonymous carryover is LIVE — migration applied to production and verified end to end
+- Status: WP-49 carryover is live, and now countable — #139, #140 and #141 are merged to main; deploy verification outstanding
 - Current Phase: Resumely activation funnel (WP-49 carryover)
-- Active Story: none — Story B (apply migration + live-verify) is complete
-- Last Completed Story: WP-49 migration `20260720000000_anonymous_carryover_artifacts` applied to `brtdyamysfmctrhuankn` and live-verified against a real signup
-- Next Recommended Story: the two remaining carryover gaps — `auth-form.tsx` converts on the signup path only (a session that ends in sign-in never converts), and `anonymous_ats_scores.optimization_id` is never populated
-- Blockers: none
-- Last Validation: 2026-08-14, live end-to-end run against production Supabase (anonymous check → signup → dashboard one-click → review page), see the 2026-08-14 entry below
+- Active Story: none
+- Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
+- Next Recommended Story: give the web an `is_internal_tester` person property — it has none, so every founder and QA session counts as a real user in every activation number
+- Blockers: none. Both fixes are merged but unverified in production.
+- Last Validation: 2026-08-14 — 16/16 carryover suites, 5/5 resume-id route, tsc clean in src/, eslint clean; full-suite control identical to the clean tree (16 failed suites / 76 failed tests, pre-existing Playwright specs)
 - Last Updated: 2026-08-14
+
+> **Measurement boundary, 2026-08-14.** #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+
+## 2026-08-14 — The carryover works, could not be counted, and was never extracting the job
+
+**`anonymous_ats_scores.optimization_id` had never been written.** The column
+has existed since the table was created on 2025-12-25. So a carried-over
+session could run the whole way — anonymous check, signup, one-click optimize,
+finished résumé — and the two ends could not be joined. WP-49's contribution to
+activation was unmeasurable even though the 2026-08-14 live verification proved
+the feature works. Same defect class as WP-48 S2-A on iOS: a funnel step with
+no join key, and every rate built on it guesswork. PR #140.
+
+Three things that fix had to get right, each of which fails silently. It must
+use the **service role** — the table's RLS update policy is
+`using (user_id is null)`, so once a row is converted a user-scoped client
+matches zero rows and PostgREST reports that as success. `serviceRole` is a
+**required** field of `ApplyReviewRunParams`, because an optional one is exactly
+how a second caller would quietly stop recording the link. And `database.ts`
+typed `optimization_id` as `number` while the column is `uuid`, so any correct
+write would have failed type-checking — plausibly why this was never wired up.
+
+**The anonymous check has never extracted job data, anywhere.** It called
+`extractJob`, the URL scraper, whose first statement is `new URL(url)`, with the
+job description **text**. Every ordinary paste threw `TypeError: Invalid URL`,
+the catch swallowed it, and `jobData` stayed `DEFAULT_JOB_DATA`. Reported as a
+possible dev-env artifact; it is not. `job_title` was written null — hence
+"Job Position at Company Name" on a converted user's carried job — and every
+free score was computed with no requirements, so WP-45 S4 correctly withheld the
+fit verdict. PR #141.
+
+**The tests hid it by mocking the scraper.** Both route suites mocked
+`@/lib/scraper/jobExtractor` to succeed on input that is not a URL, asserted
+`job_title: 'Senior Product Engineer'`, and passed against a path returning
+null. Opting out needs `jest.dontMock`: `jest.resetModules()` clears the module
+registry but **not** `doMock` registrations, so an earlier test's mock is still
+in force. Two degenerate fixtures (24 copies of one sentence) are now realistic
+postings, which is what the WP-45 S4 credibility gate is designed for.
+
+**Measurement boundary.** PR #141 changes the free ATS score itself, because
+requirements now reach the scorer, and the fit verdict goes from absent to
+present for well-formed postings. Scores before and after that deploy are not
+comparable — split on it, the way `optimization_completed` had to be split on
+2026-08-12.
+
+**Migration history aligned.** The Supabase MCP had stamped
+`20260720000000_anonymous_carryover_artifacts.sql` as version `20260814065135`,
+so `supabase db push` would have re-run the repo file for ever. One row in
+`supabase_migrations.schema_migrations` was updated to the file's version — not
+inserted alongside, which would have left a remote-only migration with no local
+file. Verified: exactly one row, `20260720000000`. A byte-identical untracked
+Finder duplicate of the migration (`... 2.sql`) was removed from the working
+tree; `db push` reads the directory, not git.
+
+**The web has no `is_internal_tester` at all.** Not at person level, not at
+event level — `identify` sets only email, full name, created_at and UTM params.
+So the QA account created by the live verification
+(`nadav.yigal+wp49qa…@gmail.com`) counts as a real user, as does every founder
+session on the web. iOS fixed this in 1.4.9 (21); the web never had it. Until
+it does, exclude by the `email` person property, and note that `+alias` folding
+is not automatic there the way `normalizedEmail` does it on iOS.
+
 
 ## 2026-08-14 — WP-49: the carryover migration is applied and the funnel is verified live
 
