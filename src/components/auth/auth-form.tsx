@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { createClientComponentClient } from "@/lib/supabase";
 import { posthog } from "@/lib/posthog";
+import { resolveInternalTester } from "@/lib/internal-tester";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,6 +151,7 @@ export function AuthForm({ mode }: AuthFormProps) {
             email: data.user.email,
             full_name: fullName,
             created_at: data.user.created_at,
+            is_internal_tester: resolveInternalTester(data.user.email),
             ...utmParams,
           });
 
@@ -176,6 +178,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         if (data.user) {
           posthog.identify(data.user.id, {
             email: data.user.email,
+            is_internal_tester: resolveInternalTester(data.user.email),
           });
         }
 
