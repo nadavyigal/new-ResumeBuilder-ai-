@@ -109,6 +109,21 @@ export const KEYWORD_THRESHOLDS = {
 
   /** N-gram sizes to extract (3-6 words) */
   ngram_sizes: [3, 4, 5, 6],
+
+  /**
+   * Technologies short enough to be deleted by `min_keyword_length`.
+   *
+   * `tokenize` and `skillCoverage` both drop tokens under 3 characters, so a
+   * job requiring Go, AI, ML, QA, UX, BI or CI never measured whether the
+   * candidate had it — the requirement was removed before matching rather than
+   * scored as missing. Single letters (`r`, `c`) stay out: lowercased and
+   * word-bounded they match far too much ordinary prose to be evidence of a
+   * skill (WP-59 S3c).
+   */
+  short_skill_tokens: new Set([
+    'go', 'js', 'ts', 'ai', 'ml', 'qa', 'ux', 'ui', 'bi', 'ci', 'cd', 'nlp',
+    'etl', 'api', 'aws', 'gcp', 'sql', 'php', 'ios',
+  ]),
 } as const;
 
 /**
@@ -138,13 +153,52 @@ export const METRICS_THRESHOLDS = {
   /** Ideal metrics per role */
   ideal_metrics_per_role: 2,
 
-  /** Patterns that count as metrics */
+  /**
+   * Patterns that count as a quantified achievement.
+   *
+   * The first five are the original set. Between them they require a `%`, a
+   * `$`, a `#`, an `x` or an uppercase K/M/B — so every ordinary quantity a
+   * real engineer writes counted as NO metric at all:
+   *
+   *   "reduced p99 latency from 800ms to 120ms"   -> 0 metrics
+   *   "led a team of 12 engineers"                -> 0 metrics
+   *   "served 3 million requests per day"         -> 0 metrics
+   *   "cut deploy time from 40 minutes to 6"      -> 0 metrics
+   *
+   * `metrics_presence` hard-clamps to 0 when nothing matches, so those resumes
+   * forfeited the whole 11.4% weight. Measured across the 32-case benchmark the
+   * component meaned 5.3 out of 100 — on fixtures written to contain metrics
+   * (WP-59 S3d).
+   *
+   * The additions all require a number bound to a UNIT or a countable noun, or
+   * an explicit before/after. A bare integer still does not count, so years
+   * ("2019"), phone numbers and street numbers stay out.
+   *
+   * This changes what counts as a metric the candidate ALREADY WROTE. It does
+   * not touch `stripFabricatedMetrics`, which stops the optimizer inventing
+   * figures, and must stay exactly as strict as it is.
+   */
   metric_patterns: [
     /\d+%/,           // Percentages: 25%
     /\$[\d,]+/,       // Dollar amounts: $50,000
     /#\d+/,           // Numbers: #1 ranking
-    /\d+x/,           // Multipliers: 3x increase
-    /\d+[KMB]/,       // Abbreviated: 5K, 2M, 1B
+    /\d+\s*x\b/i,     // Multipliers: 3x increase
+    /\d+\s*[KMB]\b/,  // Abbreviated: 5K, 2M, 1B
+
+    // Magnitude words: "3 million requests", "250 thousand users"
+    /\b\d[\d,.]*\s*(?:million|billion|thousand|mn|bn)\b/i,
+
+    // Durations and latencies: "800ms", "40 minutes", "3 weeks"
+    /\b\d[\d,.]*\s*(?:ms|milliseconds?|s(?:ec(?:onds?)?)?|min(?:utes?)?|hrs?|hours?|days?|weeks?|months?|quarters?)\b/i,
+
+    // Data and throughput: "2TB", "500 rps", "1.2GB"
+    /\b\d[\d,.]*\s*(?:[kmgt]b|rps|qps|tps|iops|fps)\b/i,
+
+    // Counted things a resume actually claims
+    /\b\d[\d,.]*\s*(?:users?|customers?|clients?|accounts?|engineers?|developers?|people|reports?|requests?|queries|transactions?|records?|rows?|teams?|projects?|stores?|markets?|countries|languages?|integrations?|services?|microservices?|endpoints?)\b/i,
+
+    // Explicit before/after, the clearest impact claim of all
+    /\bfrom\s+\d[\d,.]*\s*\S*\s+to\s+\d/i,
   ],
 } as const;
 

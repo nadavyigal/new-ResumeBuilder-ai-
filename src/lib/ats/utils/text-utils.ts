@@ -8,23 +8,60 @@ import type { NormalizedText } from '../types';
 import { KEYWORD_THRESHOLDS } from '../config/thresholds';
 
 /**
- * Normalize text for comparison
+ * Normalize text for comparison.
+ *
+ * Unicode-aware. `\w` is ASCII-only in JavaScript without the `u` flag, so
+ * `[^\w\s]` treated every Hebrew, Arabic, Cyrillic and accented-Latin character
+ * as punctuation and replaced it with a space. This function is the entry point
+ * for `tokenize`, `skillMatchesResume`, `skillCoverage` and `extractSkillPhrases`
+ * — which is to say for `keyword_exact`, 25% of the composite.
+ *
+ * The effect on a Hebrew resume scored against a Hebrew job:
+ *
+ *   'מהנדס תוכנה בכיר עם ניסיון ב Kubernetes ו PostgreSQL'
+ *     -> 'kubernetes postgresql'
+ *
+ * Every Hebrew word deleted, and a requirement expressed only in Hebrew
+ * normalized to the empty string — so `skillCoverage` returned 0 for it no
+ * matter what the resume said. A Hebrew job description was effectively scored
+ * on its English technology names alone (WP-59 S3c).
+ *
+ * `title_alignment` and `section_completeness` were repaired for this in WP-45
+ * and carry their own Unicode-aware normalizers; the shared one they did not use
+ * was left behind. Keep `\p{L}\p{N}` and the `u` flag here.
  */
 export function normalizeText(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')  // Replace punctuation with spaces
-    .replace(/\s+/g, ' ')       // Collapse multiple spaces
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')  // Replace punctuation with spaces
+    .replace(/\s+/g, ' ')                 // Collapse multiple spaces
     .trim();
 }
 
 /**
- * Tokenize text into words (filtered by minimum length)
+ * Tokenize text into words (filtered by minimum length).
+ *
+ * Tokens shorter than `minLength` survive when they are known technologies.
+ * The plain length filter silently deleted Go, AI, ML, QA, UX, BI and CI from
+ * both job requirements and resumes — a job asking for Go never measured
+ * whether the candidate had it.
  */
 export function tokenize(text: string, minLength: number = KEYWORD_THRESHOLDS.min_keyword_length): string[] {
   return normalizeText(text)
     .split(/\s+/)
-    .filter(word => word.length >= minLength);
+    .filter(word => word.length >= minLength || isShortSkillToken(word));
+}
+
+/**
+ * Known short technology names, which the minimum-length filter would drop.
+ *
+ * Deliberately excludes single letters (`r`, `c`) and anything that is a common
+ * English word on its own. `go` is included because it is a real and frequent
+ * backend requirement — it was the founder's own case — and it is checked with
+ * whole-word boundaries, so `go-to` is the only realistic false positive.
+ */
+export function isShortSkillToken(token: string): boolean {
+  return KEYWORD_THRESHOLDS.short_skill_tokens.has(token);
 }
 
 /**
