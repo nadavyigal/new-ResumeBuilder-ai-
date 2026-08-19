@@ -18,6 +18,10 @@ import {
 } from '@/lib/ats/public-ats-check-response';
 import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
 import { isUndefinedColumnError } from '@/lib/anonymous-carryover';
+import {
+  buildJobDataFromExtractedJson,
+  normalizeParsedJobData,
+} from '@/lib/ats/job-data-resolver';
 
 export const runtime = 'nodejs';
 
@@ -169,24 +173,39 @@ export async function POST(request: NextRequest) {
   const jobHash = hashContent(jobDescription);
   const supabase = createServiceRoleClient();
 
-  // Extract job data from job description for better quick wins
+  // Build job data exactly the way the signed-in optimize path does (WP-59 S2).
+  //
+  // This used to assemble the object inline: `must_have = extractedJob.requirements`,
+  // straight from the scraper. The optimize path instead runs the scraper output
+  // through `normalizeParsedJobData` (which drops section furniture and truncated
+  // fragments) and then `buildJobDataFromExtractedJson` (which ATOMIZES sentence-
+  // shaped requirements into short skill phrases via `extractSkillPhrases`).
+  //
+  // So the free checker was scoring "Experience building and operating distributed
+  // systems at scale" as a single must-have, and `scoreSkillCoverage` averaged the
+  // fraction of that sentence's tokens appearing in the résumé. Full credit was
+  // close to unreachable, on the component carrying 25% of the score — while the
+  // same résumé and the same job scored against clean atomized terms one screen
+  // later. That is the 55-here-59-there split, and it is the same
+  // two-different-functions defect WP-45 S3/D5 fixed for the format report.
+  //
+  // The old code also bailed to DEFAULT_JOB_DATA whenever the scraper returned no
+  // requirements at all, which scores the résumé against an EMPTY job.
+  // `buildJobDataFromExtractedJson` falls back to `extractJobData` over the raw
+  // text instead, so a hard-to-parse posting degrades rather than disappears.
   let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
     const extractedJob = await extractJob(jobDescription);
-    const requirements = extractedJob.requirements || [];
-    if (requirements.length > 0) {
-      jobData = {
-        title: extractedJob.job_title || '',
-        must_have: requirements,
-        nice_to_have: extractedJob.nice_to_have || [],
-        responsibilities: extractedJob.responsibilities || [],
-      };
-      console.log('✅ Extracted job data:', {
-        title: jobData.title,
-        must_have_count: jobData.must_have.length,
-        nice_to_have_count: jobData.nice_to_have.length,
-      });
-    }
+    jobData = buildJobDataFromExtractedJson(
+      normalizeParsedJobData(extractedJob),
+      jobDescription
+    );
+    console.log('✅ Extracted job data:', {
+      title: jobData.title,
+      must_have_count: jobData.must_have.length,
+      must_have_sample: jobData.must_have.slice(0, 10),
+      nice_to_have_count: jobData.nice_to_have.length,
+    });
   } catch (error) {
     console.error('Job extraction failed, using defaults:', error);
     // Continue with DEFAULT_JOB_DATA
