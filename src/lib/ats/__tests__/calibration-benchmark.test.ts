@@ -22,12 +22,16 @@
 import {
   runBenchmark,
   summarise,
+  summariseSubscores,
+  formatCeilingReport,
   deriveThresholds,
   bandFor,
   scoreCase,
   degradedCount,
   PUBLISHED_BANDS,
 } from '../benchmark/runner';
+import { SUB_SCORE_WEIGHTS } from '../config/weights';
+import type { SubScoreKey } from '../types';
 import { CALIBRATION_CASES, HOLDOUT_CASES, BENCHMARK_CASES } from '../benchmark/cases';
 
 jest.setTimeout(300000);
@@ -247,5 +251,67 @@ describe('WP-45 S5: no artificial uplift', () => {
     for (const score of weakScores) {
       expect(bandFor(score, derived)).not.toBe('strong');
     }
+  });
+});
+
+/**
+ * WP-59 S0 — where the ceiling actually is, before anything is changed.
+ *
+ * The composite is a weighted sum, so its reachable maximum is the weighted sum
+ * of what each component can actually reach — not 100. Reading the code finds
+ * the constants; only running the labelled set shows how many points each one
+ * costs every résumé regardless of quality.
+ *
+ * These tests assert the ceiling EXISTS rather than asserting a particular
+ * number, so they document the problem without becoming a tripwire that fires
+ * on every legitimate scoring change. The numbers themselves are printed, to be
+ * pasted into the work log and compared against the same run after the repairs.
+ */
+describe('WP-59 S0: the reachable ceiling', () => {
+  let results: Awaited<ReturnType<typeof runBenchmark>>;
+
+  beforeAll(async () => {
+    results = await runBenchmark(PUBLISHED_BANDS, BENCHMARK_CASES);
+  }, 600000);
+
+  it('reports each component observed range', () => {
+    // Printed, not asserted: this is the before-picture for the recalibration.
+    // eslint-disable-next-line no-console
+    console.log('\n' + formatCeilingReport(results) + '\n');
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it('names every component that never moves across the whole set', () => {
+    const stats = summariseSubscores(results);
+    const constants = (Object.keys(stats) as SubScoreKey[])
+      .filter(key => stats[key].constant && SUB_SCORE_WEIGHTS[key] > 0)
+      .map(key => `${key} (fixed at ${stats[key].max}, ${(SUB_SCORE_WEIGHTS[key] * 100).toFixed(1)}% of the score)`);
+
+    // eslint-disable-next-line no-console
+    console.log('constant components:', constants.length ? constants : 'none');
+
+    // A weighted component that returns the same value for 32 different résumés
+    // is spending its weight without measuring anything. Recording it, not
+    // failing on it — the repair is Story 3, and this test is the evidence it
+    // was needed.
+    expect(Array.isArray(constants)).toBe(true);
+  });
+
+  it('shows the weighted sum of per-component maxima falling short of 100', () => {
+    const stats = summariseSubscores(results);
+    const theoreticalCeiling = (Object.keys(stats) as SubScoreKey[]).reduce(
+      (sum, key) => sum + stats[key].max * SUB_SCORE_WEIGHTS[key],
+      0
+    );
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `theoretical ceiling ${theoreticalCeiling.toFixed(1)}; ` +
+        `observed ceiling ${summarise(results).observedCeiling}`
+    );
+
+    // The claim under test: no résumé in a 32-case set spanning strong, stretch
+    // and weak can approach the top of the ring, because the components cannot.
+    expect(theoreticalCeiling).toBeLessThan(100);
   });
 });
