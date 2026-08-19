@@ -18,7 +18,14 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
-      // Exclude nested copy of the project and duplicate scripts folder
+      // Exclude nested copies of the project and duplicate scripts folder.
+      // `.claude/worktrees/` holds live git worktrees checked out INSIDE the
+      // repo — 567MB and two more full checkouts as of 2026-08-19. Without
+      // this, `next/typescript`'s type-aware rules build a TS program over
+      // three copies of the codebase and a lint of eight files takes over
+      // half an hour. jest already excludes it (see modulePathIgnorePatterns
+      // in jest.config.js); tsconfig and eslint never got the same fix.
+      ".claude/worktrees/**",
       "resume-builder-ai/**",
       "scripts/scripts/**",
     ],
