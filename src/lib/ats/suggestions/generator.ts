@@ -165,7 +165,11 @@ function expandKeywordSuggestion(suggestion: Suggestion): Suggestion[] {
     return [suggestion];
   }
 
-  const gainPerKeyword = Math.max(1, Math.round(suggestion.estimated_gain / keywords.length));
+  // Split the parent's gain across the keywords, never inflate it. The old
+  // `Math.max(1, ...)` floor turned one 15-point promise into twenty 1-point
+  // promises — expansion was manufacturing score out of arithmetic. Flooring to
+  // one decimal guarantees the parts sum to no more than the whole (WP-59 S1).
+  const gainPerKeyword = Math.floor((suggestion.estimated_gain / keywords.length) * 10) / 10;
 
   return keywords.map((keyword) => ({
     id: `keyword_exact:${slugifyKeyword(keyword)}`,

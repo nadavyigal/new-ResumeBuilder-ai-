@@ -30,6 +30,17 @@ export const PENALTY_THRESHOLDS = {
 /**
  * Thresholds for generating suggestions
  */
+/**
+ * All four gain thresholds below were set against `estimateImpact`'s old output,
+ * which multiplied an already-final-scale number by 100 and clamped it to 15
+ * (WP-59 S1). On that scale every suggestion read 15, so `min_gain: 3` filtered
+ * nothing and `quick_win_effort_threshold: 8` promoted everything.
+ *
+ * With the units corrected, real per-suggestion gains are 0.4-3.8 final-score
+ * points. Carrying the old numbers forward would have silently emptied the
+ * suggestions list — 3 is above almost every honest value — which is why they
+ * move in the same change rather than in a follow-up.
+ */
 export const SUGGESTION_THRESHOLDS = {
   /** Sub-scores below this are "urgent" (red zone) */
   urgent_threshold: 50,
@@ -37,14 +48,21 @@ export const SUGGESTION_THRESHOLDS = {
   /** Sub-scores below this generate normal suggestions (yellow zone) */
   normal_threshold: 70,
 
-  /** Minimum estimated gain to show a suggestion (filter noise) */
-  min_gain: 3,
+  /** Minimum estimated gain, in final-score points, to show a suggestion. */
+  min_gain: 0.5,
 
   /** Maximum suggestions to return (avoid overwhelming user) */
   max_suggestions: 10,
 
-  /** Minimum score difference to mark as "quick win" */
-  quick_win_effort_threshold: 8,
+  /** Minimum estimated gain, in final-score points, to mark as "quick win". */
+  quick_win_effort_threshold: 1.5,
+
+  /**
+   * Minimum estimated gain, in final-score points, for the UI's "high impact"
+   * grouping. Lives here rather than as a literal in each component, so the
+   * grouping cannot drift away from the scale the estimator actually produces.
+   */
+  high_impact_threshold: 2,
 } as const;
 
 /**
