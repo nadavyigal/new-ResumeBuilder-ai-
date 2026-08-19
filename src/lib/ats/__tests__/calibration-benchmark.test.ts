@@ -276,7 +276,6 @@ describe('WP-59 S0: the reachable ceiling', () => {
 
   it('reports each component observed range', () => {
     // Printed, not asserted: this is the before-picture for the recalibration.
-    // eslint-disable-next-line no-console
     console.log('\n' + formatCeilingReport(results) + '\n');
     expect(results.length).toBeGreaterThan(0);
   });
@@ -287,7 +286,6 @@ describe('WP-59 S0: the reachable ceiling', () => {
       .filter(key => stats[key].constant && SUB_SCORE_WEIGHTS[key] > 0)
       .map(key => `${key} (fixed at ${stats[key].max}, ${(SUB_SCORE_WEIGHTS[key] * 100).toFixed(1)}% of the score)`);
 
-    // eslint-disable-next-line no-console
     console.log('constant components:', constants.length ? constants : 'none');
 
     // A weighted component that returns the same value for 32 different résumés
@@ -304,7 +302,6 @@ describe('WP-59 S0: the reachable ceiling', () => {
     // until the suite goes green.
     const derived = deriveThresholds(results);
     const summary = summarise(results);
-    // eslint-disable-next-line no-console
     console.log(
       `derived bands strong>=${derived.strong} stretch>=${derived.stretch} ` +
         `(shipped ${PUBLISHED_BANDS.strong}/${PUBLISHED_BANDS.stretch}); ` +
@@ -320,7 +317,6 @@ describe('WP-59 S0: the reachable ceiling', () => {
       0
     );
 
-    // eslint-disable-next-line no-console
     console.log(
       `theoretical ceiling ${theoreticalCeiling.toFixed(1)}; ` +
         `observed ceiling ${summarise(results).observedCeiling}`
