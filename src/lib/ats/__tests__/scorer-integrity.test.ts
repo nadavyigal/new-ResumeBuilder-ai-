@@ -217,10 +217,21 @@ describe('WP-45 D2: no double penalty for missing metrics', () => {
   });
 
   it('scores the two reference fixtures at their exact expected values', () => {
-    // Absolute values, not band membership. Reverting either D1 (weights) or
-    // D2 (penalty) moves these, which band assertions alone would not catch.
+    // Absolute values, not band membership. Reverting D1 (weights), D2 (metrics
+    // penalty) or the WP-59 S3e/S3b penalty withdrawals moves these, which band
+    // assertions alone would not catch.
     expect(compositeFor(STRONG_CANDIDATE_WITHOUT_METRICS)).toBe(87);
-    expect(compositeFor(TYPICAL_OPTIMIZED)).toBe(44);
+
+    // 44 -> 52 on 2026-08-19, and the arithmetic is the whole justification:
+    // exactly +3 for the withdrawn title_mismatch_penalty (WP-59 S3e) and +5
+    // for the withdrawn semantic_keyword_gap_penalty (S3b). This fixture has
+    // title_alignment below 40 and keyword_exact below 40, so it was paying
+    // both — one for a title comparison that never happened, one for a
+    // condition the semantic cap already handles.
+    //
+    // Deliberately re-pinned rather than relaxed. The point of an absolute
+    // value is that someone has to justify moving it.
+    expect(compositeFor(TYPICAL_OPTIMIZED)).toBe(52);
   });
 
   it('still penalises genuine format risk', () => {

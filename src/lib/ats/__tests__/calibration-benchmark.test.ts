@@ -297,6 +297,22 @@ describe('WP-59 S0: the reachable ceiling', () => {
     expect(Array.isArray(constants)).toBe(true);
   });
 
+  it('reports the thresholds this scale would derive', () => {
+    // Printed, not asserted. When a scorer change moves the scale, the shipped
+    // 57/42 stop fitting and the sweep says so — that is the signal to
+    // recalibrate deliberately (WP-59 Story 4), not to quietly move the bands
+    // until the suite goes green.
+    const derived = deriveThresholds(results);
+    const summary = summarise(results);
+    // eslint-disable-next-line no-console
+    console.log(
+      `derived bands strong>=${derived.strong} stretch>=${derived.stretch} ` +
+        `(shipped ${PUBLISHED_BANDS.strong}/${PUBLISHED_BANDS.stretch}); ` +
+        `accuracy ${summary.accuracy.toFixed(3)} falseWeak ${summary.falseWeakCount}`
+    );
+    expect(derived.strong).toBeGreaterThan(derived.stretch);
+  });
+
   it('shows the weighted sum of per-component maxima falling short of 100', () => {
     const stats = summariseSubscores(results);
     const theoreticalCeiling = (Object.keys(stats) as SubScoreKey[]).reduce(

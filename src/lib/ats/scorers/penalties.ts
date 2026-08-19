@@ -35,14 +35,22 @@ export function applyPenalties(
   // The component still carries the signal, and the suggestion generator still
   // tells the user to add quantified achievements.
 
-  // Penalty 2: Title/seniority mismatch
-  if (subscores.title_alignment < 40) {
-    penalizedScore -= PENALTY_THRESHOLDS.title_mismatch_penalty;
-    appliedPenalties.push({
-      reason: 'Job title and seniority mismatch',
-      amount: PENALTY_THRESHOLDS.title_mismatch_penalty,
-    });
-  }
+  // Penalty 2 (withdrawn 2026-08-19, WP-59 S3e): "title/seniority mismatch".
+  //
+  // Same double-charge WP-45 D2 removed for metrics. title_alignment is already
+  // a weighted component at 11.4%, and a mismatch lowers it directly — then this
+  // subtracted 3 more for the same fact.
+  //
+  // Worse, the trigger fired hardest on measurements that were not mismatches at
+  // all. The analyzer returns a CONSTANT 50 when the job description has no
+  // extractable title and a CONSTANT 20 when it cannot parse titles out of the
+  // resume — and 20 is below the 40 threshold, so every resume the text-path
+  // extractor could not read was charged a mismatch penalty for a comparison
+  // that never happened. Measured across the benchmark, title_alignment has a
+  // minimum of 16, so this fired on real cases.
+  //
+  // The component still carries the signal, and the seniority check inside it is
+  // unchanged.
 
   // Penalty 3: High format risk
   if (subscores.format_parseability < PENALTY_THRESHOLDS.format_risk_threshold) {
@@ -53,15 +61,22 @@ export function applyPenalties(
     });
   }
 
-  // Penalty 4: Semantic-keyword gap (suspicious)
-  const semanticKeywordGap = subscores.semantic_relevance - subscores.keyword_exact;
-  if (semanticKeywordGap > PENALTY_THRESHOLDS.semantic_keyword_gap_threshold) {
-    penalizedScore -= PENALTY_THRESHOLDS.semantic_keyword_gap_penalty;
-    appliedPenalties.push({
-      reason: 'High semantic score but low keyword match (suspicious)',
-      amount: PENALTY_THRESHOLDS.semantic_keyword_gap_penalty,
-    });
-  }
+  // Penalty 4 (withdrawn 2026-08-19, WP-59 S3b): "high semantic, low keyword".
+  //
+  // The third instance of the same double-charge, and the most exact. The
+  // semantic analyzer caps itself at `capped_semantic_max` (70) whenever
+  // keyword_exact is below `keyword_cap_threshold` (40). This then subtracted 5
+  // more whenever semantic minus keyword exceeded 30 — which, at a capped 70, is
+  // true precisely when keyword_exact is below 40. The identical condition,
+  // charged twice, by two mechanisms that did not know about each other.
+  //
+  // The cap is the better of the two and stays: it bounds the inflation at
+  // source instead of subtracting from the total afterwards, and it leaves the
+  // subscore honest for anything reading the components directly.
+  //
+  // (This was doubly wrong before S3b, because semantic could not go below 61 —
+  // so a resume with genuinely poor keyword coverage was guaranteed to trip the
+  // 30-point gap no matter how unrelated it actually was.)
 
   // Ensure score stays in valid range
   penalizedScore = Math.max(0, Math.min(100, penalizedScore));

@@ -141,6 +141,29 @@ export const SEMANTIC_THRESHOLDS = {
 
   /** Maximum semantic score when keyword_exact is low */
   capped_semantic_max: 70,
+
+  /**
+   * Cosine similarity anchors for the 0-100 scale (WP-59 S3b).
+   *
+   * The analyzer used to map cosine with `(cos + 1) / 2`, the textbook
+   * transform for a value that can legitimately reach -1. Embeddings of two
+   * real documents never go near -1: measured across the 32-case benchmark the
+   * component spanned only **61 to 84**, on cases a human labelled strong,
+   * stretch AND weak. Eighteen percent of the composite was carrying a
+   * 23-point usable range, so it could neither reward a genuine match nor
+   * distinguish one from a poor one — and its floor of 61 is what made the
+   * semantic-vs-keyword gap penalty fire on essentially every low-keyword
+   * resume.
+   *
+   * These anchor the scale to the range embeddings actually produce here:
+   * `floor` is two documents with nothing in common, `ceiling` is a resume that
+   * reads like the job description. Values outside are clamped.
+   *
+   * Anything that changes these changes the scale, and the bands in
+   * config/bands.ts must be re-derived in the same change.
+   */
+  cosine_floor: 0.10,
+  cosine_ceiling: 0.70,
 } as const;
 
 /**
