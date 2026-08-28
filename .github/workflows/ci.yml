@@ -9,6 +9,20 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    env:
+      # Single source of truth for the quarantine. Fixed a suite? Delete it from
+      # this one line. Listing it twice is how a suite gets fixed in one place and
+      # silently stays excluded in the other.
+      #
+      # Unquoted $KNOWN_RED below relies on shell word-splitting, which is correct
+      # under bash (the default shell for `run:` on ubuntu runners) and gives
+      # 15 gating / 4 quarantined. It does NOT split under zsh, so reproducing
+      # these steps on a Mac needs `bash -c` or the list spelled out.
+      KNOWN_RED: >-
+        tests/contracts/expert-workflow-report-store.test.ts
+        tests/contracts/seo-routing.test.ts
+        tests/contracts/diff-safety.test.ts
+        tests/contracts/agent-result-schema.test.ts
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,13 +45,7 @@ jobs:
       # 4 known-red suites are quarantined by name where they stay visible instead
       # of being swallowed. Shrink the ignore list; do not grow it.
       - name: Contract tests (gating)
-        run: >
-          npx jest tests/contracts
-          --testPathIgnorePatterns
-          "tests/contracts/expert-workflow-report-store.test.ts"
-          "tests/contracts/seo-routing.test.ts"
-          "tests/contracts/diff-safety.test.ts"
-          "tests/contracts/agent-result-schema.test.ts"
+        run: npx jest tests/contracts --testPathIgnorePatterns $KNOWN_RED
 
       # Known red on main. Tracked, not gating. Two distinct causes:
       #   - seo-routing / diff-safety / agent-result-schema: "Cannot use import
@@ -47,12 +55,7 @@ jobs:
       # continue-on-error, not `|| true`: the step still reports red in the UI.
       - name: Contract tests (known red, not gating)
         continue-on-error: true
-        run: >
-          npx jest
-          tests/contracts/expert-workflow-report-store.test.ts
-          tests/contracts/seo-routing.test.ts
-          tests/contracts/diff-safety.test.ts
-          tests/contracts/agent-result-schema.test.ts
+        run: npx jest $KNOWN_RED
 
       # Has never once run: it imports src/lib/agent/index.js, which does not
       # exist (the source is TypeScript), so it dies with ERR_MODULE_NOT_FOUND
