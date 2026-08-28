@@ -12,16 +12,14 @@ import { isPdfUpload } from '@/lib/utils/pdf-validation';
 import { scrapeJobDescription } from '@/lib/job-scraper';
 import { extractJob } from '@/lib/scraper/jobExtractor';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
+import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import {
   buildPublicAtsCheckResponse,
   type FitSource,
 } from '@/lib/ats/public-ats-check-response';
 import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
 import { isUndefinedColumnError } from '@/lib/anonymous-carryover';
-import {
-  buildJobDataFromExtractedJson,
-  normalizeParsedJobData,
-} from '@/lib/ats/job-data-resolver';
+import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 
 export const runtime = 'nodejs';
 
@@ -173,39 +171,49 @@ export async function POST(request: NextRequest) {
   const jobHash = hashContent(jobDescription);
   const supabase = createServiceRoleClient();
 
-  // Build job data exactly the way the signed-in optimize path does (WP-59 S2).
+  // Build job data from the job description TEXT, then derive it exactly the way
+  // the signed-in optimize path does. Both halves are load-bearing; this merge
+  // reconciles two fixes that each corrected one of them (#141 and WP-59 S2).
   //
-  // This used to assemble the object inline: `must_have = extractedJob.requirements`,
-  // straight from the scraper. The optimize path instead runs the scraper output
-  // through `normalizeParsedJobData` (which drops section furniture and truncated
-  // fragments) and then `buildJobDataFromExtractedJson` (which ATOMIZES sentence-
-  // shaped requirements into short skill phrases via `extractSkillPhrases`).
+  // 1. Do NOT call `extractJob`. It is the URL scraper and its very first
+  //    statement is `new URL(url)`. By this point `jobDescription` is always text
+  //    (the URL path resolves the posting further up and hands the text down), so
+  //    that call threw `TypeError: Invalid URL` on every ordinary paste, the catch
+  //    below swallowed it, and `jobData` stayed `DEFAULT_JOB_DATA`. Consequences:
+  //    `job_title` was written null, so a converted user's carried job read
+  //    "Job Position at Company Name", and every free score was computed against
+  //    an empty job. (A description beginning "Position: ..." parses as a URL with
+  //    the scheme `position:` and failed a page fetch instead: same outcome,
+  //    different exception, part of why this read as environmental.)
   //
-  // So the free checker was scoring "Experience building and operating distributed
-  // systems at scale" as a single must-have, and `scoreSkillCoverage` averaged the
-  // fraction of that sentence's tokens appearing in the résumé. Full credit was
-  // close to unreachable, on the component carrying 25% of the score — while the
-  // same résumé and the same job scored against clean atomized terms one screen
-  // later. That is the 55-here-59-there split, and it is the same
-  // two-different-functions defect WP-45 S3/D5 fixed for the format report.
+  // 2. Still run the result through `buildJobDataFromExtractedJson`, which
+  //    ATOMIZES sentence-shaped requirements into short skill phrases via
+  //    `extractSkillPhrases`. Without it the checker scored "Experience building
+  //    and operating distributed systems at scale" as a single must-have, and
+  //    `scoreSkillCoverage` averaged the fraction of that sentence's tokens
+  //    present in the resume. Full credit was close to unreachable on the
+  //    component carrying 25% of the score, while the same resume and job scored
+  //    against clean atomized terms one screen later. That is the 55-here-59-there
+  //    split, the same two-different-functions defect WP-45 S3/D5 fixed for the
+  //    format report.
   //
-  // The old code also bailed to DEFAULT_JOB_DATA whenever the scraper returned no
-  // requirements at all, which scores the résumé against an EMPTY job.
-  // `buildJobDataFromExtractedJson` falls back to `extractJobData` over the raw
-  // text instead, so a hard-to-parse posting degrades rather than disappears.
+  // Taking either side alone regresses the other: #141's version never atomizes,
+  // and WP-59's version still calls the URL scraper, so its atomization never runs
+  // at all. `buildJobDataFromExtractedJson` also falls back to `extractJobData`
+  // over the raw text when must_have comes back empty, so a hard-to-parse posting
+  // degrades rather than disappears.
   let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
-    const extractedJob = await extractJob(jobDescription);
-    jobData = buildJobDataFromExtractedJson(
-      normalizeParsedJobData(extractedJob),
-      jobDescription
-    );
-    console.log('✅ Extracted job data:', {
-      title: jobData.title,
-      must_have_count: jobData.must_have.length,
-      must_have_sample: jobData.must_have.slice(0, 10),
-      nice_to_have_count: jobData.nice_to_have.length,
-    });
+    const extracted = extractJobData(jobDescription);
+    if (extracted.must_have.length > 0 || extracted.title) {
+      jobData = buildJobDataFromExtractedJson(extracted, jobDescription);
+      console.log('✅ Extracted job data:', {
+        title: jobData.title,
+        must_have_count: jobData.must_have.length,
+        must_have_sample: jobData.must_have.slice(0, 10),
+        nice_to_have_count: jobData.nice_to_have.length,
+      });
+    }
   } catch (error) {
     console.error('Job extraction failed, using defaults:', error);
     // Continue with DEFAULT_JOB_DATA

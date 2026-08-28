@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClientComponentClient } from "@/lib/supabase";
 import { posthog } from "@/lib/posthog";
+import { resolveInternalTester } from "@/lib/internal-tester";
 
 interface AuthContextType {
   user: User | null;
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (user) {
         posthog.identify(user.id, {
           email: user.email,
+          is_internal_tester: resolveInternalTester(user.email),
         });
       }
     };
@@ -56,6 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (nextUser && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
           posthog.identify(nextUser.id, {
             email: nextUser.email,
+            is_internal_tester: resolveInternalTester(nextUser.email),
           });
         } else if (event === "SIGNED_OUT") {
           posthog.reset();

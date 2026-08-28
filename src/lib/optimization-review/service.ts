@@ -1,4 +1,5 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
+import { linkCarryoverOptimization } from "@/lib/anonymous-carryover";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { scoreOptimization } from "@/lib/ats/integration";
 import {
@@ -49,6 +50,15 @@ interface CreateReviewRunParams {
 
 interface ApplyReviewRunParams {
   supabase: AppSupabaseClient;
+  /**
+   * Service-role client, used only to tie a converted anonymous check to the
+   * optimization this apply mints (WP-49).
+   *
+   * Required rather than optional on purpose: the link is the only thing that
+   * makes the carryover countable, and an optional parameter is exactly how a
+   * second caller would silently stop recording it.
+   */
+  serviceRole: AppSupabaseClient;
   userId: string;
   reviewRun: OptimizationReviewRun;
   approvedGroupIds: string[];
@@ -178,6 +188,7 @@ function stringifyValue(value: unknown): string | null {
 
 export async function applyOptimizationReviewRun({
   supabase,
+  serviceRole,
   userId,
   reviewRun,
   approvedGroupIds,
@@ -361,9 +372,21 @@ export async function applyOptimizationReviewRun({
     throw new Error(reviewUpdateError.message || "Failed to mark the review as applied.");
   }
 
+  // If this optimization grew out of a converted anonymous check, record that
+  // on the anonymous row. Best-effort: the optimization already exists, so a
+  // failure here costs a measurement, not the user's résumé.
+  const carriedFromAnonymous = await linkCarryoverOptimization(serviceRole, {
+    userId,
+    resumeId: reviewRun.resume_id,
+    jobDescriptionId: reviewRun.jd_id,
+    optimizationId: optimization.id,
+  });
+
   await captureServerEvent(userId, "optimization_completed", {
     optimization_id: optimization.id,
     review_id: reviewRun.id,
+    // Lets the carryover cohort be split in PostHog without a warehouse join.
+    carried_from_anonymous: carriedFromAnonymous,
     ats_score_original: finalATSPreview?.before ?? reviewRun.ats_preview_json?.before ?? null,
     ats_score_optimized: finalATSPreview?.after ?? reviewRun.ats_preview_json?.after ?? null,
     improvement:

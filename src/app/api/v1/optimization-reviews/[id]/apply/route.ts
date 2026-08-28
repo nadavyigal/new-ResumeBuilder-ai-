@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@/lib/supabase-server";
+import { createRouteHandlerClient, createServiceRoleClient } from "@/lib/supabase-server";
 import {
   applyOptimizationReviewRun,
   getOptimizationReviewRun,
@@ -35,6 +35,9 @@ export async function POST(
 
     const result = await applyOptimizationReviewRun({
       supabase,
+      // The carryover link is written under RLS that only lets an *unclaimed*
+      // row be updated, so the request client cannot do it (WP-49).
+      serviceRole: createServiceRoleClient(),
       userId: user.id,
       reviewRun,
       approvedGroupIds,

@@ -1,8 +1,34 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-const longJobDescription = Array(24)
-  .fill('Senior product engineer role requiring SwiftUI, TypeScript, analytics, experimentation, collaboration, and shipped customer impact.')
-  .join(' ');
+// A realistic posting, not 24 copies of one sentence. The route now runs the
+// real text extractor, and WP-45 S4 withholds the fit verdict when the
+// extraction is thin or mostly page furniture — which a degenerate wall of
+// repeated text correctly trips. Structured input is what a user actually
+// pastes, and it is what these assertions are about.
+const longJobDescription = [
+  'We are looking for a Senior Product Engineer.',
+  '',
+  'You will own our mobile and web surfaces end to end, from the first',
+  'anonymous visit through signup, optimization and export.',
+  '',
+  'Requirements:',
+  '- 5+ years building production software with SwiftUI and TypeScript',
+  '- Experience with analytics instrumentation and experimentation',
+  '- Track record of shipping customer-facing features end to end',
+  '- Comfortable owning measurement, not just delivery',
+  '- Strong Postgres and SQL fundamentals',
+  '',
+  'Responsibilities:',
+  '- Ship and measure activation improvements across iOS and web',
+  '- Partner with design on funnel quality and onboarding',
+  '- Keep the analytics contract honest as the product changes',
+  '- Own the release train for both platforms',
+  '',
+  'Nice to have:',
+  '- Familiarity with Supabase, row level security and PostHog',
+  '- Experience with resume parsing or applicant tracking systems',
+  '- Prior work on activation, onboarding funnels or growth engineering',
+].join('\n');
 
 function buildRequest(fields: Record<string, string>, file?: File) {
   const formData = new FormData();

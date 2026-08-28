@@ -31,6 +31,13 @@ export type CarryoverArtifacts = {
   jobDescriptionId: string | null;
 };
 
+export type CarryoverOptimizationLink = {
+  userId: string;
+  resumeId: string | null;
+  jobDescriptionId: string | null;
+  optimizationId: string;
+};
+
 const CARRIED_RESUME_FILENAME = 'ats-check-resume.pdf';
 
 /** Columns that exist once migration 20260720000000 is applied. */
@@ -191,5 +198,71 @@ export async function materializeAnonymousCarryover(
   } catch (error) {
     console.error('Anonymous carryover materialization error:', error);
     return { resumeId: null, jobDescriptionId: null };
+  }
+}
+
+/**
+ * Tie a converted anonymous check to the optimization its artifacts produced.
+ *
+ * `anonymous_ats_scores.optimization_id` has existed since the table was
+ * created and has never been written, so a carried-over session could run all
+ * the way to a finished résumé and the two ends could not be joined. The
+ * feature's contribution to activation was therefore unmeasurable even when it
+ * worked — the same defect class as WP-48 S2-A on iOS, where a funnel step had
+ * no join key and every rate built on it was guesswork.
+ *
+ * Matched on the owner **and** both artifact ids. `resume_id` /
+ * `job_description_id` are written only by `materializeAnonymousCarryover`, so
+ * nothing but a genuinely carried-over session can match, and an ordinary
+ * upload can never be miscounted as a carryover.
+ *
+ * `optimization_id is null` keeps the attribution on the **first** optimization
+ * the carried artifacts produced. Re-optimizing the same résumé against the
+ * same job would otherwise keep moving the link, and the activation would be
+ * dated by the most recent run rather than the one that converted the user.
+ * It also makes a replayed apply idempotent.
+ *
+ * **Must be called with a service-role client.** The table's RLS update policy
+ * is `using (user_id is null)` — it exists to let an anonymous row be claimed at
+ * signup — so once the row is converted a user-scoped client matches zero rows.
+ * PostgREST reports that as success with an empty result, so passing the request
+ * client here would silently record nothing and look like it worked.
+ *
+ * Best-effort, like the rest of this module: the optimization row already exists
+ * by the time this runs, so throwing would fail an apply that has already
+ * succeeded in order to protect a measurement.
+ *
+ * @returns whether a row was actually linked.
+ */
+export async function linkCarryoverOptimization(
+  serviceRole: SupabaseClient,
+  { userId, resumeId, jobDescriptionId, optimizationId }: CarryoverOptimizationLink,
+): Promise<boolean> {
+  // Nothing was carried, so there is nothing this optimization could belong to.
+  if (!resumeId || !jobDescriptionId) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await serviceRole
+      .from('anonymous_ats_scores')
+      .update({ optimization_id: optimizationId })
+      .eq('user_id', userId)
+      .eq('resume_id', resumeId)
+      .eq('job_description_id', jobDescriptionId)
+      .is('optimization_id', null)
+      .select('id');
+
+    if (error) {
+      console.error('Anonymous carryover optimization link failed:', error);
+      return false;
+    }
+
+    // Zero rows is the ordinary case: most optimizations have no anonymous
+    // check behind them at all.
+    return (data?.length ?? 0) > 0;
+  } catch (error) {
+    console.error('Anonymous carryover optimization link error:', error);
+    return false;
   }
 }
