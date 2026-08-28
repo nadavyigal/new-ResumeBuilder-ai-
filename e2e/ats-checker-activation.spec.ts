@@ -28,14 +28,38 @@ const PDF_FIXTURE = Buffer.from(
   'utf-8'
 );
 
+// The submit button is gated on PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS (100) as
+// well as on a file being chosen, so this fixture has to clear that bar or the
+// button stays disabled and every submit test times out. Asserted below, so a
+// future change to the threshold fails loudly here instead of as a timeout.
 const JOB_DESCRIPTION = [
   'Job Title: Senior Platform Engineer',
   'Company: Acme Corp',
   '',
+  'About the role:',
+  'We are looking for a senior platform engineer to join our infrastructure group.',
+  'You will own the reliability, scalability and developer experience of the systems',
+  'that every product team at the company builds on top of. This is a hands-on role',
+  'with a large amount of autonomy and a direct line to the people who depend on it.',
+  '',
   'Requirements:',
   '- Experience building and operating distributed systems at scale',
   '- Strong proficiency with TypeScript and React',
-  '- Familiarity with Kubernetes and Terraform in production',
+  '- Familiarity with Kubernetes and Terraform in production environments',
+  '- Comfortable owning services end to end, including on-call rotation',
+  '- Track record of improving build, test and deployment pipelines',
+  '- Able to communicate technical tradeoffs clearly to non-specialist stakeholders',
+  '',
+  'Nice to have:',
+  '- Experience with PostgreSQL performance tuning and query optimisation',
+  '- Exposure to observability tooling such as Prometheus, Grafana or OpenTelemetry',
+  '- Prior work on developer platforms, internal tooling or paved-road initiatives',
+  '',
+  'What we offer:',
+  'A small senior team, a short path from decision to production, and real ownership',
+  'of the roadmap for the platform you maintain. We care about correctness, about',
+  'measuring what we ship, and about leaving systems better documented than we found',
+  'them for whoever picks them up next.',
 ].join('\n');
 
 const SCORE_PAYLOAD = {
@@ -49,6 +73,8 @@ const SCORE_PAYLOAD = {
   checksRemaining: 4,
 };
 
+const JD_WORD_COUNT = JOB_DESCRIPTION.trim().split(/\s+/).filter(Boolean).length;
+
 async function fillAndSubmit(page: Page) {
   await page.getByTestId('resume-upload').setInputFiles({
     name: 'resume.pdf',
@@ -56,6 +82,15 @@ async function fillAndSubmit(page: Page) {
     buffer: PDF_FIXTURE,
   });
   await page.getByTestId('job-description-input').fill(JOB_DESCRIPTION);
+
+  // Fail with a readable message rather than a 30s "element is not enabled"
+  // timeout if the word-count gate moves above this fixture.
+  await expect(
+    page.getByTestId('analyze-button'),
+    `submit stayed disabled with a ${JD_WORD_COUNT}-word job description; ` +
+      'PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS may have been raised above it'
+  ).toBeEnabled();
+
   await page.getByTestId('analyze-button').click();
 }
 
