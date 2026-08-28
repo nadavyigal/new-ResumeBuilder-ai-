@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import type { ATSCheckerResponse } from '@/components/landing/FreeATSChecker';
 
 /**
  * Activation-path regression guard for the anonymous free ATS check.
@@ -62,15 +63,41 @@ const JOB_DESCRIPTION = [
   'them for whoever picks them up next.',
 ].join('\n');
 
-const SCORE_PAYLOAD = {
+// Typed against the real response interface on purpose. The first version of
+// this fixture guessed a flat `{ score: 64 }`, the component reads
+// `score.overall`, and the result was two tests failing on a missing element
+// with nothing pointing at the cause. Annotating it means a change to the
+// response contract breaks the build here instead.
+const SCORE_PAYLOAD: ATSCheckerResponse = {
   success: true,
-  score: 64,
-  fit: { verdict: 'moderate', source: 'computed' },
-  issues: [
-    { id: 'kw-1', severity: 'high', title: 'Missing key skill: Kubernetes', locked: false },
-    { id: 'kw-2', severity: 'medium', title: 'Missing key skill: Terraform', locked: false },
-  ],
+  sessionId: '00000000-0000-4000-8000-000000000001',
+  score: { overall: 64, timestamp: '2026-08-28T00:00:00.000Z' },
+  preview: {
+    topIssues: [
+      {
+        id: 'kw-1',
+        text: 'Missing key skill: Kubernetes',
+        estimated_gain: 6,
+        category: 'keywords',
+        quick_win: true,
+      },
+      {
+        id: 'kw-2',
+        text: 'Missing key skill: Terraform',
+        estimated_gain: 4,
+        category: 'keywords',
+      },
+    ],
+    totalIssues: 5,
+    lockedCount: 3,
+  },
   checksRemaining: 4,
+  fit: {
+    verdict: 'Stretch',
+    scoreNote: 'Close on the core stack, light on infrastructure depth.',
+    topGaps: ['Kubernetes', 'Terraform'],
+    missingKeywords: ['kubernetes', 'terraform'],
+  },
 };
 
 const JD_WORD_COUNT = JOB_DESCRIPTION.trim().split(/\s+/).filter(Boolean).length;
@@ -120,6 +147,8 @@ test.describe('free ATS checker activation path', () => {
     await fillAndSubmit(page);
 
     await expect(page.getByTestId('ats-score-display')).toBeVisible();
+    // Rendered through a 2s CountUp animation, so this settles rather than
+    // matching immediately. Playwright's expect retries within its timeout.
     await expect(page.getByTestId('ats-score')).toContainText('64');
     await expect(page.getByTestId('ats-issues-list')).toBeVisible();
     expect(sawRequest, 'the form must actually call /api/public/ats-check').toBe(true);
