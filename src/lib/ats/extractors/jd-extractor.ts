@@ -47,11 +47,28 @@ export function extractJobData(jobText: string, existingExtraction?: Partial<Job
  * Extract job title from text (look for common patterns)
  */
 function extractJobTitle(text: string): string {
-  // Common patterns for job titles in JDs
+  // Common patterns for job titles in JDs.
+  //
+  // All three original patterns depend on Latin script and on capitalisation.
+  // Hebrew has no case, so a Hebrew job description returned '' — which sent
+  // title_alignment to its "no target title" constant of 50 for EVERY Hebrew
+  // job, and left the {targetTitle} placeholder uninterpolated in the diagnosis
+  // bullets the user reads. The Hebrew patterns below anchor on the hiring
+  // verbs instead of on capitalisation (WP-59 S3e).
+  //
+  // Same approach as the resume-side extractor in title-alignment.ts: add
+  // script-specific patterns rather than loosening the Latin ones, which would
+  // start matching ordinary prose.
   const patterns = [
     /(?:position|role|title|job):\s*([^\n]+)/i,
     /we are (?:looking for|hiring|seeking) (?:a|an)\s+([^\n.]+)/i,
     /^([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,4})\s*$/m,  // Capitalized multi-word title
+
+    // Hebrew labelled forms: משרה / תפקיד / דרוש / דרושה followed by the role.
+    /(?:משרה|תפקיד|התפקיד|דרוש|דרושה|דרוש\/ה|מחפשים|מגייסים)\s*[:\-]?\s*([^\n]{2,60})/,
+
+    // Hebrew "we are looking for a ..." without a label.
+    /(?:אנחנו|אנו)\s+(?:מחפשים|מגייסים)\s+([^\n.]{2,60})/,
   ];
 
   for (const pattern of patterns) {

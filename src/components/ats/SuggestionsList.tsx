@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lightbulb, Zap, TrendingUp } from '@/lib/icons';
 import { useTranslations } from 'next-intl';
+import { SUGGESTION_THRESHOLDS } from '@/lib/ats/config/thresholds';
 
 interface SuggestionsListProps {
   suggestions: Suggestion[];
@@ -43,8 +44,14 @@ export function SuggestionsList({
   }
 
   const quickWins = displayedSuggestions.filter(s => s.quick_win);
-  const highImpact = displayedSuggestions.filter(s => !s.quick_win && s.estimated_gain >= 8);
-  const otherSuggestions = displayedSuggestions.filter(s => !s.quick_win && s.estimated_gain < 8);
+  // Threshold lives in SUGGESTION_THRESHOLDS so it moves with the estimator's
+  // scale. The literal 8 here was set when every gain was a clamped 15 (WP-59 S1).
+  const highImpact = displayedSuggestions.filter(
+    s => !s.quick_win && s.estimated_gain >= SUGGESTION_THRESHOLDS.high_impact_threshold
+  );
+  const otherSuggestions = displayedSuggestions.filter(
+    s => !s.quick_win && s.estimated_gain < SUGGESTION_THRESHOLDS.high_impact_threshold
+  );
 
   return (
     <Card>

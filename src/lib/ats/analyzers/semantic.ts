@@ -13,6 +13,21 @@ import { SEMANTIC_THRESHOLDS } from '../config/thresholds';
 import { extractSectionText } from '../extractors/resume-text-extractor';
 import { scoreSkillListMatch } from '../skill-match';
 
+/**
+ * Map a cosine similarity onto 0-1 using the range embeddings actually produce.
+ *
+ * Was `(cos + 1) / 2`, which assumes the value can reach -1. Between two real
+ * documents it does not: across the labelled benchmark this component spanned
+ * 61-84 out of 100 on strong, stretch and weak pairs alike, so 18.2% of the
+ * composite was spent on a 23-point range that could not separate a good match
+ * from a bad one (WP-59 S3b).
+ */
+function normalizeCosine(cosine: number): number {
+  const { cosine_floor, cosine_ceiling } = SEMANTIC_THRESHOLDS;
+  const scaled = (cosine - cosine_floor) / (cosine_ceiling - cosine_floor);
+  return Math.max(0, Math.min(1, scaled));
+}
+
 export class SemanticAnalyzer extends BaseAnalyzer {
   constructor() {
     super('semantic_relevance');
@@ -43,7 +58,7 @@ export class SemanticAnalyzer extends BaseAnalyzer {
           return {
             section: section.name,
             text: section.text,
-            similarity: (similarity + 1) / 2, // Normalize to 0-1
+            similarity: normalizeCosine(similarity),
           };
         })
       );

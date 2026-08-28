@@ -19,6 +19,7 @@ import {
 } from '@/lib/ats/public-ats-check-response';
 import { PUBLIC_ATS_MIN_JOB_DESCRIPTION_WORDS } from '@/lib/ats/public-ats-check-constants';
 import { isUndefinedColumnError } from '@/lib/anonymous-carryover';
+import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 
 export const runtime = 'nodejs';
 
@@ -170,28 +171,46 @@ export async function POST(request: NextRequest) {
   const jobHash = hashContent(jobDescription);
   const supabase = createServiceRoleClient();
 
-  // Extract job data from the job description TEXT.
+  // Build job data from the job description TEXT, then derive it exactly the way
+  // the signed-in optimize path does. Both halves are load-bearing; this merge
+  // reconciles two fixes that each corrected one of them (#141 and WP-59 S2).
   //
-  // This used to call `extractJob`, the URL scraper, whose very first statement
-  // is `new URL(url)`. By this point `jobDescription` is always text — the URL
-  // path resolves the posting further up and hands the text down — so that call
-  // threw `TypeError: Invalid URL` on every ordinary paste, the catch below
-  // swallowed it, and `jobData` stayed `DEFAULT_JOB_DATA`. Two consequences:
-  // `job_title` was written null, so a converted user's carried job read
-  // "Job Position at Company Name"; and every free score was computed with no
-  // extracted requirements at all.
+  // 1. Do NOT call `extractJob`. It is the URL scraper and its very first
+  //    statement is `new URL(url)`. By this point `jobDescription` is always text
+  //    (the URL path resolves the posting further up and hands the text down), so
+  //    that call threw `TypeError: Invalid URL` on every ordinary paste, the catch
+  //    below swallowed it, and `jobData` stayed `DEFAULT_JOB_DATA`. Consequences:
+  //    `job_title` was written null, so a converted user's carried job read
+  //    "Job Position at Company Name", and every free score was computed against
+  //    an empty job. (A description beginning "Position: ..." parses as a URL with
+  //    the scheme `position:` and failed a page fetch instead: same outcome,
+  //    different exception, part of why this read as environmental.)
   //
-  // (A description beginning "Position: ..." parses as a URL with the scheme
-  // `position:` and then failed a page fetch instead — same outcome, different
-  // exception, which is part of why this read as environmental.)
+  // 2. Still run the result through `buildJobDataFromExtractedJson`, which
+  //    ATOMIZES sentence-shaped requirements into short skill phrases via
+  //    `extractSkillPhrases`. Without it the checker scored "Experience building
+  //    and operating distributed systems at scale" as a single must-have, and
+  //    `scoreSkillCoverage` averaged the fraction of that sentence's tokens
+  //    present in the resume. Full credit was close to unreachable on the
+  //    component carrying 25% of the score, while the same resume and job scored
+  //    against clean atomized terms one screen later. That is the 55-here-59-there
+  //    split, the same two-different-functions defect WP-45 S3/D5 fixed for the
+  //    format report.
+  //
+  // Taking either side alone regresses the other: #141's version never atomizes,
+  // and WP-59's version still calls the URL scraper, so its atomization never runs
+  // at all. `buildJobDataFromExtractedJson` also falls back to `extractJobData`
+  // over the raw text when must_have comes back empty, so a hard-to-parse posting
+  // degrades rather than disappears.
   let jobData: JobExtraction = DEFAULT_JOB_DATA;
   try {
     const extracted = extractJobData(jobDescription);
     if (extracted.must_have.length > 0 || extracted.title) {
-      jobData = extracted;
+      jobData = buildJobDataFromExtractedJson(extracted, jobDescription);
       console.log('✅ Extracted job data:', {
         title: jobData.title,
         must_have_count: jobData.must_have.length,
+        must_have_sample: jobData.must_have.slice(0, 10),
         nice_to_have_count: jobData.nice_to_have.length,
       });
     }

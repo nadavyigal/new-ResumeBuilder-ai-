@@ -37,7 +37,7 @@
   "exclude": [
     "node_modules",
     ".next",
-    "resume-builder-ai/**",
+    ".claude/worktrees/**", "resume-builder-ai/**",
     "scripts/scripts/**",
     "supabase/**"
   ]

@@ -3,7 +3,7 @@
  * Matches at the requirement-phrase level, not only individual tokens.
  */
 
-import { normalizeText, tokenize } from './utils/text-utils';
+import { normalizeText, tokenize, isShortSkillToken } from './utils/text-utils';
 import { KEYWORD_THRESHOLDS } from './config/thresholds';
 
 const STOP_WORDS = new Set([
@@ -18,16 +18,44 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Hebrew one-letter proclitics: and / the / in / to / from / that / like.
+ *
+ * Hebrew attaches "in", "the" and "and" directly to the noun, so a job asking
+ * for בפיתוח ("in development") and a resume saying פיתוח ("development") are
+ * the same requirement written two ways and never match as strings.
+ */
+const HEBREW_PROCLITIC = '[\\u05D5\\u05D4\\u05D1\\u05DC\\u05DE\\u05E9\\u05DB]?';
+const STARTS_HEBREW = /^[\u0590-\u05FF]/;
+
 function containsWholePhrase(normalizedResume: string, normalizedPhrase: string): boolean {
   if (!normalizedPhrase) return false;
-  const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegExp(normalizedPhrase)}([^a-z0-9]|$)`);
+
+  // Word boundaries must be Unicode-aware. `[^a-z0-9]` treats every Hebrew
+  // character as a boundary, so "פיתוח" matched INSIDE "בפיתוח" — and equally
+  // inside any longer word that merely contained those letters. That is
+  // substring matching dressed up as whole-word matching, and it inflates
+  // keyword_exact for every non-Latin script (WP-59 S3c).
+  const boundary = '[^\\p{L}\\p{N}]';
+
+  // Having made the boundary strict, allow the ONE thing it now wrongly
+  // excludes: a leading Hebrew particle on the first word of the phrase.
+  const prefix = STARTS_HEBREW.test(normalizedPhrase) ? HEBREW_PROCLITIC : '';
+
+  const pattern = new RegExp(
+    `(^|${boundary})${prefix}${escapeRegExp(normalizedPhrase)}(${boundary}|$)`,
+    'u'
+  );
   return pattern.test(normalizedResume);
 }
 
+/** Long enough to be evidence, or a known short technology name. */
+function isScorableToken(word: string): boolean {
+  return word.length >= KEYWORD_THRESHOLDS.min_keyword_length || isShortSkillToken(word);
+}
+
 function significantTokens(text: string): string[] {
-  return tokenize(text).filter(
-    (word) => word.length >= KEYWORD_THRESHOLDS.min_keyword_length && !STOP_WORDS.has(word)
-  );
+  return tokenize(text).filter((word) => isScorableToken(word) && !STOP_WORDS.has(word));
 }
 
 /**
@@ -42,7 +70,7 @@ export function skillMatchesResume(skill: string, resumeText: string): boolean {
   }
 
   // Whole-phrase match (handles "Node.js", "machine learning", etc.)
-  if (normalizedSkill.length >= KEYWORD_THRESHOLDS.min_keyword_length) {
+  if (isScorableToken(normalizedSkill)) {
     if (containsWholePhrase(normalizedResume, normalizedSkill)) {
       return true;
     }
@@ -76,10 +104,7 @@ export function skillCoverage(skill: string, resumeText: string): number {
     return 0;
   }
 
-  if (
-    normalizedSkill.length >= KEYWORD_THRESHOLDS.min_keyword_length &&
-    containsWholePhrase(normalizedResume, normalizedSkill)
-  ) {
+  if (isScorableToken(normalizedSkill) && containsWholePhrase(normalizedResume, normalizedSkill)) {
     return 1;
   }
 

@@ -30,6 +30,17 @@ export const PENALTY_THRESHOLDS = {
 /**
  * Thresholds for generating suggestions
  */
+/**
+ * All four gain thresholds below were set against `estimateImpact`'s old output,
+ * which multiplied an already-final-scale number by 100 and clamped it to 15
+ * (WP-59 S1). On that scale every suggestion read 15, so `min_gain: 3` filtered
+ * nothing and `quick_win_effort_threshold: 8` promoted everything.
+ *
+ * With the units corrected, real per-suggestion gains are 0.4-3.8 final-score
+ * points. Carrying the old numbers forward would have silently emptied the
+ * suggestions list — 3 is above almost every honest value — which is why they
+ * move in the same change rather than in a follow-up.
+ */
 export const SUGGESTION_THRESHOLDS = {
   /** Sub-scores below this are "urgent" (red zone) */
   urgent_threshold: 50,
@@ -37,14 +48,21 @@ export const SUGGESTION_THRESHOLDS = {
   /** Sub-scores below this generate normal suggestions (yellow zone) */
   normal_threshold: 70,
 
-  /** Minimum estimated gain to show a suggestion (filter noise) */
-  min_gain: 3,
+  /** Minimum estimated gain, in final-score points, to show a suggestion. */
+  min_gain: 0.5,
 
   /** Maximum suggestions to return (avoid overwhelming user) */
   max_suggestions: 10,
 
-  /** Minimum score difference to mark as "quick win" */
-  quick_win_effort_threshold: 8,
+  /** Minimum estimated gain, in final-score points, to mark as "quick win". */
+  quick_win_effort_threshold: 1.5,
+
+  /**
+   * Minimum estimated gain, in final-score points, for the UI's "high impact"
+   * grouping. Lives here rather than as a literal in each component, so the
+   * grouping cannot drift away from the scale the estimator actually produces.
+   */
+  high_impact_threshold: 2,
 } as const;
 
 /**
@@ -91,6 +109,21 @@ export const KEYWORD_THRESHOLDS = {
 
   /** N-gram sizes to extract (3-6 words) */
   ngram_sizes: [3, 4, 5, 6],
+
+  /**
+   * Technologies short enough to be deleted by `min_keyword_length`.
+   *
+   * `tokenize` and `skillCoverage` both drop tokens under 3 characters, so a
+   * job requiring Go, AI, ML, QA, UX, BI or CI never measured whether the
+   * candidate had it — the requirement was removed before matching rather than
+   * scored as missing. Single letters (`r`, `c`) stay out: lowercased and
+   * word-bounded they match far too much ordinary prose to be evidence of a
+   * skill (WP-59 S3c).
+   */
+  short_skill_tokens: new Set([
+    'go', 'js', 'ts', 'ai', 'ml', 'qa', 'ux', 'ui', 'bi', 'ci', 'cd', 'nlp',
+    'etl', 'api', 'aws', 'gcp', 'sql', 'php', 'ios',
+  ]),
 } as const;
 
 /**
@@ -108,6 +141,29 @@ export const SEMANTIC_THRESHOLDS = {
 
   /** Maximum semantic score when keyword_exact is low */
   capped_semantic_max: 70,
+
+  /**
+   * Cosine similarity anchors for the 0-100 scale (WP-59 S3b).
+   *
+   * The analyzer used to map cosine with `(cos + 1) / 2`, the textbook
+   * transform for a value that can legitimately reach -1. Embeddings of two
+   * real documents never go near -1: measured across the 32-case benchmark the
+   * component spanned only **61 to 84**, on cases a human labelled strong,
+   * stretch AND weak. Eighteen percent of the composite was carrying a
+   * 23-point usable range, so it could neither reward a genuine match nor
+   * distinguish one from a poor one — and its floor of 61 is what made the
+   * semantic-vs-keyword gap penalty fire on essentially every low-keyword
+   * resume.
+   *
+   * These anchor the scale to the range embeddings actually produce here:
+   * `floor` is two documents with nothing in common, `ceiling` is a resume that
+   * reads like the job description. Values outside are clamped.
+   *
+   * Anything that changes these changes the scale, and the bands in
+   * config/bands.ts must be re-derived in the same change.
+   */
+  cosine_floor: 0.10,
+  cosine_ceiling: 0.70,
 } as const;
 
 /**
@@ -120,13 +176,52 @@ export const METRICS_THRESHOLDS = {
   /** Ideal metrics per role */
   ideal_metrics_per_role: 2,
 
-  /** Patterns that count as metrics */
+  /**
+   * Patterns that count as a quantified achievement.
+   *
+   * The first five are the original set. Between them they require a `%`, a
+   * `$`, a `#`, an `x` or an uppercase K/M/B — so every ordinary quantity a
+   * real engineer writes counted as NO metric at all:
+   *
+   *   "reduced p99 latency from 800ms to 120ms"   -> 0 metrics
+   *   "led a team of 12 engineers"                -> 0 metrics
+   *   "served 3 million requests per day"         -> 0 metrics
+   *   "cut deploy time from 40 minutes to 6"      -> 0 metrics
+   *
+   * `metrics_presence` hard-clamps to 0 when nothing matches, so those resumes
+   * forfeited the whole 11.4% weight. Measured across the 32-case benchmark the
+   * component meaned 5.3 out of 100 — on fixtures written to contain metrics
+   * (WP-59 S3d).
+   *
+   * The additions all require a number bound to a UNIT or a countable noun, or
+   * an explicit before/after. A bare integer still does not count, so years
+   * ("2019"), phone numbers and street numbers stay out.
+   *
+   * This changes what counts as a metric the candidate ALREADY WROTE. It does
+   * not touch `stripFabricatedMetrics`, which stops the optimizer inventing
+   * figures, and must stay exactly as strict as it is.
+   */
   metric_patterns: [
     /\d+%/,           // Percentages: 25%
     /\$[\d,]+/,       // Dollar amounts: $50,000
     /#\d+/,           // Numbers: #1 ranking
-    /\d+x/,           // Multipliers: 3x increase
-    /\d+[KMB]/,       // Abbreviated: 5K, 2M, 1B
+    /\d+\s*x\b/i,     // Multipliers: 3x increase
+    /\d+\s*[KMB]\b/,  // Abbreviated: 5K, 2M, 1B
+
+    // Magnitude words: "3 million requests", "250 thousand users"
+    /\b\d[\d,.]*\s*(?:million|billion|thousand|mn|bn)\b/i,
+
+    // Durations and latencies: "800ms", "40 minutes", "3 weeks"
+    /\b\d[\d,.]*\s*(?:ms|milliseconds?|s(?:ec(?:onds?)?)?|min(?:utes?)?|hrs?|hours?|days?|weeks?|months?|quarters?)\b/i,
+
+    // Data and throughput: "2TB", "500 rps", "1.2GB"
+    /\b\d[\d,.]*\s*(?:[kmgt]b|rps|qps|tps|iops|fps)\b/i,
+
+    // Counted things a resume actually claims
+    /\b\d[\d,.]*\s*(?:users?|customers?|clients?|accounts?|engineers?|developers?|people|reports?|requests?|queries|transactions?|records?|rows?|teams?|projects?|stores?|markets?|countries|languages?|integrations?|services?|microservices?|endpoints?)\b/i,
+
+    // Explicit before/after, the clearest impact claim of all
+    /\bfrom\s+\d[\d,.]*\s*\S*\s+to\s+\d/i,
   ],
 } as const;
 

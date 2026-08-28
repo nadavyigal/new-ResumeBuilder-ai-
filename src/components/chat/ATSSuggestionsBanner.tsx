@@ -9,6 +9,7 @@ import type { Suggestion } from '@/lib/ats/types';
 import { ChevronDown, ChevronUp, Lightbulb, Zap, TrendingUp } from '@/lib/icons';
 import { useTranslations } from 'next-intl';
 import { MainIssuesSummary } from '@/components/ats/MainIssuesSummary';
+import { SUGGESTION_THRESHOLDS } from '@/lib/ats/config/thresholds';
 
 interface ATSSuggestionsBannerProps {
   suggestions: Suggestion[];
@@ -29,7 +30,11 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
   const numberedSuggestions: NumberedSuggestion[] = suggestions.map((s, index) => ({ ...s, number: index + 1 }));
 
   const quickWins = numberedSuggestions.filter(s => s.quick_win).slice(0, 3);
-  const highImpact = numberedSuggestions.filter(s => !s.quick_win && s.estimated_gain >= 8).slice(0, 2);
+  // See SUGGESTION_THRESHOLDS: the literal 8 belonged to the pre-WP-59 scale
+  // where every estimated gain was clamped to 15.
+  const highImpact = numberedSuggestions
+    .filter(s => !s.quick_win && s.estimated_gain >= SUGGESTION_THRESHOLDS.high_impact_threshold)
+    .slice(0, 2);
   const displaySuggestions: NumberedSuggestion[] = [...quickWins, ...highImpact];
 
   return (
