@@ -13,6 +13,7 @@ import {
 } from "@/lib/rate-limiting/anonymous-optimize-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
+import { toWireGain } from "@/lib/ats/wire-gain";
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -205,7 +206,10 @@ export async function POST(req: NextRequest) {
         // furniture like "about" or "key responsibilities" cannot appear here.
         topGaps: (ats.suggestions ?? []).slice(0, 3).map(s => ({
           title: s.text,
-          estimatedGain: s.estimated_gain,
+          // Integer on the wire, always. A fractional gain fails the iOS
+          // decode of this entire response, not just this field. See
+          // `@/lib/ats/wire-gain`.
+          estimatedGain: toWireGain(s.estimated_gain),
           category: s.category,
         })),
       },
