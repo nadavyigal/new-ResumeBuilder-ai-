@@ -20,19 +20,21 @@
   },
   "landing": {
     "atsChecker": {
-      "badge": "Free Instant Analysis",
-      "title": "See Your Match Score in 30 Seconds",
-      "description": "Upload your resume and job description. We'll show you exactly what's holding you back.",
+      "badge": "Resumely Match Score",
+      "title": "See how your resume matches the job before you apply.",
+      "description": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
       "badges": {
-        "atsSafe": "Robot-proof",
-        "topFixes": "Instant fixes",
-        "weeklyChecks": "5 free checks"
+        "atsSafe": "Fit before you apply",
+        "topFixes": "Missing skills surfaced",
+        "weeklyChecks": "Free weekly checks"
       },
       "bullets": {
-        "v2Engine": "Trained on 50,000+ real job postings",
-        "hashPrivacy": "Your resume is stored securely and never shared",
-        "unlockFixes": "Sign up free to see all recommendations"
+        "v2Engine": "Upload your resume and add a job description or link",
+        "hashPrivacy": "See strongest matches, missing skills, and top gaps",
+        "unlockFixes": "Tailor bullets and export your application package from your phone"
       },
+      "heroCta": "Check your fit free",
+      "heroCtaSecondary": "See how it works",
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
       "errors": {
@@ -109,85 +111,73 @@
       }
     },
     "features": {
-      "title": "Stop Getting Filtered Out Before Humans See Your Resume",
-      "subtitle": "Match the keywords recruiters search for, not just what's in the job posting",
+      "title": "Know before you apply",
+      "subtitle": "Check your fit, improve your resume, and export from your phone.",
       "items": [
         {
-          "title": "Get Past Resume Robots",
-          "description": "Most resumes never reach a human. We identify the exact keywords that unlock ATS filters."
+          "title": "Know before you apply",
+          "description": "Upload your resume and add a job description or link. Resumely shows how well your resume fits the role and what to fix first."
         },
         {
-          "title": "See Your Score Before You Apply",
-          "description": "Know exactly how well you match before hitting submit. No more wondering if you'll hear back."
+          "title": "Your free Resumely Match Score",
+          "description": "See the strongest matches, missing skills, and highest-impact improvements for the job you pasted. This is Resumely's estimate of fit, not a score from an employer hiring system."
         },
         {
-          "title": "Results in 30 Seconds",
-          "description": "Upload your resume, paste the job description. Your match score appears in half a minute."
+          "title": "Tailor your resume to the role",
+          "description": "Apply focused AI edits to your bullets for the specific job. Review what changed and keep control of your facts."
         },
         {
-          "title": "Templates That Get Opened",
-          "description": "Recruiter-tested layouts that scan cleanly in every ATS. No graphics that confuse the robots."
+          "title": "Export the complete application package",
+          "description": "Send a polished resume PDF, cover letter, and screening answers from your phone. No laptop needed."
         },
         {
-          "title": "Track Your Applications",
-          "description": "See which jobs you've applied to and which resumes you used. Keep everything organized."
-        },
-        {
-          "title": "Your Data Stays Private",
-          "description": "We encrypt everything and never train AI on your resumes. Delete your account anytime."
+          "title": "Clean formatting, clearer applications",
+          "description": "Use ATS-friendly formatting and professional templates designed to keep your experience readable. No guarantee of passage through any employer filter."
         }
       ],
-      "stats": [
-        {
-          "label": "ATS Checks Per Resume",
-          "value": "8"
-        },
-        {
-          "label": "Keyword Match Depth",
-          "value": "Deep"
-        },
-        {
-          "label": "Results In",
-          "value": "30 sec"
-        },
-        {
-          "label": "Free To Start",
-          "value": "$0"
-        }
-      ]
+      "stats": []
     },
     "howItWorks": {
-      "title": "Three Steps to Know If You'll Get the Interview",
-      "subtitle": "Find out what's blocking you before you apply",
+      "title": "How it works",
+      "subtitle": "From upload to export in four steps",
       "steps": [
         {
-          "title": "Upload Your Resume",
-          "description": "Drop your PDF or Word file. We scan your experience, skills, and accomplishments in seconds."
+          "title": "Upload your resume",
+          "description": "Add a PDF or Word resume from your phone."
         },
         {
-          "title": "Paste the Job Description",
-          "description": "Copy the full job posting. We extract the keywords that matter and compare them to your resume."
+          "title": "Paste the job posting",
+          "description": "Add the full posting or a job link."
         },
         {
-          "title": "See What's Missing",
-          "description": "Get your match score plus specific changes that will move you from the \"no\" pile to the \"yes\" pile."
+          "title": "See what's missing",
+          "description": "Review your Resumely Match Score and top gaps."
+        },
+        {
+          "title": "Tailor and export",
+          "description": "Apply targeted edits and export your application package."
         }
       ]
     },
+    "finalCta": {
+      "title": "Know your fit before you apply.",
+      "subtitle": "Paste the posting, tailor your resume, and export from your phone.",
+      "cta": "Check your fit free"
+    },
     "hero": {
-      "badge": "Used by Job Seekers Worldwide",
-      "titleLine1": "Turn Your Resume Into",
-      "titleLine2": "Interview Invitations",
-      "subtitle": "Your resume gets 6 seconds of attention. Make every second count. Our AI matches your experience to what recruiters actually search for.",
+      "badge": "Resumely Match Score",
+      "titleLine1": "See how your resume matches",
+      "titleLine2": "the job before you apply",
+      "subtitle": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
       "benefits": [
-        "Built to survive the 6-second scan",
-        "Match what recruiters search for",
-        "See your score in 30 seconds"
+        "Check fit before you apply",
+        "See missing skills and top gaps",
+        "Tailor and export from your phone"
       ],
-      "ctaPrimary": "Get My Free Match Score",
-      "ctaSecondary": "See a Sample Report",
+      "ctaPrimary": "Check your fit free",
+      "ctaSecondary": "See how it works",
       "socialProof": {
-        "atsApproved": "ATS-friendly formatting, built in"
+        "atsApproved": "ATS-friendly formatting with no guarantee of passage through any employer filter"
       }
     },
     "quickWins": {

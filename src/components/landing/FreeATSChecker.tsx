@@ -115,6 +115,13 @@ export function FreeATSChecker() {
     fileInput?.focus();
   };
 
+  const handleSecondaryCtaClick = () => {
+    posthog.capture("ats_checker_secondary_cta_clicked");
+    const howItWorks = document.getElementById("how-it-works");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    howItWorks?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+  };
+
   const handleSubmit = async (
     file: File,
     input: { inputMode: "text" | "url"; jobDescription: string; jobDescriptionUrl: string }
@@ -251,14 +258,37 @@ export function FreeATSChecker() {
                 </p>
               </div>
 
-              <Button
-                type="button"
-                data-testid="ats-checker-hero-cta"
-                onClick={handleHeroCtaClick}
-                className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)] lg:hidden"
-              >
-                {t("heroCta")}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 lg:hidden">
+                <Button
+                  type="button"
+                  data-testid="ats-checker-hero-cta"
+                  onClick={handleHeroCtaClick}
+                  className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)]"
+                >
+                  {t("heroCta")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="ats-checker-secondary-cta"
+                  onClick={handleSecondaryCtaClick}
+                  className="w-full border-2"
+                >
+                  {t("heroCtaSecondary")}
+                </Button>
+              </div>
+
+              <div className="hidden lg:flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="ats-checker-secondary-cta-desktop"
+                  onClick={handleSecondaryCtaClick}
+                  className="border-2"
+                >
+                  {t("heroCtaSecondary")}
+                </Button>
+              </div>
 
               <div className="flex flex-wrap gap-3">
                 <Badge variant="secondary" className="gap-2">
