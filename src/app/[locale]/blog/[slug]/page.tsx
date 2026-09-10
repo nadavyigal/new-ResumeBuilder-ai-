@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import { getAllPosts, getPostBySlug } from '@/lib/blog';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import DOMPurify from 'isomorphic-dompurify';
 import Image from 'next/image';
 import { Link } from '@/navigation';
 import { defaultLocale, locales, type Locale } from '@/locales';
@@ -122,12 +121,7 @@ export default async function BlogPost({ params }: BlogPostPageParams) {
       {/* Content */}
       <div
         className="prose prose-lg max-w-none prose-headings:font-bold prose-a:text-blue-600 hover:prose-a:text-blue-800"
-        dangerouslySetInnerHTML={{
-          __html: DOMPurify.sanitize(post.content, {
-            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'img'],
-            ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt', 'title', 'class']
-          })
-        }}
+        dangerouslySetInnerHTML={{ __html: post.content }}
       />
 
       {/* CTA Section */}
