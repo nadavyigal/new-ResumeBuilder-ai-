@@ -21,22 +21,23 @@
   },
   "landing": {
     "atsChecker": {
-      "badge": "Free ATS Resume Check",
-      "title": "See How Recruiter Systems Read Your Resume",
-      "description": "Upload your resume, match it to a real job description, and get the most important fixes to apply first.",
+      "badge": "Resumely Match Score",
+      "title": "See how your resume matches the job before you apply.",
+      "description": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
       "badges": {
-        "atsSafe": "ATS-safe guidance",
-        "topFixes": "Prioritized fixes",
+        "atsSafe": "Fit before you apply",
+        "topFixes": "Missing skills surfaced",
         "weeklyChecks": "Free weekly checks"
       },
       "bullets": {
-        "v2Engine": "Role-aware analysis tuned for ATS parsing and recruiter review",
-        "hashPrivacy": "Privacy-first handling with secure processing",
-        "unlockFixes": "Create a free account to unlock the full fix plan and save progress"
+        "v2Engine": "Upload your resume and add a job description or link",
+        "hashPrivacy": "See strongest matches, missing skills, and top gaps",
+        "unlockFixes": "Tailor bullets and export your application package from your phone"
       },
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
-      "heroCta": "Check my resume →",
+      "heroCta": "Check your fit free",
+      "heroCtaSecondary": "See how it works",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "connection": "We could not reach the server. Please try again.",
@@ -125,22 +126,27 @@
       }
     },
     "hero": {
-      "badge": "Job-Ready Resume Guidance",
-      "titleLine1": "Pass ATS Filters",
-      "titleLine2": "And Read Better to Recruiters",
-      "subtitle": "Get role-specific resume edits, clearer positioning, and stronger evidence of impact before you apply.",
+      "badge": "Resumely Match Score",
+      "titleLine1": "See how your resume matches",
+      "titleLine2": "the job before you apply",
+      "subtitle": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
       "benefits": [
-        "Spot ATS blockers before submitting",
-        "Match role language without keyword stuffing",
-        "Improve clarity and relevance section by section"
+        "Check fit before you apply",
+        "See missing skills and top gaps",
+        "Tailor and export from your phone"
       ],
-      "ctaPrimary": "Run Free ATS Check",
-      "ctaSecondary": "See The Process",
+      "ctaPrimary": "Check your fit free",
+      "ctaSecondary": "See how it works",
       "socialProof": {
         "resumesOptimized": "<strong>Role-aware</strong> resume analysis",
         "reviews": "<strong>Clear</strong> recruiter-facing guidance",
-        "atsApproved": "Built on ATS-safe writing principles"
+        "atsApproved": "ATS-friendly formatting with no guarantee of passage through any employer filter"
       }
+    },
+    "finalCta": {
+      "title": "Know your fit before you apply.",
+      "subtitle": "Paste the posting, tailor your resume, and export from your phone.",
+      "cta": "Check your fit free"
     },
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
@@ -354,8 +360,8 @@
   },
   "meta": {
     "home": {
-      "title": "Resumely | ATS Resume Checker and Optimization",
-      "description": "Check how ATS systems read your resume, find high-impact blockers, and continue with role-specific optimization."
+      "title": "Resumely | Resume Match Score and Job Fit Checker",
+      "description": "Paste a job posting, see your Resumely Match Score, tailor your resume, and export your application package from your phone."
     },
     "pricing": {
       "title": "Pricing | Resumely",
