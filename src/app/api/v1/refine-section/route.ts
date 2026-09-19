@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const temperature = 0.2;
 
-    const creditResult = await consumeCredit(supabase as any, user.id, 'refine_section');
+    const creditResult = await consumeCredit(user.id, 'refine_section');
     if (!creditResult.ok) {
       if (creditResult.status === 402) {
         return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });

@@ -1,15 +1,72 @@
 # Project Progress
 
-- Status: WP-49 carryover is live, and now countable — #139, #140 and #141 are merged to main; deploy verification outstanding
-- Current Phase: Resumely activation funnel (WP-49 carryover)
-- Active Story: none
+- Status: R1 code and migration are written and committed on `claude/story-r1-revoke-execute-47b95e`; the migration is NOT applied, that is the founder's call
+- Current Phase: 2026-09-19 improvement plan, P0 weeks 1 and 2
+- Active Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78)
 - Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
-- Next Recommended Story: give the web an `is_internal_tester` person property — it has none, so every founder and QA session counts as a real user in every activation number
-- Blockers: none. Both fixes are merged but unverified in production.
-- Last Validation: 2026-08-14 — 16/16 carryover suites, 5/5 resume-id route, tsc clean in src/, eslint clean; full-suite control identical to the clean tree (16 failed suites / 76 failed tests, pre-existing Playwright specs)
-- Last Updated: 2026-08-14
+- Next Recommended Story: R2, production canary and uptime alert
+- Blockers: the migration needs a founder-run `supabase db push`, then the advisor 0028/0029 recheck. Host machine is saturated (load average 111, a CoreSimulator `mediaanalysisd` at 932% CPU), so lint, tsc and build are running far slower than normal.
+- Last Validation: 2026-09-19 — 6/6 on the two new suites (`tests/lib/credits.test.ts`, `tests/api/iap-verify-route.test.ts`); lint, tsc, build and full `npm test` still running at commit time, results appended below when they land
+- Last Updated: 2026-09-19
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+
+## 2026-09-19 — R1, revoke client EXECUTE on the credit and quota functions
+
+**The hole.** `grant_apple_credits`, `consume_credit` and `upgrade_to_premium` are
+all `SECURITY DEFINER`, all take the target user as an argument, and none of them
+check `auth.uid()`. Postgres grants `EXECUTE` to `PUBLIC` by default on
+`CREATE FUNCTION`, so the `authenticated` role that an anonymous Supabase session
+holds could call any of them through `/rest/v1/rpc` with the anon key that ships
+inside the iOS binary. That routes around PR #135 entirely.
+
+`upgrade_to_premium(uuid)` was not on the plan's revoke list and is the worst of
+the set: it sets `subscription_tier = 'premium'` and `max_optimizations = -1` for
+whatever user id it is handed. Added to the migration on the founder's say-so.
+`get_user_subscription_status` was proposed and explicitly left out, so it is
+still client-executable and still leaks another user's tier and quota to anyone
+who asks. That is a known, accepted gap, not an oversight.
+
+**All six `.rpc(` call sites in `src`, audited before any edit.** Three were
+already on a service-role client and needed nothing: `increment_rate_limit` in
+`check-rate-limit.ts:121`, and `upgrade_to_premium` / `check_subscription_limit`
+in `auth.ts`. Two of the three in `auth.ts` sit in `AuthServer`, which along with
+`AuthClient` has zero importers anywhere in `src` or `tests`, so that whole file
+is dead code. Three call sites did break on the revoke: `grant_apple_credits` in
+`iap/verify`, and `consume_credit` reached twice through `consumeCredit` from
+`refine-section:34` and `ats/score:60`, all of them on `createRouteHandlerClient`,
+which is the anon key plus the user's JWT.
+
+**The plan's file list was wrong in both directions.** It named
+`check-rate-limit.ts:121` and `auth.ts:232` as files to change; neither needed an
+edit. It missed `refine-section/route.ts` and `ats/score/route.ts`, which were the
+only two real breakages outside `iap/verify`.
+
+**`consumeCredit` no longer takes a client.** It builds its own
+`createServiceRoleClient()` internally. Passing the client in was the footgun that
+put a user-scoped session in front of a `SECURITY DEFINER` function twice already;
+fixing the two call sites and leaving the parameter would have left the third
+caller free to get it wrong. `getCreditBalance` deliberately keeps the caller's
+client, because it is a plain `profiles` read that should stay RLS-scoped.
+
+**The migration keys on function name, not signature.** This repo carries two
+signature histories for `is_ats_v2` and `get_ats_improvement` (`bigint` and
+`uuid`) and two for `cleanup_old_files` and `generate_file_path`. A `REVOKE` naming
+exact signatures would silently skip a live overload, so a `DO` block loops
+`pg_proc` and revokes every match. It revokes from `PUBLIC` as well as `anon` and
+`authenticated`: revoking from the two roles alone would have been a no-op with the
+default `PUBLIC` grant still standing, which is the failure mode that makes this
+kind of migration look applied while changing nothing. That same revoke would
+strip `service_role`, so the loop re-grants to `service_role` and `postgres`.
+It raises if it matches zero functions, rather than recording a no-op.
+
+**Checked before writing it:** `check_subscription_limit` is called inside
+`increment_optimization_usage`, which is itself `SECURITY DEFINER` and so runs as
+owner and keeps access. No RLS policy references any of the eleven. iOS makes no
+direct `.rpc` calls, re-confirmed by grep across 629 Swift files.
+
+**Not applied.** `supabase db push` and the advisor 0028/0029 recheck are the
+founder's to run.
 
 ## 2026-08-14 — The carryover works, could not be counted, and was never extracting the job
 
@@ -524,7 +581,7 @@ Estimated Completion: Web is live; scoring-accuracy work is incremental
 Blockers: **No founder action outstanding on the eval track.** The `OPENAI_API_KEY` repo secret was added 2026-07-21 and the resume-optimizer nightly has passed **30 of its last 30 runs** (2026-07-29 → 2026-08-27, zero failures). The previous "Founder action required — add the repo secret" text stood here for five weeks after it stopped being true and was propagating into the Agentic OS priority board as a top-scored next action; corrected 2026-08-28. **The real CI weakness on this repo is unchanged and is recorded under Risks:** `ci.yml` still runs `test:contracts` and `bench-agent` with `|| true`, so neither can fail the build. Gate A remains closed by decision; do not wire Stripe or re-enable Premium CTAs until the gate is explicitly reopened.
 Risks: **CI is largely non-gating** — `.github/workflows/ci.yml` runs `npm run test:contracts || true` and `node scripts/bench-agent.mjs --ci || true`, so both always pass regardless of result, and it never runs `tsc`. Only `npm run lint` can actually fail the build. A green CI check on this repo means less than it appears; worth a separate story. `npx tsc --noEmit` still has pre-existing test typing/export failures, now compounded by untracked Finder-duplicate files (`route 2.ts`, `en 2.json`, `anonymous-carryover 2.ts`) that break local typechecking but are invisible to CI because they are untracked; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
 Last Validation: 2026-08-28 — **eval track only**: `gh secret list` shows `OPENAI_API_KEY` present since 2026-07-21T12:09:57Z, and `gh run list --workflow=eval-resume-nightly.yml --limit 30` returns 30 of 30 `success` (2026-07-29 → 2026-08-27). Nothing else in this file was re-verified on that date. 2026-07-21 — live resume-optimizer eval 7/7, judgePassRate 1.0, 0 critical failures, `report.json` regenerated; preflight guard verified by running with no key available; `npm run lint` 0 errors / 18 pre-existing warnings; `npx eslint scripts/run-eval-resume.mjs` exit 0. Noted in passing: `ci.yml` runs `test:contracts` and `bench-agent` with `|| true`, so neither can fail the build, and it never runs `tsc` — see Risks. Earlier — WP-29 S4 branch `codex/wp29-s4-disable-premium-cta` — focused pricing/upgrade tests 2/2 passed, `npm run check:i18n` passed, targeted eslint passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S4 files.
-Last Updated: 2026-08-28
+Last Updated: 2026-09-19
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--

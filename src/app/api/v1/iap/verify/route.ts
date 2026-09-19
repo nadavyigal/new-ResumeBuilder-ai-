@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@/lib/supabase-server';
+import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import { creditsForProduct, verifyAppleTransaction } from '@/lib/iap';
 
 export async function POST(request: NextRequest) {
@@ -40,7 +40,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data, error } = await (supabase as any).rpc('grant_apple_credits', {
+  // grant_apple_credits is SECURITY DEFINER and trusts its p_user_id argument.
+  // R1 revoked EXECUTE from anon and authenticated, so the grant runs on a
+  // service-role client. user.id above is the only identity this route trusts.
+  const serviceClient = createServiceRoleClient();
+  const { data, error } = await (serviceClient as any).rpc('grant_apple_credits', {
     p_user_id: user.id,
     p_delta: grantAmount,
     p_reason: `iap_purchase:${productId}`,
