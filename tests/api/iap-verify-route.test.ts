@@ -24,7 +24,9 @@ function loadRouteHarness({
     auth: { getUser: jest.fn(async () => ({ data: { user }, error: null })) },
     rpc: userRpc,
   };
-  const serviceRpc = jest.fn(async () => rpcResult);
+  const serviceRpc = jest.fn<(fn: string, params: Record<string, unknown>) => Promise<typeof rpcResult>>(
+    async () => rpcResult
+  );
   const createRouteHandlerClient = jest.fn(async () => routeClient);
   const createServiceRoleClient = jest.fn(() => ({ rpc: serviceRpc }));
 

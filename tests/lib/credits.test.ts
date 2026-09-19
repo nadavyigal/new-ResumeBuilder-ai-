@@ -8,7 +8,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 function loadCredits(rpcResult: { data: unknown; error: { message: string } | null }) {
   jest.resetModules();
 
-  const rpc = jest.fn(async () => rpcResult);
+  const rpc = jest.fn<(fn: string, params: Record<string, unknown>) => Promise<typeof rpcResult>>(
+    async () => rpcResult
+  );
   const serviceClient = { rpc };
   const createServiceRoleClient = jest.fn(() => serviceClient);
   const createRouteHandlerClient = jest.fn(async () => ({
