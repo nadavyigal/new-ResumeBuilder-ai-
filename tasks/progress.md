@@ -1,12 +1,12 @@
 # Project Progress
 
-- Status: R1 code and migration are written and committed on `claude/story-r1-revoke-execute-47b95e`; the migration is NOT applied, that is the founder's call
+- Status: R1 is on PR #157 and fully verified; the migration is NOT applied, that is the founder's call
 - Current Phase: 2026-09-19 improvement plan, P0 weeks 1 and 2
 - Active Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78)
 - Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
 - Next Recommended Story: R2, production canary and uptime alert
 - Blockers: the migration needs a founder-run `supabase db push`, then the advisor 0028/0029 recheck. Host machine is saturated (load average 111, a CoreSimulator `mediaanalysisd` at 932% CPU), so lint, tsc and build are running far slower than normal.
-- Last Validation: 2026-09-19 — 6/6 on the two new suites (`tests/lib/credits.test.ts`, `tests/api/iap-verify-route.test.ts`); lint, tsc, build and full `npm test` still running at commit time, results appended below when they land
+- Last Validation: 2026-09-19 — `npm run lint` exit 0 (0 errors, 11 pre-existing warnings, none in a touched file); `npx tsc --noEmit` exit 2 with 27 errors, all pre-existing in `tests/contracts/*` and `tests/security-fixes.test.ts`, down from 29 after fixing the two this branch introduced; `npm test` exit 1 at 20 failed suites / 79 failed tests against an origin/main control on the same machine at 18 / 77, the two-suite delta being `upload-form-validation-state` and `free-ats-checker-failure-preserves-input`, both `Exceeded timeout of 5000 ms` under host saturation and both 6/6 in isolation; new suites 6/6; `npm run build` exit 0
 - Last Updated: 2026-09-19
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
@@ -66,7 +66,18 @@ owner and keeps access. No RLS policy references any of the eleven. iOS makes no
 direct `.rpc` calls, re-confirmed by grep across 629 Swift files.
 
 **Not applied.** `supabase db push` and the advisor 0028/0029 recheck are the
-founder's to run.
+founder's to run. PR #157.
+
+**The test-suite delta needed a control run to read honestly.** The branch
+showed 20 failed suites against the 16 recorded here on 2026-08-14, which looks
+like a regression until you notice that baseline is five weeks old and main has
+moved. A same-machine control on `origin/main` came back at 18, so the delta is
+two suites, both `Exceeded timeout of 5000 ms`, both passing 6/6 in isolation,
+and neither importing anything this branch touches. The host was at load average
+111 with a CoreSimulator `mediaanalysisd` at 932% CPU during the branch run; the
+production build took 78 minutes for the same reason. Worth remembering: on a
+saturated box the jsdom React suites in `tests/app/` are the first to flake, and
+a stale baseline in this file is worse than no baseline.
 
 ## 2026-08-14 — The carryover works, could not be counted, and was never extracting the job
 
