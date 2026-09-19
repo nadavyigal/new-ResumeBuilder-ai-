@@ -38,9 +38,9 @@ quality guard on the optimizer. Nothing here tries to tune a funnel that has no 
 - **1.5.1 is LIVE**, released 2026-09-09T16:51:52Z, verified by three cache-busted Apple
   lookup polls. 0 ratings. The live **binary build number** is unverified: read it in App
   Store Connect.
-- That release is the **fifth measurement boundary**. The four before it: 2026-06-18 score
-  engine, 2026-08-12 `optimization_completed` split, 2026-08-14 10:09:25Z free ATS score,
-  2026-09-09 16:51:52Z listing replacement (same timestamp as this release).
+- That release and listing replacement are the **fourth measurement boundary**. The three
+  before it: 2026-06-18 score engine, 2026-08-12 `optimization_completed` split, and
+  2026-08-14 10:09:25Z free ATS score.
 - The earliest arithmetically honest D7 read for 1.5.1 was 2026-09-16. It has passed, so a
   1.5.1 activation read is possible for the first time and needs `AGENTIC_OS_POSTHOG_API_KEY`.
 - WP-76's "two thirds never see the upload CTA" is an instrumentation-birthday artifact
