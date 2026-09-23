@@ -1,6 +1,6 @@
 # Project Progress
 
-- Status: R1 is on PR #157 and fully verified; the migration is NOT applied, that is the founder's call
+- Status: R1 is on PR #157 and fully verified; staged rollout approved 2026-09-23 (merge, confirm the production deploy, smoke test, then apply)
 - Current Phase: 2026-09-19 improvement plan, P0 weeks 1 and 2
 - Active Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78)
 - Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
@@ -13,19 +13,27 @@
 
 ## 2026-09-19 — R1, revoke client EXECUTE on the credit and quota functions
 
-**The hole.** `grant_apple_credits`, `consume_credit` and `upgrade_to_premium` are
-all `SECURITY DEFINER`, all take the target user as an argument, and none of them
-check `auth.uid()`. Postgres grants `EXECUTE` to `PUBLIC` by default on
-`CREATE FUNCTION`, so the `authenticated` role that an anonymous Supabase session
-holds could call any of them through `/rest/v1/rpc` with the anon key that ships
-inside the iOS binary. That routes around PR #135 entirely.
+**The hole, as read from the live database on 2026-09-23.** Ten of the eleven
+target functions exist in `brtdyamysfmctrhuankn`. All ten are `SECURITY DEFINER`,
+take the target user or row as an argument, and none references `auth.uid()`
+(checked with `pg_get_functiondef`, not inferred from repo history). Eight are
+executable by `PUBLIC`, `anon` and `authenticated`: `check_subscription_limit`,
+`cleanup_old_files`, `generate_file_path`, `get_ats_improvement`,
+`increment_optimization_usage`, `increment_optimizations_used`,
+`increment_rate_limit`, `is_ats_v2`. `consume_credit` and `grant_apple_credits`
+are executable by `authenticated` but not `PUBLIC` or `anon`, because migration
+`20260709102900` already removed those two. `authenticated` is the role an
+anonymous Supabase session holds, so both are still reachable through
+`/rest/v1/rpc` with the anon key that ships inside the iOS binary. That routes
+around PR #135.
 
-`upgrade_to_premium(uuid)` was not on the plan's revoke list and is the worst of
-the set: it sets `subscription_tier = 'premium'` and `max_optimizations = -1` for
-whatever user id it is handed. Added to the migration on the founder's say-so.
-`get_user_subscription_status` was proposed and explicitly left out, so it is
-still client-executable and still leaks another user's tier and quota to anyone
-who asks. That is a known, accepted gap, not an oversight.
+**Correction to the 2026-09-19 version of this entry.** It called
+`upgrade_to_premium` the worst live hole and `get_user_subscription_status` a live
+leak. Neither function exists in production; both claims came from repo migration
+history, not the database. `upgrade_to_premium` stays in the migration list
+defensively, on the founder's say-so. That protects only a matching function
+present when the migration runs. A function created or recreated later gets
+Postgres's default `PUBLIC` grant again and is not covered.
 
 **All six `.rpc(` call sites in `src`, audited before any edit.** Three were
 already on a service-role client and needed nothing: `increment_rate_limit` in

@@ -1,12 +1,23 @@
 -- R1. Lock down client-callable SECURITY DEFINER functions.
 --
--- Every function below is SECURITY DEFINER, takes the target user or row as an
--- argument, and never checks auth.uid(). Postgres grants EXECUTE to PUBLIC by
--- default on CREATE FUNCTION, so the `authenticated` role that an anonymous
--- Supabase session holds could call any of them through /rest/v1/rpc using the
--- anon key that ships inside the iOS app. upgrade_to_premium(uuid) is the worst
--- of them: it sets subscription_tier = 'premium' and max_optimizations = -1 for
--- any user id handed to it.
+-- Live state of project brtdyamysfmctrhuankn, read 2026-09-23 before apply:
+-- ten of the eleven target functions exist. All ten are SECURITY DEFINER, take
+-- the target user or row as an argument, and none references auth.uid().
+--
+--   * Eight are executable by PUBLIC, anon and authenticated:
+--     check_subscription_limit, cleanup_old_files, generate_file_path,
+--     get_ats_improvement, increment_optimization_usage,
+--     increment_optimizations_used, increment_rate_limit, is_ats_v2.
+--   * consume_credit and grant_apple_credits are executable by authenticated
+--     but not by PUBLIC or anon; migration 20260709102900 already removed those
+--     two. authenticated is the role an anonymous Supabase session holds, so
+--     both are still reachable through /rest/v1/rpc with the anon key that
+--     ships inside the iOS app.
+--
+-- upgrade_to_premium does not exist in production, so it is not a live
+-- vulnerability. It stays in the list defensively. That protects only a
+-- matching function present when this migration runs: a function created or
+-- recreated later gets Postgres's default PUBLIC grant again and is NOT covered.
 --
 -- After this migration only service_role and postgres can execute them, so the
 -- only path to a credit or quota change is a server route that has already
