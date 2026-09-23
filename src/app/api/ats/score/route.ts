@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       resume_optimized_json: typeof resume_optimized === 'object' ? resume_optimized : undefined,
     };
 
-    const creditResult = await consumeCredit(supabase as any, user.id, 'ats_score');
+    const creditResult = await consumeCredit(user.id, 'ats_score');
     if (!creditResult.ok) {
       if (creditResult.status === 402) {
         return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
