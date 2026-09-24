@@ -1,17 +1,81 @@
 # Project Progress
 
-- Status: R1 is on PR #157 and fully verified; staged rollout approved 2026-09-23 (merge, confirm the production deploy, smoke test, then apply)
+- Status: R1 is closed. PR #157 merged as `90f86c2`, live on `dpl_ApXya28BHF7qxqCGboX6a8MiH5y5`, migration applied 2026-09-23 06:11Z and proven. One gate, the post-apply authenticated smoke test, was not run; see the R1 entry below.
 - Current Phase: 2026-09-19 improvement plan, P0 weeks 1 and 2
-- Active Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78)
-- Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
-- Next Recommended Story: R2, production canary and uptime alert
-- Blockers: the migration needs a founder-run `supabase db push`, then the advisor 0028/0029 recheck. Host machine is saturated (load average 111, a CoreSimulator `mediaanalysisd` at 932% CPU), so lint, tsc and build are running far slower than normal.
-- Last Validation: 2026-09-19 — `npm run lint` exit 0 (0 errors, 11 pre-existing warnings, none in a touched file); `npx tsc --noEmit` exit 2 with 27 errors, all pre-existing in `tests/contracts/*` and `tests/security-fixes.test.ts`, down from 29 after fixing the two this branch introduced; `npm test` exit 1 at 20 failed suites / 79 failed tests against an origin/main control on the same machine at 18 / 77, the two-suite delta being `upload-form-validation-state` and `free-ats-checker-failure-preserves-input`, both `Exceeded timeout of 5000 ms` under host saturation and both 6/6 in isolation; new suites 6/6; `npm run build` exit 0
-- Last Updated: 2026-09-19
+- Active Story: none
+- Last Completed Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78), PR #157
+- Next Recommended Story: WP-77, remeasure upload-CTA reach (the in-flight measurement packet), then R2, production canary and uptime alert
+- Blockers: none for R1. Security triage of five trigger functions still flagged by Supabase advisors 0028/0029 is recorded in `tasks/todo.md`, deliberately outside R1.
+- Last Validation: 2026-09-24: live DB `brtdyamysfmctrhuankn`: `authenticated` gets `42501 permission denied` on `grant_apple_credits` and `consume_credit`; grant audit 0 rows on all 10 present targets (control run of the same query: 375 rows on other functions); `service_role` executes both credit functions into their bodies; production 5xx 0 from 24h before deploy through 2026-09-24 05:55Z. Code gates as of 2026-09-19 (lint 0 errors, build exit 0, tsc and jest at the pre-existing baseline) are recorded in the R1 entry.
+- Last Updated: 2026-09-24
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
 
-## 2026-09-19 — R1, revoke client EXECUTE on the credit and quota functions
+## 2026-09-23: R1 applied to production, and what is and is not proven
+
+**Rollout, in the order it ran.** Docs corrected against the live database first
+(`53318a1`), then PR #157 merged as `90f86c2`. GitHub deployment `6604639376`
+records `sha=90f86c2`, `Production`, `success`, and `vercel inspect
+www.resumelybuilderai.com` resolves to the same `dpl_ApXya28BHF7qxqCGboX6a8MiH5y5`.
+Pre-apply authenticated smoke at 06:10:40Z: `/api/ats/score` and
+`/api/v1/refine-section` both `402 insufficient_credits`, confirmed in Vercel logs
+as served by that deployment. Both routes call `consume_credit` before any scoring
+or OpenAI work, so a 402 means the credit function ran and found no balance.
+Migration applied through the Supabase MCP at 06:11Z.
+
+**Proof, live database.** As `authenticated`, `grant_apple_credits` and
+`consume_credit` both fail with `42501 permission denied`. `has_function_privilege`
+is false for `anon` and `authenticated` and true for `service_role` and
+`postgres` on all ten present target functions. The grant audit from the
+migration's trailing comment returns 0 rows; the same query over every other
+`public` function returns 375, so it detects grants and is not empty by
+construction. As `service_role`, both credit functions execute into their bodies
+(line 5 and line 14) before failing on the fake user id's foreign key; a missing
+privilege would have failed before entering the body. Every proof ran inside a
+rolled-back transaction.
+
+**Not proven: the post-apply authenticated smoke test (gate 7).** The sign-in
+prompt was opened and never answered. No real traffic filled the gap either:
+production served 5 requests between the apply and 2026-09-24 05:55Z, none to the
+three credit routes, and 0 responses with a 5xx status. The service-role path is supported by the deployed code,
+by `service_role` holding `EXECUTE`, and by `service_role` executing both
+functions, but no HTTP request has exercised it since the apply. The first real
+`/api/ats/score` or `/api/v1/refine-section` call is the live test. A
+`500 credit_consume_failed` on either means the route is not on the service-role
+path. The immediate rollback is to restore `authenticated` on the two credit
+functions only.
+
+**Migration history: recorded, deliberately not repaired.** The MCP recorded
+`20260923061119_revoke_client_definer_exec`; the repo file is
+`20260922000000_revoke_client_definer_exec.sql`. Same name, and the recorded
+statements are byte-identical to the file (md5 `f345ba60b66f8ae1591da5d988c67c7b`
+on both sides). History was already out of step in 18 other places before R1
+(8 remote versions with no local file, 10 local files with no remote row), and
+migrations here go through the MCP, not `supabase db push`. Aligning one row would
+make the history look reconciled when it is not. Reconciling the whole history is
+its own story.
+
+**Advisors after apply.** 0028 and 0029 drop to five findings each, none of them
+R1 targets: `applications_update_search`, `assign_default_template`,
+`handle_new_user`, `update_applications_updated_at`, `update_session_activity`.
+All five return `trigger` and are bound in `pg_trigger`, verified rather than
+assumed; R1 excluded trigger functions by design. Recorded in `tasks/todo.md` for
+separate security triage, not reopened here. Other security advisories that
+were there before R1 are unchanged: mutable `search_path` on four functions
+(including `increment_optimizations_used` and `increment_rate_limit`), `vector`
+in `public`, 36 anonymous-auth policy findings, leaked-password protection off,
+and Postgres patches pending. The last two are already founder items in the
+2026-09-19 plan.
+
+**Lesson worth keeping.** Twice in this story, a claim derived from repo migration
+history was wrong about production: `upgrade_to_premium` and
+`get_user_subscription_status` were described as live holes and do not exist, and
+`consume_credit` / `grant_apple_credits` had already lost `PUBLIC` and `anon` in
+`20260709102900`. On this repo the migrations directory is not a reliable picture
+of the live schema. Read `pg_proc` and `aclexplode` before writing a security
+claim about a function.
+
+## 2026-09-19: R1, revoke client EXECUTE on the credit and quota functions
 
 **The hole, as read from the live database on 2026-09-23.** Ten of the eleven
 target functions exist in `brtdyamysfmctrhuankn`. All ten are `SECURITY DEFINER`,
