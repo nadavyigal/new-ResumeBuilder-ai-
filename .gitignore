@@ -66,6 +66,8 @@ resume-builder-ai/nul
 
 # Eval run artifacts (regenerated each run)
 evals/**/report.json
+# Repeat-eval raw outputs: model output, per-call ledger, estimates. Never committed.
+evals/**/output/
 
 # iCloud sync duplicates ("route 2.ts", "en 2.json") — always stale copies of a
 # tracked file, and anything reading by glob picks up the wrong version.
