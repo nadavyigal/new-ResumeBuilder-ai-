@@ -1,11 +1,11 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 1 (repeat eval harness) built and verified offline, PR open; the paid 60-run batch waits for a spend approval (requested cap $7). R1 merged in #157; its close-out docs are on #158.
+- Status: Reliability upgrade Stage 1 (repeat eval harness) on PR #159, verified offline; the paid 60-run batch waits for a spend approval (requested cap $7). R1 is closed: #157 merged as `90f86c2`, close-out docs in #158.
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
 - Active Story: Reliability upgrade Stage 1, reproducible evaluation
-- Last Completed Story: R1, client EXECUTE revoked on the credit and quota functions (#157)
-- Next Recommended Story: run the approved repeat batch (`EVAL_COST_CAP_USD=7 npm run eval:resume:repeat`) and record its results in the plan; then R2, production canary and uptime alert
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes.
+- Last Completed Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78), PR #157
+- Next Recommended Story: run the approved repeat batch (`EVAL_COST_CAP_USD=7 npm run eval:resume:repeat`) and record its results in the plan; then WP-77, remeasure upload-CTA reach, then R2, production canary and uptime alert
+- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
 - Last Validation: 2026-09-24, eval offline suites only: `npx jest evals/resume-optimizer` 72 passed, 3 skipped (paid); scoped `tsc -p` over `evals/resume-optimizer` exit 0 with no errors; free estimate run. Full-repo lint, tsc, test and build pending in the next commit.
 - Last Updated: 2026-09-24
 
@@ -23,7 +23,71 @@
 
 **Decisions left to the founder.** Stage 2 is the 09-19 plan's R8, which that plan gates on 5 moderated sessions. Stage 3 revives the Career Evidence Pilot, which the 09-19 plan parks under "Not now". Two dated plans disagree on both; neither is resolved here.
 
-## 2026-09-19 — R1, revoke client EXECUTE on the credit and quota functions
+## 2026-09-23: R1 applied to production, and what is and is not proven
+
+**Rollout, in the order it ran.** Docs corrected against the live database first
+(`53318a1`), then PR #157 merged as `90f86c2`. GitHub deployment `6604639376`
+records `sha=90f86c2`, `Production`, `success`, and `vercel inspect
+www.resumelybuilderai.com` resolves to the same `dpl_ApXya28BHF7qxqCGboX6a8MiH5y5`.
+Pre-apply authenticated smoke at 06:10:40Z: `/api/ats/score` and
+`/api/v1/refine-section` both `402 insufficient_credits`, confirmed in Vercel logs
+as served by that deployment. Both routes call `consume_credit` before any scoring
+or OpenAI work, so a 402 means the credit function ran and found no balance.
+Migration applied through the Supabase MCP at 06:11Z.
+
+**Proof, live database.** As `authenticated`, `grant_apple_credits` and
+`consume_credit` both fail with `42501 permission denied`. `has_function_privilege`
+is false for `anon` and `authenticated` and true for `service_role` and
+`postgres` on all ten present target functions. The grant audit from the
+migration's trailing comment returns 0 rows; the same query over every other
+`public` function returns 375, so it detects grants and is not empty by
+construction. As `service_role`, both credit functions execute into their bodies
+(line 5 and line 14) before failing on the fake user id's foreign key; a missing
+privilege would have failed before entering the body. Every proof ran inside a
+rolled-back transaction.
+
+**Not proven: the post-apply authenticated smoke test (gate 7).** The sign-in
+prompt was opened and never answered. No real traffic filled the gap either:
+production served 5 requests between the apply and 2026-09-24 05:55Z, none to the
+three credit routes, and 0 responses with a 5xx status. The service-role path is supported by the deployed code,
+by `service_role` holding `EXECUTE`, and by `service_role` executing both
+functions, but no HTTP request has exercised it since the apply. The first real
+`/api/ats/score` or `/api/v1/refine-section` call is the live test. A
+`500 credit_consume_failed` on either means the route is not on the service-role
+path. The immediate rollback is to restore `authenticated` on the two credit
+functions only.
+
+**Migration history: recorded, deliberately not repaired.** The MCP recorded
+`20260923061119_revoke_client_definer_exec`; the repo file is
+`20260922000000_revoke_client_definer_exec.sql`. Same name, and the recorded
+statements are byte-identical to the file (md5 `f345ba60b66f8ae1591da5d988c67c7b`
+on both sides). History was already out of step in 18 other places before R1
+(8 remote versions with no local file, 10 local files with no remote row), and
+migrations here go through the MCP, not `supabase db push`. Aligning one row would
+make the history look reconciled when it is not. Reconciling the whole history is
+its own story.
+
+**Advisors after apply.** 0028 and 0029 drop to five findings each, none of them
+R1 targets: `applications_update_search`, `assign_default_template`,
+`handle_new_user`, `update_applications_updated_at`, `update_session_activity`.
+All five return `trigger` and are bound in `pg_trigger`, verified rather than
+assumed; R1 excluded trigger functions by design. Recorded in `tasks/todo.md` for
+separate security triage, not reopened here. Other security advisories that
+were there before R1 are unchanged: mutable `search_path` on four functions
+(including `increment_optimizations_used` and `increment_rate_limit`), `vector`
+in `public`, 36 anonymous-auth policy findings, leaked-password protection off,
+and Postgres patches pending. The last two are already founder items in the
+2026-09-19 plan.
+
+**Lesson worth keeping.** Twice in this story, a claim derived from repo migration
+history was wrong about production: `upgrade_to_premium` and
+`get_user_subscription_status` were described as live holes and do not exist, and
+`consume_credit` / `grant_apple_credits` had already lost `PUBLIC` and `anon` in
+`20260709102900`. On this repo the migrations directory is not a reliable picture
+of the live schema. Read `pg_proc` and `aclexplode` before writing a security
+claim about a function.
+
+## 2026-09-19: R1, revoke client EXECUTE on the credit and quota functions
 
 **The hole, as read from the live database on 2026-09-23.** Ten of the eleven
 target functions exist in `brtdyamysfmctrhuankn`. All ten are `SECURITY DEFINER`,
