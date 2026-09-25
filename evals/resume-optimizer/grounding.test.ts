@@ -50,6 +50,36 @@ describe('grounding checks against the calibration set (offline)', () => {
   });
 });
 
+describe('job-ad phrases as goals versus claims (sentences from batch 1)', () => {
+  const base = calibration.find((x) => x.id === 'cal-09-honest-hebrew')!.resume;
+
+  it('reports a goal in the summary as an aspiration, not a claim', () => {
+    const resume = { ...base, summary: 'מתכנתת Backend מנוסה ב-Node.js ו-Express, מחפשת להעמיק את הידע ב-AWS ולהשתלב בתפקיד בכיר בתחום.' };
+    const result = runGroundingChecks(resume, byId('language-hebrew'));
+    expect(result.unsupported).toEqual([]);
+    expect(result.aspirations).toEqual([expect.objectContaining({ requirementId: 'r1', phrase: 'AWS' })]);
+  });
+
+  it('still fails the same tool in a bullet or skills list', () => {
+    const saas = calibration.find((x) => x.id === 'cal-04-honest-strong-match')!.resume;
+    const resume = {
+      ...saas,
+      summary: 'SaaS account executive eager to learn Salesforce.',
+      skills: { technical: ['Salesforce'], soft: [] },
+    };
+    const result = runGroundingChecks(resume, byId('fit-saas-account-exec'));
+    expect(result.unsupported).toContainEqual(expect.objectContaining({ category: 'forbidden-claim', text: 'r4: Salesforce' }));
+    expect(result.aspirations).toEqual([]);
+  });
+
+  it('does not treat a plain claim in the summary as a goal', () => {
+    const saas = calibration.find((x) => x.id === 'cal-04-honest-strong-match')!.resume;
+    const resume = { ...saas, summary: 'SaaS account executive experienced in Salesforce.' };
+    const result = runGroundingChecks(resume, byId('fit-saas-account-exec'));
+    expect(result.unsupported.map((u) => u.text)).toContain('r4: Salesforce');
+  });
+});
+
 describe('metrics compare by value, not by spelling', () => {
   const saas = () => byId('fit-saas-account-exec');
   const withSummary = (summary: string) => ({ ...calibration[0].resume, summary, experience: [], education: [] });

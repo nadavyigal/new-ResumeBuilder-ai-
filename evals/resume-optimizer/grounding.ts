@@ -38,6 +38,11 @@ export interface UnsupportedStatement {
 
 export interface GroundingResult {
   unsupported: UnsupportedStatement[];
+  /**
+   * Job-ad phrases that appear only as a stated goal in the summary ("seeking to deepen
+   * my AWS knowledge"). Reported, never failing: batch 1 flagged 4 of these as claims.
+   */
+  aspirations: Array<{ requirementId: string; phrase: string; sentence: string }>;
   /** Evidenced or partial requirements with anchors, and how many kept every anchor. */
   evidence: { anchored: number; retained: number; missing: Array<{ requirementId: string; anchor: string }> };
   retention: { total: number; kept: number; lost: RetainFact[] };
@@ -101,6 +106,24 @@ export function claimText(resume: OptimizedResume): string {
     for (const t of p.technologies ?? []) push(t);
   }
   return parts.join('\n');
+}
+
+/**
+ * Words that mark a sentence as a goal rather than a claim. Deliberately narrow: a
+ * phrase counts as an aspiration only in a summary sentence carrying one of these.
+ * The same phrase in skills, a bullet, a title or a certification is always a claim.
+ */
+const ASPIRATION =
+  /\b(?:seeking|looking|eager|aiming|aspiring|hoping|keen|excited|motivated|ready)\s+(?:to|for)\b|\binterested in\b|\bwants? to\b|\bto (?:learn|grow|deepen|expand|develop|broaden)\b|מחפש|שואף|שואפ|מעוניין|מעוניינ|ללמוד|להעמיק|להרחיב|להתפתח/i;
+
+function summarySentences(resume: OptimizedResume): string[] {
+  const summary = typeof resume.summary === 'string' ? resume.summary : '';
+  return summary.split(/(?<=[.!?])\s+|\n+/).filter((x) => x.trim().length > 0);
+}
+
+/** Everything claimText covers except the summary: skills, titles, bullets, degrees, certifications, projects. */
+function nonSummaryClaims(resume: OptimizedResume): string {
+  return claimText({ ...resume, summary: '' });
 }
 
 /** claimText plus names and dates, for retention checks. */
@@ -338,9 +361,19 @@ export function runGroundingChecks(resume: OptimizedResume, c: ManifestCase): Gr
   for (const t of seniorityInflations(resume, source)) add('seniority-title', t);
   for (const m of newMetrics(claims, source)) add('metric', m);
 
+  const aspirations: GroundingResult['aspirations'] = [];
+  const outsideSummary = nonSummaryClaims(resume);
+  const sentences = summarySentences(resume);
   for (const r of c.requirements) {
     for (const phrase of r.forbiddenClaims) {
-      if (containsPhrase(claims, phrase) && !unsupported.some((u) => normalize(u.text).includes(normalize(phrase)))) {
+      if (!containsPhrase(claims, phrase)) continue;
+      if (unsupported.some((u) => normalize(u.text).includes(normalize(phrase)))) continue;
+      const hits = sentences.filter((sentence) => containsPhrase(sentence, phrase));
+      const onlyAsGoal =
+        !containsPhrase(outsideSummary, phrase) && hits.length > 0 && hits.every((sentence) => ASPIRATION.test(sentence));
+      if (onlyAsGoal) {
+        for (const sentence of hits) aspirations.push({ requirementId: r.id, phrase, sentence });
+      } else {
         add('forbidden-claim', `${r.id}: ${phrase}`);
       }
     }
@@ -370,6 +403,7 @@ export function runGroundingChecks(resume: OptimizedResume, c: ManifestCase): Gr
 
   return {
     unsupported,
+    aspirations,
     evidence: { anchored, retained, missing },
     retention: { total: c.mustRetain.length, kept: c.mustRetain.length - lostFacts.length, lost: lostFacts },
   };

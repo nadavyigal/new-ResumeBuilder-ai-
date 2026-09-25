@@ -16,7 +16,7 @@ import { buildConfigFingerprint, hashSources, HARNESS_VERSION } from './fingerpr
 import { planRuns, executePlan, buildStabilityReport, type StabilityReport } from './repeat';
 import { runPipelineForEval } from './generate';
 import { judgeResume } from './judge';
-import { judgeGrounding, GROUNDING_JUDGE_MODEL, GROUNDING_JUDGE_VERSION } from './judge-grounding';
+import { judgeGrounding, groundingFindings, GROUNDING_JUDGE_MODEL, GROUNDING_JUDGE_VERSION } from './judge-grounding';
 
 // Paid repeat eval. Skipped unless RUN_REPEAT_EVAL=1 AND a positive EVAL_COST_CAP_USD
 // are set, so `npm test` never spends money. Run through the wrapper:
@@ -105,11 +105,9 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
             }
             try {
               const g = await judgeGrounding(c, item.resume);
-              const pass =
-                g.honestGapPreserved &&
-                g.unsupportedStatements.length === 0 &&
-                g.requirements.every((r) => r.ruling !== 'claimed-without-support');
-              row.groundingJudge = pass ? 'pass' : 'fail';
+              const findings = groundingFindings(g, item.resume);
+              row.groundingJudge = findings.pass ? 'pass' : 'fail';
+              row.groundingJudgeFindings = findings;
             } catch (error) {
               row.groundingJudge = `invalid: ${(error as Error).message.slice(0, 120)}`;
             }

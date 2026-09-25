@@ -3,7 +3,7 @@ import type { ManifestCase } from './manifest';
 import type { JudgeVerdict } from './judge';
 import { runChecks, criticalFailures } from './checks';
 import { runGroundingChecks, type GroundingResult } from './grounding';
-import { JudgeInvalidError, type GroundingVerdict } from './judge-grounding';
+import { JudgeInvalidError, groundingFindings, type GroundingVerdict, type GroundingFindings } from './judge-grounding';
 import { inputHash, type ConfigFingerprint } from './fingerprint';
 import { summarizeCalls, type CallRecord, type CallPhase, type RunCallSummary } from './call-ledger';
 
@@ -70,6 +70,8 @@ export interface RunResult {
   grounding?: GroundingResult;
   nightlyJudge?: JudgeVerdict;
   groundingJudge?: GroundingVerdict;
+  /** What in the grounded verdict counts: verified quotes fail a run, unverified ones do not. */
+  groundingJudgeFindings?: GroundingFindings;
   calls?: RunCallSummary;
   /** Raw output. Written only to the gitignored output directory. */
   resume?: OptimizedResume;
@@ -189,17 +191,12 @@ async function executeRun(run: PlannedRun, deps: ExecuteDeps): Promise<RunResult
 
   const nightlyPass = nightly ? nightly.overallPass && nightly.truthfulness >= 4 : null;
   if (nightly && !nightlyPass) failureReasons.push(`nightly-judge: ${nightly.reason}`);
-  const groundingPass = groundingVerdict
-    ? groundingVerdict.honestGapPreserved &&
-      groundingVerdict.unsupportedStatements.length === 0 &&
-      groundingVerdict.requirements.every((r) => r.ruling !== 'claimed-without-support')
-    : null;
-  if (groundingVerdict && !groundingPass) {
-    for (const r of groundingVerdict.requirements.filter((x) => x.ruling === 'claimed-without-support')) {
-      failureReasons.push(`grounding-judge: ${r.id} claimed without support`);
-    }
-    for (const s of groundingVerdict.unsupportedStatements) failureReasons.push(`grounding-judge:${s.category}: ${s.quote}`);
-    if (!groundingVerdict.honestGapPreserved) failureReasons.push('grounding-judge: honest gap papered over');
+  const findings = groundingVerdict ? groundingFindings(groundingVerdict, outcome.resume) : undefined;
+  const groundingPass = findings ? findings.pass : null;
+  if (findings) {
+    for (const id of findings.claimedWithoutSupport) failureReasons.push(`grounding-judge: ${id} claimed without support`);
+    for (const s of findings.verified) failureReasons.push(`grounding-judge:${s.category}: ${s.quote}`);
+    if (findings.gapPaperedOver) failureReasons.push(`grounding-judge: honest gap papered over: ${groundingVerdict!.honestGapQuote}`);
   }
 
   const components: VerdictComponents = {
@@ -228,6 +225,7 @@ async function executeRun(run: PlannedRun, deps: ExecuteDeps): Promise<RunResult
     grounding,
     nightlyJudge: nightly,
     groundingJudge: groundingVerdict,
+    groundingJudgeFindings: findings,
     calls,
     resume: outcome.resume,
   };
@@ -370,6 +368,8 @@ export interface CaseStability {
   evidenceCoverage: number[];
   factsLost: Array<{ fact: string; runs: number }>;
   unsupported: { deterministicPerRun: number[]; judgePerRun: number[]; examples: string[] };
+  /** Recorded leads that do not fail a run: goals, unverifiable quotes, uncited gap concerns. */
+  leads: { aspirationsPerRun: number[]; unverifiedJudgeQuotesPerRun: number[]; uncitedGapConcerns: number };
   costUsd: number;
   latencyMs: { median: number | null; max: number | null };
 }
@@ -451,7 +451,7 @@ export function buildStabilityReport(
       ...new Set(
         done.flatMap((r) => [
           ...(r.grounding?.unsupported.map((u) => `${u.category}: ${u.text}`) ?? []),
-          ...(r.groundingJudge?.unsupportedStatements.map((u) => `judge ${u.category}: ${u.quote}`) ?? []),
+          ...(r.groundingJudgeFindings?.verified.map((u) => `judge ${u.category}: ${u.quote}`) ?? []),
         ])
       ),
     ].slice(0, 8);
@@ -484,8 +484,13 @@ export function buildStabilityReport(
       factsLost: [...lostCounts.entries()].map(([fact, runs]) => ({ fact, runs })),
       unsupported: {
         deterministicPerRun: done.map((r) => r.grounding?.unsupported.length ?? 0),
-        judgePerRun: done.map((r) => r.groundingJudge?.unsupportedStatements.length ?? 0),
+        judgePerRun: done.map((r) => r.groundingJudgeFindings?.verified.length ?? 0),
         examples,
+      },
+      leads: {
+        aspirationsPerRun: done.map((r) => r.grounding?.aspirations?.length ?? 0),
+        unverifiedJudgeQuotesPerRun: done.map((r) => r.groundingJudgeFindings?.unverified.length ?? 0),
+        uncitedGapConcerns: done.filter((r) => r.groundingJudgeFindings?.uncitedGapConcern).length,
       },
       costUsd: rs.reduce((n, r) => n + (r.calls?.costUsd ?? 0), 0),
       latencyMs: { median: median(latencies), max: latencies.length ? Math.max(...latencies) : null },

@@ -39,6 +39,7 @@ function passGrounding(c: ManifestCase): GroundingVerdict {
     requirements: c.requirements.map((r) => ({ id: r.id, ruling: r.support === 'not-evidenced' ? 'not-evidenced' : 'evidenced' })),
     unsupportedStatements: [],
     honestGapPreserved: true,
+    honestGapQuote: '',
   };
 }
 
@@ -143,6 +144,24 @@ describe('repeat plan and accounting (offline)', () => {
     expect(r.status).toBe('judge-invalid');
     expect(r.verdict).toBe('fail');
     expect(r.components?.groundingJudge).toBeNull();
+  });
+
+  it('keeps an uncited or unverifiable judge concern as a lead, and passes the run', async () => {
+    const plan = planRuns(manifest.slice(0, 1), 1);
+    const [r] = await executePlan(
+      plan,
+      deps({
+        groundingJudge: async (c) => ({
+          ...passGrounding(c),
+          honestGapPreserved: false,
+          honestGapQuote: '',
+          unsupportedStatements: [{ quote: 'text the rewrite does not contain', category: 'forbidden-claim' }],
+        }),
+      })
+    );
+    expect(r.verdict).toBe('pass');
+    expect(r.groundingJudgeFindings).toMatchObject({ uncitedGapConcern: true, verified: [], pass: true });
+    expect(r.groundingJudgeFindings?.unverified).toHaveLength(1);
   });
 
   it('fails a run whose output carries a fabricated credential', async () => {
