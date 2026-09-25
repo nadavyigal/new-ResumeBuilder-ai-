@@ -3,7 +3,6 @@
  * is about to return, repairs once, falls back deterministically, and rescores what
  * it ships. OpenAI and the scorer are mocked, as in optimize-pipeline.test.ts.
  */
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { describe, it, expect, beforeEach } from '@jest/globals';
 
 jest.mock('openai');
