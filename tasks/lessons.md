@@ -1,5 +1,18 @@
 # Lessons Learned — ResumeBuilder
 
+## Telling a model which keywords are missing makes it insert them (2026-09-25)
+
+**Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.
+
+**Root cause:** `buildInitialGaps` computes the job keywords absent from the résumé and the gap prompt asked the model to "include" them "where truthfully supported"; the system prompt said to "explicitly address each one". A list of terms the résumé lacks, handed over as things to include, is an instruction to fabricate. The hedge "where truthfully supported" did not hold.
+
+**Fix:** say what the list is ("NOT found in the original resume, do not claim these") and enforce deterministically afterwards (`src/lib/ai-optimizer/job-ad-terms.ts`), the same posture as `stripFabricatedMetrics`. Batch 3: 0 insertions in 60 runs.
+
+**Rules:**
+1. Never pass a model a list of things the source lacks without saying, in the same line, that they must not be claimed.
+2. Measure fabrication with repeat runs, not a single nightly pass. One run per case hid this: the same case inserted Salesforce in 6 of 6 runs, and the gate never noticed.
+3. Expect honest fixes to lower the headline number. Here the mean lift halved, because part of it had been made of claims the résumé could not back.
+
 ## A duplicate of the repo inside the repo poisons every glob (2026-08-05)
 
 **Symptom, twice in one session, from two different sources.** First, `npm run build` failed on

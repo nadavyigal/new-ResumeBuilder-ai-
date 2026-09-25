@@ -1,15 +1,23 @@
 # Project Progress
 
-- Status: Reliability upgrade Stages 1 and 1.1 on PR #159. Two paid batches (2026-09-25): the harness defects are fixed (0 invalid judge answers, 0 uncited gap rulings), and job-ad tool insertion reproduced: 17 of 120 runs, all passed by the nightly gate. R1 is closed (#157, #158).
+- Status: Reliability upgrade Stage 2 on PR #160 (stacked on #159): job-ad tool insertions went from 9 of 60 runs to 0 of 60, no supported content lost. Not deployed. Side effect for the founder to weigh: the before/after score pair now shows in 23 of 60 runs instead of 44.
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: none; waiting on founder labelling and the Stage 2 decision
-- Last Completed Story: Reliability upgrade Stage 1.1, harness fixes and rerun (PR #159)
-- Next Recommended Story: founder labels about 15 real outputs from the two batches, then Stage 2 (job-ad tool insertion guard) if the R8 gate is lifted; otherwise WP-77, then R2
+- Active Story: none; waiting on the founder to review and merge #159 then #160
+- Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
+- Next Recommended Story: merge #159 then #160 and decide the deploy (it changes shown scores); then seniority and scope inflation, the next measured failure; then WP-77 and R2
 - Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25: `npx jest evals/resume-optimizer` 83 passed, 3 skipped; scoped `tsc -p` over `evals/resume-optimizer` exit 0; `npx eslint evals/resume-optimizer scripts/run-eval-resume.mjs` exit 0; paid batch 2 `EVAL_COST_CAP_USD=3 npm run eval:resume:repeat` exit 0, 60 of 60 completed, 0 invalid, 0 blocked side effects, $0.85. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated); PR CI covers lint, contract tests and build.
+- Last Validation: 2026-09-25: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer: 136 passed, 3 skipped; scoped `tsc -p` over every changed file exit 0; `eslint` on every changed file 0 errors 0 warnings; paid batch 3 exit 0, 60 of 60 completed, 0 insertions, 0 blocked side effects, $0.93. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated).
 - Last Updated: 2026-09-25
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+
+## 2026-09-25: reliability upgrade Stage 2, the optimizer stops inserting job-ad tools
+
+**Root cause.** The pipeline listed the job keywords the résumé does not contain and asked the model to "include" them; the system prompt said to "explicitly address each one". The prompts now say those terms are absent and must not be claimed. A deterministic guard (`src/lib/ai-optimizer/job-ad-terms.ts`) backs it: one repair call, then removal, then a rescore. `/api/optimize` gains an additive `truthGuard` field. No migration, no new event.
+
+**Measured (batch 3, 60 runs).** Job-ad tool insertions went from 9 to 0. No supported fact or tool was lost. Runs passing every check went from 29 to 37. The guard never had to fire: the prompt fix removed the behaviour, and the guard is the net.
+
+**The cost is a smaller, honest lift.** The before/after score pair now shows in 23 of 60 runs instead of 44, and the mean lift fell from 7.6 to 3.7 points, because part of the old lift came from claims the résumé could not back. That changes what users see. It is the founder's call before deploy.
 
 ## 2026-09-24: reliability upgrade Stages 0 and 1, repeat eval harness
 

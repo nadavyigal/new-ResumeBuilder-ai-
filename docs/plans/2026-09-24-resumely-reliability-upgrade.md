@@ -6,11 +6,12 @@ Product copy of the Builder OS initiation brief
 updates; the vault copy stays the brief. The brief is reproduced at the end, unchanged
 except that em dashes became colons.
 
-- Status: Stage 0 and Stage 1 done. Stage 1.1 done: both harness defects fixed and the
-  batch rerun (2026-09-25, 60 of 60 runs, $0.85). Results below.
-- Active story: none. Stages 1 and 1.1 are on PR #159.
-- Next: the founder labels a small sample of real outputs from these two batches, then
-  decides Stage 2. The deterministic finding does not wait on the judge.
+- Status: Stages 0, 1 and 1.1 done (PR #159). Stage 2 done and measured (PR #160,
+  stacked on #159): job-ad tool insertions went from 9 of 60 runs to 0 of 60. Not
+  deployed.
+- Active story: none
+- Next: the founder reviews the score effect below, merges #159 then #160, and decides
+  the deploy. Then seniority and scope inflation, the next measured failure.
 - Last updated: 2026-09-25
 
 ---
@@ -311,6 +312,65 @@ Two sources used.
 | How to measure recommendation stability | No external source | Compare the scorer's structured suggestion ids, never prose | Measures the scorer's choices, not their wording | `recommendations` in the report |
 
 ---
+
+## Stage 2: stop inserting job-ad tools, 2026-09-25
+
+The founder lifted the 09-19 plan's R8 gate on 2026-09-25. PR #160, stacked on #159.
+
+**Root cause.** `buildInitialGaps` (`optimize-pipeline.ts`) computes the job keywords the
+résumé does not contain. The pipeline then passed them to the model as "Missing keywords
+(include naturally where truthfully supported)", and the system prompt said "explicitly
+address each one". By construction those terms have no support. The prompts now say
+they are absent and must not be claimed.
+
+**Enforcement.** `src/lib/ai-optimizer/job-ad-terms.ts` runs after candidate selection.
+
+- **What it polices:** named tools, platforms and credentials from the job ad, in
+  English and Hebrew. Concepts and job-title words are not policed.
+- **Unsupported tool** (claimed in the rewrite, absent from the résumé): one repair call
+  names it. If it survives, it is removed deterministically, but never from a role's
+  last bullet.
+- **Lost supported tool** (in the résumé, asked for by the job, dropped by the rewrite):
+  named in the same repair, then put back in skills if still missing.
+- **Injected instructions:** a tool named only inside an instruction hidden in the
+  résumé is neither supported nor restored.
+- **Output:** the shipped résumé is rescored. `/api/optimize` gains an additive
+  `truthGuard` field.
+
+No new event and no migration: the repair call is tagged on the existing
+`$ai_generation` trace.
+
+**Batch 3**: commit `b3da8bc`, config hash `342f88a3e2fa`, baseline batch 2. Raw output,
+gitignored: `.claude/worktrees/resumely-reliability-s2/evals/resume-optimizer/output/repeat-2026-09-25T01-54-29-958Z/`.
+
+| | Batch 2 (before) | Batch 3 (Stage 2) |
+|---|---|---|
+| Runs inserting a job-ad tool the résumé lacks | 9 | **0** |
+| Supported facts or supported tools lost | 0 | 0 |
+| Runs passing every check | 29 | **37** |
+| Guard repairs needed | n/a | 0 (the prompt fix alone removed the behaviour) |
+| Before/after score pair shown to the user | 44 of 60 | **23 of 60** |
+| Mean optimized-minus-original score | 7.6 | **3.7** |
+| Latency per run, median and p95 (sample, one machine) | 8.2 s, 10.3 s | 7.7 s, 9.9 s |
+| Cost | $0.85 | $0.93 |
+
+What it means:
+
+- **The insertion failure is gone on this set, and the guard is a net.** The guard never
+  fired in 60 live runs. Its repair and removal paths are proven by the 34 offline
+  tests, not by this batch.
+- **The product will report smaller improvements, and that is the honest number.** Part
+  of the old lift came from claims the résumé cannot back. Examples: the Hebrew
+  marketing case fell from 64 to 38 once Google Ads stopped appearing, and the sales
+  case from 83 to 73 once Salesforce did. Cases with no inserted tools barely moved.
+  The WP-45 S2 display rule now withholds the before/after pair in 37 of 60 runs,
+  instead of 16. **This changes what users see and bears on the Match Score
+  positioning. Decide it before deploy.**
+- **The latency budget holds on this sample.** R8's p95 is under 90 s; the sample p95 is
+  9.9 s. That is 60 runs on one machine, not a production p95.
+- **Still open:** seniority and scope inflation. The grounded judge still finds it
+  ("Proven track record in reducing ticket resolution times", "leading teams"), and
+  nothing deterministic catches it yet. This is the next candidate story.
 
 # Appendix: the initiation brief, as copied 2026-09-24
 
