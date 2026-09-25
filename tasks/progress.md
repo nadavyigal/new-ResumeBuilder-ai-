@@ -1,12 +1,12 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 1 on PR #159. First paid repeat batch ran 2026-09-25: 60 of 60 runs accounted for, $0.86 of an approved $7. Main finding: the optimizer adds job-ad tools the résumé lacks (8 of 60 runs), and the nightly gate passes every one. R1 is closed (#157, #158).
+- Status: Reliability upgrade Stages 1 and 1.1 on PR #159. Two paid batches (2026-09-25): the harness defects are fixed (0 invalid judge answers, 0 uncited gap rulings), and job-ad tool insertion reproduced: 17 of 120 runs, all passed by the nightly gate. R1 is closed (#157, #158).
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: Reliability upgrade Stage 1, reproducible evaluation
-- Last Completed Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78), PR #157
-- Next Recommended Story: Stage 1.1, fix the two harness defects the batch found (judge ruling vocabulary, aspirational mentions) and rerun against this batch as baseline; then WP-77, then R2
+- Active Story: none; waiting on founder labelling and the Stage 2 decision
+- Last Completed Story: Reliability upgrade Stage 1.1, harness fixes and rerun (PR #159)
+- Next Recommended Story: founder labels about 15 real outputs from the two batches, then Stage 2 (job-ad tool insertion guard) if the R8 gate is lifted; otherwise WP-77, then R2
 - Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25, paid repeat batch: `EVAL_COST_CAP_USD=7 npm run eval:resume:repeat` exit 0, 60 planned, 60 recorded, complete, 0 blocked side effects, $0.86. 2026-09-24: `npx jest evals/resume-optimizer` 72 passed, 3 skipped; scoped `tsc -p` over `evals/resume-optimizer` exit 0; PR #159 CI build-test, E2E (with `next build`) and Vercel build pass; Cloudflare Workers build fails as on main. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated).
+- Last Validation: 2026-09-25: `npx jest evals/resume-optimizer` 83 passed, 3 skipped; scoped `tsc -p` over `evals/resume-optimizer` exit 0; `npx eslint evals/resume-optimizer scripts/run-eval-resume.mjs` exit 0; paid batch 2 `EVAL_COST_CAP_USD=3 npm run eval:resume:repeat` exit 0, 60 of 60 completed, 0 invalid, 0 blocked side effects, $0.85. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated); PR CI covers lint, contract tests and build.
 - Last Updated: 2026-09-25
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
@@ -20,6 +20,8 @@
 **Stage 1.** `evals/resume-optimizer/` gains a 20-case manifest (the 7 nightly cases by reference, text hash-locked, plus 13 new; 6 fits, 8 partial, 6 gaps, 6 Hebrew), grounding checks the nightly set lacks, a per-requirement grounded judge, an HTTP-level call ledger (cost, model ids, one-retry cap, hard cost cap, non-model hosts blocked), fixed-date pinning, run accounting and a stability report. No production file changed. The nightly gate is untouched. Six of the seven deliberate fabrications in the calibration set pass the nightly checks today; all seven fail the new grounding checks.
 
 **Paid batch, 2026-09-25.** Approved at $7, spent $0.86 (the estimate said $2.14). 60 of 60 runs accounted for, 0 blocked side effects. The optimizer inserted a job-ad tool the résumé lacks in 8 of 60 runs (Salesforce in all 3 runs of one case), and the nightly gate passed all 8. The nightly judge also passed 5 of 7 planted fabrications in the calibration set. Full results in the plan.
+
+**Stage 1.1, same day.** Strict judge schema, separate label and ruling words, cited and verified gap rulings, aspirational mentions reported separately. Rerun: 60 of 60 completed, 0 invalid judge answers (was 3), 0 uncited gap rulings (was 15), $0.85. Job-ad tool insertion reproduced (9 of 60; 17 of 120 across both batches). The grounded judge still cites stated goals as papering over the gap, so its gap and seniority rulings are leads, not a gate. Details in the plan.
 
 **Decisions left to the founder.** Stage 2 is the 09-19 plan's R8, which that plan gates on 5 moderated sessions. Stage 3 revives the Career Evidence Pilot, which the 09-19 plan parks under "Not now". Two dated plans disagree on both; neither is resolved here.
 

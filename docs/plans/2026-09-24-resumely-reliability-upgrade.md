@@ -6,11 +6,11 @@ Product copy of the Builder OS initiation brief
 updates; the vault copy stays the brief. The brief is reproduced at the end, unchanged
 except that em dashes became colons.
 
-- Status: Stage 0 done. Stage 1 built, verified, and its first paid batch ran on
-  2026-09-25 (60 of 60 runs, $0.86). Results below.
-- Active story: Stage 1, reproducible evaluation (PR #159)
-- Next: Stage 1.1, fix the two harness defects the batch found and rerun; then the
-  founder's call on Stage 2
+- Status: Stage 0 and Stage 1 done. Stage 1.1 done: both harness defects fixed and the
+  batch rerun (2026-09-25, 60 of 60 runs, $0.85). Results below.
+- Active story: none. Stages 1 and 1.1 are on PR #159.
+- Next: the founder labels a small sample of real outputs from these two batches, then
+  decides Stage 2. The deterministic finding does not wait on the judge.
 - Last updated: 2026-09-25
 
 ---
@@ -197,13 +197,89 @@ What this shows and does not: 3 runs of 20 synthetic cases show that these failu
 modes exist and roughly how often they recur on a fixed input. They do not estimate how
 often real users meet them.
 
-### Next story: Stage 1.1
+### Stage 1.1: harness fixes and rerun, 2026-09-25
 
-Before Stage 2: give the grounded judge one ruling vocabulary, report aspirational
-mentions separately instead of failing them, get the founder's review of the
-calibration labels, then rerun (about $0.90) with `EVAL_BASELINE` pointing at this
-batch. Stage 2 then has a measured target, job-ad tools inserted without evidence
-(8 of 60 runs today), but it still needs the founder's call on the R8 gate.
+**Changes** (commit `ff7a1de`):
+
+- **Strict JSON schema:** the grounded judge's answer now follows a schema with enums
+  for requirement ids, rulings and categories.
+- **Separate vocabularies:** source support is shown as full / partial / none, never in
+  the ruling words.
+- **Verified quotes:** a "gap papered over" verdict must quote the rewrite. Every quote
+  is checked against the rewrite. Uncited or unverifiable concerns are recorded as
+  leads and do not fail a run.
+- **Aspirations:** a job-ad phrase that appears only in a goal sentence of the summary is
+  reported as an aspiration. The same phrase in skills, a bullet, a title or a
+  certification still fails.
+
+**Batch 2**: config hash `cbb481e3e01c` at `ff7a1de`, same inputs as batch 1,
+`EVAL_BASELINE` set to batch 1. Raw output, gitignored:
+`evals/resume-optimizer/output/repeat-2026-09-25T01-16-00-981Z/`.
+
+| | Batch 1 | Batch 2 |
+|---|---|---|
+| Runs recorded / completed | 60 / 57 | 60 / 60 |
+| Invalid judge answers | 3 | **0** |
+| Uncited "gap papered over" rulings | 15 | **0** |
+| Aspirational mentions failed as claims | 4 | **0** (2 recorded as goals) |
+| Runs inserting a job-ad tool the résumé lacks | 8 | 9 |
+| Cases whose verdict changed between runs | 5 | 2 |
+| Runs passing every check | 29 | 29 |
+| Cost | $0.86 | $0.85 |
+| Blocked side effects, transport retries | 0, 0 | 0, 0 |
+
+What batch 2 settles:
+
+1. **Both defects are gone.** No invalid answers, and no aspirational line failed a run
+   through the deterministic checks.
+2. **Job-ad tool insertion is reproducible.** 17 of 120 runs across the two batches, 6
+   of 20 cases. Every run of `fit-saas-account-exec` adds Salesforce (6 of 6). Every
+   batch-2 run of `he-unquantified-marketing` adds Google Ads. One batch-2 run of
+   `language-hebrew` lists AWS as a skill. The nightly gate passed every one of the 17.
+   This is Stage 2's measured target and it does not depend on the judge.
+3. **The optimizer also inflates seniority and scope, and the grounded judge catches
+   it.** Examples from batch 2:
+   - `unsupported-seniority-eng-manager`: "leading teams" and "mentoring teams" for
+     someone who mentored 2 interns.
+   - `career-change-teacher-to-ld`: "Instructional Designer with 9 years of experience
+     in curriculum development and e-learning facilitation" for a science teacher
+     with no e-learning work.
+
+   The nightly judge passed all of these.
+
+What batch 2 does not settle:
+
+- **The grounded judge still treats goals as gaps.** It cites stated goals as papering
+  over the gap even though its prompt says they are not claims. Examples: "Aiming to
+  transition into an Engineering Manager role", "seeking to advance into Senior
+  Financial Analyst roles", "שואפת להעמיק את הידע ב-AWS". The quotes are verbatim, so
+  citation checking cannot remove them.
+- **Fewer flips is not the same as more stability.** Cases went from 5 flipped to 2
+  partly because the judge became consistently strict on `short-tenure-stretch` and
+  `unsupported-seniority-eng-manager`. The regression lines the report prints for
+  those two cases reflect the judge change, not the optimizer: their deterministic
+  results are the same as in batch 1.
+- **Calibration** barely moved:
+  - The grounded judge caught 6 of 7 planted fabrications. It missed the inflated
+    metric, which the deterministic checks catch.
+  - It failed the honest Hebrew output again.
+  - The nightly judge again passed 5 of 7.
+
+**Reading the two batches together.** The deterministic checks are the trustworthy
+signal, and they agree across batches. Treat the grounded judge's gap and seniority
+rulings as leads to read, not as a gate. Tuning the judge further against labels I
+wrote myself would only fit it to one reviewer.
+
+### Next story
+
+1. **Founder labelling, about 20 minutes.** Mark about 15 real outputs from these
+   batches as honest, embellished or fabricated. Suggested set: the 6 job-ad
+   insertions, the 6 seniority or scope lines above, and 3 clean runs. Also read the 10
+   calibration labels in `calibration.ts`. That makes the calibration human-reviewed,
+   as the brief asks.
+2. **Stage 2 decision**, on the measured target: job-ad tools inserted without
+   evidence, 17 of 120 runs. It still needs the founder's call on the 09-19 plan's R8
+   gate.
 
 ### Known limits
 
