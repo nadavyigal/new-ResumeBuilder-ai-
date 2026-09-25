@@ -41,7 +41,8 @@ const KNOWN_PRODUCTS = new Set([
   'docker', 'terraform', 'airflow', 'spark', 'snowflake', 'databricks', 'jira', 'confluence', 'figma', 'zendesk',
   'marketo', 'mailchimp', 'shopify', 'netsuite', 'quickbooks', 'workday', 'python', 'java', 'react', 'angular',
   'vue', 'django', 'flask', 'express', 'lambda', 'kafka', 'storyline', 'articulate', 'moodle', 'gong', 'google',
-  'azure', 'facebook', 'instagram', 'linkedin', 'tiktok',
+  'azure', 'facebook', 'instagram', 'linkedin', 'tiktok', 'hubspot', 'github', 'gitlab', 'javascript', 'typescript',
+  'mongodb', 'postgresql', 'mysql', 'graphql',
 ]);
 
 /** Product names that are also English words: matched case-sensitively in the rewrite. */
@@ -135,7 +136,10 @@ export function extractJobAdTerms(jobDescription: string): string[] {
         add(`${w} ${next}`);
         return;
       }
-      if (hasToolShape(w) || (KNOWN_PRODUCTS.has(w.toLowerCase()) && /^[A-Z]/.test(w))) add(w);
+      const lower = w.toLowerCase();
+      // A known product counts in lower case too ("3+ years with salesforce"), except the
+      // ones that are also English words, which count only when capitalised.
+      if (hasToolShape(w) || (KNOWN_PRODUCTS.has(lower) && (/^[A-Z]/.test(w) || !CASE_SENSITIVE.has(lower)))) add(w);
     });
   }
   return [...found.values()];
@@ -146,7 +150,7 @@ export function extractJobAdTerms(jobDescription: string): string[] {
  * A term named only inside one is unsupported, and is never restored.
  */
 const INSTRUCTION =
-  /\b(?:ignore|disregard)\b.{0,40}\b(?:previous|prior|above|earlier|all)\b.{0,20}\b(?:instructions?|rules?|prompts?)\b|\bnote to (?:any |the )?(?:ai|assistant|system|model|llm|gpt|chatgpt)\b|\b(?:ai|llm|gpt|chatgpt|language model|assistant)\b.{0,60}\b(?:state that|say that|write that|claim that|must (?:say|state|list|add))\b|התעלם|הוראה ל(?:מערכת|בינה)/i;
+  /\b(?:ignore|disregard)\b.{0,40}\b(?:previous|prior|above|earlier|all)\b.{0,20}\b(?:instructions?|rules?|prompts?)\b|\bnote to (?:any |the )?(?:ai|assistant|system|model|llm|gpt|chatgpt)\b|\b(?:ai|llm|gpt|chatgpt|language model|assistant)\b.{0,60}\b(?:state|say|write|claim|mention|list)s? that (?:the |this )?(?:candidate|applicant|resume|person)\b|התעלם|הוראה ל(?:מערכת|בינה)/i;
 
 export function trustedResumeText(resumeText: string): string {
   return resumeText
@@ -163,6 +167,43 @@ export function mentionsTerm(text: string, term: string): boolean {
   if (new RegExp(`(?<![A-Za-z0-9])${body}(?:e?s)?(?![A-Za-z0-9])`, flags).test(text)) return true;
   const firstWord = lower.split(/\s+/)[0];
   return (HEBREW_ALIASES[firstWord] ?? []).some((alias) => text.includes(alias));
+}
+
+const CONNECTORS = '(?:of|in|and|for|the|&)';
+
+/**
+ * True when `text` spells out an acronym term: "Registered Nurse" for RN, "Bachelor of
+ * Science in Nursing" for BSN, "Amazon Web Services" for AWS. A résumé that writes the
+ * credential out supports the abbreviation; one that never mentions it does not.
+ */
+export function spellsOut(text: string, term: string): boolean {
+  if (!/^[A-Z]{2,6}$/.test(term)) return false;
+  const words = term.split('').map((letter) => `${letter}[a-z]+`);
+  const body = words.join(`\\s+(?:${CONNECTORS}\\s+)*`);
+  return new RegExp(`(?<![A-Za-z])${body}(?![A-Za-z])`, 'i').test(text);
+}
+
+/** Support in the source: named directly, or spelled out as an initialism. */
+function supports(source: string, term: string): boolean {
+  return mentionsTerm(source, term) || spellsOut(source, term);
+}
+
+/**
+ * The part of the résumé that can justify putting a tool BACK. Role header lines (any
+ * line carrying a year) are excluded: "Sales Coordinator, Salesforce — 2017" says where
+ * someone worked, not that they know the product, so it must never become a skill.
+ */
+function restorableText(originalResumeText: string): string {
+  return trustedResumeText(originalResumeText)
+    .split('\n')
+    .filter((line) => !/(?<![0-9])(?:19|20)\d\d(?![0-9])/.test(line))
+    .join('\n');
+}
+
+function isEmployerName(resume: OptimizedResume, term: string): boolean {
+  return (Array.isArray(resume.experience) ? resume.experience : []).some(
+    (e) => typeof e.company === 'string' && mentionsTerm(e.company, term)
+  );
 }
 
 function sentences(text: string): string[] {
@@ -202,14 +243,14 @@ function allText(resume: OptimizedResume): string {
 export function findUnsupportedTerms(resume: OptimizedResume, originalResumeText: string, terms: string[]): string[] {
   const source = trustedResumeText(originalResumeText);
   const segments = claimSegments(resume);
-  return terms.filter((t) => !mentionsTerm(source, t) && segments.some((s) => mentionsTerm(s, t)));
+  return terms.filter((t) => !supports(source, t) && segments.some((s) => mentionsTerm(s, t)));
 }
 
 /** Job-ad terms the original résumé mentions and the rewrite no longer does. */
 export function findLostSupportedTerms(resume: OptimizedResume, originalResumeText: string, terms: string[]): string[] {
-  const source = trustedResumeText(originalResumeText);
+  const source = restorableText(originalResumeText);
   const text = allText(resume);
-  return terms.filter((t) => mentionsTerm(source, t) && !mentionsTerm(text, t));
+  return terms.filter((t) => supports(source, t) && !supports(text, t) && !isEmployerName(resume, t));
 }
 
 /** Cuts the term with the words that attach it, leaving the rest of the sentence. */
@@ -316,6 +357,8 @@ export interface TruthGuardReport {
   retried: boolean;
   retryReason: TruthGuardRetryReason | null;
   repairAccepted: boolean;
+  /** Tools the repair added that neither the rewrite nor the résumé had. Any one rejects the repair. */
+  repairIntroducedTerms: string[];
   removedTerms: string[];
   restoredTerms: string[];
   unresolvedTerms: string[];
@@ -352,6 +395,7 @@ export async function enforceJobAdTruth(
     retried: false,
     retryReason: null,
     repairAccepted: false,
+    repairIntroducedTerms: [],
     removedTerms: [],
     restoredTerms: [],
     unresolvedTerms: [],
@@ -368,7 +412,16 @@ export async function enforceJobAdTruth(
   } catch {
     repaired = null;
   }
-  if (repaired && keepsContent(repaired, candidate)) {
+  if (repaired) {
+    // The repair was asked to remove a tool; it must not invent a different one. Any tool
+    // in the repair that neither the rewrite nor the résumé had rejects it outright.
+    const before = claimSegments(candidate).join('\n');
+    const source = trustedResumeText(input.resumeText);
+    report.repairIntroducedTerms = extractJobAdTerms(claimSegments(repaired).join('\n')).filter(
+      (t) => !mentionsTerm(before, t) && !supports(source, t)
+    );
+  }
+  if (repaired && keepsContent(repaired, candidate) && report.repairIntroducedTerms.length === 0) {
     const u = findUnsupportedTerms(repaired, input.resumeText, terms);
     const l = findLostSupportedTerms(repaired, input.resumeText, terms);
     if (u.length <= unsupported.length && l.length <= lost.length && u.length + l.length < unsupported.length + lost.length) {

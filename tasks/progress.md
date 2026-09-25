@@ -1,12 +1,12 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 on PR #160 (stacked on #159): job-ad tool insertions went from 9 of 60 runs to 0 of 60, no supported content lost. Not deployed. Side effect for the founder to weigh: the before/after score pair now shows in 23 of 60 runs instead of 44.
+- Status: #159 merged (1fbcbfb, production deploy success, no runtime change). Stage 2 on PR #160, retargeted to main, independent review fixes applied; NOT merged: merging deploys production and waits on the founder.
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
 - Active Story: none; waiting on the founder to review and merge #159 then #160
 - Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
 - Next Recommended Story: merge #159 then #160 and decide the deploy (it changes shown scores); then seniority and scope inflation, the next measured failure; then WP-77 and R2
 - Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer: 136 passed, 3 skipped; scoped `tsc -p` over every changed file exit 0; `eslint` on every changed file 0 errors 0 warnings; paid batch 3 exit 0, 60 of 60 completed, 0 insertions, 0 blocked side effects, $0.93. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated).
+- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
 - Last Updated: 2026-09-25
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.

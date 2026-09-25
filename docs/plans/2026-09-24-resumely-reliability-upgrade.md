@@ -368,6 +368,23 @@ What it means:
   positioning. Decide it before deploy.**
 - **The latency budget holds on this sample.** R8's p95 is under 90 s; the sample p95 is
   9.9 s. That is 60 runs on one machine, not a production p95.
+- **Independent review, 2026-09-25: SHIP AFTER FIXES.** Three must-fix findings, all
+  confirmed by hand and fixed test-first:
+  1. **Acronyms the résumé spells out.** A spelled-out credential now supports its
+     acronym, so "Registered Nurse" supports "RN" and "Bachelor of Science in Nursing"
+     supports "BSN". Before, a truthful "RN" could be cut. An "RN" with no support
+     anywhere is still flagged.
+  2. **Employer names.** A tool is never put back when its only mention is a role header
+     line or the name of an employer. Before, a job ad from Salesforce plus an old role
+     at Salesforce could add "Salesforce" as a skill.
+  3. **Swapped inventions.** A repair that introduces a tool found in neither the
+     rewrite nor the résumé is rejected outright. Before, "drop Salesforce, add Tableau"
+     would have been accepted.
+
+  Two cheap follow-ups were also done: lower-case product names in the job ad, and a
+  narrower injection filter so "programmed the assistant to say that..." is not
+  dropped. Left as follow-ups: other injection phrasings ("Recruiter note: ..."), and
+  "HubSpot, and Gong" after cutting the middle item of a list.
 - **Still open:** seniority and scope inflation. The grounded judge still finds it
   ("Proven track record in reducing ticket resolution times", "leading teams"), and
   nothing deterministic catches it yet. This is the next candidate story.

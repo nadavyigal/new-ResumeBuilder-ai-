@@ -13,6 +13,7 @@ import {
   restoreSupportedTerms,
   enforceJobAdTruth,
   toWireTruthGuard,
+  trustedResumeText,
   type TruthRepair,
 } from '@/lib/ai-optimizer/job-ad-terms';
 
@@ -317,6 +318,7 @@ describe('toWireTruthGuard (additive /api/optimize field)', () => {
       retried: true,
       retryReason: 'unsupported_job_ad_terms',
       repairAccepted: false,
+      repairIntroducedTerms: [],
       removedTerms: ['Salesforce'],
       restoredTerms: [],
       unresolvedTerms: [],
@@ -328,3 +330,48 @@ describe('toWireTruthGuard (additive /api/optimize field)', () => {
     expect(toWireTruthGuard(undefined)).toBeNull();
   });
 });
+
+describe('independent review fixes (2026-09-25)', () => {
+  const NURSE_SOURCE = `Grace Okafor
+Registered Nurse with 6 years in the Intensive Care Unit.
+EDUCATION
+Bachelor of Science in Nursing, University of Houston`;
+  const NURSE_JD = 'RN license required. ICU experience preferred, BSN a plus.';
+
+  it('accepts an abbreviation of a credential the résumé spells out', () => {
+    const r = saasResume({ summary: 'RN with 6 years of ICU experience and a BSN.', skills: { technical: ['RN', 'ICU'], soft: [] } });
+    expect(findUnsupportedTerms(r, NURSE_SOURCE, extractJobAdTerms(NURSE_JD))).toEqual([]);
+  });
+
+  it('still flags the same abbreviation when nothing in the résumé supports it', () => {
+    const r = saasResume({ skills: { technical: ['RN'], soft: [] } });
+    expect(findUnsupportedTerms(r, SAAS_SOURCE, extractJobAdTerms(NURSE_JD))).toEqual(['RN']);
+  });
+
+  it("never restores the hiring company's name as a skill when the résumé only lists it as an employer", () => {
+    const source = `Dana Levi
+Sales Coordinator, Salesforce — Jan 2017 to Dec 2018
+- Booked product demos for the account team.`;
+    const jd = 'Salesforce is hiring an Account Executive. HubSpot required.';
+    const r = saasResume({ skills: { technical: ['Negotiation'], soft: [] } });
+    expect(findLostSupportedTerms(r, source, extractJobAdTerms(jd))).toEqual([]);
+  });
+
+  it('rejects a repair that swaps one invented tool for another', async () => {
+    const swapped = saasResume({ skills: { technical: ['HubSpot', 'Tableau', 'Full-cycle sales'], soft: [] } });
+    const out = await enforceJobAdTruth(withSalesforce(), { resumeText: SAAS_SOURCE, jobDescription: SAAS_JD, repair: repairReturning(swapped) });
+    expect(out.report.repairAccepted).toBe(false);
+    expect(out.resume.skills.technical).not.toContain('Tableau');
+    expect(out.resume.skills.technical).not.toContain('Salesforce');
+  });
+
+  it('finds known products written in lower case in the job ad', () => {
+    expect(extractJobAdTerms('3+ years with salesforce and hubspot.')).toEqual(expect.arrayContaining(['salesforce', 'hubspot']));
+  });
+
+  it('keeps a real bullet that happens to mention an assistant saying something', () => {
+    const text = 'Programmed the voice assistant to say that the meeting has ended.';
+    expect(trustedResumeText(text)).toBe(text);
+  });
+});
+

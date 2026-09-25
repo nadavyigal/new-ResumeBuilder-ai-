@@ -265,7 +265,7 @@ describe('stability report (offline)', () => {
     const plan = planRuns(manifest.slice(0, 2), 2);
     const guard = {
       checkedTerms: 2, unsupportedBefore: ['Salesforce'], lostBefore: [], retried: true,
-      retryReason: 'unsupported_job_ad_terms' as const, repairAccepted: false,
+      retryReason: 'unsupported_job_ad_terms' as const, repairAccepted: false, repairIntroducedTerms: [],
       removedTerms: ['Salesforce'], restoredTerms: [], unresolvedTerms: [],
     };
     const results = await executePlan(plan, deps({ generate: async () => ({ ...outcome(), truthGuard: guard }) }));
