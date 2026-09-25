@@ -1,15 +1,29 @@
 # Project Progress
 
-- Status: R1 is closed. PR #157 merged as `90f86c2`, live on `dpl_ApXya28BHF7qxqCGboX6a8MiH5y5`, migration applied 2026-09-23 06:11Z and proven. One gate, the post-apply authenticated smoke test, was not run; see the R1 entry below.
-- Current Phase: 2026-09-19 improvement plan, P0 weeks 1 and 2
-- Active Story: none
-- Last Completed Story: R1, lock down client-callable SECURITY DEFINER functions (Agentic OS WP-78), PR #157
-- Next Recommended Story: WP-77, remeasure upload-CTA reach (the in-flight measurement packet), then R2, production canary and uptime alert
-- Blockers: none for R1. Security triage of five trigger functions still flagged by Supabase advisors 0028/0029 is recorded in `tasks/todo.md`, deliberately outside R1.
-- Last Validation: 2026-09-24: live DB `brtdyamysfmctrhuankn`: `authenticated` gets `42501 permission denied` on `grant_apple_credits` and `consume_credit`; grant audit 0 rows on all 10 present targets (control run of the same query: 375 rows on other functions); `service_role` executes both credit functions into their bodies; production 5xx 0 from 24h before deploy through 2026-09-24 05:55Z. Code gates as of 2026-09-19 (lint 0 errors, build exit 0, tsc and jest at the pre-existing baseline) are recorded in the R1 entry.
-- Last Updated: 2026-09-24
+- Status: Reliability upgrade Stages 1 and 1.1 on PR #159. Two paid batches (2026-09-25): the harness defects are fixed (0 invalid judge answers, 0 uncited gap rulings), and job-ad tool insertion reproduced: 17 of 120 runs, all passed by the nightly gate. R1 is closed (#157, #158).
+- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
+- Active Story: none; waiting on founder labelling and the Stage 2 decision
+- Last Completed Story: Reliability upgrade Stage 1.1, harness fixes and rerun (PR #159)
+- Next Recommended Story: founder labels about 15 real outputs from the two batches, then Stage 2 (job-ad tool insertion guard) if the R8 gate is lifted; otherwise WP-77, then R2
+- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
+- Last Validation: 2026-09-25: `npx jest evals/resume-optimizer` 83 passed, 3 skipped; scoped `tsc -p` over `evals/resume-optimizer` exit 0; `npx eslint evals/resume-optimizer scripts/run-eval-resume.mjs` exit 0; paid batch 2 `EVAL_COST_CAP_USD=3 npm run eval:resume:repeat` exit 0, 60 of 60 completed, 0 invalid, 0 blocked side effects, $0.85. Not run to completion locally: full-repo `npx tsc --noEmit` and full `npm test` (host saturated); PR CI covers lint, contract tests and build.
+- Last Updated: 2026-09-25
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+
+## 2026-09-24: reliability upgrade Stages 0 and 1, repeat eval harness
+
+**Plan.** The Builder OS brief of 2026-09-24 is now `docs/plans/2026-09-24-resumely-reliability-upgrade.md`, which owns execution updates. It holds the Stage 0 capability matrix, the overlap decisions and the paid-batch estimate.
+
+**Stage 0 found three things worth knowing.** Local eval runs were sending synthetic résumés to production PostHog: the wrapper loads `.env.local`, which carries the PostHog key, and the optimizer traces every model call. CI was not affected. Scores drift with the calendar, because `recency-fit.ts:21` resolves "Present" with `new Date()`. And the nightly eval is live and green every night since at least 2026-09-16, while its README still said the workflow was never pushed.
+
+**Stage 1.** `evals/resume-optimizer/` gains a 20-case manifest (the 7 nightly cases by reference, text hash-locked, plus 13 new; 6 fits, 8 partial, 6 gaps, 6 Hebrew), grounding checks the nightly set lacks, a per-requirement grounded judge, an HTTP-level call ledger (cost, model ids, one-retry cap, hard cost cap, non-model hosts blocked), fixed-date pinning, run accounting and a stability report. No production file changed. The nightly gate is untouched. Six of the seven deliberate fabrications in the calibration set pass the nightly checks today; all seven fail the new grounding checks.
+
+**Paid batch, 2026-09-25.** Approved at $7, spent $0.86 (the estimate said $2.14). 60 of 60 runs accounted for, 0 blocked side effects. The optimizer inserted a job-ad tool the résumé lacks in 8 of 60 runs (Salesforce in all 3 runs of one case), and the nightly gate passed all 8. The nightly judge also passed 5 of 7 planted fabrications in the calibration set. Full results in the plan.
+
+**Stage 1.1, same day.** Strict judge schema, separate label and ruling words, cited and verified gap rulings, aspirational mentions reported separately. Rerun: 60 of 60 completed, 0 invalid judge answers (was 3), 0 uncited gap rulings (was 15), $0.85. Job-ad tool insertion reproduced (9 of 60; 17 of 120 across both batches). The grounded judge still cites stated goals as papering over the gap, so its gap and seniority rulings are leads, not a gate. Details in the plan.
+
+**Decisions left to the founder.** Stage 2 is the 09-19 plan's R8, which that plan gates on 5 moderated sessions. Stage 3 revives the Career Evidence Pilot, which the 09-19 plan parks under "Not now". Two dated plans disagree on both; neither is resolved here.
 
 ## 2026-09-23: R1 applied to production, and what is and is not proven
 
@@ -664,7 +678,7 @@ Estimated Completion: Web is live; scoring-accuracy work is incremental
 Blockers: **No founder action outstanding on the eval track.** The `OPENAI_API_KEY` repo secret was added 2026-07-21 and the resume-optimizer nightly has passed **30 of its last 30 runs** (2026-07-29 → 2026-08-27, zero failures). The previous "Founder action required — add the repo secret" text stood here for five weeks after it stopped being true and was propagating into the Agentic OS priority board as a top-scored next action; corrected 2026-08-28. **The real CI weakness on this repo is unchanged and is recorded under Risks:** `ci.yml` still runs `test:contracts` and `bench-agent` with `|| true`, so neither can fail the build. Gate A remains closed by decision; do not wire Stripe or re-enable Premium CTAs until the gate is explicitly reopened.
 Risks: **CI is largely non-gating** — `.github/workflows/ci.yml` runs `npm run test:contracts || true` and `node scripts/bench-agent.mjs --ci || true`, so both always pass regardless of result, and it never runs `tsc`. Only `npm run lint` can actually fail the build. A green CI check on this repo means less than it appears; worth a separate story. `npx tsc --noEmit` still has pre-existing test typing/export failures, now compounded by untracked Finder-duplicate files (`route 2.ts`, `en 2.json`, `anonymous-carryover 2.ts`) that break local typechecking but are invisible to CI because they are untracked; keep reporting them separately from WP-29 regressions until cleaned up. Do not wire Stripe or open the monetization gate while fixing P0 funnel bugs.
 Last Validation: 2026-08-28 — **eval track only**: `gh secret list` shows `OPENAI_API_KEY` present since 2026-07-21T12:09:57Z, and `gh run list --workflow=eval-resume-nightly.yml --limit 30` returns 30 of 30 `success` (2026-07-29 → 2026-08-27). Nothing else in this file was re-verified on that date. 2026-07-21 — live resume-optimizer eval 7/7, judgePassRate 1.0, 0 critical failures, `report.json` regenerated; preflight guard verified by running with no key available; `npm run lint` 0 errors / 18 pre-existing warnings; `npx eslint scripts/run-eval-resume.mjs` exit 0. Noted in passing: `ci.yml` runs `test:contracts` and `bench-agent` with `|| true`, so neither can fail the build, and it never runs `tsc` — see Risks. Earlier — WP-29 S4 branch `codex/wp29-s4-disable-premium-cta` — focused pricing/upgrade tests 2/2 passed, `npm run check:i18n` passed, targeted eslint passed, full `npm run lint` passed with existing warnings only, `npm run build` passed. `npx tsc --noEmit` still fails on pre-existing contract/security test typing and stale export errors, none in touched S4 files.
-Last Updated: 2026-09-19
+Last Updated: 2026-09-25
 Latest QA Report: tasks/2026-06-08-smoke-test-upload-backend.md (plan; execution pending)
 
 <!--

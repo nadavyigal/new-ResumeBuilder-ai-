@@ -15,6 +15,8 @@
     "test:agent": "jest tests/agent",
     "test:api": "jest tests/api",
     "eval:resume": "node scripts/run-eval-resume.mjs",
+    "eval:resume:estimate": "node scripts/run-eval-resume.mjs --estimate",
+    "eval:resume:repeat": "node scripts/run-eval-resume.mjs --repeat",
     "bench:agent": "node scripts/bench-agent.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
