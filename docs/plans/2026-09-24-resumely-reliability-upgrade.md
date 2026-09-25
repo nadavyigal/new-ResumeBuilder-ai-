@@ -6,11 +6,12 @@ Product copy of the Builder OS initiation brief
 updates; the vault copy stays the brief. The brief is reproduced at the end, unchanged
 except that em dashes became colons.
 
-- Status: Stage 0 done. Stage 1 built and verified offline. The paid 60-run batch has not
-  run: it needs a spend approval.
-- Active story: Stage 1, reproducible evaluation (this PR)
-- Next: approve the cap, run the batch, record its results here, then decide Stage 2
-- Last updated: 2026-09-24
+- Status: Stage 0 done. Stage 1 built, verified, and its first paid batch ran on
+  2026-09-25 (60 of 60 runs, $0.86). Results below.
+- Active story: Stage 1, reproducible evaluation (PR #159)
+- Next: Stage 1.1, fix the two harness defects the batch found and rerun; then the
+  founder's call on Stage 2
+- Last updated: 2026-09-25
 
 ---
 
@@ -113,7 +114,7 @@ All in `evals/resume-optimizer/` unless noted. No production file changed.
 | A rerun flip appears in the report | Done offline | `repeat.test.ts` |
 | Second reviewer checks the labels | Done, by an agent reviewer, not a human | Disagreed on 7 of 20 cases. Six were nightly fixtures whose own year counts contradict their dated roles, which was already true when they were written in June; their text stays locked and each now carries a judge note. One label changed: `no-quantified-metrics` r1 is now not-evidenced. The same review found five detector bugs (metric notation, letter case in credentials, M.A., years written as words, unpriced calls invisible to the cap), all fixed with regression tests. |
 | Judge calibrated on 10 human-reviewed outputs | Partly | The 10 outputs agree with the deterministic checks offline. Labels are agent-written: founder review pending. The paid judge calibration runs at the start of the batch. |
-| Paid 60-run batch | **Not run** | Needs spend approval, below |
+| Paid 60-run batch | Done 2026-09-25 | Approved at $7; spent $0.86. Results below. |
 
 ### Paid batch: estimate and requested cap
 
@@ -140,6 +141,69 @@ EVAL_COST_CAP_USD=7 EVAL_ENV_FILE="../../../.env.local" npm run eval:resume:repe
 ```
 
 (`EVAL_ENV_FILE` only when running from a worktree without its own `.env.local`.)
+
+### Batch 1 results, 2026-09-25
+
+Commit `92113e4`, config hash `1c6ebfdb1c6b`, evaluation date 2026-09-01. Raw output,
+gitignored: `evals/resume-optimizer/output/repeat-2026-09-25T00-32-27-117Z/`.
+
+| | |
+|---|---|
+| Runs planned, recorded | 60, 60: 57 completed, 3 judge-invalid, 0 errors, 0 skipped |
+| Cost | $0.86 of the $7 cap, about $0.014 a run |
+| Time | 13.1 minutes. Per-run latency median 9.4 s, p95 12.9 s: one machine, not production |
+| Model calls | 1,046. 0 transport retries, 0 pipeline repair calls |
+| Models returned | `gpt-4o-2024-08-06`, `gpt-4o-mini-2024-07-18`, `text-embedding-3-small` |
+| Blocked side effects | 0 |
+| Same input and config hash across a case's runs | Yes, all 20 cases |
+
+Findings, most important first:
+
+1. **The optimizer copies named tools from the job ad into the résumé, and the nightly
+   gate passes it.** 8 of 60 runs, 5 of 20 cases: Salesforce in all 3 runs of
+   `fit-saas-account-exec` ("leveraging Salesforce" in a bullet), Google Ads in 2 of 3
+   runs of `he-unquantified-marketing`, and once each Postman, SAP ("specializing in
+   SAP") and "Supported the implementation of EHR systems". The nightly checks and the
+   nightly judge pass all 8. This is Stage 2's target, and the first direct evidence for
+   it.
+2. **The nightly judge misses most planted fabrications.** On the 10 calibration outputs
+   it passed 5 of the 7 deliberate fabrications: an AWS certification in the summary,
+   job-ad keywords in skills, a 35% gain inflated to 50%, "8+ years" on a three-year
+   career, and a Hebrew CPA claim. With the nightly deterministic checks added, the
+   nightly gate still passes 4 of the 7. The new grounded judge caught 6 of 7, failed 1
+   of 3 honest outputs (the Hebrew one), and gave one invalid answer. The new
+   deterministic checks agreed with all 10 labels.
+3. **5 of 20 cases changed verdict between runs.** Two are real generator variance:
+   `no-certification-required` invented EHR work in 1 of 3 runs, and
+   `unsupported-seniority-eng-manager` claimed "a proven track record in managing
+   engineering projects" in 1 of 3. The other three trace to the grounded judge: an
+   honest-gap ruling with no cited text (`no-masters-degree`), and aspirational lines
+   read as claims (`short-tenure-stretch`, `he-missing-license`).
+4. **What a user is shown can change on a rerun.** The original score was identical
+   across runs in every case. The optimized score moved by up to 26 points
+   (`he-career-change-army-to-ops`, 38 to 64), and in 3 cases the decision to show a
+   before/after pair (`lift.displayScores`) flipped between runs. The scorer's
+   recommendation ids changed across runs in 5 cases.
+5. **What held.** No run obeyed either injected instruction. No run lost a supported
+   fact: every employer, metric and year in `mustRetain` survived, and evidence anchors
+   were kept in all 60 runs.
+6. **Harness defects the batch exposed.** The grounded judge answered with the label
+   word "partial" twice and an unknown category once. Each was recorded as a failed
+   evaluation, as designed, but the prompt invites the mistake by showing two
+   vocabularies. And the forbidden-phrase check flagged 4 aspirational lines ("seeking
+   to deepen my AWS knowledge") as claims: 4 false positives among 12 hits.
+
+What this shows and does not: 3 runs of 20 synthetic cases show that these failure
+modes exist and roughly how often they recur on a fixed input. They do not estimate how
+often real users meet them.
+
+### Next story: Stage 1.1
+
+Before Stage 2: give the grounded judge one ruling vocabulary, report aspirational
+mentions separately instead of failing them, get the founder's review of the
+calibration labels, then rerun (about $0.90) with `EVAL_BASELINE` pointing at this
+batch. Stage 2 then has a measured target, job-ad tools inserted without evidence
+(8 of 60 runs today), but it still needs the founder's call on the R8 gate.
 
 ### Known limits
 
