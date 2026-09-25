@@ -261,6 +261,21 @@ describe('stability report (offline)', () => {
     expect(report.notes.join(' ')).toMatch(/not proof of stability/);
   });
 
+  it('totals what the job-ad terms guard did across runs', async () => {
+    const plan = planRuns(manifest.slice(0, 2), 2);
+    const guard = {
+      checkedTerms: 2, unsupportedBefore: ['Salesforce'], lostBefore: [], retried: true,
+      retryReason: 'unsupported_job_ad_terms' as const, repairAccepted: false,
+      removedTerms: ['Salesforce'], restoredTerms: [], unresolvedTerms: [],
+    };
+    const results = await executePlan(plan, deps({ generate: async () => ({ ...outcome(), truthGuard: guard }) }));
+    const report = buildStabilityReport(manifest.slice(0, 2), plan, results, {
+      manifestVersion: MANIFEST_VERSION, evaluationDate: EVALUATION_DATE, repeats: 2, config: null,
+      wallTimeMs: null, ledgerRecords: [], blockedSideEffects: 0,
+    });
+    expect(report.totals.truthGuard).toEqual({ runsRetried: 4, repairsAccepted: 0, termsRemoved: 4, termsRestored: 0, termsUnresolved: 0 });
+  });
+
   it('flags a regression against a baseline, and refuses to compare a changed input', async () => {
     const plan = planRuns(manifest, 3);
     const meta = {
