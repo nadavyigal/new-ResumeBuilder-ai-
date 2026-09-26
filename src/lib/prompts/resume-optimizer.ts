@@ -13,6 +13,7 @@ Produce a stronger, job-targeted resume while staying fully truthful to the cand
 Core rules:
 - Never fabricate or assume facts.
 - Do not invent employers, titles, dates, certifications, metrics, or tools.
+- A term in the job description is not evidence. Never add a tool, platform or credential the original resume does not mention, not to the skills list, a bullet or the summary.
 - If evidence is missing, keep the claim modest or leave it out.
 - Keep all formatting ATS-safe: single-column mindset, standard section naming, no decorative symbols.
 - Use clear, specific language over hype.
@@ -21,7 +22,7 @@ What to optimize:
 1. Keyword alignment
 - Mirror important job-description terms when they are genuinely supported by the resume.
 - Spread relevant terms across summary, skills, and experience bullets naturally.
-- When gap keywords are provided in the user prompt, explicitly address each one in the appropriate resume section if truthfully supported.
+- Gap keywords in the user prompt are job terms the original resume does NOT contain. Do not claim them. Use one only where the original resume already shows the same thing in other words, and then keep to that evidence.
 
 2. Role clarity
 - Make target role and value proposition explicit in the summary.
@@ -169,10 +170,10 @@ ${jobDescription}
 
 REMAINING GAPS TO ADDRESS:
 
-Missing keywords (include naturally where truthfully supported):
+Job keywords NOT found in the original resume (do not claim these; use one only where the resume already shows the same thing in other words):
 ${gaps.missingKeywords.length > 0 ? gaps.missingKeywords.map(k => `- ${k}`).join('\n') : '(none)'}
 
-Must-have requirements not yet fully covered (address in appropriate sections if truthfully supported):
+Must-have requirements from the job (make supporting evidence easier to see; never claim one the resume lacks):
 ${gaps.mustHave.length > 0 ? gaps.mustHave.map(r => `- ${r}`).join('\n') : '(none)'}
 
 Low-scoring areas (subscores below 60 — focus improvement here):
@@ -181,6 +182,47 @@ ${Object.keys(gaps.lowSubscores).length > 0 ? Object.entries(gaps.lowSubscores).
 ---
 
 Optimize this resume for the target job description following the system rules.
-Pay particular attention to the remaining gaps listed above and address each one where truthfully supported by the candidate's background.
+Where the resume genuinely supports a listed gap, make that evidence easier to see. Where it does not, leave the gap open: an honest gap is better than an invented claim.
 Return only the JSON object with the optimized resume data.
 `;
+
+/**
+ * Stage 2 repair prompt: one bounded retry after the job-ad terms guard finds a tool the
+ * original résumé never mentions, or finds a supported tool the rewrite dropped.
+ * It names the terms, never the reason text, and asks for the full JSON back so the
+ * pipeline's own checks can run on it again.
+ */
+export const RESUME_TRUTH_REPAIR_PROMPT = (
+  originalResumeText: string,
+  candidate: object,
+  issues: { unsupported: string[]; lost: string[] }
+) => {
+  const fixes: string[] = [];
+  if (issues.unsupported.length > 0) {
+    fixes.push(
+      `- The rewrite claims ${issues.unsupported.join(', ')}, which the original resume never mentions. Remove every claim of them from the summary, skills, bullets, certifications and projects. Do not replace them with any other tool, platform or credential the original resume does not mention.`
+    );
+  }
+  if (issues.lost.length > 0) {
+    fixes.push(
+      `- The original resume shows ${issues.lost.join(', ')}, and the job asks for it, but the rewrite dropped it. Bring it back where the original resume supports it.`
+    );
+  }
+  return `
+ORIGINAL RESUME (the only evidence about the candidate):
+${originalResumeText}
+
+---
+
+CURRENT REWRITE (JSON):
+${JSON.stringify(candidate, null, 2)}
+
+---
+
+Fix only these problems and return the full corrected JSON in the same schema:
+${fixes.join('\n')}
+- Keep every employer, title, date, number and unaffected bullet exactly as it is.
+- Every role keeps a non-empty "achievements" array.
+Return only the JSON object.
+`;
+};

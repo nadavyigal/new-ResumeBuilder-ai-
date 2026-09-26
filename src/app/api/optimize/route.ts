@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
 import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
+import { toWireTruthGuard } from "@/lib/ai-optimizer/job-ad-terms";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from "@/lib/utils/rate-limit";
@@ -213,6 +214,9 @@ export async function POST(req: NextRequest) {
           category: s.category,
         })),
       },
+      // Additive (reliability upgrade Stage 2): job-ad tools the guard took out or put
+      // back. Job-ad words only, never résumé text.
+      truthGuard: toWireTruthGuard(pipelineResult.truthGuard),
     });
 
   } catch (error: unknown) {

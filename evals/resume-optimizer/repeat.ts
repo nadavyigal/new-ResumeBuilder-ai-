@@ -1,4 +1,5 @@
 import type { OptimizedResume } from '@/lib/ai-optimizer';
+import type { TruthGuardReport } from '@/lib/ai-optimizer/job-ad-terms';
 import type { ManifestCase } from './manifest';
 import type { JudgeVerdict } from './judge';
 import { runChecks, criticalFailures } from './checks';
@@ -40,6 +41,8 @@ export interface PipelineOutcome {
   recommendationIds: string[];
   passesUsed: number;
   lift: { meaningful: boolean; displayScores: boolean; delta: number };
+  /** What the production job-ad terms guard did on this run (Stage 2). */
+  truthGuard?: TruthGuardReport;
 }
 
 export interface VerdictComponents {
@@ -72,6 +75,7 @@ export interface RunResult {
   groundingJudge?: GroundingVerdict;
   /** What in the grounded verdict counts: verified quotes fail a run, unverified ones do not. */
   groundingJudgeFindings?: GroundingFindings;
+  truthGuard?: TruthGuardReport;
   calls?: RunCallSummary;
   /** Raw output. Written only to the gitignored output directory. */
   resume?: OptimizedResume;
@@ -226,6 +230,7 @@ async function executeRun(run: PlannedRun, deps: ExecuteDeps): Promise<RunResult
     nightlyJudge: nightly,
     groundingJudge: groundingVerdict,
     groundingJudgeFindings: findings,
+    truthGuard: outcome.truthGuard,
     calls,
     resume: outcome.resume,
   };
@@ -399,6 +404,7 @@ export interface StabilityReport {
     requestedModels: string[];
     returnedModels: string[];
     sampleLatencyMs: { median: number | null; p95: number | null; n: number };
+    truthGuard: { runsRetried: number; repairsAccepted: number; termsRemoved: number; termsRestored: number; termsUnresolved: number };
   };
   cases: CaseStability[];
   regressions: RegressionFinding[];
@@ -521,6 +527,13 @@ export function buildStabilityReport(
       requestedModels: ledger.requestedModels,
       returnedModels: ledger.returnedModels,
       sampleLatencyMs: { median: median(allLatencies), p95, n: allLatencies.length },
+      truthGuard: {
+        runsRetried: results.filter((r) => r.truthGuard?.retried).length,
+        repairsAccepted: results.filter((r) => r.truthGuard?.repairAccepted).length,
+        termsRemoved: results.reduce((n, r) => n + (r.truthGuard?.removedTerms.length ?? 0), 0),
+        termsRestored: results.reduce((n, r) => n + (r.truthGuard?.restoredTerms.length ?? 0), 0),
+        termsUnresolved: results.reduce((n, r) => n + (r.truthGuard?.unresolvedTerms.length ?? 0), 0),
+      },
     },
     cases: perCase,
     regressions: baseline ? compareToBaseline(perCase, baseline) : [],

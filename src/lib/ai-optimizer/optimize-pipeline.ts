@@ -3,11 +3,13 @@ import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
+  RESUME_TRUTH_REPAIR_PROMPT,
   OPTIMIZATION_CONFIG,
   type ResumeOptimizationGaps,
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
 import { normalizeExperienceBullets, countBullets } from './normalize-experience';
+import { enforceJobAdTruth, type TruthGuardReport } from './job-ad-terms';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
@@ -27,6 +29,12 @@ export interface OptimizationPipelineResult {
    * showing a before/after pair.
    */
   lift: LiftAssessment;
+  /**
+   * What the job-ad terms guard found and did (reliability upgrade, Stage 2). Term
+   * names come from the job ad, never from the résumé. Absent only on results built
+   * outside runOptimizePipeline.
+   */
+  truthGuard?: TruthGuardReport;
 }
 
 type OptimizationPipelineOptions = {
@@ -234,7 +242,82 @@ function buildGapsFromAtsResult(
   };
 }
 
+/**
+ * Runs the optimizer, then the job-ad terms guard on the candidate it would return.
+ *
+ * The guard runs once on the final candidate rather than on each pass, so it costs
+ * nothing when the rewrite is clean and at most one repair call when it is not. If
+ * the guard changes the résumé, the result is rescored, so the score the user sees
+ * describes the résumé they get.
+ */
 export async function runOptimizePipeline(
+  resumeText: string,
+  jobDescription: string,
+  options?: OptimizationPipelineOptions
+): Promise<OptimizationPipelineResult> {
+  const selected = await selectCandidate(resumeText, jobDescription, options);
+  const isHebrew = /[֐-׿]/.test(resumeText) || /[֐-׿]/.test(jobDescription);
+
+  const guarded = await enforceJobAdTruth(selected.optimizedResume, {
+    resumeText,
+    jobDescription,
+    repair: async (candidate, issues) => {
+      const trace = options?.aiTrace ?? { traceName: 'optimize' };
+      const repaired = await callOpenAIWithGapPrompt(
+        RESUME_TRUTH_REPAIR_PROMPT(resumeText, candidate, issues),
+        RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+        isHebrew,
+        {
+          ...trace,
+          // Rides on the existing $ai_generation event: counts only, no terms, no résumé text.
+          properties: {
+            ...trace.properties,
+            truth_repair: true,
+            unsupported_terms_count: issues.unsupported.length,
+            lost_terms_count: issues.lost.length,
+          },
+        }
+      );
+      return repaired ? stripFabricatedMetrics(repaired, resumeText) : null;
+    },
+  });
+
+  const report = guarded.report;
+  console.log('Pipeline truth guard:', {
+    checkedTerms: report.checkedTerms,
+    unsupported: report.unsupportedBefore.length,
+    lost: report.lostBefore.length,
+    retried: report.retried,
+    repairAccepted: report.repairAccepted,
+    removed: report.removedTerms.length,
+    restored: report.restoredTerms.length,
+    unresolved: report.unresolvedTerms.length,
+  });
+
+  if (!guarded.changed) return { ...selected, truthGuard: report };
+
+  const rescored = await scoreOptimization({
+    resumeOriginalText: resumeText,
+    resumeOptimizedJson: guarded.resume,
+    jobDescriptionText: jobDescription,
+    jobExtractedJson: options?.jobExtractedJson,
+  });
+  if (rescored.ats_score_optimized === 0 && rescored.confidence === 0) {
+    // The scorer's zero-confidence fallback. Ship the corrected résumé with the last
+    // real score rather than a 0 the user would read as a verdict.
+    console.warn('Pipeline truth guard: rescoring returned the zero-confidence fallback, keeping the prior score');
+    return { ...selected, optimizedResume: guarded.resume, truthGuard: report };
+  }
+  return {
+    ...selected,
+    optimizedResume: guarded.resume,
+    atsResult: rescored,
+    lift: liftFor(rescored, selected.passesUsed),
+    truthGuard: report,
+  };
+}
+
+async function selectCandidate(
   resumeText: string,
   jobDescription: string,
   options?: OptimizationPipelineOptions
