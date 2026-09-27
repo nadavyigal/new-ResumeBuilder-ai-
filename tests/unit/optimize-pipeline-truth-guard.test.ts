@@ -22,7 +22,12 @@ jest.mock('@/lib/ats/extractors/jd-extractor', () => {
 });
 
 import { runOptimizePipeline } from '@/lib/ai-optimizer/optimize-pipeline';
-import { RESUME_OPTIMIZATION_GAP_PROMPT, RESUME_OPTIMIZATION_SYSTEM_PROMPT } from '@/lib/prompts/resume-optimizer';
+import {
+  RESUME_OPTIMIZATION_GAP_PROMPT,
+  RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+  RESUME_SENIORITY_REPAIR_PROMPT,
+} from '@/lib/prompts/resume-optimizer';
+import type { SeniorityIssue } from '@/lib/ai-optimizer/seniority-guard';
 import OpenAI from 'openai';
 import * as atsIntegration from '@/lib/ats/integration';
 import * as jdExtractorModule from '@/lib/ats/extractors/jd-extractor';
@@ -125,11 +130,81 @@ describe('runOptimizePipeline with the job-ad terms guard', () => {
   });
 });
 
+const INFLATED = { ...CLEAN, experience: [{ ...CLEAN.experience[0], title: 'Senior Account Executive' }] };
+
+describe('runOptimizePipeline with the seniority guard', () => {
+  it('ships a clean rewrite with exactly one model call and nothing found', async () => {
+    const create = openaiReturning(CLEAN);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(mockScore).toHaveBeenCalledTimes(1);
+    expect(result.seniorityGuard).toMatchObject({ foundBefore: [], retried: false, corrected: 0, unresolved: [] });
+  });
+
+  it('repairs an inflated title once, then rescores what it ships', async () => {
+    const create = openaiReturning(INFLATED, CLEAN);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockResolvedValueOnce(score(50, 74));
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(create).toHaveBeenCalledTimes(2);
+    const repairMessages = JSON.stringify((create.mock.calls[1] as any[])[0].messages);
+    expect(repairMessages).toContain('Senior Account Executive');
+    expect(result.optimizedResume.experience[0].title).toBe('Account Executive');
+    expect(result.seniorityGuard).toMatchObject({
+      foundBefore: [{ kind: 'title', place: 'title' }],
+      retried: true,
+      repairAccepted: true,
+      unresolved: [],
+    });
+    expect(mockScore).toHaveBeenCalledTimes(2);
+    expect(result.atsResult.ats_score_optimized).toBe(74);
+  });
+
+  it('restores the résumé title itself when the repair keeps the inflation', async () => {
+    openaiReturning(INFLATED, INFLATED);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+    expect(result.seniorityGuard).toMatchObject({ repairAccepted: false, corrected: 1, unresolved: [] });
+    expect(result.optimizedResume.experience[0].title).toBe('Account Executive');
+    expect(mockScore).toHaveBeenCalledTimes(2);
+  });
+
+  it('never puts résumé text in the seniority report', async () => {
+    openaiReturning(INFLATED, INFLATED);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+    expect(JSON.stringify(result.seniorityGuard)).not.toContain('Account Executive');
+  });
+});
+
 describe('prompts no longer ask for keywords the résumé lacks', () => {
   it('labels missing keywords as absent from the résumé, not as things to include', () => {
     const prompt = RESUME_OPTIMIZATION_GAP_PROMPT('resume', 'job', { missingKeywords: ['Salesforce'], lowSubscores: {}, mustHave: [] });
     expect(prompt).not.toMatch(/include naturally/i);
     expect(prompt).toMatch(/not (?:found )?in the (?:original )?r[ée]sum[ée]/i);
     expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).not.toMatch(/explicitly address each one/i);
+  });
+});
+
+describe('prompts no longer push the job title into who the candidate is', () => {
+  it('describes the candidate by titles they have held and forbids raising seniority', () => {
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).not.toMatch(/explicit in the summary/i);
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toMatch(/titles? (?:they|the candidate) ha(?:ve|s) held/i);
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toMatch(/never raise seniority or scope/i);
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toMatch(/keep every job title exactly as the original r[ée]sum[ée] gives it/i);
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toMatch(/without raising its scope/i);
+  });
+
+  it('names each inflated phrase and its kind in the repair prompt, and asks for the full JSON', () => {
+    const issues: SeniorityIssue[] = [
+      { kind: 'title', place: 'title', phrase: 'Senior Account Executive', roleIndex: 0 },
+      { kind: 'management', place: 'summary', phrase: 'team leadership', index: 0 },
+    ];
+    const prompt = RESUME_SENIORITY_REPAIR_PROMPT('ORIGINAL', { summary: 'x' }, issues);
+    expect(prompt).toContain('ORIGINAL');
+    expect(prompt).toContain('"Senior Account Executive"');
+    expect(prompt).toContain('"team leadership"');
+    expect(prompt).toMatch(/job title/i);
+    expect(prompt).toMatch(/manag/i);
+    expect(prompt).toMatch(/full corrected JSON/i);
+    expect(prompt).toMatch(/Keep every employer, date, number and unaffected bullet/i);
   });
 });

@@ -4,12 +4,14 @@ import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
   RESUME_TRUTH_REPAIR_PROMPT,
+  RESUME_SENIORITY_REPAIR_PROMPT,
   OPTIMIZATION_CONFIG,
   type ResumeOptimizationGaps,
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
 import { normalizeExperienceBullets, countBullets } from './normalize-experience';
 import { enforceJobAdTruth, type TruthGuardReport } from './job-ad-terms';
+import { enforceSeniorityTruth, type SeniorityGuardReport } from './seniority-guard';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
@@ -35,6 +37,11 @@ export interface OptimizationPipelineResult {
    * outside runOptimizePipeline.
    */
   truthGuard?: TruthGuardReport;
+  /**
+   * What the seniority and scope guard found and did. Kinds and places only, never
+   * résumé text. Absent only on results built outside runOptimizePipeline.
+   */
+  seniorityGuard?: SeniorityGuardReport;
 }
 
 type OptimizationPipelineOptions = {
@@ -243,11 +250,13 @@ function buildGapsFromAtsResult(
 }
 
 /**
- * Runs the optimizer, then the job-ad terms guard on the candidate it would return.
+ * Runs the optimizer, then the seniority guard and the job-ad terms guard on the
+ * candidate it would return.
  *
- * The guard runs once on the final candidate rather than on each pass, so it costs
- * nothing when the rewrite is clean and at most one repair call when it is not. If
- * the guard changes the résumé, the result is rescored, so the score the user sees
+ * Each guard runs once on the final candidate rather than on each pass, so it costs
+ * nothing when the rewrite is clean and at most one repair call when it is not. The
+ * seniority guard runs first so the job-ad guard stays the final net for tools. If
+ * either guard changes the résumé, the result is rescored, so the score the user sees
  * describes the résumé they get.
  */
 export async function runOptimizePipeline(
@@ -258,7 +267,38 @@ export async function runOptimizePipeline(
   const selected = await selectCandidate(resumeText, jobDescription, options);
   const isHebrew = /[֐-׿]/.test(resumeText) || /[֐-׿]/.test(jobDescription);
 
-  const guarded = await enforceJobAdTruth(selected.optimizedResume, {
+  const seniority = await enforceSeniorityTruth(selected.optimizedResume, {
+    resumeText,
+    repair: async (candidate, issues) => {
+      const trace = options?.aiTrace ?? { traceName: 'optimize' };
+      const repaired = await callOpenAIWithGapPrompt(
+        RESUME_SENIORITY_REPAIR_PROMPT(resumeText, candidate, issues),
+        RESUME_OPTIMIZATION_SYSTEM_PROMPT,
+        isHebrew,
+        {
+          ...trace,
+          // Rides on the existing $ai_generation event: counts only, no phrases, no résumé text.
+          properties: {
+            ...trace.properties,
+            seniority_repair: true,
+            seniority_issues_count: issues.length,
+          },
+        }
+      );
+      return repaired ? stripFabricatedMetrics(repaired, resumeText) : null;
+    },
+  });
+
+  const seniorityReport = seniority.report;
+  console.log('Pipeline seniority guard:', {
+    found: seniorityReport.foundBefore.length,
+    retried: seniorityReport.retried,
+    repairAccepted: seniorityReport.repairAccepted,
+    corrected: seniorityReport.corrected,
+    unresolved: seniorityReport.unresolved.length,
+  });
+
+  const guarded = await enforceJobAdTruth(seniority.resume, {
     resumeText,
     jobDescription,
     repair: async (candidate, issues) => {
@@ -294,7 +334,8 @@ export async function runOptimizePipeline(
     unresolved: report.unresolvedTerms.length,
   });
 
-  if (!guarded.changed) return { ...selected, truthGuard: report };
+  const guards = { truthGuard: report, seniorityGuard: seniorityReport };
+  if (!guarded.changed && !seniority.changed) return { ...selected, ...guards };
 
   const rescored = await scoreOptimization({
     resumeOriginalText: resumeText,
@@ -305,15 +346,15 @@ export async function runOptimizePipeline(
   if (rescored.ats_score_optimized === 0 && rescored.confidence === 0) {
     // The scorer's zero-confidence fallback. Ship the corrected résumé with the last
     // real score rather than a 0 the user would read as a verdict.
-    console.warn('Pipeline truth guard: rescoring returned the zero-confidence fallback, keeping the prior score');
-    return { ...selected, optimizedResume: guarded.resume, truthGuard: report };
+    console.warn('Pipeline guards: rescoring returned the zero-confidence fallback, keeping the prior score');
+    return { ...selected, optimizedResume: guarded.resume, ...guards };
   }
   return {
     ...selected,
     optimizedResume: guarded.resume,
     atsResult: rescored,
     lift: liftFor(rescored, selected.passesUsed),
-    truthGuard: report,
+    ...guards,
   };
 }
 
