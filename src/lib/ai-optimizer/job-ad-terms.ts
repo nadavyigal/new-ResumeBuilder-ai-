@@ -370,7 +370,7 @@ export type TruthRepair = (
 ) => Promise<OptimizedResume | null>;
 
 /** Mirrors the WP-64 pass-2 rule: a repair may consolidate, not delete a third of the evidence. */
-function keepsContent(repaired: OptimizedResume, original: OptimizedResume): boolean {
+export function keepsContent(repaired: OptimizedResume, original: OptimizedResume): boolean {
   const roles = Array.isArray(repaired.experience) ? repaired.experience : [];
   if (roles.length > 0 && countBullets(repaired) === 0) return false;
   const before = countBullets(original);
