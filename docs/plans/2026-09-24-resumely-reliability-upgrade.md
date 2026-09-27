@@ -468,14 +468,43 @@ candidate's name or a summary line.
 - 60 synthetic runs are the only evidence. The live batch below is what shows whether
   the prompt fix alone removes the behaviour, as it did for job-ad tools.
 
-**Paid batch 4: estimate and requested cap.** Batches 1 to 3 cost $0.86, $0.85 and
-$0.93 for 60 runs. The guard adds at most one gpt-4o repair call per flagged run, about
-$0.02 each; 6 flagged runs would add about $0.12. Expected about $1.05. **Requested hard
-cap: $7.00.** Not run; waiting for approval.
+**Batch 4**, 2026-09-27, approved by the founder at a $7 cap. Commit `1902d64`, config
+hash `dc0c91f9ad4b`, baseline batch 3. `gitDirty` is true only because a hook
+date-stamped `tasks/progress.md`; the prompt and pipeline hashes are the committed ones.
+Raw output, gitignored:
+`.claude/worktrees/stoic-ellis-bc8124/evals/resume-optimizer/output/repeat-2026-09-27T14-11-29-485Z/`.
 
-```bash
-EVAL_COST_CAP_USD=7 EVAL_ENV_FILE="../../../.env.local" npm run eval:resume:repeat
-```
+| | Batch 3 (before) | Batch 4 (Stage 2.1) |
+|---|---|---|
+| Runs the seniority detector flags | 6 | **0** |
+| Army case: summary calls the candidate "מנהל תפעול" | 3 of 3 | **0 of 3** (a goal in 3 of 3) |
+| Eng-manager case: summary claims people management | 3 of 3 | **0 of 3** |
+| Runs passing every check | 37 | 39 |
+| Before/after score pair shown to the user | 23 of 60 | 27 of 60 |
+| Mean optimized-minus-original score | 3.7 | 3.9 |
+| Job-ad guard repairs | 0 | 1, accepted (Salesforce, fit-saas-account-exec#1) |
+| Latency per run, median and p95 (sample, one machine) | 7.7 s, 9.9 s | 7.7 s, 9.6 s |
+| Cost | $0.93 | **$0.96** |
+
+60 of 60 runs completed, 0 judge-invalid, 0 blocked side effects.
+
+What it means:
+
+- **The prompt fix alone removed the behaviour on this set.** The seniority guard never
+  fired. Its repair and fallback are proven by the offline tests, not by this batch. Same
+  pattern as Stage 2.
+- **The job-ad guard fired live for the first time** and its repair was accepted: the
+  Stage 2 net works in production conditions.
+- **The grounded judge still cites 9 seniority quotes in 8 runs (10 in 7 before).** Read
+  by hand, they changed kind. The army and eng-manager ones are now stated goals
+  ("מחפש תפקיד מנהל תפעול", "seeking ... an Engineering Manager role"), which the prompt
+  allows and the judge is known to over-read (Stage 1.1). The short-tenure-stretch ones
+  cite "Financial Analyst", the exact title the résumé gives, because the source summary
+  says "Junior". One eng-manager run says "mentoring team members" for 2 summer interns:
+  the known mentoring limit.
+- **No cost to the score.** The mean lift and the number of runs shown a before/after
+  pair both rose slightly; with 3 runs per case that is noise, not a gain.
+- Verdict flips: 2 cases (no-masters-degree, language-hebrew), neither a seniority case.
 
 # Appendix: the initiation brief, as copied 2026-09-24
 
