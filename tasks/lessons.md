@@ -1,5 +1,13 @@
 # Lessons Learned — ResumeBuilder
 
+## "Make the target role explicit" makes the model claim the target role (2026-09-27)
+
+**Symptom:** a logistics officer was summarised as "מנהל תפעול" (operations manager) and an engineer who mentored 2 interns as having "team leadership", each in 3 of 3 batch 3 runs. Every deterministic check passed them.
+
+**Root cause:** the system prompt said "Make target role and value proposition explicit in the summary". The target role is the job ad's title, so the model wrote it as the candidate's identity. Same class as the missing-keywords lesson below: an instruction aimed at the job ad, with no line saying it is not evidence.
+
+**Rule:** any prompt line that mentions the target job must say, in the same line, that the candidate is described only by what the résumé shows; the target may appear only as a goal. Back it with a deterministic check (`seniority-guard.ts`) and read every flag on honest outputs by hand before trusting it: the first pass flagged "Senior React Engineer" for a senior engineer.
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.

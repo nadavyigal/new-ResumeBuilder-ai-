@@ -1,15 +1,21 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
-- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: none
+- Status: Reliability upgrade Stage 2.1, seniority and scope guard, in review on branch `claude/resumely-reliability-s3-seniority` (PR open, not merged, not deployed; merging deploys production via Vercel). Stage 2 (#160) merged 2026-09-26.
+- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 2.1
+- Active Story: seniority and scope inflation: prompt root cause, `seniority-guard.ts` wired before the job-ad guard, eval recording
 - Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
-- Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Next Recommended Story: paid batch 4 on this branch (cap $7, expected about $1.05) once approved, then merge decision; then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job).
+- Blockers: founder spend approval for batch 4; founder merge approval. Host still CPU-saturated, so no cold full-repo jest, tsc, lint or `next build`. Founder review of the 13 eval cases and 10 calibration labels still pending.
+- Last Validation: 2026-09-27: scoped jest (seniority-guard, job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response, evals/resume-optimizer) 192 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0. Offline false-positive check over 60 batch 3 outputs and 10 calibration items: flags only the 6 known runs and cal-07. `next build` and full `npm test` not run (host saturated).
+- Last Updated: 2026-09-27
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
+
+## 2026-09-27: reliability upgrade Stage 2.1, the optimizer stops raising seniority
+
+**Root cause.** The system prompt asked to make the target role "explicit in the summary", so the model wrote the job-ad title as who the candidate is: a logistics officer became "מנהל תפעול" in 3 of 3 batch 3 runs, and an engineer who mentored 2 interns got "team leadership" in 3 of 3. The prompt now describes the candidate by titles they have held and forbids raising seniority or scope. `src/lib/ai-optimizer/seniority-guard.ts` backs it: one repair call, then a deterministic fallback that only puts back the résumé's own words, then a rescore. No API field, no event, no migration.
+
+**Checked offline.** Over the 60 saved batch 3 outputs and 10 calibration items, the detector flags only the 6 known runs and cal-07. Two false positives found on the way ("Senior React Engineer" for a senior engineer, "account management experience") were fixed test first. The paid batch that shows the live effect is not run yet.
 
 ## 2026-09-25: reliability upgrade Stage 2, the optimizer stops inserting job-ad tools
 

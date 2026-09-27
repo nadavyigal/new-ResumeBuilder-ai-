@@ -1,5 +1,6 @@
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { TruthGuardReport } from '@/lib/ai-optimizer/job-ad-terms';
+import type { SeniorityGuardReport } from '@/lib/ai-optimizer/seniority-guard';
 import type { ManifestCase } from './manifest';
 import type { JudgeVerdict } from './judge';
 import { runChecks, criticalFailures } from './checks';
@@ -43,6 +44,8 @@ export interface PipelineOutcome {
   lift: { meaningful: boolean; displayScores: boolean; delta: number };
   /** What the production job-ad terms guard did on this run (Stage 2). */
   truthGuard?: TruthGuardReport;
+  /** What the production seniority and scope guard did on this run. Kinds and places only. */
+  seniorityGuard?: SeniorityGuardReport;
 }
 
 export interface VerdictComponents {
@@ -76,6 +79,7 @@ export interface RunResult {
   /** What in the grounded verdict counts: verified quotes fail a run, unverified ones do not. */
   groundingJudgeFindings?: GroundingFindings;
   truthGuard?: TruthGuardReport;
+  seniorityGuard?: SeniorityGuardReport;
   calls?: RunCallSummary;
   /** Raw output. Written only to the gitignored output directory. */
   resume?: OptimizedResume;
@@ -231,6 +235,7 @@ async function executeRun(run: PlannedRun, deps: ExecuteDeps): Promise<RunResult
     groundingJudge: groundingVerdict,
     groundingJudgeFindings: findings,
     truthGuard: outcome.truthGuard,
+    seniorityGuard: outcome.seniorityGuard,
     calls,
     resume: outcome.resume,
   };
@@ -405,6 +410,7 @@ export interface StabilityReport {
     returnedModels: string[];
     sampleLatencyMs: { median: number | null; p95: number | null; n: number };
     truthGuard: { runsRetried: number; repairsAccepted: number; termsRemoved: number; termsRestored: number; termsUnresolved: number };
+    seniorityGuard: { runsWithInflation: number; repairsAccepted: number; corrected: number; unresolved: number };
   };
   cases: CaseStability[];
   regressions: RegressionFinding[];
@@ -533,6 +539,12 @@ export function buildStabilityReport(
         termsRemoved: results.reduce((n, r) => n + (r.truthGuard?.removedTerms.length ?? 0), 0),
         termsRestored: results.reduce((n, r) => n + (r.truthGuard?.restoredTerms.length ?? 0), 0),
         termsUnresolved: results.reduce((n, r) => n + (r.truthGuard?.unresolvedTerms.length ?? 0), 0),
+      },
+      seniorityGuard: {
+        runsWithInflation: results.filter((r) => (r.seniorityGuard?.foundBefore.length ?? 0) > 0).length,
+        repairsAccepted: results.filter((r) => r.seniorityGuard?.repairAccepted).length,
+        corrected: results.reduce((n, r) => n + (r.seniorityGuard?.corrected ?? 0), 0),
+        unresolved: results.reduce((n, r) => n + (r.seniorityGuard?.unresolved.length ?? 0), 0),
       },
     },
     cases: perCase,

@@ -389,6 +389,94 @@ What it means:
   ("Proven track record in reducing ticket resolution times", "leading teams"), and
   nothing deterministic catches it yet. This is the next candidate story.
 
+## Stage 2.1: stop raising seniority and scope, 2026-09-27
+
+Branch `claude/resumely-reliability-s3-seniority`, stacked on main `3f5c35a`. Not
+deployed, not merged.
+
+**Reproduction, free, from saved batch 3 output** (config `342f88a3e2fa`, 60 runs).
+`unsupported-seniority-eng-manager` claimed people management in the summary in 3 of 3
+runs ("team leadership", "team management", "leading teams") for an engineer who mentored
+2 interns. `he-career-change-army-to-ops` called a logistics officer "מנהל תפעול"
+(operations manager) in the summary in 3 of 3. No run changed a role's title field.
+Every deterministic check passed all 6. Only the grounded judge caught them.
+
+**Root cause.** The system prompt said "Make target role and value proposition explicit
+in the summary". The model read that as: state the job-ad title as who the candidate is.
+It now says to describe the candidate by the titles they have held, with the target role
+only as a goal. A new core rule: never raise seniority or scope, keep every job title
+exactly as the résumé gives it, do not turn mentoring into managing, one team into teams,
+or a team of 3 into a larger number, and claim managing people, hiring or performance
+reviews only when the résumé states it. "Surface under-stated experience" now ends
+"without raising its scope".
+
+**Enforcement.** `src/lib/ai-optimizer/seniority-guard.ts`, wired into
+`runOptimizePipeline` before the job-ad terms guard, so that guard stays the final net
+for tools.
+
+- **What it polices:** a seniority word (Senior, Lead, Head of, Manager, ראש, מנהל,
+  בכיר) in a role title or in who the summary says the candidate is, that the résumé's
+  held titles do not give; a head count the résumé never states; managing people, direct
+  reports, hiring or performance reviews when the résumé states no management. English
+  and Hebrew.
+- **Not policed:** mentoring, "leadership" as a soft skill, leading a project, a change
+  of specialty at the same seniority ("Senior React Engineer" for a Senior Frontend
+  Engineer), and "account management experience".
+- **Repair:** one call (`RESUME_SENIORITY_REPAIR_PROMPT`) names each phrase and its
+  kind. It is accepted only if it keeps the evidence, has fewer issues, and more of no
+  kind. Then a deterministic fallback: put back the résumé's own title, drop the
+  inflated summary sentence or fall back to the résumé's own summary, revert a bullet to
+  the résumé's own line, drop a management skill. Never empties a role. A title is only
+  restored from a résumé line that names the employer; otherwise it is left and
+  reported.
+- **Output:** rescored if either guard changed the résumé. `OptimizationPipelineResult`
+  gains `seniorityGuard` (kinds and places only, never résumé text). No `/api/optimize`
+  field, no event, no migration. The repair call is tagged on the existing
+  `$ai_generation` trace with `seniority_repair` and an issue count.
+- **Eval:** the repeat eval records `seniorityGuard` per run and totals
+  `runsWithInflation`, `repairsAccepted`, `corrected`, `unresolved`.
+
+**False-positive check, offline, 2026-09-27.** The detector over all 60 batch 3 outputs
+and the 10 calibration items.
+
+| Set | Flagged | Where |
+|---|---|---|
+| Batch 3, 60 runs | 6 | eng-manager 3 of 3 (management, summary), army 3 of 3 (title, summary) |
+| Batch 3, the other 18 cases | 0 | |
+| Calibration, 10 items | 1 | cal-07-title-inflation (title field), as labelled |
+
+The first pass also flagged two honest outputs. Both were read by hand and fixed test
+first: "Senior React Engineer" for a résumé titled Senior Frontend Engineer
+(genuine-strong-match, 2 of 3 runs), and "account management experience" in cal-08. The
+fallback, run on the 6 flagged outputs, removed every flagged claim and left 0
+unresolved.
+
+A pipeline test also exposed a fallback bug, fixed test first: when no résumé line named
+the employer, the title was "restored" from the first non-bullet line, which can be the
+candidate's name or a summary line.
+
+**Known limits.**
+
+- Mentoring stretched into management ("mentor junior engineers" from "2 summer
+  interns") is left to the judge.
+- Word-number team sizes are only partly covered ("a dozen", Hebrew number words up to
+  ten); "tens of engineers" is not.
+- A manager title elsewhere in the résumé ("Office Manager") lets a summary say
+  "Engineering Manager". Precision over recall.
+- If the repair call fails, the English fallback can drop the summary's opening
+  sentence, leaving a summary that starts "Proven ability...". Honest but weaker.
+- 60 synthetic runs are the only evidence. The live batch below is what shows whether
+  the prompt fix alone removes the behaviour, as it did for job-ad tools.
+
+**Paid batch 4: estimate and requested cap.** Batches 1 to 3 cost $0.86, $0.85 and
+$0.93 for 60 runs. The guard adds at most one gpt-4o repair call per flagged run, about
+$0.02 each; 6 flagged runs would add about $0.12. Expected about $1.05. **Requested hard
+cap: $7.00.** Not run; waiting for approval.
+
+```bash
+EVAL_COST_CAP_USD=7 EVAL_ENV_FILE="../../../.env.local" npm run eval:resume:repeat
+```
+
 # Appendix: the initiation brief, as copied 2026-09-24
 
 ## Outcome and scope

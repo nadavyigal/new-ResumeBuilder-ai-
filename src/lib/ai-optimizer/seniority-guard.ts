@@ -45,6 +45,7 @@ const GOAL =
   /\b(?:seeking|looking (?:for|to)|aiming|aspiring|hoping|eager|keen|ready to|targeting|pursuing|interested in|transitioning (?:to|into)|wants? to|to (?:grow|move|advance|step|transition) into)\b|מחפש|מחפשת|שואף|שואפת|מעוניין|מעוניינת|מבקש|מבקשת/i;
 
 const BULLET_LINE = /^\s*(?:[-•*·▪●–]|\d+[.)])\s*/;
+const isHeaderLine = (l: string | undefined): l is string => l !== undefined && l.trim().length > 0 && !BULLET_LINE.test(l);
 const YEAR = /(?<![0-9])(?:19|20)\d\d(?![0-9])/;
 
 function escapeRegExp(s: string): string {
@@ -90,14 +91,13 @@ function seniorityWords(title: string): string[] {
  */
 function roleHeaderLines(source: string, company: string): string[] {
   const lines = source.split('\n');
-  const isHeader = (l: string | undefined) => l !== undefined && l.trim().length > 0 && !BULLET_LINE.test(l);
-  const hits = company.trim() ? lines.map((l, i) => (isHeader(l) && norm(l).includes(norm(company)) ? i : -1)).filter((i) => i >= 0) : [];
-  if (hits.length === 0) return lines.filter(isHeader);
+  const hits = company.trim() ? lines.map((l, i) => (isHeaderLine(l) && norm(l).includes(norm(company)) ? i : -1)).filter((i) => i >= 0) : [];
+  if (hits.length === 0) return lines.filter(isHeaderLine);
   const out = new Set<string>();
   for (const i of hits) {
     out.add(lines[i]);
-    if (isHeader(lines[i - 1])) out.add(lines[i - 1]);
-    if (isHeader(lines[i + 1])) out.add(lines[i + 1]);
+    if (isHeaderLine(lines[i - 1])) out.add(lines[i - 1]);
+    if (isHeaderLine(lines[i + 1])) out.add(lines[i + 1]);
   }
   return [...out];
 }
@@ -126,17 +126,44 @@ function inflatedTitle(title: string, company: string, source: string): boolean 
   return seniorityWords(title).some((w) => !contains(header, w));
 }
 
-/** The title the résumé gives this role, preferring the piece that shares the rewrite's core. */
+/**
+ * The title the résumé gives this role, preferring the piece that shares the rewrite's
+ * core. Without a résumé line naming the employer, no line is known to be this role's
+ * header, so only a line that is exactly the core is trusted; otherwise null, and the
+ * claim is reported rather than replaced with a name or a summary line.
+ */
 function sourceTitle(title: string, company: string, source: string): string | null {
   const segments = titleSegments(source, company);
   if (segments.length === 0) return null;
   const core = seniorityWords(title)
     .reduce((t, w) => t.replace(new RegExp(`(?:^|\\s)${escapeRegExp(w)}(?:\\s+of)?(?=\\s|$)`, 'i'), ' '), title)
     .trim();
+  const anchored = company.trim() !== '' && source.split('\n').some((l) => isHeaderLine(l) && norm(l).includes(norm(company)));
+  if (!anchored) return (core && segments.find((s) => norm(s) === norm(core))) || null;
   return (core && segments.find((s) => contains(s, core))) || segments[0];
 }
 
-/** Who the summary says the candidate is: a titled phrase the résumé never uses. */
+/**
+ * The titles the candidate has held: dated role header lines, and a short title line
+ * right above one. The résumé's own summary is left out, since it can state a goal.
+ */
+function heldTitles(source: string): string {
+  const lines = source.split('\n');
+  const out: string[] = [];
+  lines.forEach((line, i) => {
+    if (!isHeaderLine(line) || !YEAR.test(line)) return;
+    out.push(line);
+    const above = lines[i - 1];
+    if (isHeaderLine(above) && above.trim().length <= 60 && !/[.!?]\s*$/.test(above)) out.push(above);
+  });
+  return out.join('\n');
+}
+
+/**
+ * Who the summary says the candidate is: a titled phrase the résumé never uses, whose
+ * seniority the résumé never gives. A Senior Frontend Engineer called a "Senior React
+ * Engineer" has changed specialty, not seniority, and is left alone.
+ */
 function summaryTitleClaims(claim: string, source: string): string[] {
   const phrases: string[] = [];
   for (const m of claim.matchAll(/\b(?:Senior|Sr\.|Lead|Principal|Staff|Chief)\s+[A-Z][\w&/-]*/g)) phrases.push(m[0]);
@@ -152,7 +179,12 @@ function summaryTitleClaims(claim: string, source: string): string[] {
     phrases.push(`${role} ${object}`);
   }
   for (const m of claim.matchAll(new RegExp(`([${HE}]+)\\s+(בכיר|בכירה)(?![${HE}])`, 'g'))) phrases.push(m[0]);
-  return [...new Set(phrases)].filter((p) => !contains(source, p));
+  const held = heldTitles(source);
+  const raisesSeniority = (p: string) => {
+    const words = seniorityWords(p);
+    return words.length === 0 || words.some((w) => !contains(held, w));
+  };
+  return [...new Set(phrases)].filter((p) => !contains(source, p) && raisesSeniority(p));
 }
 
 // ------------------------------------------------------------------ team size
@@ -201,7 +233,8 @@ const MANAGEMENT = [
     'i'
   ),
   /\b(?:team|people|line)\s+(?:leadership|management)\b/i,
-  /\bpeople[- ]manag(?:er|ement)\b|\bdirect reports?\b|\bperformance reviews?\b|\b(?:managerial|management) experience\b|\bheadcount\b/i,
+  // "management experience" only on its own: "account management experience" is account work.
+  /\bpeople[- ]manag(?:er|ement)\b|\bdirect reports?\b|\bperformance reviews?\b|\bmanagerial experience\b|(?<=^|\b(?:of|with|has|have|including|strong|proven|extensive|solid|prior|previous)\s+)management experience\b|\bheadcount\b/i,
   /\bhir(?:ed|ing)\s+(?:and\s+\w+\s+)?(?:a\s+|\d[\d,]*\s+)?(?:team|engineers|staff|employees|people|developers)\b/i,
   new RegExp(
     `(?<![${HE}])${HE_PREFIX}(?:ניהול|ניהלתי|ניהל|ניהלה|מנהל|מנהלת|הובלת|הובלתי|הוביל|הובילה|מוביל|מובילה|פיקוד\\s+על|פיקדתי\\s+על|פיקד\\s+על|פיקדה\\s+על)\\s+(?:את\\s+)?ה?(?:צוותים|צוות|עובדים|אנשים|כפיפים|מחלקות|מחלקה|חיילים|מתמחים)(?![${HE}])`
@@ -444,5 +477,7 @@ export async function enforceSeniorityTruth(
   const correction = correctSeniorityInflations(best, input.resumeText);
   report.corrected = correction.corrected;
   report.unresolved = correction.unresolved.map(tag);
-  return { resume: correction.resume, report, changed: correction.resume !== candidate };
+  // Nothing edited means nothing to rescore: hand back the rewrite itself.
+  const unchanged = JSON.stringify(correction.resume) === JSON.stringify(candidate);
+  return { resume: unchanged ? candidate : correction.resume, report, changed: !unchanged };
 }

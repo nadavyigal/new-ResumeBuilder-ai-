@@ -125,6 +125,31 @@ const HE_DEV_SOURCE = `נועה לוי
 - פיתוח שירותי API ב-Python.
 - כתיבת בדיקות אוטומטיות לשירותי התשלום.`;
 
+// The genuine-strong-match eval case, verbatim: already senior, so "Senior" is not a raise.
+const SENIOR_SOURCE = `Sara Kim
+sara.kim@example.com | 555-0104 | San Francisco, CA
+
+SUMMARY
+Senior frontend engineer, 6 years of React experience.
+
+EXPERIENCE
+Senior Frontend Engineer, Lumen Software — Feb 2019 to Present
+- Led migration of a 200k-line Angular app to React, cutting page load time by 35%.
+- Mentored 3 junior engineers.
+- Built a component library used by 12 product teams.
+
+EDUCATION
+BS Computer Science, Carnegie Mellon University — 2018
+AWS Certified Developer — Associate (2022)`;
+
+const SENIOR_ROLES: Role[] = [
+  {
+    title: 'Senior Frontend Engineer',
+    company: 'Lumen Software',
+    achievements: ['Led migration of a 200k-line Angular app to React, cutting page load time by 35%.', 'Mentored 3 junior engineers.'],
+  },
+];
+
 const kinds = (r: OptimizedResume, source: string) => findSeniorityInflations(r, source).map((i) => `${i.kind}:${i.place}`);
 
 describe('findSeniorityInflations: job titles', () => {
@@ -191,6 +216,18 @@ describe('findSeniorityInflations: who the summary says the candidate is', () =>
     expect(kinds(he, ARMY_SOURCE)).toEqual([]);
   });
 
+  it.each([
+    'Senior React Engineer with 6 years of experience in React, specializing in performance improvements and team mentorship. Proven track record in leading successful migrations and standardizing UI development.',
+    'Senior React Engineer with 6 years of experience in performance optimization and team mentorship. Proven track record in leading complex migrations and enhancing development efficiency.',
+  ])('accepts the batch 3 summary that keeps the seniority the résumé gives: %s', (summary) => {
+    expect(kinds(resume(summary, SENIOR_ROLES), SENIOR_SOURCE)).toEqual([]);
+  });
+
+  it('still flags a raise above the seniority the résumé gives', () => {
+    const out = resume('Principal React Engineer with 6 years of React experience.', SENIOR_ROLES);
+    expect(kinds(out, SENIOR_SOURCE)).toEqual(['title:summary']);
+  });
+
   it('reads Hebrew "מנהלת" as the verb it is when the résumé shows the same work', () => {
     const out = resume('רכזת שיווק דיגיטלי שמנהלת קמפיינים ממומנים ברשתות חברתיות.', [
       { title: 'רכזת שיווק דיגיטלי', company: 'סטודיו אורן', achievements: ['ניהול קמפיינים ממומנים בפייסבוק ובאינסטגרם.'] },
@@ -238,6 +275,16 @@ describe('findSeniorityInflations: people management the résumé never states',
     'Experienced software engineer with expertise in payment systems, leading teams, and designing scalable services. Proven ability to enhance payment processing efficiency and mentor junior engineers.',
   ])('flags the batch 3 engineering summary: %s', (summary) => {
     expect(kinds(resume(summary, ENG_ROLES), ENG_SOURCE)).toEqual(['management:summary']);
+  });
+
+  it('reads "account management experience" as account work, not managing people', () => {
+    const out = resume('Customer success specialist with 3 years of enterprise account management experience.', ENG_ROLES);
+    expect(kinds(out, ENG_SOURCE)).toEqual([]);
+  });
+
+  it('flags "management experience" claimed as such', () => {
+    const out = resume('Software engineer with 5 years of management experience in payment services.', ENG_ROLES);
+    expect(kinds(out, ENG_SOURCE)).toEqual(['management:summary']);
   });
 
   it('flags management skills, not plain leadership or mentoring', () => {
@@ -370,6 +417,24 @@ describe('correctSeniorityInflations', () => {
     expect(fixed.resume.experience[0].achievements).toEqual(['Led a team of 3 engineers on the billing rewrite.', 'Built firmware for 3 robot arms.']);
   });
 
+  it('never takes a title from a line that is not the role header', () => {
+    // No résumé line names the employer, so no line is known to be this role's title.
+    const source = `Dana Levi
+dana@example.com | 555-0199
+
+SUMMARY
+Product person who ships.
+
+EXPERIENCE
+- Led discovery for a checkout redesign.`;
+    const out = resume('Product person who ships.', [
+      { title: 'Head of Product', company: 'Acme', achievements: ['Led discovery for a checkout redesign.'] },
+    ]);
+    const fixed = correctSeniorityInflations(out, source);
+    expect(fixed.resume.experience[0].title).toBe('Head of Product');
+    expect(fixed.unresolved.map((i) => `${i.kind}:${i.place}`)).toEqual(['title:title']);
+  });
+
   it('drops a management skill and keeps plain leadership', () => {
     const out = resume('Software engineer with 5 years of experience building payment services in Java.', ENG_ROLES, ['Java'], [
       'Leadership',
@@ -404,6 +469,17 @@ describe('enforceSeniorityTruth', () => {
     const out = await enforceSeniorityTruth(INFLATED, { resumeText: ENG_SOURCE, repair: repairReturning(INFLATED) });
     expect(out.report).toMatchObject({ repairAccepted: false, corrected: 1, unresolved: [] });
     expect(out.resume.summary).toBe('Software engineer with 5 years of experience building payment services in Java.');
+  });
+
+  it('reports no change, and returns the rewrite itself, when nothing could be corrected', async () => {
+    const source = `Dana Levi
+SUMMARY
+Product person who ships.`;
+    const out0 = resume('Product person who ships.', [{ title: 'Head of Product', company: 'Acme', achievements: ['Shipped v2.'] }]);
+    const out = await enforceSeniorityTruth(out0, { resumeText: source, repair: repairReturning(null) });
+    expect(out.changed).toBe(false);
+    expect(out.resume).toBe(out0);
+    expect(out.report).toMatchObject({ retried: true, corrected: 0, unresolved: [{ kind: 'title', place: 'title' }] });
   });
 
   it('corrects deterministically when the repair call fails', async () => {
