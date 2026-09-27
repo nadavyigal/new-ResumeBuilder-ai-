@@ -114,6 +114,7 @@ export function FeaturesBento() {
         </div>
 
         {/* Stats Row */}
+        {stats.length > 0 && (
         <div className="max-w-4xl mx-auto mt-12 md:mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
           {stats.map((stat, index) => (
             <div
@@ -129,6 +130,7 @@ export function FeaturesBento() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </section>
   );

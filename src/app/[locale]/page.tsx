@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { FreeATSChecker } from "@/components/landing/FreeATSChecker";
 import { FeaturesBento } from "@/components/landing/features-bento";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { FinalCta } from "@/components/landing/final-cta";
 import { defaultLocale } from "@/locales";
 
 interface HomePageProps {
@@ -53,6 +54,7 @@ export default async function Home({ params }: HomePageProps) {
         <FreeATSChecker />
         <FeaturesBento />
         <HowItWorks />
+        <FinalCta />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
