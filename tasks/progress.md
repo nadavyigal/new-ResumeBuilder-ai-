@@ -9,6 +9,49 @@
 - Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
 - Last Updated: 2026-09-26
 
+## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
+
+**Four channel rankings, a GTM packet and a weekly checklist already existed.**
+None of them was the missing piece. Every one terminated in a founder-only
+publish action with no output path, so nothing published and nothing was
+measured; `distribution-os/experiment-log.md` had not been touched since
+2026-07-28. The card at `docs/gtm/growth-loop/experiment-card.html` is that
+output path: six stages, local-only, publishes nothing.
+
+**Three gates carry the weight.** A real publication is blocked without founder
+approval. Founder approval cannot lift the unverified-tracking block, because
+approval is permission to act and not evidence the action will be measurable —
+`rb-he-comm-001` and `rb-he-aso-001` were both approved, both published, and
+both are permanently unreadable. And "not yet measurable" is a first-class
+outcome that always carries a reason and the condition that ends it; no rate is
+computed below n=10.
+
+**No measurement rule was invented.** D7 = 168h, n >= 10, exact
+`app_version` + `build_number`, person-level internal exclusion and the
+pre-release integrity check all come from `scripts/measurement_contract.py` in
+the Resumely iOS repo. The operating guide points at that command rather than
+reimplementing it.
+
+**Campaign identity now survives to the store click, and no further.**
+`src/lib/campaign-context.ts` reads `utm_campaign` (or `campaign_id`) at
+arrival, sanitises it to one spelling, persists it, and stamps it onto Apple's
+`ct` token; `AppStoreCta` emits a new web-only `campaign_store_handoff`. The
+governed activation events are untouched — they are iOS-only and filter on
+`$lib = resumely-ios-urlsession`, which no web event carries. **A web arrival is
+still not joined to an in-app activation** and this change does not pretend
+otherwise: the App Store does not forward parameters into the installed app.
+
+**Not verified: the repository's own test suite.** `node_modules` reads time out
+under iCloud sync — `require('jsdom')` alone took 1,612,476 ms. All 23
+assertions were run instead through `node --experimental-strip-types --test`
+against the same two modules, and they pass. One real defect surfaced that way
+and was fixed: the Codex handoff brief did not name the campaign id, so it was
+not traceable back to its cycle.
+
+Recovered 2026-10-06 from the iCloud-eviction rescue branch and opened as a PR on
+`feat/growth-loop-cycle1`. Not deployed, not published, not merged. Cycle 1 is seeded in
+`docs/gtm/growth-loop/cycle-01.md` and has not been run.
+
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
 
 ## 2026-09-25: reliability upgrade Stage 2, the optimizer stops inserting job-ad tools
