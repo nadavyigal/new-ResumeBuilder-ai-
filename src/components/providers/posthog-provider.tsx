@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { initPostHog, posthog, sanitizeAnalyticsUrl } from '@/lib/posthog';
+import { resolveCampaign } from '@/lib/campaign-context';
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +41,15 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
 
       // Register as super properties
       posthog.register(utmData);
+    }
+
+    // `campaign_id` is the one identity the growth loop's card, the store's
+    // `ct` token and this session all spell the same way, so a campaign can be
+    // matched across the three without reconciling three different UTM sets.
+    // Additive only: no governed event's meaning depends on it.
+    const campaign = resolveCampaign(window.location.search);
+    if (campaign) {
+      posthog.register({ campaign_id: campaign.campaign_id });
     }
 
     utmCapturedRef.current = true;

@@ -1,13 +1,56 @@
 # Project Progress
 
-- Status: WP-49 carryover is live, and now countable — #139, #140 and #141 are merged to main; deploy verification outstanding
-- Current Phase: Resumely activation funnel (WP-49 carryover)
+## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
+
+**Four channel rankings, a GTM packet and a weekly checklist already existed.**
+None of them was the missing piece. Every one terminated in a founder-only
+publish action with no output path, so nothing published and nothing was
+measured; `distribution-os/experiment-log.md` had not been touched since
+2026-07-28. The card at `docs/gtm/growth-loop/experiment-card.html` is that
+output path: six stages, local-only, publishes nothing.
+
+**Three gates carry the weight.** A real publication is blocked without founder
+approval. Founder approval cannot lift the unverified-tracking block, because
+approval is permission to act and not evidence the action will be measurable —
+`rb-he-comm-001` and `rb-he-aso-001` were both approved, both published, and
+both are permanently unreadable. And "not yet measurable" is a first-class
+outcome that always carries a reason and the condition that ends it; no rate is
+computed below n=10.
+
+**No measurement rule was invented.** D7 = 168h, n >= 10, exact
+`app_version` + `build_number`, person-level internal exclusion and the
+pre-release integrity check all come from `scripts/measurement_contract.py` in
+the Resumely iOS repo. The operating guide points at that command rather than
+reimplementing it.
+
+**Campaign identity now survives to the store click, and no further.**
+`src/lib/campaign-context.ts` reads `utm_campaign` (or `campaign_id`) at
+arrival, sanitises it to one spelling, persists it, and stamps it onto Apple's
+`ct` token; `AppStoreCta` emits a new web-only `campaign_store_handoff`. The
+governed activation events are untouched — they are iOS-only and filter on
+`$lib = resumely-ios-urlsession`, which no web event carries. **A web arrival is
+still not joined to an in-app activation** and this change does not pretend
+otherwise: the App Store does not forward parameters into the installed app.
+
+**Not verified: the repository's own test suite.** `node_modules` reads time out
+under iCloud sync — `require('jsdom')` alone took 1,612,476 ms. All 23
+assertions were run instead through `node --experimental-strip-types --test`
+against the same two modules, and they pass. One real defect surfaced that way
+and was fixed: the Codex handoff brief did not name the campaign id, so it was
+not traceable back to its cycle.
+
+Local only: branch `feat/growth-loop-cycle1-local`, 1 commit, unpushed. Not
+deployed, not published, not merged. Cycle 1 is seeded in
+`docs/gtm/growth-loop/cycle-01.md` and has not been run.
+
+- Status: growth-loop card installed locally on `feat/growth-loop-cycle1-local` (1 commit, unpushed); WP-49 carryover remains live and countable
+- Current Phase: Resumely distribution — weekly growth loop, cycle 1 seeded not run
 - Active Story: none
-- Last Completed Story: the carryover optimization join (#140) and the job extraction that never ran (#141)
+- Last Completed Story: the growth-loop experiment card, its operating guide, and campaign identity carried to the App Store `ct` token
 - Next Recommended Story: give the web an `is_internal_tester` person property — it has none, so every founder and QA session counts as a real user in every activation number
-- Blockers: none. Both fixes are merged but unverified in production.
-- Last Validation: 2026-08-14 — 16/16 carryover suites, 5/5 resume-id route, tsc clean in src/, eslint clean; full-suite control identical to the clean tree (16 failed suites / 76 failed tests, pre-existing Playwright specs)
-- Last Updated: 2026-08-14
+- Blockers: **`npm test` cannot run in this checkout.** `node_modules` reads time out (`ETIMEDOUT` in `fs.readFileSync`); `require('jsdom')` measured at 1,612,476 ms. The repo sits under the iCloud-synced `~/Documents`. Founder decision needed: move the repo (or its `node_modules`) off the synced path.
+- Last Validation: 2026-09-12 — 23/23 assertions green via `node --experimental-strip-types --test` (dependency-free mirror of both new Jest suites); card HTML wiring checked statically (28 controls, 0 dangling ids, 0 external network refs); pre-commit secret scan exit 0. **Jest itself did not run** — see Blockers.
+- Last Updated: 2026-09-12
 
 > **Measurement boundary: 2026-08-14 10:09:25 UTC** (Vercel production deploy `2xcubb7h1`, live ~10:11 UTC). #141 changes the free ATS score itself: requirements now reach the scorer and the fit verdict goes from absent to present. Free scores before and after that deploy are not comparable. Split on it, the way `optimization_completed` had to be split on 2026-08-12 and the score engine on 2026-06-18.
 
