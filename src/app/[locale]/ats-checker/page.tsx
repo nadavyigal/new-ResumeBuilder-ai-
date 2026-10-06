@@ -1,6 +1,7 @@
 // src/app/[locale]/ats-checker/page.tsx
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { AppStoreCta } from '@/components/landing/AppStoreCta';
 import { FreeATSChecker } from '@/components/landing/FreeATSChecker';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -40,9 +41,6 @@ export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.appStoreCta' });
 
-  const APP_STORE_URL =
-    'https://apps.apple.com/app/resume-ai-cv-builder/id6776752349?ct=web-ats&at=organic';
-
   return (
     <>
       <Header />
@@ -58,14 +56,13 @@ export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
             <p className="text-foreground/70 mb-6">
               {t('subheading')}
             </p>
-            <a
-              href={APP_STORE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Campaign-aware: the store link carries the arriving campaign as
+                Apple's `ct` token, defaulting to the previous organic value. */}
+            <AppStoreCta
+              label={t('button')}
+              locale={locale}
               className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-semibold text-base hover:bg-primary/90 transition-colors"
-            >
-              {t('button')}
-            </a>
+            />
           </div>
         </section>
       </main>

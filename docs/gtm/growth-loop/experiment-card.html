@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resumely growth loop — experiment card</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#fff; --ink:#1b1b18; --muted:#6b6b63; --line:#e2e2dc;
+    --ok:#1f7a4d; --warn:#8a5b00; --stop:#a3231f; --accent:#2b4c7e;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#15161a;--panel:#1d1f24;--ink:#ececeb;--muted:#9a9a95;--line:#31343b;
+          --ok:#5cc48d;--warn:#e0a83a;--stop:#e8756f;--accent:#8fb4e8;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+       background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:18px}
+  .bar strong{font-size:13px}
+  fieldset{border:1px solid var(--line);border-radius:10px;background:var(--panel);
+           padding:14px 16px 18px;margin:0 0 16px}
+  legend{font-weight:650;padding:0 6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input[type=text],input[type=number],textarea,select{
+    width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;
+    background:var(--bg);color:var(--ink);font:inherit}
+  textarea{min-height:64px;resize:vertical}
+  .check{display:flex;gap:8px;align-items:flex-start;margin-top:8px}
+  .check input{margin-top:3px}
+  .check span{font-size:13px;color:var(--ink)}
+  button{font:inherit;padding:7px 14px;border-radius:6px;border:1px solid var(--line);
+         background:var(--panel);color:var(--ink);cursor:pointer}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .panel{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:14px 16px;margin-bottom:16px}
+  .blockers{list-style:none;margin:8px 0 0;padding:0}
+  .blockers li{padding:6px 0 6px 18px;position:relative;color:var(--stop)}
+  .blockers li::before{content:"■";position:absolute;left:0;font-size:9px;top:9px}
+  .verdict-ok{color:var(--ok);font-weight:650}
+  .verdict-hold{color:var(--warn);font-weight:650}
+  .verdict-stop{color:var(--stop);font-weight:650}
+  pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);
+      border-radius:8px;padding:12px;max-height:340px;overflow:auto;font-size:12px}
+  .role{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .role h4{margin:0 0 4px;font-size:13px}
+  .role p{margin:0 0 4px;font-size:13px}
+  .role ul{margin:4px 0 0 18px;padding:0;font-size:12px;color:var(--muted)}
+  .note{font-size:12px;color:var(--muted);margin-top:8px}
+  .rowbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  code{background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Resumely growth loop — experiment card</h1>
+  <p class="sub">One cycle, six stages. This file is a local operating tool: it publishes nothing, sends nothing, and reads nothing from the network.</p>
+
+  <div class="bar">
+    <strong>Mode</strong>
+    <select id="mode">
+      <option value="rehearsal">Rehearsal — runs the card, publishes nothing</option>
+      <option value="real">Real — records an actual external action</option>
+    </select>
+    <span id="modeNote" class="note" style="margin:0"></span>
+  </div>
+
+  <div class="panel" id="gatePanel"></div>
+
+  <fieldset><legend>1. Frame</legend>
+    <div class="grid">
+      <div><label for="campaign_id">Campaign ID <code>product-channel-date-slug</code></label>
+        <input type="text" id="campaign_id" placeholder="rb-li-20260910-trusted-workspace"></div>
+      <div><label for="channel">Channel</label>
+        <input type="text" id="channel" placeholder="LinkedIn (personal profile)"></div>
+      <div><label for="locale">Locale</label>
+        <input type="text" id="locale" placeholder="he"></div>
+      <div><label for="positioning">Positioning under test</label>
+        <input type="text" id="positioning" placeholder="Trusted application workspace"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="question">The question this cycle answers</label>
+      <textarea id="question" placeholder="Does one Hebrew LinkedIn post produce attributable arrivals, and does the loop execute end to end?"></textarea>
+    </div>
+    <div style="margin-top:12px">
+      <label for="destination">Destination URL (the campaign link, with the campaign id in utm_campaign)</label>
+      <input type="text" id="destination" placeholder="https://resumelybuilderai.com/he/ats-checker?utm_source=linkedin&utm_medium=social&utm_campaign=...">
+      <p class="note">The destination must carry the same campaign id as the field above. Anything else makes the arrival unattributable.</p>
+    </div>
+  </fieldset>
+
+  <fieldset><legend>2. Prepare</legend>
+    <div><label for="asset_ref">Asset reference (the existing draft being used, not a new one)</label>
+      <input type="text" id="asset_ref" placeholder="vault 2026-08-16-resumely-linkedin-posts.md — post 2"></div>
+    <div class="grid" style="margin-top:12px">
+      <div><label for="baseline_source">Pre-action baseline: how it was read</label>
+        <input type="text" id="baseline_source" placeholder="python3 scripts/measurement_contract.py (Resumely iOS repo)"></div>
+      <div><label for="baseline_value">Pre-action baseline: the value at read time</label>
+        <input type="text" id="baseline_value" placeholder="0 external activations, 1.5.1 (29)"></div>
+      <div><label for="baseline_read_at">Pre-action baseline: read timestamp (UTC, ISO 8601)</label>
+        <input type="text" id="baseline_read_at" placeholder="2026-09-10T00:00:00Z"></div>
+      <div><label for="tracking_status">Tracking status</label>
+        <select id="tracking_status">
+          <option value="unverified">unverified</option>
+          <option value="verified">verified — link opened, campaign id observed at arrival</option>
+        </select></div>
+    </div>
+    <div style="margin-top:12px"><label for="tracking_note">How tracking was verified</label>
+      <input type="text" id="tracking_note" placeholder="Opened the destination; campaign_id present on the arrival event"></div>
+  </fieldset>
+
+  <fieldset><legend>3. Review and approve</legend>
+    <div><label for="claims_checked">Claim check against the avoid-list in <code>.agents/product-marketing.md</code></label>
+      <input type="text" id="claims_checked" placeholder="No pass ATS / guaranteed / get interviews / למצוא עבודה"></div>
+    <div class="check">
+      <input type="checkbox" id="founder_approval">
+      <span><strong>Founder approval.</strong> Only the founder releases an external action. Approval is permission to act; it is not evidence that the action will be measurable, and it cannot lift the tracking block.</span>
+    </div>
+    <div style="margin-top:10px"><label for="approved_at">Approved at (UTC)</label>
+      <input type="text" id="approved_at" placeholder="2026-09-10T08:40:00Z"></div>
+  </fieldset>
+
+  <fieldset><legend>4. Manual publication record</legend>
+    <p class="note" style="margin-top:0">Publication is manual and external. This card records it; it never performs it.</p>
+    <div class="grid">
+      <div><label for="published_at">Actual publication timestamp (UTC)</label>
+        <input type="text" id="published_at" placeholder="2026-09-10T09:00:00Z"></div>
+      <div><label for="published_url">Direct link to the published item</label>
+        <input type="text" id="published_url" placeholder="https://www.linkedin.com/posts/..."></div>
+      <div><label for="operating_minutes">Operating time (minutes)</label>
+        <input type="number" id="operating_minutes" min="0" placeholder="25"></div>
+      <div><label for="correction_rounds">Correction rounds</label>
+        <input type="number" id="correction_rounds" min="0" placeholder="1"></div>
+    </div>
+    <div class="rowbtns">
+      <button id="btnRehearse">Run rehearsal</button>
+      <button id="btnRecord" class="primary">Record real publication</button>
+    </div>
+    <p class="note" id="recordNote"></p>
+  </fieldset>
+
+  <fieldset><legend>5. Evidence readout</legend>
+    <div><label for="channel_evidence">Channel evidence — replies, not impressions</label>
+      <input type="text" id="channel_evidence" placeholder="3 replies, 1 from a recruiter, 0 DMs"></div>
+    <div style="margin-top:12px"><label for="posthog_evidence">PostHog read — paste the command output verbatim</label>
+      <textarea id="posthog_evidence" placeholder="Output of scripts/measurement_contract.py, unedited"></textarea></div>
+    <div class="grid" style="margin-top:12px">
+      <div><label for="n_denominator">n at <code>resume_file_selected</code> (mature, external)</label>
+        <input type="number" id="n_denominator" min="0" placeholder="leave empty if not run"></div>
+      <div><label for="n_activations">n at <code>optimization_completed</code> (mature, external)</label>
+        <input type="number" id="n_activations" min="0" placeholder="leave empty if not run"></div>
+    </div>
+    <div style="margin-top:12px"><label for="supporting_evidence">Supporting evidence (Supabase — secondary only, never the headline)</label>
+      <input type="text" id="supporting_evidence" placeholder="Optional"></div>
+    <div class="panel" id="verdictPanel" style="margin-top:14px"></div>
+  </fieldset>
+
+  <fieldset><legend>6. Decision</legend>
+    <div class="grid">
+      <div><label for="decision">Decision</label>
+        <select id="decision">
+          <option value="">—</option>
+          <option value="continue">continue — run the next cycle as planned</option>
+          <option value="adjust">adjust — same channel, changed input</option>
+          <option value="hold">hold — wait for the re-read condition</option>
+          <option value="stop">stop — this channel is not worth another cycle</option>
+        </select></div>
+      <div><label for="next_review_at">Next review date</label>
+        <input type="text" id="next_review_at" placeholder="2026-09-17"></div>
+    </div>
+    <div style="margin-top:12px"><label for="next_action">Next action — one, owned, dated</label>
+      <input type="text" id="next_action" placeholder="Second post from the same draft set in 3 days"></div>
+  </fieldset>
+
+  <div class="panel"><strong>Bounded handoffs</strong>
+    <p class="note" style="margin-top:2px">Every role's brief comes from this card, and each one carries what it must not do.</p>
+    <div id="handoffs"></div>
+  </div>
+
+  <div class="panel">
+    <strong>Record</strong>
+    <div class="rowbtns">
+      <button id="btnSave">Save locally</button>
+      <button id="btnLoad">Load saved</button>
+      <button id="btnExportJson">Export JSON</button>
+      <button id="btnExportMd">Export Markdown</button>
+      <button id="btnClear">Clear</button>
+    </div>
+    <pre id="record"></pre>
+  </div>
+</div>
+
+<script src="loop-card.logic.js"></script>
+<script>
+(function(){
+  'use strict';
+  var L = window.GrowthLoopCard;
+  var STORE_KEY = 'resumely.growth-loop.card';
+  var FIELDS = ['mode','campaign_id','channel','locale','positioning','question','destination',
+    'asset_ref','baseline_source','baseline_value','baseline_read_at','tracking_status','tracking_note',
+    'claims_checked','approved_at','published_at','published_url','operating_minutes','correction_rounds',
+    'channel_evidence','posthog_evidence','n_denominator','n_activations','supporting_evidence',
+    'decision','next_action','next_review_at'];
+
+  function el(id){ return document.getElementById(id); }
+
+  function readState(){
+    var s = {};
+    FIELDS.forEach(function(f){ var n = el(f); if (n) s[f] = n.value; });
+    s.founder_approval = el('founder_approval').checked;
+    ['operating_minutes','correction_rounds','n_denominator','n_activations'].forEach(function(f){
+      if (s[f] === '') delete s[f];
+    });
+    return s;
+  }
+
+  function writeState(s){
+    FIELDS.forEach(function(f){ var n = el(f); if (n && s[f] !== undefined && s[f] !== null) n.value = s[f]; });
+    el('founder_approval').checked = s.founder_approval === true;
+  }
+
+  function renderGate(state){
+    var gate = L.publicationGate(state);
+    var host = el('gatePanel');
+    var head = gate.mode === 'real'
+      ? (gate.allowedToPublish
+          ? '<span class="verdict-ok">Real mode — cleared to record a publication.</span>'
+          : '<span class="verdict-stop">Real mode — publication blocked (' + gate.blockers.length + ').</span>')
+      : '<span class="verdict-hold">Rehearsal mode — nothing will be published.</span>';
+    var list = gate.blockers.length
+      ? '<ul class="blockers">' + gate.blockers.map(function(b){ return '<li>' + b + '</li>'; }).join('') + '</ul>'
+      : '<p class="note">No blockers standing.</p>';
+    host.innerHTML = '<strong>Gate</strong><p style="margin:6px 0 0">' + head + '</p>' + list;
+    el('modeNote').textContent = gate.mode === 'real'
+      ? 'Real mode records an external action you performed yourself.'
+      : 'Rehearsal exercises every stage and stops short of the external action.';
+    el('btnRecord').disabled = !gate.allowedToPublish;
+    return gate;
+  }
+
+  function renderVerdict(state){
+    var v = L.evidenceVerdict(state, new Date().toISOString());
+    var host = el('verdictPanel');
+    if (v.measurable){
+      host.innerHTML = '<span class="verdict-ok">Measurable — ' + v.rate_label + '</span>' +
+        '<p class="note">' + v.caveat + '</p>';
+    } else {
+      var label = v.state === 'counts_only' ? 'Counts only' : 'Not yet measurable';
+      host.innerHTML = '<span class="verdict-hold">' + label + '</span>' +
+        '<p style="margin:6px 0 0"><strong>Reason:</strong> ' + v.reason + '</p>' +
+        '<p style="margin:4px 0 0"><strong>Re-read when:</strong> ' + v.reread_when + '</p>';
+    }
+  }
+
+  function renderHandoffs(state){
+    var h = L.handoffs(state);
+    var titles = { marketing:'Marketing', grok:'Grok (Growth & Communications desk)',
+                   codex:'Codex', claude_code:'Claude Code' };
+    el('handoffs').innerHTML = Object.keys(h).map(function(k){
+      var r = h[k];
+      return '<div class="role"><h4>' + titles[k] + '</h4>' +
+        '<p><em>Owns:</em> ' + r.owns + '</p>' +
+        '<p><em>Brief:</em> ' + r.brief + '</p>' +
+        '<ul>' + r.must_not.map(function(m){ return '<li>Must not: ' + m + '</li>'; }).join('') + '</ul></div>';
+    }).join('');
+  }
+
+  function renderRecord(state){
+    el('record').textContent = JSON.stringify(L.buildRecord(state, new Date().toISOString()), null, 2);
+  }
+
+  function refresh(){
+    var state = readState();
+    renderGate(state);
+    renderVerdict(state);
+    renderHandoffs(state);
+    renderRecord(state);
+  }
+
+  function download(name, text, type){
+    var blob = new Blob([text], { type: type });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 0);
+  }
+
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+
+  el('btnRehearse').addEventListener('click', function(){
+    var result = L.rehearse(readState());
+    var extra = result.wouldBlockInRealMode.length
+      ? ' In real mode this would have been blocked by: ' + result.wouldBlockInRealMode.join(' / ')
+      : ' In real mode this would have been cleared.';
+    el('recordNote').textContent = result.note + extra;
+  });
+
+  el('btnRecord').addEventListener('click', function(){
+    var state = readState();
+    var gate = L.publicationGate(state);
+    if (!gate.allowedToPublish){
+      el('recordNote').textContent = 'Blocked: ' + gate.blockers.join(' / ');
+      return;
+    }
+    var missing = L.missingFields('publication_record', state);
+    if (missing.length){
+      el('recordNote').textContent = 'Fill the publication record first: ' + missing.join(', ');
+      return;
+    }
+    el('recordNote').textContent =
+      'Publication recorded at ' + state.published_at + '. This card recorded it; it did not publish it.';
+    refresh();
+  });
+
+  el('btnSave').addEventListener('click', function(){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(readState())); el('recordNote').textContent = 'Saved locally.'; }
+    catch (e) { el('recordNote').textContent = 'Local storage unavailable; use Export instead.'; }
+  });
+
+  el('btnLoad').addEventListener('click', function(){
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw){ el('recordNote').textContent = 'Nothing saved yet.'; return; }
+      writeState(JSON.parse(raw)); refresh(); el('recordNote').textContent = 'Loaded.';
+    } catch (e) { el('recordNote').textContent = 'Saved record could not be read.'; }
+  });
+
+  el('btnExportJson').addEventListener('click', function(){
+    var state = readState();
+    var record = L.buildRecord(state, new Date().toISOString());
+    download((state.campaign_id || 'growth-loop') + '.json', JSON.stringify(record, null, 2), 'application/json');
+  });
+
+  el('btnExportMd').addEventListener('click', function(){
+    var state = readState();
+    var record = L.buildRecord(state, new Date().toISOString());
+    download((state.campaign_id || 'growth-loop') + '.md', L.toMarkdown(record), 'text/markdown');
+  });
+
+  el('btnClear').addEventListener('click', function(){
+    FIELDS.forEach(function(f){ var n = el(f); if (n) n.value = ''; });
+    el('mode').value = 'rehearsal';
+    el('tracking_status').value = 'unverified';
+    el('founder_approval').checked = false;
+    el('recordNote').textContent = '';
+    refresh();
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
