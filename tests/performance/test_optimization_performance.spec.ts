@@ -5,12 +5,13 @@
  * Validates that optimization completes within acceptable time limits
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { it, expect } from '@jest/globals';
+import { describeLiveAI } from '../helpers/live-gates';
 import { optimizeResume } from '@/lib/ai-optimizer';
 
 const PERFORMANCE_THRESHOLD = 20000; // 20 seconds in milliseconds
 
-describe('AI Optimization Performance - FR-010', () => {
+describeLiveAI('AI Optimization Performance - FR-010', () => {
   const SAMPLE_RESUME = `
     John Smith
     Senior Software Engineer
@@ -187,7 +188,7 @@ describe('AI Optimization Performance - FR-010', () => {
   }, 25000);
 });
 
-describe('Performance Benchmarks', () => {
+describeLiveAI('Performance Benchmarks', () => {
   it('should track performance degradation over time', async () => {
     const results: Array<{ duration: number; score: number }> = [];
 
