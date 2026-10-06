@@ -1,5 +1,17 @@
 # Lessons Learned — ResumeBuilder
 
+## A red suite on main hides the bug behind it (2026-10-06)
+
+**Symptom:** 18 suites / 77 tests were red on main for months and every PR called them "pre-existing". Two were real product bugs (fragment skills written into resumes by "apply tip"; CamelCase keywords dropped by `extractKeywords`), one was a real missing Stripe webhook, and two suites had never run at all because they crashed at parse time.
+
+**Cause:** once a suite is red, a new failure inside it is invisible. A parse error hides every assertion in the file; a failing first line hides the lines after it.
+
+**Rules:**
+1. When fixing a stale assertion, run the file again and read what the *later* assertions say. The template suites only proved "no data loss" after the heading checks stopped failing first.
+2. A negative check against a string the output never contains (`not.toContain('CERTIFICATIONS')` when the HTML says `Certifications`) can never fail. Assert on the real markup.
+3. A test that needs OpenAI, the real Supabase project or a running server is gated behind an opt-in flag (`tests/helpers/live-gates.ts`), never left red in the default run.
+4. Never quarantine by name in CI. Fix the suite or gate it explicitly; CI runs the whole `npx jest`.
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.

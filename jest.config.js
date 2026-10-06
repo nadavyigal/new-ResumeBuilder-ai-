@@ -19,6 +19,9 @@ const customJestConfig = {
     '<rootDir>/resume-builder-ai/',
     '<rootDir>/.claude/worktrees/',
   ],
+  // Playwright specs: `npx playwright test` owns e2e/ (playwright.config.ts testDir).
+  // tests/e2e/ holds two more Playwright specs that no runner currently executes.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/e2e/', '<rootDir>/tests/e2e/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
@@ -34,5 +37,24 @@ const customJestConfig = {
   ],
 }
 
+// ESM-only packages that jest must transform. next/jest ignores all of
+// node_modules, so `import` statements in these crashed 6 suites at parse time:
+// @react-pdf/renderer (via src/lib/export.ts) and remark (via src/lib/blog.ts).
+const ESM_PACKAGES = [
+  '@react-pdf', 'yoga-layout',
+  'remark', 'remark-.*', 'unified', 'bail', 'is-plain-obj', 'trough', 'vfile.*', 'unist-.*',
+  'mdast-.*', 'micromark.*', 'decode-named-character-reference', 'character-entities.*',
+  'hast-.*', 'html-void-elements', 'property-information', 'space-separated-tokens',
+  'comma-separated-tokens', 'zwitch', 'stringify-entities', 'ccount', 'longest-streak',
+  'devlop', 'trim-lines', 'markdown-table', 'escape-string-regexp', 'web-namespaces',
+  '@ungap', 'emoticon', 'extend',
+]
+
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+module.exports = async () => {
+  const config = await createJestConfig(customJestConfig)()
+  // next/jest's first pattern ignores every node_modules package except its own
+  // transpile list; re-open it for the ESM packages above.
+  config.transformIgnorePatterns[0] = `/node_modules/(?!.pnpm)(?!(geist|${ESM_PACKAGES.join('|')})/)`
+  return config
+}

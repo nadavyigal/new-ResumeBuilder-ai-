@@ -9,72 +9,83 @@
  * 5. Stripe webhook security
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterEach, jest } from '@jest/globals';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, validateEnvironment } from '@/lib/env';
+import { describeLiveBackend } from './helpers/live-gates';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+const VALID_ENV = {
+  NEXT_PUBLIC_SUPABASE_URL: 'https://abcdefghijklmnop.supabase.co',
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key-0123456789abcdef',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role-0123456789abcdef',
+  OPENAI_API_KEY: 'sk-test-0123456789abcdefghij',
+};
+
+type MutableEnv = Record<string, string | undefined>;
+
+/** Load a fresh copy of src/lib/env.ts (it caches its result) under the given env. */
+function loadGetEnv(overrides: MutableEnv): () => unknown {
+  const env = process.env as MutableEnv;
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) delete env[key];
+    else env[key] = value;
+  }
+  let getEnv: (() => unknown) | undefined;
+  jest.isolateModules(() => {
+    getEnv = (require('@/lib/env') as { getEnv: () => unknown }).getEnv;
+  });
+  return getEnv!;
+}
 
 describe('Security Fixes Verification', () => {
 
   // ==================== TEST 1: ENVIRONMENT VALIDATION ====================
+  // src/lib/env.ts exposes getEnv(); the validateEnvironment/getRequiredEnv API
+  // these tests used to import was deleted with the duplicate src tree (c59ea78).
 
   describe('1. Environment Variable Validation', () => {
-    it('should validate all required environment variables are set', () => {
-      // In test environment without .env.local, this is expected to throw
-      // The test verifies that the validation function exists and works
-      const hasEnvVars = Boolean(
-        process.env.NEXT_PUBLIC_SUPABASE_URL &&
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-        process.env.SUPABASE_SERVICE_ROLE_KEY &&
-        process.env.OPENAI_API_KEY
-      );
+    const snapshot = { ...process.env };
 
-      if (hasEnvVars) {
-        expect(() => validateEnvironment()).not.toThrow();
-      } else {
-        // In test mode without env vars, expect validation to throw
-        expect(() => validateEnvironment()).toThrow(/Environment validation failed/);
+    afterEach(() => {
+      const env = process.env as MutableEnv;
+      for (const key of Object.keys(env)) {
+        if (!(key in snapshot)) delete env[key];
       }
+      Object.assign(env, snapshot);
     });
 
-    it('should have SUPABASE_URL defined or be in test mode', () => {
-      if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-        expect(SUPABASE_URL).toBeDefined();
-        expect(SUPABASE_URL).toContain('supabase.co');
-      } else {
-        // In test mode, env vars may not be set (properly protected)
-        expect(SUPABASE_URL).toBe('');
-      }
+    it('accepts a complete, well-formed environment', () => {
+      const getEnv = loadGetEnv({ ...VALID_ENV, NODE_ENV: 'test' });
+      expect(() => getEnv()).not.toThrow();
     });
 
-    it('should have SUPABASE_ANON_KEY defined or be in test mode', () => {
-      if (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        expect(SUPABASE_ANON_KEY).toBeDefined();
-        expect(SUPABASE_ANON_KEY.length).toBeGreaterThan(0);
-      } else {
-        // In test mode, env vars may not be set (properly protected)
-        expect(SUPABASE_ANON_KEY).toBe('');
-      }
+    it('names the missing variable when NEXT_PUBLIC_SUPABASE_URL is absent', () => {
+      const getEnv = loadGetEnv({ ...VALID_ENV, NODE_ENV: 'test', NEXT_PUBLIC_SUPABASE_URL: undefined });
+      expect(() => getEnv()).toThrow(/Invalid environment variables[\s\S]*NEXT_PUBLIC_SUPABASE_URL/);
     });
 
-    it('should provide clear error messages for missing env vars', () => {
-      const originalEnv = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    it('rejects a Supabase URL that is not https', () => {
+      const getEnv = loadGetEnv({
+        ...VALID_ENV,
+        NODE_ENV: 'test',
+        NEXT_PUBLIC_SUPABASE_URL: 'http://abcdefghijklmnop.supabase.co',
+      });
+      expect(() => getEnv()).toThrow(/must start with "https:\/\/"/);
+    });
 
-      expect(() => {
-        // Re-import to test with missing var
-        const { getRequiredEnv } = require('@/lib/env');
-        getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL');
-      }).toThrow(/Missing required environment variable/);
-
-      // Restore
-      process.env.NEXT_PUBLIC_SUPABASE_URL = originalEnv;
+    it('requires server secrets in production', () => {
+      const getEnv = loadGetEnv({ ...VALID_ENV, NODE_ENV: 'production', OPENAI_API_KEY: undefined });
+      expect(() => getEnv()).toThrow(/OPENAI_API_KEY/);
     });
   });
 
   // ==================== TEST 2: RLS POLICIES ====================
 
-  describe('2. Row Level Security (RLS) Policies', () => {
+  // Hits the real Supabase project; the assertions are smoke checks, not an RLS audit.
+  describeLiveBackend('2. Row Level Security (RLS) Policies', () => {
     let supabase: SupabaseClient<Database>;
 
     beforeAll(() => {
@@ -135,7 +146,7 @@ describe('Security Fixes Verification', () => {
 
   // ==================== TEST 3: ATOMIC QUOTA INCREMENT ====================
 
-  describe('3. Atomic Quota Increment Function', () => {
+  describeLiveBackend('3. Atomic Quota Increment Function', () => {
     let supabase: SupabaseClient<Database>;
 
     beforeAll(() => {
@@ -187,25 +198,31 @@ describe('Security Fixes Verification', () => {
   });
 
   // ==================== TEST 5: STRIPE WEBHOOK SECURITY ====================
+  // There is no Stripe webhook route today: the only copy was deleted with the
+  // duplicate src tree (c59ea78). /api/upgrade still creates Stripe subscriptions,
+  // so nothing would mark a paying user premium. That is safe only while the
+  // monetization gate is closed. This test fails the moment the gate opens
+  // without a signature-verified webhook in place.
 
   describe('5. Stripe Webhook Security', () => {
-    it('should verify webhook route includes signature verification', async () => {
+    it('does not open paid upgrades without a signature-verified webhook', () => {
       const fs = require('fs');
       const path = require('path');
+      const { MONETIZATION_GATE_OPEN } = require('@/lib/monetization-gate');
 
-      const webhookRoutePath = path.join(
-        process.cwd(),
-        'src/app/api/stripe/webhook/route.ts'
-      );
+      const webhookRoutePath = path.join(process.cwd(), 'src/app/api/stripe/webhook/route.ts');
+      const hasWebhook = fs.existsSync(webhookRoutePath);
 
+      if (!MONETIZATION_GATE_OPEN) {
+        expect(MONETIZATION_GATE_OPEN).toBe(false);
+        return;
+      }
+
+      expect(hasWebhook).toBe(true);
       const routeContent = fs.readFileSync(webhookRoutePath, 'utf-8');
-
-      // Verify security checks are present
       expect(routeContent).toContain('stripe-signature');
       expect(routeContent).toContain('constructEvent');
       expect(routeContent).toContain('STRIPE_WEBHOOK_SECRET');
-
-      // Verify it doesn't return 501 (Not Implemented)
       expect(routeContent).not.toContain('501');
     });
   });

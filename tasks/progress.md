@@ -1,13 +1,33 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
+- Status: Jest triage (branch `claude/2026-10-06-jest-triage`, PR open): full `npx jest` green for the first time (was 18 failed suites / 77 failed tests on main); CI now gates on the whole suite. Growth-loop card (#162) merged and deployed 2026-10-06.
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: none
-- Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
-- Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Active Story: Jest triage PR in review
+- Last Completed Story: Jest triage: 2 product bugs fixed, 6 suites unblocked by an ESM transform, 3 Playwright specs taken out of jest, 4 live-system suites gated behind opt-in flags, stale tests corrected
+- Next Recommended Story: build a signature-verified Stripe webhook before `MONETIZATION_GATE_OPEN` flips (none exists; see the 2026-10-06 entry). Then seniority and scope inflation, WP-77, R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job).
+- Blockers: Stripe webhook missing (blocks opening paid upgrades, not current users); spend approval for the paid batch; founder calls on the R8 gate and the Career Evidence Pilot; founder review of the 13 new eval cases and 10 calibration labels.
+- Last Validation: 2026-10-06: `npx jest --ci` 87 suites passed / 6 skipped, 700 tests passed / 84 skipped / 0 failed; `npm run lint` 0 errors (11 pre-existing warnings); `tsc --noEmit` 22 errors vs 27 on origin/main, the 5 removed were in the fixed tests, none added.
+- Last Updated: 2026-10-06
+
+## 2026-10-06 — Jest triage: 18 red suites on main, 2 of them real product bugs
+
+Baseline on `origin/main` (07c3f9d): 18 failed suites, 77 failed tests, 694 total. After: 0 failed, 784 total (6 suites that crashed at parse time now load and run).
+
+**Real bugs, fixed in code:**
+- `src/lib/agent/applySuggestions.ts`: the "apply tip" keyword path wrote sentence fragments into the user's skills: "Add API to", "GraphQL APIs and", "and SQL query", "Consider". The context regexes take a neighbouring word on each side and `isValidSkill` accepted any 2 to 3 word phrase. Edge stop words are now trimmed or rejected, and instruction verbs and pronouns count as non-skill words.
+- `src/lib/ai-optimizer/index.ts` `extractKeywords`: never matched CamelCase terms (TypeScript, JavaScript, GraphQL, MobX) and joined words across line breaks. Used by the agent ATS and skills-miner tools.
+
+**Real defect, found, not fixed (needs its own story):** there is no Stripe webhook route. The only copy was deleted with the duplicate `src/` tree in c59ea78 (2025-12-17). `/api/upgrade` still creates Stripe subscriptions, so a payer would never be marked premium. Safe today only because `MONETIZATION_GATE_OPEN = false`; `tests/security-fixes.test.ts` now fails the moment the gate opens without a signature-verified webhook.
+
+**Also found:** `src/lib/env.ts` (`getEnv`) is imported by nothing, so its startup validation never runs. Tests now cover its real API; wiring it in is a separate decision.
+
+**Test-side causes (no product defect):**
+- 6 suites crashed parsing ESM-only `@react-pdf/renderer` and `remark`: `jest.config.js` now transforms them. Two template suites then ran for the first time and failed only on uppercase heading literals (CSS uppercases them) and on `O'Brien`, which is correctly HTML-escaped; every content assertion passes, so no résumé data is lost. Two `not.toContain('CERTIFICATIONS')` checks could never fail and now check the real `<h2>`.
+- 3 Playwright specs were collected by jest: `e2e/` and `tests/e2e/` are ignored. `tests/e2e/*` is run by nothing (Playwright's testDir is `./e2e`).
+- 4 suites need OpenAI, the real Supabase project or a running server (two sign up real users): gated behind `RUN_LIVE_AI_TESTS=1` / `RUN_LIVE_BACKEND_TESTS=1` (`tests/helpers/live-gates.ts`). `test_optimize` still uses a placeholder auth token.
+- Stale after intentional changes: `must_have` filler stripping (WP-59, #147), the orchestrator barrel removal (#98), the deleted `validateEnvironment` API, and an `/api key/` regex that missed `API_KEY`.
+
+**CI:** `.github/workflows/ci.yml` gates on the full `npx jest --ci`; the 4-suite quarantine is gone.
 
 ## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
 
