@@ -63,5 +63,12 @@ describe('applySuggestions keyword extraction for acronyms', () => {
     expect(result.skills.technical).toEqual(
       expect.arrayContaining(['GraphQL APIs', 'SQL query optimization'])
     );
+    // Sentence fragments must never be written into the resume as skills.
+    expect(result.skills.technical).not.toEqual(
+      expect.arrayContaining(['Consider'])
+    );
+    result.skills.technical.forEach((skill) => {
+      expect(skill).not.toMatch(/^(and|or|to|add|consider|adding)\b|\b(and|or|to|your)$/i);
+    });
   });
 });

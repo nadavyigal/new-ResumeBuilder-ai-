@@ -208,7 +208,10 @@ export function calculateMatchScore(
 export function extractKeywords(jobDescription: string): string[] {
   const keywords: string[] = [];
 
-  const capitalizedPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
+  // Each word may carry inner capitals (TypeScript, GraphQL, MobX); the old
+  // `[A-Z][a-z]+\b` needed a boundary after the first lowercase run and dropped
+  // every CamelCase term. Phrases join on spaces only, never across a line break.
+  const capitalizedPattern = /\b[A-Z][a-z]+(?:[A-Z][a-z]*)*(?:[ \t]+[A-Z][a-z]+(?:[A-Z][a-z]*)*)*\b/g;
   const capitalized = jobDescription.match(capitalizedPattern) || [];
 
   const acronymPattern = /\b[A-Z]{2,}\b/g;

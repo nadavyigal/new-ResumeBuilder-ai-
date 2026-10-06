@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
-import { listApplicationExpertReports, saveAppliedRunToApplication } from '@/lib/expert-workflows';
+import { listApplicationExpertReports, saveAppliedRunToApplication } from '@/lib/expert-workflows/orchestrator';
 
 type QueryResult = { data: any; error: any };
 

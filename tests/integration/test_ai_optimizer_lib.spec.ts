@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from '@jest/globals';
 import { optimizeResume, calculateMatchScore, extractKeywords } from '@/lib/ai-optimizer';
+import { describeLiveAI } from '../helpers/live-gates';
 
 const SAMPLE_RESUME = `
 John Doe
@@ -39,7 +40,7 @@ Tech Stack: React, TypeScript, Redux, GraphQL, Node.js
 `;
 
 describe('AI Optimizer Library - Epic 3', () => {
-  describe('FR-010: Processing Time', () => {
+  describeLiveAI('FR-010: Processing Time', () => {
     it('should complete optimization within 20 seconds', async () => {
       const startTime = Date.now();
 
@@ -63,7 +64,7 @@ describe('AI Optimizer Library - Epic 3', () => {
     }, 25000);
   });
 
-  describe('FR-011: Content Alignment', () => {
+  describeLiveAI('FR-011: Content Alignment', () => {
     it('should return optimized resume with relevant content', async () => {
       const result = await optimizeResume(SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION);
 
@@ -93,7 +94,7 @@ describe('AI Optimizer Library - Epic 3', () => {
     }, 25000);
   });
 
-  describe('FR-012: Factual Accuracy', () => {
+  describeLiveAI('FR-012: Factual Accuracy', () => {
     it('should not add skills not in original resume', async () => {
       const limitedResume = `
         Junior Developer
@@ -138,7 +139,7 @@ describe('AI Optimizer Library - Epic 3', () => {
     }, 25000);
   });
 
-  describe('FR-013: Match Score', () => {
+  describeLiveAI('FR-013: Match Score', () => {
     it('should return match score between 0 and 100', async () => {
       const result = await optimizeResume(SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION);
 
@@ -175,7 +176,7 @@ describe('AI Optimizer Library - Epic 3', () => {
     }, 25000);
   });
 
-  describe('FR-014: Score Breakdown', () => {
+  describeLiveAI('FR-014: Score Breakdown', () => {
     it('should provide key improvements list', async () => {
       const result = await optimizeResume(SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION);
 
@@ -264,7 +265,7 @@ describe('AI Optimizer Library - Epic 3', () => {
       const result = await optimizeResume(SAMPLE_RESUME, SAMPLE_JOB_DESCRIPTION);
 
       expect(result.success).toBe(false);
-      expect(result.error).toMatch(/api key/i);
+      expect(result.error).toMatch(/api.?key/i); // "OPENAI_API_KEY ... is not set"
 
       process.env.OPENAI_API_KEY = originalKey;
     }, 25000);

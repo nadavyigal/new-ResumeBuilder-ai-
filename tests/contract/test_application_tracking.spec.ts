@@ -10,13 +10,15 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describeLiveBackend } from '../helpers/live-gates';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-describe('Epic 6: Application Tracking - FR-025 to FR-028', () => {
+// Signs up real users in the Supabase project and calls a running app server.
+describeLiveBackend('Epic 6: Application Tracking - FR-025 to FR-028', () => {
   let supabase: SupabaseClient<Database>;
   let testUserId: string;
   let testOptimizationId: string;

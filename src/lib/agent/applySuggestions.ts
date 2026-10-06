@@ -529,6 +529,12 @@ const NON_SKILL_WORDS = new Set([
   'from', 'as', 'on', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
   // Action words (these should be in achievements, not skills)
   'add', 'include', 'use', 'apply', 'implement', 'create', 'develop',
+  // Instruction verbs that open tip text ("Consider adding GraphQL APIs...")
+  'consider', 'adding', 'including', 'highlight', 'mention', 'emphasize', 'showcase',
+  'incorporate', 'ensure', 'expand', 'update', 'remove', 'move', 'switch', 'prioritize',
+  'quantify', 'if',
+  // Pronouns and determiners that border a phrase ("Add API to your skills")
+  'your', 'our', 'my', 'their', 'this', 'that', 'these', 'those',
   // Generic terms
   'job', 'title', 'position', 'role', 'work', 'company', 'skills', 'skill',
   'section', 'resume', 'more', 'other', 'also', 'plus',
@@ -550,12 +556,36 @@ const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
 };
 
 /**
+ * Drop structural words from the edges of a captured phrase.
+ * The context regexes take one neighbouring word on each side, so they return
+ * "GraphQL APIs and" or "Add API to"; only the inside is the skill.
+ */
+function trimBoundaryWords(term: string): string {
+  const words = term.trim().split(/\s+/).filter(Boolean);
+  while (words.length > 0 && NON_SKILL_WORDS.has(words[0].toLowerCase())) words.shift();
+  while (words.length > 0 && NON_SKILL_WORDS.has(words[words.length - 1].toLowerCase())) words.pop();
+  return words.join(' ');
+}
+
+function startsWithNonSkillWord(term: string): boolean {
+  const first = term.trim().split(/\s+/)[0] || '';
+  return NON_SKILL_WORDS.has(first.toLowerCase());
+}
+
+/**
  * Check if a term is likely a valid skill
  */
 function isValidSkill(term: string): boolean {
   const lower = term.toLowerCase().trim();
 
   if (GENERIC_ACRONYMS.has(lower) && !lower.includes(' ')) {
+    return false;
+  }
+
+  // A phrase that starts or ends on a structural word is a sentence fragment,
+  // not a skill: "Add API to", "and SQL query" were written into resumes.
+  const words = lower.split(/\s+/).filter(Boolean);
+  if (words.length > 1 && (NON_SKILL_WORDS.has(words[0]) || NON_SKILL_WORDS.has(words[words.length - 1]))) {
     return false;
   }
 
@@ -598,14 +628,22 @@ function findAcronymContext(acronym: string, text: string): string | null {
   const beforePattern = new RegExp(`\\b([A-Za-z][\\w+#.]+\\s+${escapedAcronym}s?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
   const afterPattern = new RegExp(`\\b(${escapedAcronym}s?\\s+[A-Za-z][\\w+#.]*?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
 
+  // A leading structural word means there is no real context before the
+  // acronym ("and SQL query"), so fall through to the phrase after it.
   const beforeMatch = beforePattern.exec(text);
-  if (beforeMatch && isValidSkill(beforeMatch[1])) {
-    return beforeMatch[1];
+  if (beforeMatch && !startsWithNonSkillWord(beforeMatch[1])) {
+    const candidate = trimBoundaryWords(beforeMatch[1]);
+    if (isValidSkill(candidate)) {
+      return candidate;
+    }
   }
 
   const afterMatch = afterPattern.exec(text);
-  if (afterMatch && isValidSkill(afterMatch[1])) {
-    return afterMatch[1];
+  if (afterMatch) {
+    const candidate = trimBoundaryWords(afterMatch[1]);
+    if (isValidSkill(candidate)) {
+      return candidate;
+    }
   }
 
   const enrichmentOptions = ACRONYM_ENRICHMENT_MAP[acronym.toLowerCase()] || [];
@@ -710,7 +748,7 @@ function extractKeywordsFromText(text: string): string[] {
   // 5. Prefer contextual, multi-word phrases around generic acronyms before falling back
   const contextualAcronymPattern = /\b([A-Za-z][\w+#.]*\s+(?:API|APIs|SQL|QA)(?:\s+[A-Za-z][\w+#.]*)?)\b/gi;
   while ((match = contextualAcronymPattern.exec(text)) !== null) {
-    const term = match[1].trim();
+    const term = trimBoundaryWords(match[1]);
     if (isValidSkill(term)) {
       keywords.push(term);
     }

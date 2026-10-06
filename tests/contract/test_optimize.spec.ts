@@ -10,12 +10,15 @@
  * - FR-014: Score breakdown with keywords, gaps, improvements
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { it, expect, beforeAll, describe } from '@jest/globals';
+import { describeLiveBackend } from '../helpers/live-gates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const TEST_TIMEOUT = 25000; // 25 seconds to account for network + processing
 
-describe('POST /api/upload-resume - Epic 3: AI Optimization', () => {
+// Needs a running app server. authToken below is still a placeholder, so this suite
+// cannot pass until it signs in a real test user.
+describeLiveBackend('POST /api/upload-resume - Epic 3: AI Optimization', () => {
   let authToken: string;
 
   beforeAll(async () => {
