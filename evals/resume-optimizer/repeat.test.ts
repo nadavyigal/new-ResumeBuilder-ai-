@@ -276,6 +276,28 @@ describe('stability report (offline)', () => {
     expect(report.totals.truthGuard).toEqual({ runsRetried: 4, repairsAccepted: 0, termsRemoved: 4, termsRestored: 0, termsUnresolved: 0 });
   });
 
+  it('records what the seniority guard did per run and totals it', async () => {
+    const plan = planRuns(manifest.slice(0, 2), 2);
+    const inflated = {
+      foundBefore: [{ kind: 'management' as const, place: 'summary' as const }],
+      retried: true, repairAccepted: true, corrected: 0, unresolved: [],
+    };
+    const leftover = {
+      foundBefore: [{ kind: 'title' as const, place: 'summary' as const }, { kind: 'scope' as const, place: 'bullet' as const }],
+      retried: true, repairAccepted: false, corrected: 1, unresolved: [{ kind: 'scope' as const, place: 'bullet' as const }],
+    };
+    const clean = { foundBefore: [], retried: false, repairAccepted: false, corrected: 0, unresolved: [] };
+    const guards = [inflated, leftover, clean, clean];
+    let call = 0;
+    const results = await executePlan(plan, deps({ generate: async () => ({ ...outcome(), seniorityGuard: guards[call++] }) }));
+    expect(results.map((r) => r.seniorityGuard)).toEqual(guards);
+    const report = buildStabilityReport(manifest.slice(0, 2), plan, results, {
+      manifestVersion: MANIFEST_VERSION, evaluationDate: EVALUATION_DATE, repeats: 2, config: null,
+      wallTimeMs: null, ledgerRecords: [], blockedSideEffects: 0,
+    });
+    expect(report.totals.seniorityGuard).toEqual({ runsWithInflation: 2, repairsAccepted: 1, corrected: 1, unresolved: 1 });
+  });
+
   it('flags a regression against a baseline, and refuses to compare a changed input', async () => {
     const plan = planRuns(manifest, 3);
     const meta = {
