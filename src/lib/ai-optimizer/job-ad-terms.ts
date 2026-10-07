@@ -71,7 +71,7 @@ const HEBREW_ALIASES: Record<string, string[]> = {
  * Marks a summary sentence as a goal rather than a claim ("eager to learn Gong"). A
  * goal is not policed. The same word in skills, a bullet or a certification always is.
  */
-const ASPIRATION =
+export const ASPIRATION =
   /\b(?:seeking|looking|eager|aiming|aspiring|hoping|keen|excited|motivated|ready)\s+(?:to|for)\b|\binterested in\b|\bwants? to\b|\bto (?:learn|grow|deepen|expand|develop|broaden)\b|מחפש|שואף|שואפ|מעוניין|מעוניינ|ללמוד|להעמיק|להרחיב|להתפתח/i;
 
 function escapeRegExp(s: string): string {

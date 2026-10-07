@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A rewrite prompt cannot stop promotion; check titles, years and leadership claims after it (2026-10-07)
+
+**Symptom:** the optimizer retitled an individual contributor "Engineering Manager", claimed "8+ years" on a three-year career, and wrote "leading teams" for someone who mentored 2 interns. The nightly judge passed every one.
+
+**Fix:** `src/lib/ai-optimizer/seniority-claims.ts` compares each claim with the original résumé after the rewrite and corrects it without a model call, the same posture as `job-ad-terms.ts` and `stripFabricatedMetrics`.
+
+**Rules:**
+1. Every new deterministic check runs against the calibration outputs before it ships: zero honest outputs may change.
+2. A leadership pattern must not match through a preposition, or "Led planning for the team" (true) reads as "led the team" (false).
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.

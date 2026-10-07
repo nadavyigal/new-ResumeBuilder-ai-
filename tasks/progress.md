@@ -1,13 +1,29 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
-- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: none
+- Status: Seniority and scope guard implemented on `fix/seniority-scope-inflation`, PR open, not merged. Merging deploys production via Vercel. Stage 2 (#160) merged 2026-09-26.
+- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), after Stage 2
+- Active Story: seniority and scope inflation guard (PR open, awaiting founder review)
 - Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
-- Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Next Recommended Story: merge the seniority guard after review; then WP-77, then R2. Follow-ups: domain-attached years ("9 years of experience in e-learning" over 9 years of classroom teaching) is still caught only by the grounded judge. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
+- Blockers: spend approval for the paid batch (a repeat batch would measure this guard's effect on live output); founder calls on the R8 gate and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`.
+- Last Validation: 2026-10-07 (after false-positive review): `npx jest tests/unit/seniority-claims.test.ts tests/unit/optimize-pipeline-truth-guard.test.ts tests/unit/job-ad-terms.test.ts evals/resume-optimizer`: 145 passed, 3 skipped (paid); `eslint` on changed files exit 0; `tsc --noEmit` no errors in the changed files. Earlier the same day the full `npx jest` failed the identical 18 suites on a clean `origin/main` worktree (pre-existing). Guard over the 10 calibration outputs: 0 of 3 honest outputs changed; corrects cal-06, cal-07 and cal-08.
+- Last Updated: 2026-10-07
+
+## 2026-10-07 — Seniority and scope guard: the optimizer may no longer promote the candidate
+
+**What failed.** The 2026-09-25 repeat batches showed the optimizer making candidates sound more senior than their résumé: "leading teams" and "mentoring teams" for an engineer who mentored 2 interns, "a proven track record in managing engineering projects", a role retitled to Engineering Manager (cal-07), "8+ years" on a three-year career (cal-06). The nightly judge passed all of them; nothing deterministic in production caught them.
+
+**What changed.** `src/lib/ai-optimizer/seniority-claims.ts`, run in `runOptimizePipeline` after the job-ad terms guard, no model call:
+- a role title carrying a seniority word its original title lacks gets the original title back ("Sr." counts as "Senior"; Hebrew ראש צוות / בכיר / מנהל covered);
+- an "N years of ... experience" claim above what the dated roles or the résumé's own figure allow is lowered to what the résumé shows (undated résumés are left alone);
+- a people-leadership phrase ("leading teams", "managing engineering teams", "People management") or a "proven track record" the résumé never earns is cut as a clause, a summary sentence, a bullet or a skill, never a role's last bullet (WP-64).
+Goal sentences are not policed. If the guard changes the résumé, it is rescored. `seniorityGuard` on the pipeline result carries counts only. The `/api/optimize` response is unchanged.
+
+**Precision.** A truthful reword ("Led sprint planning for the team") passes: no preposition may sit between the verb and the people noun. Over the calibration set it changed none of the 3 honest outputs.
+
+**False-positive review, same day.** Six cases where the first version would have edited a truthful résumé, each now a failing-first test: "2016-Present" and "03/2014-12/2015" were not read as role dates (so a stale "6 years" in the summary capped a dated "10 years"); a real Engineering Manager lost "leading a team of 8 engineers" because no bullet said "managed"; a title on the line below the dated company line was "restored" as "May 2022 to Present"; the candidate's name could be restored as a title; the summary lost its line breaks when only a title changed; Hebrew "מנהלה" (administration) was read as "מנהל" (manager).
+
+**Not done.** Domain-attached years (the teacher's "9 years of experience in curriculum development and e-learning") pass, because the number itself is supported. Hebrew leadership phrasing and Hebrew years claims are not checked; only Hebrew titles are. Responsibilities and project text are not checked. No paid repeat batch was run, so the live rate after the guard is unmeasured.
 
 ## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
 
