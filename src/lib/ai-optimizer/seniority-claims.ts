@@ -19,8 +19,11 @@ import { ASPIRATION, trustedResumeText } from './job-ad-terms';
  */
 
 const SENIORITY_EN = /\b(?:senior|lead|principal|staff|manager|head|director|vp|vice president|chief|supervisor)\b/gi;
-// Hebrew has no \b in JS regexes, so these match as substrings.
-const SENIORITY_HE = /בכיר|ראש\s+צוות|מנהל/g;
+// Hebrew has no \b in JS regexes, so these match as substrings. "מנהלה" (administration)
+// and "מנהלתי" (administrative) are not "מנהל" (manager).
+const SENIORITY_HE = /בכיר|ראש\s+צוות|מנהל(?!ה(?![\u05d0-\u05ea])|תי)/g;
+/** Title words that mean the person managed people, so their leadership claims are earned. */
+const PEOPLE_LEADER_TITLE = /\b(?:manager|director|head|lead|supervisor|vp|vice president|chief|foreman)\b|מנהל(?!ה(?![\u05d0-\u05ea])|תי)|ראש\s+צוות/i;
 
 /** Lower-case, punctuation-free, with common abbreviations spelled out, so "Sr." equals "Senior". */
 function canonical(s: string): string {
@@ -34,24 +37,57 @@ function canonical(s: string): string {
 
 const YEAR = /(?<![0-9])(?:19[6-9]\d|20[0-4]\d)(?![0-9])/;
 
-/** Lines that open a role: they carry a year and a range ("May 2022 to Present", "2021 עד היום"). */
-function roleLines(source: string): string[] {
-  return source
-    .split('\n')
-    .filter((line) => YEAR.test(line) && /\bto\b|–|—|\s-\s|עד/i.test(line) && /present|current|now|היום|(?:19|20)\d\d.*(?:19|20)\d\d/i.test(line));
+/**
+ * A dated range: "May 2022 to Present", "2016-Present", "03/2014-12/2015",
+ * "מרץ 2020 עד היום", "since 2019". Spacing around the dash varies, so it is optional.
+ */
+const RANGE =
+  /(?:19|20)\d\d\s*(?:-|–|—|to|until|till|עד)\s*(?:[A-Za-z\u05d0-\u05ea]{3,9}\.?\s+)?(?:\d{1,2}\/)?(?:(?:19|20)\d\d|present|current|now|today|היום|כיום)|\bsince\s+(?:[A-Za-z]{3,9}\.?\s+)?(?:19|20)\d\d/i;
+
+/** A line that can hold a job title: not a bullet, not dated, not a sentence, not a shouted header. */
+function titleLike(line: string | undefined): line is string {
+  if (!line) return false;
+  const t = line.trim();
+  return t.length > 0 && t.length <= 80 && !/^[-•*▪●–]/.test(t) && !YEAR.test(t) && !/[.!?]$/.test(t) && t !== t.toUpperCase();
 }
 
-/** The title half of a role line: what precedes the employer, or failing that, what follows it. */
-function titleFromLine(line: string, company: string): string {
-  const at = line.toLowerCase().indexOf(company.toLowerCase());
-  if (at < 0) return '';
-  const before = line
-    .slice(0, at)
-    .replace(/(?:\s+at|\s*[,|@–—-])\s*$/i, '')
-    .trim();
-  if (before) return before;
-  const after = line.slice(at + company.length).replace(/^\s*[,|@–—-]\s*/, '');
-  return after.split(/\s*[,|–—]\s*|\s+-\s+/)[0]?.trim() ?? '';
+interface SourceRole {
+  /** The dated line. */
+  line: string;
+  /** Non-bullet lines right after and before it, where a title may sit. */
+  adjacent: string[];
+}
+
+/** Every dated role in the résumé, with the lines around it that may carry its title. */
+function sourceRoles(source: string): SourceRole[] {
+  const lines = source.split('\n');
+  // The first line of a résumé is the candidate's name, never a title.
+  const nameLine = lines.findIndex((l) => l.trim().length > 0);
+  const roles: SourceRole[] = [];
+  lines.forEach((line, i) => {
+    if (!YEAR.test(line) || !RANGE.test(line)) return;
+    const before = i - 1 === nameLine ? undefined : lines[i - 1];
+    roles.push({ line, adjacent: [lines[i + 1], before].filter(titleLike).map((l) => l.trim()) });
+  });
+  return roles;
+}
+
+/**
+ * The original title of a role: what precedes the employer on its dated line, else a
+ * title line right next to it, else what follows the employer. Never a date.
+ */
+function originalTitle(role: SourceRole, company: string): string {
+  const at = role.line.toLowerCase().indexOf(company.toLowerCase());
+  const candidates: string[] = [];
+  if (at >= 0) {
+    candidates.push(role.line.slice(0, at).replace(/(?:\s+at|\s*[,|@–—-])\s*$/i, '').trim());
+  }
+  candidates.push(...role.adjacent.filter((l) => !l.toLowerCase().includes(company.toLowerCase())));
+  if (at >= 0) {
+    const after = role.line.slice(at + company.length).replace(/^\s*[,|@–—-]\s*/, '');
+    candidates.push(after.split(/\s*[,|–—]\s*|\s+-\s+/)[0]?.trim() ?? '');
+  }
+  return candidates.find((c) => c && !YEAR.test(c) && !/\b(?:present|current)\b|היום/i.test(c)) ?? '';
 }
 
 function seniorityWords(title: string): string[] {
@@ -87,8 +123,8 @@ interface YearsSupport {
 
 function yearsSupport(source: string, now: Date): YearsSupport | null {
   const stated = [...source.matchAll(ANY_YEARS)].map((m) => toNumber(m[1])).filter(Number.isFinite);
-  const starts = roleLines(source)
-    .map((line) => Number(line.match(YEAR)?.[0]))
+  const starts = sourceRoles(source)
+    .map((role) => Number(role.line.match(YEAR)?.[0]))
     .filter((y) => Number.isFinite(y) && y > 0);
   if (starts.length === 0 && stated.length === 0) return null; // nothing to measure against
   const span = starts.length > 0 ? now.getFullYear() - Math.min(...starts) : 0;
@@ -132,8 +168,19 @@ const SCOPE_PATTERNS: Array<{ claim: RegExp; support: RegExp }> = [
   },
 ];
 
-function unsupportedScope(text: string, source: string): RegExp[] {
-  return SCOPE_PATTERNS.filter((p) => p.claim.test(text) && !p.support.test(source)).map((p) => p.claim);
+/**
+ * Evidence of managing people that the claim patterns cannot see: a manager's title, or
+ * the work only a manager does. A title held by someone else in a bullet ("while the
+ * manager was on leave") does not count, because only title lines are read.
+ */
+const MANAGER_WORK = /\bhired\s+\d+|\bdirect\s+reports?\b|\bperformance\s+reviews?\b/i;
+
+function managesPeople(source: string, roleTitles: string): boolean {
+  return PEOPLE_LEADER_TITLE.test(roleTitles) || MANAGER_WORK.test(source);
+}
+
+function unsupportedScope(text: string, source: string, leader = false): RegExp[] {
+  return SCOPE_PATTERNS.filter((p, i) => p.claim.test(text) && !p.support.test(source) && !(leader && i < 2)).map((p) => p.claim);
 }
 
 /**
@@ -154,10 +201,10 @@ function cutClause(text: string, claim: RegExp): string | null {
   return (text.slice(0, start) + text.slice(end)).replace(/\s{2,}/g, ' ').replace(/\s+([.,;])/g, '$1').trim();
 }
 
-function stripScope(text: string, source: string): string | null {
+function stripScope(text: string, source: string, leader: boolean): string | null {
   let out = text;
   for (let guard = 0; guard < 5; guard++) {
-    const claims = unsupportedScope(out, source);
+    const claims = unsupportedScope(out, source, leader);
     if (claims.length === 0) return out;
     const cut = cutClause(out, claims[0]);
     if (cut === null || cut.length < 12) return null;
@@ -193,8 +240,11 @@ export function enforceSeniorityTruth(
 ): { resume: OptimizedResume; report: SeniorityGuardReport; changed: boolean } {
   const source = trustedResumeText(resumeText);
   const report: SeniorityGuardReport = { checked: true, titlesRestored: 0, yearsCorrected: 0, scopeRemoved: 0, unresolved: 0 };
-  const lines = roleLines(source);
-  const sourceTitles = canonical(lines.length > 0 ? lines.join('\n') : source);
+  const roles = sourceRoles(source);
+  const roleTitleText = roles.map((r) => [r.line, ...r.adjacent].join('\n')).join('\n');
+  const sourceTitles = canonical(roles.length > 0 ? roleTitleText : source);
+  const leader = managesPeople(source, roles.length > 0 ? roleTitleText : '');
+  const scope = (text: string) => unsupportedScope(text, source, leader);
   const years = yearsSupport(source, now);
   let changed = false;
 
@@ -212,8 +262,8 @@ export function enforceSeniorityTruth(
   summaryParts.forEach((sentence) => {
     if (ASPIRATION.test(sentence)) return summaryOut.push(sentence);
     const s = fixYears(sentence);
-    if (unsupportedScope(s, source).length === 0) return summaryOut.push(s);
-    const cut = stripScope(s, source);
+    if (scope(s).length === 0) return summaryOut.push(s);
+    const cut = stripScope(s, source, leader);
     if (cut !== null) {
       report.scopeRemoved++;
       return summaryOut.push(cut);
@@ -225,17 +275,21 @@ export function enforceSeniorityTruth(
     report.unresolved++;
     summaryOut.push(s);
   });
-  const summary = summaryOut.join(' ');
-  if (summaryOut.length !== summaryParts.length || summaryOut.some((s, i) => s !== summaryParts[i])) changed = true;
+  // Untouched sentences keep the summary exactly as written, line breaks included.
+  const summaryChanged = summaryOut.length !== summaryParts.length || summaryOut.some((s, i) => s !== summaryParts[i]);
+  const summary = summaryChanged ? summaryOut.join(' ') : resume.summary;
+  if (summaryChanged) changed = true;
 
   const experience = (Array.isArray(resume.experience) ? resume.experience : []).map((role) => {
     let title = role.title;
     if (typeof title === 'string' && title && !canonical(source).includes(canonical(title))) {
       const inflated = seniorityWords(title).some((w) => !sourceTitles.includes(w));
       if (inflated && typeof role.company === 'string' && role.company) {
-        const line = lines.find((l) => l.toLowerCase().includes(role.company.toLowerCase()) && (!role.startDate || l.includes(role.startDate.slice(-4)))) ??
-          lines.find((l) => l.toLowerCase().includes(role.company.toLowerCase()));
-        const original = line ? titleFromLine(line, role.company) : '';
+        const company = role.company.toLowerCase();
+        const match =
+          roles.find((r) => r.line.toLowerCase().includes(company) && (!role.startDate || r.line.includes(role.startDate.slice(-4)))) ??
+          roles.find((r) => r.line.toLowerCase().includes(company));
+        const original = match ? originalTitle(match, role.company) : '';
         if (original) {
           title = original;
           report.titlesRestored++;
@@ -252,11 +306,11 @@ export function enforceSeniorityTruth(
     const kept: string[] = [];
     const dropped: string[] = [];
     for (const fixed of fixedBullets) {
-      if (unsupportedScope(fixed, source).length === 0) {
+      if (scope(fixed).length === 0) {
         kept.push(fixed);
         continue;
       }
-      const cut = stripScope(fixed, source);
+      const cut = stripScope(fixed, source, leader);
       if (cut !== null) {
         kept.push(cut);
         report.scopeRemoved++;
@@ -280,7 +334,7 @@ export function enforceSeniorityTruth(
   });
 
   const keepSkill = (s: string) => {
-    if (unsupportedScope(s, source).length === 0) return true;
+    if (scope(s).length === 0) return true;
     report.scopeRemoved++;
     changed = true;
     return false;

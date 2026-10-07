@@ -6,7 +6,7 @@
 - Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
 - Next Recommended Story: merge the seniority guard after review; then WP-77, then R2. Follow-ups: domain-attached years ("9 years of experience in e-learning" over 9 years of classroom teaching) is still caught only by the grounded judge. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
 - Blockers: spend approval for the paid batch (a repeat batch would measure this guard's effect on live output); founder calls on the R8 gate and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`.
-- Last Validation: 2026-10-07: `npx jest` over seniority-claims, job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline and evals/resume-optimizer: 153 passed, 3 skipped (paid); api/optimize-fit-response 3 passed; `eslint` on changed files exit 0; `tsc --noEmit` reports no errors in the changed files. Full `npx jest`: 18 suites / 77 tests fail, the identical set on a clean `origin/main` worktree (pre-existing); the branch adds 1 suite and 15 passing tests. Guard over the 10 calibration outputs: 0 of 3 honest outputs changed; corrects cal-06 (years), cal-07 (title) and cal-08 (obeyed injection's "10 years").
+- Last Validation: 2026-10-07 (after false-positive review): `npx jest tests/unit/seniority-claims.test.ts tests/unit/optimize-pipeline-truth-guard.test.ts tests/unit/job-ad-terms.test.ts evals/resume-optimizer`: 145 passed, 3 skipped (paid); `eslint` on changed files exit 0; `tsc --noEmit` no errors in the changed files. Earlier the same day the full `npx jest` failed the identical 18 suites on a clean `origin/main` worktree (pre-existing). Guard over the 10 calibration outputs: 0 of 3 honest outputs changed; corrects cal-06, cal-07 and cal-08.
 - Last Updated: 2026-10-07
 
 ## 2026-10-07 — Seniority and scope guard: the optimizer may no longer promote the candidate
@@ -20,6 +20,8 @@
 Goal sentences are not policed. If the guard changes the résumé, it is rescored. `seniorityGuard` on the pipeline result carries counts only. The `/api/optimize` response is unchanged.
 
 **Precision.** A truthful reword ("Led sprint planning for the team") passes: no preposition may sit between the verb and the people noun. Over the calibration set it changed none of the 3 honest outputs.
+
+**False-positive review, same day.** Six cases where the first version would have edited a truthful résumé, each now a failing-first test: "2016-Present" and "03/2014-12/2015" were not read as role dates (so a stale "6 years" in the summary capped a dated "10 years"); a real Engineering Manager lost "leading a team of 8 engineers" because no bullet said "managed"; a title on the line below the dated company line was "restored" as "May 2022 to Present"; the candidate's name could be restored as a title; the summary lost its line breaks when only a title changed; Hebrew "מנהלה" (administration) was read as "מנהל" (manager).
 
 **Not done.** Domain-attached years (the teacher's "9 years of experience in curriculum development and e-learning") pass, because the number itself is supported. Hebrew leadership phrasing and Hebrew years claims are not checked; only Hebrew titles are. Responsibilities and project text are not checked. No paid repeat batch was run, so the live rate after the guard is unmeasured.
 

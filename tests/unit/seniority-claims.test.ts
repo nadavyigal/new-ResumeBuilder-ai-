@@ -206,3 +206,60 @@ describe('enforceSeniorityTruth: people leadership and track-record claims', () 
     expect(report).not.toMatch(/teams|Manager|Priya|Triangle/);
   });
 });
+
+describe('enforceSeniorityTruth: false positives found in review (2026-10-07)', () => {
+  it('reads "2016-Present" as a role range, so the dates support "10 years" over a stale "6 years"', () => {
+    const source = `Lior Ben-David\nData analyst with 6 years of experience.\n\nData Analyst, Northwind | 2016-Present\n- Built weekly revenue dashboards.\n\nJunior Analyst, Contoso | 03/2014-12/2015\n- Cleaned sales data.`;
+    const resume = priya({ summary: 'Data analyst with 10 years of experience building revenue dashboards.' }, {
+      title: 'Data Analyst',
+      company: 'Northwind',
+      achievements: ['Built weekly revenue dashboards.'],
+    });
+    resume.experience = [resume.experience[0]];
+    const out = enforceSeniorityTruth(resume, source, NOW);
+    expect(out.changed).toBe(false);
+  });
+
+  it('lets a manager title support leadership claims its bullets never spell out', () => {
+    const source = `Maya Levi\nEngineering Manager, Ledgerly — Jan 2021 to Present\n- Hired 6 engineers and ran quarterly performance reviews.\n- Shipped the reconciliation service.`;
+    const resume = priya({ summary: 'Engineering manager with 5 years of experience.' }, {
+      title: 'Engineering Manager',
+      company: 'Ledgerly',
+      startDate: 'Jan 2021',
+      achievements: ['Shipped the reconciliation service, leading a team of 8 engineers.', 'Hired 6 engineers and ran quarterly performance reviews.'],
+    });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).changed).toBe(false);
+  });
+
+  it('reads a title written on the line below "Company — dates", and never restores a date as a title', () => {
+    const source = `Priya Raman\nTriangle Payments — May 2022 to Present\nSenior Software Engineer\n- Led the design of a refund service.`;
+    const kept = enforceSeniorityTruth(priya({}, { title: 'Senior Backend Engineer', achievements: ['Led the design of a refund service.'] }), source, NOW);
+    expect(kept.resume.experience[0].title).toBe('Senior Backend Engineer');
+
+    const promoted = enforceSeniorityTruth(priya({}, { title: 'Engineering Manager', achievements: ['Led the design of a refund service.'] }), source, NOW);
+    expect(promoted.resume.experience[0].title).toBe('Senior Software Engineer');
+    expect(promoted.resume.experience[0].title).not.toMatch(/20\d\d|Present/);
+  });
+
+  it('never restores the candidate\'s name as a title', () => {
+    const source = `Priya Raman\nTriangle Payments — May 2022 to Present\n- Led the design of a refund service.`;
+    const out = enforceSeniorityTruth(priya({}, { title: 'Engineering Manager', achievements: ['Led the design of a refund service.'] }), source, NOW);
+    expect(out.resume.experience[0].title).not.toBe('Priya Raman');
+    expect(out.report.unresolved).toBe(1);
+  });
+
+  it('keeps the summary text exactly as written when only a title is corrected', () => {
+    const summary = 'Software engineer with 5 years of experience.\nBuilds payment services in Java.';
+    const out = enforceSeniorityTruth(priya({ summary }, { title: 'Engineering Manager' }), PRIYA, NOW);
+    expect(out.resume.experience[0].title).toBe('Software Engineer II');
+    expect(out.resume.summary).toBe(summary);
+  });
+
+  it('does not read Hebrew "מנהלה" (administration) as "מנהל" (manager)', () => {
+    const source = `דנה כהן\nרכזת משרד, חברת בטא — מרץ 2020 עד היום\n- ניהלה את יומן הפגישות.`;
+    const resume = priya({}, { title: 'רכזת מנהלה', company: 'חברת בטא', achievements: ['ניהלה את יומן הפגישות.'] });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).resume.experience[0].title).toBe('רכזת מנהלה');
+  });
+});
