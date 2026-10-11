@@ -10,6 +10,8 @@
 
 **Rule:** any element that renders model output, user content or an untranslated server string gets `dir="auto"`. Translated `t()` strings do not need it.
 
+**Inline case:** when English text shares a line with a Hebrew label, `dir="auto"` on the paragraph picks RTL from the label. Wrap the English part in `<span dir="auto">` (`ATSSuggestionsBanner`). When it is interpolated into a `t()` string, wrap the value in U+2068/U+2069 (`isolateBidi` in `ATSScoreCard`).
+
 ## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
 
 **Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.

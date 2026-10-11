@@ -149,7 +149,7 @@ function SuggestionCard({
               {getCategoryLabel(suggestion.category, t)}
             </Badge>
           </div>
-          <p className="text-sm text-gray-900">{suggestion.text}</p>
+          <p dir="auto" className="text-sm text-gray-900">{suggestion.text}</p>
         </div>
         <div className="text-right flex-shrink-0">
           <div className="text-sm font-semibold text-green-600">
