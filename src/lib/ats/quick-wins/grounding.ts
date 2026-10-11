@@ -15,8 +15,14 @@
  * guarantee (see tasks/lessons.md 2026-09-25). Same posture as
  * `stripFabricatedMetrics` and `job-ad-terms.ts`: instruct, then enforce here.
  *
- * The job text may lend vocabulary for something the bullet already says. It
- * may not add numbers, scopes, tools or activities.
+ * The job text may not add numbers, scopes, tools or activities. A rewrite may
+ * reword the candidate's own facts, and swap one action verb for another
+ * ("monitor" -> "track"), but every other term must already be in the résumé.
+ *
+ * 2026-10-11, first live run on the PR preview: with a budget of two borrowed
+ * terms the model used the room to append job duties to a real bullet
+ * ("...drive engagement, reduce churn, and enhance account health") and a
+ * scope ("with customer executives"). Any job-only term is now a rejection.
  */
 
 import type { QuickWinSuggestion } from '../types';
@@ -36,8 +42,7 @@ export type GroundingViolation =
   | 'dropped_number'
   | 'placeholder_over_real_number'
   | 'inflated_number'
-  | 'job_terms_added'
-  | 'original_facts_replaced';
+  | 'job_terms_added';
 
 export interface GroundingResult {
   ok: boolean;
@@ -46,11 +51,6 @@ export interface GroundingResult {
   jobOnlyTerms: string[];
 }
 
-/** How many job-only terms a rewrite may borrow as vocabulary. */
-export const MAX_JOB_ONLY_TERMS = 2;
-
-/** Share of the original's content words a rewrite must keep once it borrows job terms. */
-export const MIN_ANCHOR_RETENTION = 0.5;
 
 const STOPWORDS = new Set([
   'the', 'and', 'for', 'with', 'from', 'into', 'onto', 'that', 'this', 'these', 'those',
@@ -87,8 +87,13 @@ function words(text: string): string[] {
 }
 
 function stem(word: string): string {
-  const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '');
+  const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '').replace(/e$/, '');
   return stripped.length >= 4 ? stripped : word;
+}
+
+/** Exact match only: by prefix, "performance" would pass as the verb "perform". */
+function isRewordingVerb(s: string): boolean {
+  return REWORDING_VERBS.has(s);
 }
 
 function sameStem(a: string, b: string): boolean {
@@ -97,10 +102,12 @@ function sameStem(a: string, b: string): boolean {
   return short.length >= 5 && long.startsWith(short);
 }
 
+function contentWords(text: string): string[] {
+  return words(text).filter((w) => w.length >= 3 && !/^\d/.test(w) && !STOPWORDS.has(w));
+}
+
 function contentStems(text: string): string[] {
-  return words(text)
-    .filter((w) => w.length >= 3 && !/^\d/.test(w) && !STOPWORDS.has(w))
-    .map(stem);
+  return contentWords(text).map(stem);
 }
 
 function hasStem(pool: Set<string>, s: string): boolean {
@@ -192,35 +199,21 @@ export function checkQuickWinGrounding(
     }
   }
 
-  // Job terms: vocabulary for what the bullet already says, never new activities.
+  // Job terms the résumé never uses: each one is a duty, scope or skill claimed
+  // on the job post's say-so.
   const jobStems = new Set(contentStems(ctx.jobText));
   const titleStems =
     qw.location?.section === 'summary' && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
   const jobOnlyTerms = Array.from(
     new Set(
-      contentStems(optimized).filter(
-        (s) =>
-          !hasStem(resumeStems, s) &&
-          hasStem(jobStems, s) &&
-          !hasStem(REWORDING_VERBS, s) &&
-          !hasStem(titleStems, s),
-      ),
+      contentWords(optimized).filter((w) => {
+        const s = stem(w);
+        return !hasStem(resumeStems, s) && hasStem(jobStems, s) && !isRewordingVerb(s) && !hasStem(titleStems, s);
+      }),
     ),
   );
-  if (jobOnlyTerms.length > MAX_JOB_ONLY_TERMS) {
-    violations.push('job_terms_added');
-  }
-
   if (jobOnlyTerms.length > 0) {
-    // Only the leading verb is a rewording candidate. Elsewhere the same stem is
-    // usually a fact: "reports for managers" is not the verb "manage".
-    const [lead, ...rest] = originalStems;
-    const anchors = Array.from(new Set(lead && hasStem(REWORDING_VERBS, lead) ? rest : originalStems));
-    const optimizedStems = new Set(contentStems(optimized));
-    const kept = anchors.filter((s) => hasStem(optimizedStems, s)).length;
-    if (anchors.length > 0 && kept / anchors.length < MIN_ANCHOR_RETENTION) {
-      violations.push('original_facts_replaced');
-    }
+    violations.push('job_terms_added');
   }
 
   return { ok: violations.length === 0, violations, jobOnlyTerms };
@@ -232,8 +225,7 @@ const VIOLATION_FEEDBACK: Record<GroundingViolation, string> = {
   dropped_number: 'it drops a number the original bullet contains',
   placeholder_over_real_number: 'it uses a [placeholder] although the bullet already has a real number',
   inflated_number: 'it inflates a number ("over", "more than", "+")',
-  job_terms_added: 'it adds duties or terms from the job post that the resume never mentions',
-  original_facts_replaced: 'it replaces what the candidate did with what the job asks for',
+  job_terms_added: 'it adds duties, scopes or terms from the job post that the resume never mentions',
 };
 
 export function describeViolations(violations: GroundingViolation[]): string {

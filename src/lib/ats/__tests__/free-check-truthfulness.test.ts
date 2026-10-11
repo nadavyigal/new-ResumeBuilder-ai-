@@ -153,7 +153,7 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
       ctxFor(CASES.noa),
     );
     expect(check.ok).toBe(false);
-    expect(check.violations).toContain('original_facts_replaced');
+    expect(check.violations).toContain('job_terms_added');
   });
 
   it('Noa #1: "over 150" and job duties (interactive content, assessments) added to a real bullet', () => {
@@ -175,6 +175,34 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     expect(check.ok).toBe(false);
   });
 
+  // First live run on the PR #167 preview, 2026-10-11, with the old two-term
+  // budget: both passed the guard and both claim something Itay never wrote.
+  it.each([
+    [
+      'Spearheaded customer success initiatives to drive engagement and value.',
+      'Spearheaded customer success initiatives to drive engagement, reduce churn, and enhance account health.',
+    ],
+    [
+      'Collaborated cross-functionally to deliver exceptional customer experiences.',
+      'Collaborated cross-functionally with customer executives to deliver exceptional customer experiences.',
+    ],
+  ])('preview run: job duty or scope appended to a real bullet: %s', (original, optimized) => {
+    const check = checkQuickWinGrounding(qw(original, optimized), ctxFor(CASES.itay));
+    expect(check.violations).toContain('job_terms_added');
+  });
+
+  it('Maya #2 as captured: "regional performance metrics" is the job\'s scope, not hers', () => {
+    const check = checkQuickWinGrounding(
+      qw(
+        'Built SQL dashboards in Looker to monitor weekly sales by region.',
+        'Developed and maintained SQL dashboards in Looker to track weekly sales and regional performance metrics.',
+      ),
+      ctxFor(CASES.maya),
+    );
+    expect(check.jobOnlyTerms).toEqual(expect.arrayContaining(['performance', 'metrics']));
+    expect(check.ok).toBe(false);
+  });
+
   it('rejects a "before" that is not in the résumé', () => {
     const check = checkQuickWinGrounding(
       qw('Managed 12 enterprise accounts in EMEA.', 'Managed 12 enterprise accounts in EMEA.'),
@@ -185,13 +213,24 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
 });
 
 describe('quick-win grounding: honest rewrites pass', () => {
-  it('Maya #2: same facts, job vocabulary for the same activity', () => {
+  it('Maya: same facts, one action verb swapped for the job\'s', () => {
     const check = checkQuickWinGrounding(
       qw(
         'Built SQL dashboards in Looker to monitor weekly sales by region.',
-        'Developed and maintained SQL dashboards in Looker to track weekly sales and regional performance metrics.',
+        'Built SQL dashboards in Looker to track weekly sales by region.',
       ),
       ctxFor(CASES.maya),
+    );
+    expect(check).toMatchObject({ ok: true, violations: [] });
+  });
+
+  it('Itay, preview run: the renewal rate computed from his own 38 of 41', () => {
+    const check = checkQuickWinGrounding(
+      qw(
+        'Renewed 38 of 41 accounts up for renewal in 2024.',
+        'Achieved a 93% renewal rate by renewing 38 of 41 accounts up for renewal in 2024.',
+      ),
+      ctxFor(CASES.itay),
     );
     expect(check).toMatchObject({ ok: true, violations: [] });
   });

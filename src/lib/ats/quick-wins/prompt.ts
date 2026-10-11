@@ -33,6 +33,8 @@ export function buildQuickWinsPrompt(params: QuickWinsPromptParams): string {
 
   // Extract missing keywords
   const missingKeywords = extractMissingKeywords(job_data, resume_text);
+  const resumeLower = resume_text.toLowerCase();
+  const presentKeywords = job_data.must_have.filter(skill => resumeLower.includes(skill.toLowerCase()));
 
   // Truncate resume text to save tokens
   const truncatedResume = resume_text.slice(0, 2000);
@@ -45,7 +47,7 @@ ${truncatedResume}${resumeSuffix}
 
 **Target Job**:
 - Title: ${job_data.title}
-- Job vocabulary: ${job_data.must_have.slice(0, 10).join(', ')}
+- Job keywords the resume already uses (safe to bring forward): ${presentKeywords.slice(0, 10).join(', ') || 'none'}
 
 **Current ATS Score**: ${current_ats_score}/100
 
@@ -56,7 +58,7 @@ ${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
 
 **Truth rules** (a rewrite that breaks one is discarded):
 1. Every fact in optimized_text must already be in the resume: numbers, counts, scopes, tools, activities, outcomes.
-2. The job may lend WORDS for something the bullet already says ("monitor" -> "track"). It may never add a number, a scope, a duty or a result the candidate did not write. Never copy a job duty into a bullet.
+2. Do not add any term from the job that the resume does not already use: no duty, scope, skill, audience or result the candidate did not write. You may swap one action verb for another ("monitor" -> "track"). Never append a job duty to a bullet.
 3. Keep every number from the original bullet. If the bullet has numbers, build on them (you may compute a rate from two of them, e.g. "38 of 41" -> "93%"). Never replace a real number with a placeholder.
 4. Use a bracket placeholder like [X%] only when the bullet has no number at all, and never invent one.
 5. Do not inflate numbers ("over 150" when the resume says 150).
@@ -68,7 +70,7 @@ ${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
 3. Prioritize:
    - Moving the candidate's own results and numbers forward
    - Clear action + scope + outcome phrasing, using only what the resume says
-   - Job vocabulary for activities the resume already describes
+   - Job terms the resume already uses
 4. Target different resume sections when possible.
 5. Keep rationale short and practical.
 6. keywords_added lists only terms that actually appear in optimized_text.
