@@ -92,7 +92,7 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
               {t("fit.label")}
             </div>
             <div dir="auto" className="text-2xl font-bold text-foreground">{data.fit.verdict}</div>
-            <p dir="auto" className="mt-1 text-xs text-foreground/60">{data.fit.scoreNote}</p>
+            <p className="mt-1 text-xs text-foreground/60">{t("fit.scoreNote")}</p>
           </div>
         )}
         <div data-testid="ats-score" className="text-5xl font-bold text-foreground">
