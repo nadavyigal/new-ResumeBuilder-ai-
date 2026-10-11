@@ -1,5 +1,18 @@
 # Lessons Learned — ResumeBuilder
 
+## Free-check quick wins copied the job post into the résumé (2026-10-11)
+
+**Symptom:** on the live free check, fictional candidates got "before/after" rewrites carrying the job's facts: "a portfolio of 60 mid-market accounts" (60 is the job's number), "reducing churn by tracking account health and acting early on risk" (a job duty), "learning objectives and storyboards" (never in the résumé). A real "38 of 41" became "[X%]". When OpenAI failed, the fallback appended "resulting in 25% improvement in efficiency" to a real bullet.
+
+**Root cause:** the quick-win prompt passed the job's responsibility sentences verbatim, numbers included, and asked for "relevant keywords from the job description". The only check on the output was length and JSON shape. Same class as the 2026-09-25 lesson below, in a second generator that lesson's fix never reached.
+
+**Fix:** `src/lib/ats/quick-wins/grounding.ts` rejects a rewrite that adds or drops a number, puts a placeholder over a real number, inflates a number, or borrows more than two job-only terms (or any, while discarding the original's facts). One repair retry with the reasons; no template padding. Fixtures and tests: `tests/fixtures/free-check-2026-10-11/`, `src/lib/ats/__tests__/free-check-truthfulness.test.ts`.
+
+**Rules:**
+1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check.
+2. Never pad a short AI result with template claims. Fewer suggestions is an honest result.
+3. Filler keywords ("finish", "acting early risk", "write sql queries") come from clause atomization, not from the model. Fix them in `skill-phrase-extractor.ts` and re-run the calibration benchmark (zero score changes on 2026-10-11).
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.

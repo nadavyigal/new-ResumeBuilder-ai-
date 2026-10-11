@@ -1,0 +1,253 @@
+/**
+ * Quick-win grounding: every fact in a rewrite must come from the résumé.
+ *
+ * Observed 2026-10-11 on the free check with fictional candidates. The rewrites
+ * took facts from the job post and put them in the candidate's mouth:
+ *   "Managed a portfolio of mid-market accounts"
+ *     -> "Managed a portfolio of 60 mid-market accounts"       (60 is the job's number)
+ *   "Renewed 38 of 41 accounts up for renewal in 2024."
+ *     -> "Achieved a [X%] renewal rate ..., focusing on reducing churn by tracking
+ *         account health and acting early on risk."          (job's duties; 38 dropped)
+ *   "Prepared students for national matriculation exams."
+ *     -> "Developed comprehensive learning objectives and storyboards..."
+ *
+ * The prompt now says this is forbidden, but a prompt is a request, not a
+ * guarantee (see tasks/lessons.md 2026-09-25). Same posture as
+ * `stripFabricatedMetrics` and `job-ad-terms.ts`: instruct, then enforce here.
+ *
+ * The job text may lend vocabulary for something the bullet already says. It
+ * may not add numbers, scopes, tools or activities.
+ */
+
+import type { QuickWinSuggestion } from '../types';
+
+export interface GroundingContext {
+  /** Full résumé text, the only source of facts. */
+  resumeText: string;
+  /** Job text, used to recognise terms copied from the posting. */
+  jobText: string;
+  /** Target title. A summary may name it: that is positioning, not a claim. */
+  jobTitle?: string;
+}
+
+export type GroundingViolation =
+  | 'original_not_in_resume'
+  | 'invented_number'
+  | 'dropped_number'
+  | 'placeholder_over_real_number'
+  | 'inflated_number'
+  | 'job_terms_added'
+  | 'original_facts_replaced';
+
+export interface GroundingResult {
+  ok: boolean;
+  violations: GroundingViolation[];
+  /** Job-post terms the rewrite added that the résumé never mentions. */
+  jobOnlyTerms: string[];
+}
+
+/** How many job-only terms a rewrite may borrow as vocabulary. */
+export const MAX_JOB_ONLY_TERMS = 2;
+
+/** Share of the original's content words a rewrite must keep once it borrows job terms. */
+export const MIN_ANCHOR_RETENTION = 0.5;
+
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'into', 'onto', 'that', 'this', 'these', 'those',
+  'are', 'was', 'were', 'been', 'being', 'have', 'has', 'had', 'not', 'but', 'all', 'any',
+  'our', 'your', 'their', 'its', 'his', 'her', 'they', 'them', 'you', 'who', 'whom',
+  'which', 'what', 'when', 'where', 'why', 'how', 'than', 'then', 'also', 'such', 'each',
+  'per', 'via', 'over', 'under', 'about', 'across', 'within', 'while', 'during', 'after',
+  'before', 'through', 'between', 'more', 'most', 'other', 'some', 'very', 'will', 'can',
+  'out', 'off', 'too', 'both', 'own', 'new', 'key', 'well', 'able',
+]);
+
+/**
+ * Verbs that re-describe an action rather than add one. Swapping "Built" for
+ * "Developed" changes no fact, so these never count as borrowed job terms.
+ */
+const REWORDING_VERBS = new Set(
+  [
+    'develop', 'maintain', 'manage', 'led', 'lead', 'built', 'build', 'design', 'create',
+    'deliver', 'drove', 'drive', 'own', 'ran', 'run', 'track', 'monitor', 'improve',
+    'implement', 'execute', 'coordinate', 'collaborate', 'work', 'partner', 'support',
+    'oversaw', 'oversee', 'establish', 'launch', 'achieve', 'spearhead', 'streamline',
+    'utilize', 'leverage', 'conduct', 'handle', 'prepare', 'use', 'ensure', 'focus',
+    'enhance', 'increase', 'reduce', 'help', 'provide', 'perform', 'make', 'made',
+  ].map(stem),
+);
+
+/** Joins hyphenated words ("mid-market" -> "midmarket") so both sides compare alike. */
+function words(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/(\p{L})[-‐-—](\p{L})/gu, '$1$2')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+}
+
+function stem(word: string): string {
+  const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '');
+  return stripped.length >= 4 ? stripped : word;
+}
+
+function sameStem(a: string, b: string): boolean {
+  if (a === b) return true;
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  return short.length >= 5 && long.startsWith(short);
+}
+
+function contentStems(text: string): string[] {
+  return words(text)
+    .filter((w) => w.length >= 3 && !/^\d/.test(w) && !STOPWORDS.has(w))
+    .map(stem);
+}
+
+function hasStem(pool: Set<string>, s: string): boolean {
+  if (pool.has(s)) return true;
+  for (const candidate of pool) {
+    if (sameStem(candidate, s)) return true;
+  }
+  return false;
+}
+
+function numbers(text: string): string[] {
+  return (text.match(/\d[\d,]*(?:\.\d+)?/g) || []).map((n) => n.replace(/,/g, ''));
+}
+
+/** Percentages a rewrite may compute from two numbers in the same bullet (38 of 41 -> 93%). */
+function derivedPercents(text: string): Set<string> {
+  const values = numbers(text).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  const out = new Set<string>();
+  for (const a of values) {
+    for (const b of values) {
+      if (a >= b) continue;
+      const pct = (100 * a) / b;
+      out.add(String(Math.floor(pct)));
+      out.add(String(Math.round(pct)));
+      out.add(String(Math.ceil(pct)));
+    }
+  }
+  return out;
+}
+
+const PLACEHOLDER = /\[[^\]\n]{1,40}\]/;
+const QUALIFIED_NUMBER =
+  /\b(over|more than|above|nearly|almost|up to|at least|exceeding|upwards of)\s+(\d[\d,]*)|(\d[\d,]*)\s*\+/gi;
+
+function qualifiedNumbers(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const match of text.matchAll(QUALIFIED_NUMBER)) {
+    out.add(match[0].toLowerCase().replace(/[\s,]+/g, ''));
+  }
+  return out;
+}
+
+/**
+ * Check one rewrite against the résumé. Pure and deterministic.
+ */
+export function checkQuickWinGrounding(
+  qw: Pick<QuickWinSuggestion, 'original_text' | 'optimized_text' | 'location'>,
+  ctx: GroundingContext,
+): GroundingResult {
+  const violations: GroundingViolation[] = [];
+  const original = qw.original_text;
+  const optimized = qw.optimized_text;
+
+  const resumeStems = new Set(contentStems(ctx.resumeText));
+  const resumeNumbers = new Set(numbers(ctx.resumeText));
+
+  // The "before" must be the user's own text, or the card misquotes them.
+  const originalStems = contentStems(original);
+  const foundInResume = originalStems.filter((s) => resumeStems.has(s)).length;
+  if (
+    originalStems.length === 0 ||
+    foundInResume / originalStems.length < 0.9 ||
+    numbers(original).some((n) => !resumeNumbers.has(n))
+  ) {
+    violations.push('original_not_in_resume');
+  }
+
+  // Numbers are facts. None may be added, none dropped, none hidden behind a template.
+  const originalNumbers = numbers(original);
+  const optimizedNumbers = numbers(optimized);
+  // A rate may be computed from numbers the résumé states: 38 of 41 -> 93%.
+  const percents = derivedPercents(
+    [original, ...optimizedNumbers.filter((n) => resumeNumbers.has(n))].join(' '),
+  );
+  if (optimizedNumbers.some((n) => !resumeNumbers.has(n) && !percents.has(n))) {
+    violations.push('invented_number');
+  }
+  if (originalNumbers.some((n) => !optimizedNumbers.includes(n))) {
+    violations.push('dropped_number');
+  }
+  if (originalNumbers.length > 0 && PLACEHOLDER.test(optimized)) {
+    violations.push('placeholder_over_real_number');
+  }
+  const originalQualified = qualifiedNumbers(original);
+  for (const q of qualifiedNumbers(optimized)) {
+    if (!originalQualified.has(q)) {
+      violations.push('inflated_number');
+      break;
+    }
+  }
+
+  // Job terms: vocabulary for what the bullet already says, never new activities.
+  const jobStems = new Set(contentStems(ctx.jobText));
+  const titleStems =
+    qw.location?.section === 'summary' && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
+  const jobOnlyTerms = Array.from(
+    new Set(
+      contentStems(optimized).filter(
+        (s) =>
+          !hasStem(resumeStems, s) &&
+          hasStem(jobStems, s) &&
+          !hasStem(REWORDING_VERBS, s) &&
+          !hasStem(titleStems, s),
+      ),
+    ),
+  );
+  if (jobOnlyTerms.length > MAX_JOB_ONLY_TERMS) {
+    violations.push('job_terms_added');
+  }
+
+  if (jobOnlyTerms.length > 0) {
+    // Only the leading verb is a rewording candidate. Elsewhere the same stem is
+    // usually a fact: "reports for managers" is not the verb "manage".
+    const [lead, ...rest] = originalStems;
+    const anchors = Array.from(new Set(lead && hasStem(REWORDING_VERBS, lead) ? rest : originalStems));
+    const optimizedStems = new Set(contentStems(optimized));
+    const kept = anchors.filter((s) => hasStem(optimizedStems, s)).length;
+    if (anchors.length > 0 && kept / anchors.length < MIN_ANCHOR_RETENTION) {
+      violations.push('original_facts_replaced');
+    }
+  }
+
+  return { ok: violations.length === 0, violations, jobOnlyTerms };
+}
+
+const VIOLATION_FEEDBACK: Record<GroundingViolation, string> = {
+  original_not_in_resume: 'original_text is not copied exactly from the resume',
+  invented_number: 'it adds a number the resume does not contain',
+  dropped_number: 'it drops a number the original bullet contains',
+  placeholder_over_real_number: 'it uses a [placeholder] although the bullet already has a real number',
+  inflated_number: 'it inflates a number ("over", "more than", "+")',
+  job_terms_added: 'it adds duties or terms from the job post that the resume never mentions',
+  original_facts_replaced: 'it replaces what the candidate did with what the job asks for',
+};
+
+export function describeViolations(violations: GroundingViolation[]): string {
+  return violations.map((v) => VIOLATION_FEEDBACK[v]).join('; ');
+}
+
+/**
+ * Keep only keywords the rewrite actually contains. The model listed
+ * "reduce churn tracking" as added even where it was not in the text.
+ */
+export function keywordsPresentIn(keywords: string[], text: string): string[] {
+  const textStems = new Set(contentStems(text));
+  return keywords.filter((keyword) => {
+    const kw = contentStems(keyword);
+    return kw.length > 0 && kw.every((s) => hasStem(textStems, s));
+  });
+}

@@ -1,0 +1,22 @@
+Data Analyst, Sales Insights (fictional demo role) - Kesher Commerce, Tel Aviv
+
+About the role
+Kesher Commerce is looking for a Data Analyst to join the Sales Insights team. You will turn sales data into clear weekly reporting that regional managers use to plan their next steps.
+
+What you will do
+- Write SQL queries against our sales data warehouse.
+- Build and maintain SQL dashboards in Looker or Tableau that track weekly sales and regional performance.
+- Own the weekly KPI report for sales leadership and explain what changed and why.
+- Work with sales and operations stakeholders to define metrics and answer business questions.
+- Check data quality and document how each metric is calculated.
+
+Requirements
+- 3+ years of experience as a data analyst or in a similar role.
+- Strong SQL skills.
+- Hands-on experience building dashboards in Looker, Tableau or a similar BI tool.
+- Experience presenting insights to non-technical stakeholders.
+- Advanced Excel or Google Sheets.
+
+Nice to have
+- Python for data analysis.
+- Experience in retail or e-commerce.

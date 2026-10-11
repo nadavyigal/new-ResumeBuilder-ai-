@@ -1,13 +1,13 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
-- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
-- Active Story: none
-- Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
-- Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Status: Free-check honesty fix on branch `fix/quick-win-fact-grounding` (PR open, not merged, not deployed). Quick wins no longer copy job facts into the résumé; filler keywords removed from extraction.
+- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), alongside the 2026-09-19 plan
+- Active Story: free-check quick-win grounding (founder review of the PR)
+- Last Completed Story: free-check quick-win grounding and filler-keyword filter (2026-10-11)
+- Next Recommended Story: measure the new quick-win prompt with repeat live runs on the three 2026-10-11 fixtures (needs an OpenAI key in the environment); merge #163 (jest triage) so the full suite is a real gate; seniority guard #164.
+- Blockers: no local OPENAI_API_KEY, so the prompt change is verified only by the deterministic guard and mocked tests, not by live runs. Still open from 2026-09-26: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
+- Last Validation: 2026-10-11: `free-check-truthfulness.test.ts` 19/19 pass (the 7 keyword tests fail on the old extractor); extractor, keyword, parity, Hebrew and calibration suites pass; calibration benchmark offline: 0 of 25 case scores changed, derived bands 63/44 unchanged; full `npx jest --ci` 18 failed suites / 77 failed tests, identical to the origin/main baseline in #163; `npm run lint` 0 errors; `tsc --noEmit` 27 errors, same as main, none in changed files; `npm run build` passes.
+- Last Updated: 2026-10-11
 
 ## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
 

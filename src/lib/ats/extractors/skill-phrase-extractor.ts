@@ -40,7 +40,31 @@ const LEADING_NOISE = new Set([
   'building', 'operating', 'managing', 'leading', 'developing', 'designing',
   'great', 'good', 'prior', 'previous', 'several', 'multiple',
   'plus', 'bonus', 'advantage', 'required', 'preferred', 'must', 'nice',
+  // Added 2026-10-11 from the free-check fixtures: adverbs, hedges and past
+  // participles that survived as the middle of a "skill" (`acting early risk`,
+  // `similar customer success`, `show results achieved`).
+  'similar', 'clear', 'early', 'achieved', 'changed', 'calculated',
 ]);
+
+/**
+ * Verbs that name the activity around a skill, not the skill. Stripped only from
+ * the front of a clause, because several are also nouns mid-phrase ("test run",
+ * "design document"). Observed 2026-10-11 as user-facing keywords:
+ * `write sql queries`, `keep account data`, `run quarterly business`,
+ * `turn customer feedback`, `explain what changed`, `publish`.
+ */
+const LEADING_VERBS = new Set([
+  'write', 'writing', 'run', 'running', 'keep', 'turn', 'show', 'explain',
+  'document', 'check', 'define', 'answer', 'publish', 'improve', 'use',
+  'act', 'acting', 'tracking', 'present', 'presenting',
+]);
+
+/**
+ * Idioms whose words are not skills. Without this, "from start to finish"
+ * became the keyword `finish`, "up to date in Gainsight" became
+ * `date gainsight`, and users were told to add them to their resume.
+ */
+const IDIOMS = /\b(?:from start to finish|start to finish|end to end|up to date|over time|on time)\b/g;
 
 /**
  * The same class of filler in Hebrew.
@@ -89,6 +113,11 @@ const JUNK_PHRASE_PATTERNS: RegExp[] = [
   /^success$/i,
   /^online$/i,
   /^highly$/i,
+  // Section headings that leak in as requirement lines ("Requirements",
+  // "Nice to have" reduced to `have`).
+  /^(?:requirements?|qualifications?|responsibilities|have|benefits)$/i,
+  // Generic nouns left alone once a clause's real content is split off.
+  /^(?:role|results|written|action)$/i,
 ];
 
 const CONNECTORS = new Set([
@@ -98,10 +127,16 @@ const CONNECTORS = new Set([
   'them', 'its', 'plus', 'etc', 'via', 'per', 'end', 'able', 'other', 'both',
   'all', 'any', 'using', 'use', 'well', 'more', 'most', 'than', 'then', 'new',
   'another', 'language', 'languages',
+  'each', 'every', 'over', 'up', 'what', 'how', 'why', 'when', 'where', 'which', 'who',
 ]);
 
+// Relative and question words open a new clause: "dashboards ... that track
+// weekly sales" fused into `tableau weekly sales`, and "explain what changed and
+// why" into `explain what changed` plus a bare `why`. "by" and "about" join two
+// ideas the same way: "reduce churn by tracking account health" and
+// "a portfolio of about 60 mid-market accounts" (`portfolio about mid`).
 const CLAUSE_SPLIT =
-  /[,;:.()\/]|\b(?:and|or|while|including|such as|with|to|but|as|within|across|through|for)\b/gi;
+  /[,;:.()\/]|\b(?:and|or|while|including|such as|with|to|but|as|within|across|through|for|that|which|who|what|how|why|when|where|by|about|against|into)\b/gi;
 
 function isJunkSkillPhrase(phrase: string): boolean {
   const trimmed = phrase.trim();
@@ -157,7 +192,7 @@ export function extractSkillPhrases(requirements: string[]): string[] {
       continue;
     }
 
-    for (const clause of normalizeText(raw).split(CLAUSE_SPLIT)) {
+    for (const clause of normalizeText(raw).replace(IDIOMS, ' ').split(CLAUSE_SPLIT)) {
       const tokens = tokenize(clause).filter(Boolean);
 
       // Noise is dropped wherever it sits, not only at the front. Leaving it in
@@ -170,6 +205,9 @@ export function extractSkillPhrases(requirements: string[]): string[] {
           !isNoiseToken(token) &&
           (token.length >= KEYWORD_THRESHOLDS.min_keyword_length || isShortSkillToken(token)),
       );
+
+      // Runs after the filler filter, so "Experience running reviews" loses both words.
+      while (kept.length > 0 && LEADING_VERBS.has(kept[0])) kept.shift();
 
       // A clause that was ALL filler names no skill. Emitting its leftovers as
       // a requirement is what put `proficiency` and `familiarity` in front of
