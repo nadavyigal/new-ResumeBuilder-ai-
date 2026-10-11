@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## English AI text inside the Hebrew page needs `dir="auto"` (2026-10-11)
+
+**Symptom:** on `/he` the free-check cards showed ".sales by region" and ".Estimated fit vs this job, not a hiring guarantee". `C++` would render as `++C`.
+
+**Root cause:** `/he` sets `dir="rtl"` on `<html>`. AI output, résumé text and server strings like `scoreNote` are usually English, and a block that inherits RTL puts trailing punctuation (a neutral character) on the left.
+
+**Fix:** add `dir="auto"` to the block that holds the text, not to its Hebrew label (`ATSScoreDisplay`, `IssueCard`, `QuickWinsSection`). Regression test: `tests/app/free-check-results-bidi.test.tsx`.
+
+**Rule:** any element that renders model output, user content or an untranslated server string gets `dir="auto"`. Translated `t()` strings do not need it.
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.

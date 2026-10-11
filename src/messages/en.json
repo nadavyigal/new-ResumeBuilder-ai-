@@ -88,7 +88,8 @@
         "needsImprovement": "Needs improvement"
       },
       "fit": {
-        "label": "Estimated fit"
+        "label": "Estimated fit",
+        "scoreNote": "Estimated fit vs this job, not a hiring guarantee."
       },
       "topIssues": "Top issues",
       "lockedTitle": "Unlock {count} more fixes",

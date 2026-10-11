@@ -3,11 +3,11 @@
 - Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
 - Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
 - Active Story: none
-- Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
+- Last Completed Story: Hebrew free-check fixes (PR #165, branch fix/he-free-check-bidi): English AI text keeps LTR punctuation in the result cards, and the score note is translated (`landing.score.fit.scoreNote`)
 - Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
 - Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Last Validation: 2026-10-11 bidi fix: new `tests/app/free-check-results-bidi.test.tsx` 7/7 (red before the fix); full `npx jest` 18 suites / 77 tests failing on both branch and main (identical, pre-existing), branch adds 1 suite / 7 passing tests; `eslint` on changed files exit 0; `tsc --noEmit` 27 errors on both branch and main, none in changed files; `npm run build` passes; browser check on local `/he` at 402x874 with the check API stubbed: every English block computes `direction: ltr`, periods at line end. Score note: bidi test 7/7 incl. a new translated-note test, `funnel-i18n-parity` 4/4.
+- Last Updated: 2026-10-11
 
 ## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
 
