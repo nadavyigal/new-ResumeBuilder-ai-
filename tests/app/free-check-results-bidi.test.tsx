@@ -100,7 +100,6 @@ describe('free check results keep English AI text LTR inside an RTL page', () =>
   });
 
   it.each([
-    ['score note', data.fit!.scoreNote],
     ['fit verdict', 'Stretch'],
     ['issue text', data.preview.topIssues[0].text],
     ['quick win before', quickWin.original_text],
@@ -114,5 +113,15 @@ describe('free check results keep English AI text LTR inside an RTL page', () =>
     });
 
     expect(elementWithText(container, text).getAttribute('dir')).toBe('auto');
+  });
+
+  it('shows the translated score note, not the English string from the API', () => {
+    const { ATSScoreDisplay } = require('@/components/landing/ATSScoreDisplay');
+    act(() => {
+      root.render(<ATSScoreDisplay data={data} onSignup={() => {}} />);
+    });
+
+    expect(container.textContent).toContain('landing.score.fit.scoreNote');
+    expect(container.textContent).not.toContain(data.fit!.scoreNote);
   });
 });
