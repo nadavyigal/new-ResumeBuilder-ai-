@@ -62,7 +62,27 @@ const STOPWORDS = new Set([
   'per', 'via', 'over', 'under', 'about', 'across', 'within', 'while', 'during', 'after',
   'before', 'through', 'between', 'more', 'most', 'other', 'some', 'very', 'will', 'can',
   'out', 'off', 'too', 'both', 'own', 'new', 'key', 'well', 'able',
+  // Hebrew function words, as `stem` spells them (final letters normalised).
+  ...['של', 'את', 'עם', 'על', 'או', 'גם', 'כי', 'אם', 'לא', 'כל', 'זה', 'זו', 'זאת', 'הם', 'הן', 'אני',
+    'היא', 'הוא', 'אנחנו', 'אשר', 'שלי', 'שלו', 'שלה', 'יותר', 'מאוד', 'כמו', 'בין', 'אל', 'עד', 'לפי',
+    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].map(hebrewStem),
 ]);
+
+/**
+ * Hebrew glues "and, the, in, to, from, that, as" onto the next word (ו ה ב ל מ
+ * ש כ), and plurals add ים/ות, so "בדוחות" and "דוחות" are the same word to a
+ * reader. Without this, a Hebrew rewrite that only dropped a prefix read as a
+ * job-post term. Up to two proclitics come off while at least three letters
+ * remain; final letter forms are normalised first so plural stripping lines up.
+ */
+function hebrewStem(word: string): string {
+  let w = word.replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' })[c] as string);
+  for (let i = 0; i < 2 && w.length > 3 && 'והבלמשכ'.includes(w[0]); i++) w = w.slice(1);
+  if (w.length > 4 && /(?:ימ|ות)$/.test(w)) w = w.slice(0, -2);
+  return w;
+}
+
+const HEBREW_WORD = /^[\u0590-\u05FF]+$/;
 
 /**
  * Verbs that re-describe an action rather than add one. Swapping "Built" for
@@ -76,6 +96,28 @@ const REWORDING_VERBS = new Set(
     'oversaw', 'oversee', 'establish', 'launch', 'achieve', 'spearhead', 'streamline',
     'utilize', 'leverage', 'conduct', 'handle', 'prepare', 'use', 'ensure', 'focus',
     'enhance', 'increase', 'reduce', 'help', 'provide', 'perform', 'make', 'made',
+    // Hebrew: the same verbs in past (3rd person, 1st person "-תי", feminine,
+    // plural) and as the action noun job posts use ("ניהול דוחות"). Present
+    // forms are left out on purpose: "מנהל" is also a job title.
+    'ניהל', 'ניהלתי', 'ניהלה', 'ניהלו', 'ניהול',
+    'הוביל', 'הובלתי', 'הובילה', 'הובילו', 'הובלה', 'הובלת',
+    'פיתח', 'פיתחתי', 'פיתחה', 'פיתחו', 'פיתוח',
+    'בנה', 'בניתי', 'בנתה', 'בנו', 'בניית', 'בנייה',
+    'יצר', 'יצרתי', 'יצרה', 'יצרו', 'יצירת', 'יצירה',
+    'עיצב', 'עיצבתי', 'עיצבה', 'עיצבו', 'עיצוב', 'תכנן', 'תכננתי', 'תכננה', 'תכננו', 'תכנון',
+    'טיפל', 'טיפלתי', 'טיפלה', 'טיפלו', 'טיפול',
+    'ביצע', 'ביצעתי', 'ביצעה', 'ביצעו', 'ביצוע',
+    'יישם', 'יישמתי', 'יישמה', 'יישמו', 'יישום', 'הטמיע', 'הטמעתי', 'הטמעה',
+    'שיפר', 'שיפרתי', 'שיפרה', 'שיפרו', 'שיפור',
+    'הכין', 'הכנתי', 'הכינה', 'הכינו', 'הכנת', 'הכנה',
+    'עבד', 'עבדתי', 'עבדה', 'עבדו',
+    'תמך', 'תמכתי', 'תמכה', 'תמכו', 'תמיכה',
+    'תיאם', 'תיאמתי', 'תיאמה', 'תיאמו', 'תיאום', 'ריכז', 'ריכזתי', 'ריכוז',
+    'הקים', 'הקמתי', 'הקימה', 'הקמת', 'השיק', 'השקתי', 'השקת',
+    'עקב', 'עקבתי', 'מעקב', 'ניטר', 'ניטרתי', 'ניטור',
+    'הגדיל', 'הגדלתי', 'הגדלת', 'צמצם', 'צמצמתי', 'צמצום', 'הפחית', 'הפחתתי', 'הפחתת',
+    'השתמש', 'השתמשתי', 'שימוש', 'סייע', 'סייעתי', 'סיוע', 'עזר', 'עזרתי',
+    'השיג', 'השגתי', 'שיתף', 'שיתפתי', 'שיתוף',
   ].map(stem),
 );
 
@@ -89,6 +131,7 @@ function words(text: string): string[] {
 }
 
 function stem(word: string): string {
+  if (HEBREW_WORD.test(word)) return hebrewStem(word);
   const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '').replace(/e$/, '');
   return stripped.length >= 4 ? stripped : word;
 }
@@ -101,11 +144,18 @@ function isRewordingVerb(s: string): boolean {
 function sameStem(a: string, b: string): boolean {
   if (a === b) return true;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  // Hebrew: the same word with more proclitics left on ("מתמטיקה" / "תמטיקה":
+  // מ is both a prefix and a first letter, so stripping can stop at either).
+  if (HEBREW_WORD.test(long) && short.length >= 3 && long.endsWith(short)) {
+    return /^[והבלמשכ]{1,3}$/.test(long.slice(0, long.length - short.length));
+  }
   return short.length >= 5 && long.startsWith(short);
 }
 
 function contentWords(text: string): string[] {
-  return words(text).filter((w) => w.length >= 3 && !/^\d/.test(w) && !STOPWORDS.has(w));
+  // Hebrew words are shorter (no vowel letters): two letters can name a thing.
+  const minLength = (w: string) => (HEBREW_WORD.test(w) ? 2 : 3);
+  return words(text).filter((w) => w.length >= minLength(w) && !/^\d/.test(w) && !STOPWORDS.has(w) && !STOPWORDS.has(stem(w)));
 }
 
 function contentStems(text: string): string[] {

@@ -787,11 +787,9 @@ export async function enforceJobAdTruth(
   // Phrases last, on the final text, so each record points at what the user will
   // see. Deterministic: no repair call, so nothing the user could confirm is lost.
   let held: HeldPhrase[] = [];
-  // Hebrew is not handled yet: the job-word check has English verb lists and does
-  // not strip Hebrew proclitics (ב, ה, ו...), so an honest Hebrew rewrite would be
-  // held (Codex review of #169). Off until it is, for either side in Hebrew.
-  const hebrew = HEBREW.test(input.resumeText) || HEBREW.test(input.jobDescription);
-  if (input.holdJobPhrases && !hebrew) {
+  // Hebrew pairs are guarded too: `findJobOnlyTerms` strips proclitics and knows
+  // Hebrew verb swaps (2026-10-12; skipped before, Codex review of #169).
+  if (input.holdJobPhrases) {
     report.jobPhrasesBefore = [
       ...new Set(findJobOnlyBulletTerms(best, input.resumeText, input.jobDescription).flatMap((f) => f.terms)),
     ];
