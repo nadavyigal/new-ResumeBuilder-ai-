@@ -195,14 +195,9 @@ Return only the JSON object with the optimized resume data.
 export const RESUME_TRUTH_REPAIR_PROMPT = (
   originalResumeText: string,
   candidate: object,
-  issues: { unsupported: string[]; lost: string[]; jobPhrases?: string[] }
+  issues: { unsupported: string[]; lost: string[] }
 ) => {
   const fixes: string[] = [];
-  if (issues.jobPhrases && issues.jobPhrases.length > 0) {
-    fixes.push(
-      `- Experience bullets use these words from the job post, which the original resume never uses: ${issues.jobPhrases.join(', ')}. They claim duties, audiences or results the candidate did not write. Remove them and the phrase that carries them, and say only what the original bullet says. Do not swap in other wording from the job post.`
-    );
-  }
   if (issues.unsupported.length > 0) {
     fixes.push(
       `- The rewrite claims ${issues.unsupported.join(', ')}, which the original resume never mentions. Remove every claim of them from the summary, skills, bullets, certifications and projects. Do not replace them with any other tool, platform or credential the original resume does not mention.`

@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
+
+**Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.
+
+**Decision (founder):** never ship an unconfirmed claim, and never take a score away without asking. The guard now *holds* job-post phrases instead of deleting them, and the web review page offers each one as "Add only if true", unselected. Confirming restores the optimizer's line and its score exactly (Maya: optimizer 52, confirmed 52, declined 50). Only clients that can show the item opt in (`confirmJobPhrases`); installed iOS builds keep the old behaviour until their own UI ships.
+
+**Rules:**
+1. When a guard removes something that might be true, offer it back to the user rather than deleting it. The score then reflects only what the user stands behind.
+2. A behaviour change on a shared API needs an opt-in from clients that can render it. Installed native builds cannot, and silently degrading them is a product decision, not a default.
+
 ## A better job-title parser can lower a correct candidate's score (2026-10-12)
 
 **Symptom:** the iOS free check showed "Align your headline or summary with the target title '{targetTitle}'". The job text ("Kesher Commerce is looking for a Data Analyst to join...") matched none of `extractJobTitle`'s patterns, so the title was empty and `fillTemplate` left the placeholder in.

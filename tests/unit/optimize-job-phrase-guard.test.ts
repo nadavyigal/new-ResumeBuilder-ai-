@@ -83,38 +83,41 @@ describe('job-only phrases in optimizer bullets', () => {
   });
 });
 
-describe('enforceJobAdTruth: "Prepared monthly reports for managers." never gains "non-technical stakeholders"', () => {
+describe('enforceJobAdTruth: "Prepared monthly reports for managers." never gains "non-technical stakeholders" unless the user confirms it', () => {
   const input = { resumeText: MAYA.resume, jobDescription: MAYA.job };
 
-  it('falls back to the bullet\'s own clause when the repair call fails', async () => {
+  it('holds the phrase back, with a record the user can confirm, and makes no AI call', async () => {
     const repair = repairReturning(null);
-    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair });
+    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair, holdJobPhrases: true });
 
-    expect(repair).toHaveBeenCalledTimes(1);
-    expect(repair.mock.calls[0][1].jobPhrases).toEqual(expect.arrayContaining(['stakeholders']));
+    expect(repair).not.toHaveBeenCalled();
     expect(bulletsOf(out.resume)).toContain(ORIGINAL_BULLET);
     expect(JSON.stringify(out.resume.experience)).not.toMatch(/non-?technical|stakeholders/i);
     expect(out.changed).toBe(true);
-    expect(out.report).toMatchObject({ retried: true, retryReason: 'job_only_phrases', jobPhraseBulletsCleaned: 1, jobPhrasesUnresolved: [] });
+    expect(out.held).toEqual([
+      {
+        section: 'experience',
+        index: 0,
+        kept: ORIGINAL_BULLET,
+        proposed: OBSERVED_BULLET,
+        after: null,
+        terms: expect.arrayContaining(['nontechnical', 'stakeholders', 'insights']),
+      },
+    ]);
+    expect(out.report).toMatchObject({ retried: false, jobPhraseBulletsCleaned: 1, jobPhrasesUnresolved: [] });
   });
 
-  it('falls back when the repair returns the same phrase again', async () => {
-    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair: repairReturning(MAYA_REWRITE()) });
-    expect(out.report.repairAccepted).toBe(false);
-    expect(bulletsOf(out.resume)).toContain(ORIGINAL_BULLET);
-    expect(JSON.stringify(out.resume.experience)).not.toMatch(/non-?technical|stakeholders/i);
+  it('changes nothing for clients that did not opt in (installed iOS builds)', async () => {
+    const repair = repairReturning(null);
+    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair });
+    expect(repair).not.toHaveBeenCalled();
+    expect(out.changed).toBe(false);
+    expect(out.held).toEqual([]);
+    expect(bulletsOf(out.resume)).toContain(OBSERVED_BULLET);
   });
 
-  it('keeps a repair that removes the phrase', async () => {
-    const fixed = MAYA_REWRITE();
-    fixed.experience[0].achievements[1] = ORIGINAL_BULLET;
-    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair: repairReturning(fixed) });
-    expect(out.report).toMatchObject({ repairAccepted: true, jobPhraseBulletsCleaned: 0 });
-    expect(bulletsOf(out.resume)).toContain(ORIGINAL_BULLET);
-  });
-
-  it('keeps every bullet: a cut never deletes evidence', async () => {
-    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair: repairReturning(null) });
+  it('keeps every bullet: holding a clause never deletes evidence', async () => {
+    const out = await enforceJobAdTruth(MAYA_REWRITE(), { ...input, repair: repairReturning(null), holdJobPhrases: true });
     expect(bulletsOf(out.resume)).toHaveLength(4);
   });
 });

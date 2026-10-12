@@ -9,7 +9,7 @@ import {
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
 import { normalizeExperienceBullets, countBullets } from './normalize-experience';
-import { enforceJobAdTruth, type TruthGuardReport } from './job-ad-terms';
+import { enforceJobAdTruth, type HeldPhrase, type TruthGuardReport } from './job-ad-terms';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
@@ -35,11 +35,19 @@ export interface OptimizationPipelineResult {
    * outside runOptimizePipeline.
    */
   truthGuard?: TruthGuardReport;
+  /** Job-post phrases held back for the user to confirm. Present only with `confirmJobPhrases`. */
+  heldPhrases?: HeldPhrase[];
 }
 
 type OptimizationPipelineOptions = {
   jobExtractedJson?: Record<string, unknown>;
   aiTrace?: AITraceOptions;
+  /**
+   * Hold job-post phrases back as "Add only if true" items instead of shipping
+   * them. Only for clients that show those items (web review page); off for
+   * everyone else, so installed iOS builds see no change.
+   */
+  confirmJobPhrases?: boolean;
 };
 
 function getOpenAIClient(): OpenAI {
@@ -261,6 +269,7 @@ export async function runOptimizePipeline(
   const guarded = await enforceJobAdTruth(selected.optimizedResume, {
     resumeText,
     jobDescription,
+    holdJobPhrases: options?.confirmJobPhrases === true,
     repair: async (candidate, issues) => {
       const trace = options?.aiTrace ?? { traceName: 'optimize' };
       const repaired = await callOpenAIWithGapPrompt(
@@ -275,7 +284,6 @@ export async function runOptimizePipeline(
             truth_repair: true,
             unsupported_terms_count: issues.unsupported.length,
             lost_terms_count: issues.lost.length,
-            job_phrase_terms_count: issues.jobPhrases.length,
           },
         }
       );
@@ -298,7 +306,8 @@ export async function runOptimizePipeline(
     jobPhrasesUnresolved: report.jobPhrasesUnresolved.length,
   });
 
-  if (!guarded.changed) return { ...selected, truthGuard: report };
+  const heldPhrases = guarded.held.length > 0 ? { heldPhrases: guarded.held } : {};
+  if (!guarded.changed) return { ...selected, truthGuard: report, ...heldPhrases };
 
   const rescored = await scoreOptimization({
     resumeOriginalText: resumeText,
@@ -310,7 +319,7 @@ export async function runOptimizePipeline(
     // The scorer's zero-confidence fallback. Ship the corrected résumé with the last
     // real score rather than a 0 the user would read as a verdict.
     console.warn('Pipeline truth guard: rescoring returned the zero-confidence fallback, keeping the prior score');
-    return { ...selected, optimizedResume: guarded.resume, truthGuard: report };
+    return { ...selected, optimizedResume: guarded.resume, truthGuard: report, ...heldPhrases };
   }
   return {
     ...selected,
@@ -318,6 +327,7 @@ export async function runOptimizePipeline(
     atsResult: rescored,
     lift: liftFor(rescored, selected.passesUsed),
     truthGuard: report,
+    ...heldPhrases,
   };
 }
 

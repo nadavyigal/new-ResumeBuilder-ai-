@@ -391,19 +391,41 @@ function cleanBullet(bullet: string, originalResumeText: string, jobDescription:
   return source && jobOnlyIn(source, ctx).length === 0 ? source : null;
 }
 
+/**
+ * A job-post phrase held back from the rewrite, kept so the user can confirm it
+ * ("Add only if true") and get its score back. Held, not deleted, since
+ * 2026-10-12: the founder's call, because a silent cut lowered scores for people
+ * who really did the thing.
+ */
+export interface HeldPhrase {
+  section: 'experience' | 'summary' | 'projects';
+  /** Role index (experience) or project index (projects); 0 for the summary. */
+  index: number;
+  /** Text now in the résumé in its place, or null when the whole item was held back. */
+  kept: string | null;
+  /** What the optimizer wrote. Restored as-is when the user confirms. */
+  proposed: string;
+  /** For a held-back whole item: the text it followed, so it goes back in place. Null = first. */
+  after: string | null;
+  /** The job-post words it uses that the résumé does not. */
+  terms: string[];
+}
+
 export function removeJobOnlyPhrases(
   resume: OptimizedResume,
   originalResumeText: string,
   jobDescription: string
-): { resume: OptimizedResume; cleaned: number; unresolved: string[] } {
+): { resume: OptimizedResume; cleaned: number; unresolved: string[]; held: HeldPhrase[] } {
   const flagged = new Map(findJobOnlyBulletTerms(resume, originalResumeText, jobDescription).map((f) => [f.bullet, f.terms]));
-  if (flagged.size === 0) return { resume, cleaned: 0, unresolved: [] };
+  if (flagged.size === 0) return { resume, cleaned: 0, unresolved: [], held: [] };
   let cleaned = 0;
   const unresolved = new Set<string>();
+  const held: HeldPhrase[] = [];
 
-  const experience = (Array.isArray(resume.experience) ? resume.experience : []).map((role) => {
+  const experience = (Array.isArray(resume.experience) ? resume.experience : []).map((role, roleIndex) => {
     // A bullet with no clean clause and no source line is the job post, not the
-    // candidate: it goes, unless it is all the role has (WP-64: never empty a role).
+    // candidate: it is held back whole, unless it is all the role has (WP-64:
+    // never empty a role).
     const fix = (bullets: string[] | undefined, othersInRole: number) => {
       if (!bullets) return bullets;
       const out: string[] = [];
@@ -417,8 +439,10 @@ export function removeJobOnlyPhrases(
         if (next !== null) {
           out.push(next);
           cleaned++;
+          held.push({ section: 'experience', index: roleIndex, kept: next, proposed: b, after: null, terms });
         } else if (othersInRole + out.length + (bullets.length - i - 1) > 0) {
           cleaned++;
+          held.push({ section: 'experience', index: roleIndex, kept: null, proposed: b, after: out[out.length - 1] ?? null, terms });
         } else {
           terms.forEach((t) => unresolved.add(t));
           out.push(b);
@@ -433,8 +457,8 @@ export function removeJobOnlyPhrases(
       ...(role.responsibilities ? { responsibilities: fix(role.responsibilities, achievements?.length ?? 0) } : {}),
     };
   });
-  // Summary: cut the clause; a sentence that is the job post goes, unless it is
-  // the whole summary. Projects: cut the clause or report it.
+  // Summary: cut the clause; a sentence that is the job post is held back whole,
+  // unless it is the whole summary. Projects: cut the clause or report it.
   const ctx = groundingFor(originalResumeText, jobDescription);
   const summaryParts = sentences(typeof resume.summary === 'string' ? resume.summary : '');
   const summary: string[] = [];
@@ -444,16 +468,18 @@ export function removeJobOnlyPhrases(
     const cut = cutClauses(sentence, ctx, true);
     if (cut !== null) {
       cleaned++;
+      held.push({ section: 'summary', index: 0, kept: cut, proposed: sentence, after: null, terms });
       return summary.push(cut);
     }
     if (summary.length + (summaryParts.length - i - 1) > 0) {
       cleaned++;
+      held.push({ section: 'summary', index: 0, kept: null, proposed: sentence, after: summary[summary.length - 1] ?? null, terms });
       return;
     }
     terms.forEach((t) => unresolved.add(t));
     summary.push(sentence);
   });
-  const projects = resume.projects?.map((p) => {
+  const projects = resume.projects?.map((p, projectIndex) => {
     const terms = typeof p.description === 'string' ? flagged.get(p.description) : undefined;
     if (!terms) return p;
     const cut = cutClauses(p.description as string, ctx);
@@ -462,6 +488,7 @@ export function removeJobOnlyPhrases(
       return p;
     }
     cleaned++;
+    held.push({ section: 'projects', index: projectIndex, kept: cut, proposed: p.description as string, after: null, terms });
     return { ...p, description: cut };
   });
 
@@ -474,6 +501,7 @@ export function removeJobOnlyPhrases(
     },
     cleaned,
     unresolved: [...unresolved],
+    held,
   };
 }
 
@@ -555,8 +583,7 @@ export function restoreSupportedTerms(resume: OptimizedResume, terms: string[]):
   return { ...resume, skills: { technical, soft: resume.skills?.soft ?? [] } };
 }
 
-/** 'both' means more than one kind of problem was found. */
-export type TruthGuardRetryReason = 'unsupported_job_ad_terms' | 'lost_supported_terms' | 'job_only_phrases' | 'both';
+export type TruthGuardRetryReason = 'unsupported_job_ad_terms' | 'lost_supported_terms' | 'both';
 
 export interface TruthGuardReport {
   checkedTerms: number;
@@ -570,17 +597,17 @@ export interface TruthGuardReport {
   removedTerms: string[];
   restoredTerms: string[];
   unresolvedTerms: string[];
-  /** Job-only words found in experience bullets before any repair. */
+  /** Job-only words found in the rewrite's claims (only when phrases are held). */
   jobPhrasesBefore: string[];
-  /** Bullets the deterministic fallback cut, reverted to the candidate's own line, or dropped. */
+  /** Claims held back for the user to confirm: cut, reverted to the candidate's own line, or held whole. */
   jobPhraseBulletsCleaned: number;
-  /** Job-only words still in a bullet because no safe cut or source line existed. */
+  /** Job-only words still in the rewrite because holding them back would empty a role or the summary. */
   jobPhrasesUnresolved: string[];
 }
 
 export type TruthRepair = (
   candidate: OptimizedResume,
-  issues: { unsupported: string[]; lost: string[]; jobPhrases: string[] }
+  issues: { unsupported: string[]; lost: string[] }
 ) => Promise<OptimizedResume | null>;
 
 /** Mirrors the WP-64 pass-2 rule: a repair may consolidate, not delete a third of the evidence. */
@@ -597,14 +624,21 @@ function keepsContent(repaired: OptimizedResume, original: OptimizedResume): boo
  */
 export async function enforceJobAdTruth(
   candidate: OptimizedResume,
-  input: { resumeText: string; jobDescription: string; repair: TruthRepair }
-): Promise<{ resume: OptimizedResume; report: TruthGuardReport; changed: boolean }> {
+  input: {
+    resumeText: string;
+    jobDescription: string;
+    repair: TruthRepair;
+    /**
+     * Hold job-post phrases back for the user to confirm. Off unless the client
+     * can show "Add only if true"; installed iOS builds cannot yet, and get the
+     * tools-only guard they had before.
+     */
+    holdJobPhrases?: boolean;
+  }
+): Promise<{ resume: OptimizedResume; report: TruthGuardReport; changed: boolean; held: HeldPhrase[] }> {
   const terms = extractJobAdTerms(input.jobDescription);
   const unsupported = findUnsupportedTerms(candidate, input.resumeText, terms);
   const lost = findLostSupportedTerms(candidate, input.resumeText, terms);
-  const phraseTerms = (r: OptimizedResume) =>
-    [...new Set(findJobOnlyBulletTerms(r, input.resumeText, input.jobDescription).flatMap((f) => f.terms))];
-  const jobPhrases = phraseTerms(candidate);
   const report: TruthGuardReport = {
     checkedTerms: terms.length,
     unsupportedBefore: unsupported,
@@ -616,66 +650,68 @@ export async function enforceJobAdTruth(
     removedTerms: [],
     restoredTerms: [],
     unresolvedTerms: [],
-    jobPhrasesBefore: jobPhrases,
+    jobPhrasesBefore: [],
     jobPhraseBulletsCleaned: 0,
     jobPhrasesUnresolved: [],
   };
-  if (unsupported.length === 0 && lost.length === 0 && jobPhrases.length === 0) {
-    return { resume: candidate, report, changed: false };
-  }
-
-  report.retried = true;
-  const reasons: TruthGuardRetryReason[] = [];
-  if (unsupported.length) reasons.push('unsupported_job_ad_terms');
-  if (lost.length) reasons.push('lost_supported_terms');
-  if (jobPhrases.length) reasons.push('job_only_phrases');
-  report.retryReason = reasons.length > 1 ? 'both' : reasons[0];
 
   let best = candidate;
-  let repaired: OptimizedResume | null = null;
-  try {
-    repaired = await input.repair(candidate, { unsupported, lost, jobPhrases });
-  } catch {
-    repaired = null;
-  }
-  if (repaired) {
-    // The repair was asked to remove a tool; it must not invent a different one. Any tool
-    // in the repair that neither the rewrite nor the résumé had rejects it outright.
-    const before = claimSegments(candidate).join('\n');
-    const source = trustedResumeText(input.resumeText);
-    report.repairIntroducedTerms = extractJobAdTerms(claimSegments(repaired).join('\n')).filter(
-      (t) => !mentionsTerm(before, t) && !supports(source, t)
-    );
-  }
-  if (repaired && keepsContent(repaired, candidate) && report.repairIntroducedTerms.length === 0) {
-    const u = findUnsupportedTerms(repaired, input.resumeText, terms);
-    const l = findLostSupportedTerms(repaired, input.resumeText, terms);
-    const p = phraseTerms(repaired);
-    const notWorse = u.length <= unsupported.length && l.length <= lost.length && p.length <= jobPhrases.length;
-    if (notWorse && u.length + l.length + p.length < unsupported.length + lost.length + jobPhrases.length) {
-      best = repaired;
-      report.repairAccepted = true;
+  if (unsupported.length > 0 || lost.length > 0) {
+    report.retried = true;
+    report.retryReason = unsupported.length && lost.length ? 'both' : unsupported.length ? 'unsupported_job_ad_terms' : 'lost_supported_terms';
+
+    let repaired: OptimizedResume | null = null;
+    try {
+      repaired = await input.repair(candidate, { unsupported, lost });
+    } catch {
+      repaired = null;
+    }
+    if (repaired) {
+      // The repair was asked to remove a tool; it must not invent a different one. Any tool
+      // in the repair that neither the rewrite nor the résumé had rejects it outright.
+      const before = claimSegments(candidate).join('\n');
+      const source = trustedResumeText(input.resumeText);
+      report.repairIntroducedTerms = extractJobAdTerms(claimSegments(repaired).join('\n')).filter(
+        (t) => !mentionsTerm(before, t) && !supports(source, t)
+      );
+    }
+    if (repaired && keepsContent(repaired, candidate) && report.repairIntroducedTerms.length === 0) {
+      const u = findUnsupportedTerms(repaired, input.resumeText, terms);
+      const l = findLostSupportedTerms(repaired, input.resumeText, terms);
+      if (u.length <= unsupported.length && l.length <= lost.length && u.length + l.length < unsupported.length + lost.length) {
+        best = repaired;
+        report.repairAccepted = true;
+      }
+    }
+
+    const stillUnsupported = findUnsupportedTerms(best, input.resumeText, terms);
+    if (stillUnsupported.length > 0) {
+      const removal = removeUnsupportedTerms(best, stillUnsupported);
+      best = removal.resume;
+      report.removedTerms = removal.removed;
+      report.unresolvedTerms = removal.unresolved;
+    }
+    const stillLost = findLostSupportedTerms(best, input.resumeText, terms);
+    if (stillLost.length > 0) {
+      best = restoreSupportedTerms(best, stillLost);
+      report.restoredTerms = stillLost;
     }
   }
 
-  const stillUnsupported = findUnsupportedTerms(best, input.resumeText, terms);
-  if (stillUnsupported.length > 0) {
-    const removal = removeUnsupportedTerms(best, stillUnsupported);
-    best = removal.resume;
-    report.removedTerms = removal.removed;
-    report.unresolvedTerms = removal.unresolved;
+  // Phrases last, on the final text, so each record points at what the user will
+  // see. Deterministic: no repair call, so nothing the user could confirm is lost.
+  let held: HeldPhrase[] = [];
+  if (input.holdJobPhrases) {
+    report.jobPhrasesBefore = [
+      ...new Set(findJobOnlyBulletTerms(best, input.resumeText, input.jobDescription).flatMap((f) => f.terms)),
+    ];
+    const phrases = removeJobOnlyPhrases(best, input.resumeText, input.jobDescription);
+    if (phrases.cleaned > 0) best = phrases.resume;
+    report.jobPhraseBulletsCleaned = phrases.cleaned;
+    report.jobPhrasesUnresolved = phrases.unresolved;
+    held = phrases.held;
   }
-  const stillLost = findLostSupportedTerms(best, input.resumeText, terms);
-  if (stillLost.length > 0) {
-    best = restoreSupportedTerms(best, stillLost);
-    report.restoredTerms = stillLost;
-  }
-  // Last, so a restored tool cannot reintroduce a phrase and a cut cannot drop a tool.
-  const phrases = removeJobOnlyPhrases(best, input.resumeText, input.jobDescription);
-  if (phrases.cleaned > 0) best = phrases.resume;
-  report.jobPhraseBulletsCleaned = phrases.cleaned;
-  report.jobPhrasesUnresolved = phrases.unresolved;
-  return { resume: best, report, changed: best !== candidate };
+  return { resume: best, report, changed: best !== candidate, held };
 }
 
 export interface WireTruthGuard {

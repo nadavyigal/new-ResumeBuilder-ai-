@@ -108,6 +108,8 @@ export default function ResumeUploadPage() {
     } else {
       formData.append("jobDescription", jobDescription);
     }
+    // The review page this leads to can show "Add only if true" items.
+    formData.append("confirmJobPhrases", "true");
 
     try {
       // Create AbortController with 60 second timeout (AI optimization can take 30-40 seconds)
