@@ -256,7 +256,7 @@ describe('enforceJobAdTruth', () => {
     const repair = repairReturning(saasResume());
     const out = await enforceJobAdTruth(withSalesforce(), { ...input, repair });
     expect(repair).toHaveBeenCalledTimes(1);
-    expect(repair).toHaveBeenCalledWith(expect.anything(), { unsupported: ['Salesforce'], lost: [] });
+    expect(repair).toHaveBeenCalledWith(expect.anything(), { unsupported: ['Salesforce'], lost: [], jobPhrases: [] });
     expect(out.resume.skills.technical).not.toContain('Salesforce');
     expect(out.report).toMatchObject({
       retried: true,
@@ -295,7 +295,7 @@ describe('enforceJobAdTruth', () => {
     dropped.experience[0].achievements = dropped.experience[0].achievements.map((b) => b.replace(' in HubSpot', ''));
     const repair = repairReturning(dropped);
     const out = await enforceJobAdTruth(dropped, { ...input, repair });
-    expect(repair).toHaveBeenCalledWith(expect.anything(), { unsupported: [], lost: ['HubSpot'] });
+    expect(repair).toHaveBeenCalledWith(expect.anything(), { unsupported: [], lost: ['HubSpot'], jobPhrases: [] });
     expect(out.report).toMatchObject({ retryReason: 'lost_supported_terms', restoredTerms: ['HubSpot'] });
     expect(out.resume.skills.technical).toContain('HubSpot');
   });
@@ -322,6 +322,9 @@ describe('toWireTruthGuard (additive /api/optimize field)', () => {
       removedTerms: ['Salesforce'],
       restoredTerms: [],
       unresolvedTerms: [],
+      jobPhrasesBefore: [],
+      jobPhraseBulletsCleaned: 0,
+      jobPhrasesUnresolved: [],
     });
     expect(wire).toEqual({ checked: true, repaired: false, removedTerms: ['Salesforce'], restoredTerms: [], unresolvedTerms: [] });
   });

@@ -1,5 +1,6 @@
 import type { OptimizedResume } from './index';
 import { countBullets } from './normalize-experience';
+import { findJobOnlyTerms } from '@/lib/ats/quick-wins/grounding';
 
 /**
  * Job-ad terms guard (reliability upgrade, Stage 2).
@@ -270,6 +271,120 @@ function cutTerm(text: string, term: string): string {
   return out.replace(/\s{2,}/g, ' ').replace(/\s+([.,;])/g, '$1').replace(/,\s*\./g, '.').trim();
 }
 
+/**
+ * Job-post phrases in experience bullets (2026-10-12).
+ *
+ * The tool guard above is deliberately narrow, so concepts pass it. An iOS capture
+ * on the Maya fixture showed what passes: "Prepared monthly reports for managers."
+ * became "...managers, providing actionable insights to non-technical stakeholders",
+ * the job's "presenting insights to non-technical stakeholders" put in her mouth.
+ * Bullets are claims about what the candidate did, so they get the free check's rule
+ * (`findJobOnlyTerms`): no word the job uses and the résumé does not, except an
+ * action-verb swap. Summary and skills are not policed here.
+ */
+function bulletsOf(role: OptimizedResume['experience'][number]): string[] {
+  return [...(role.achievements ?? []), ...(role.responsibilities ?? [])];
+}
+
+/** Job-only words in each experience bullet of the rewrite. */
+export function findJobOnlyBulletTerms(
+  resume: OptimizedResume,
+  originalResumeText: string,
+  jobDescription: string
+): Array<{ bullet: string; terms: string[] }> {
+  const ctx = { resumeText: trustedResumeText(originalResumeText), jobText: jobDescription };
+  const out: Array<{ bullet: string; terms: string[] }> = [];
+  for (const role of Array.isArray(resume.experience) ? resume.experience : []) {
+    for (const bullet of bulletsOf(role)) {
+      const terms = findJobOnlyTerms(bullet, ctx);
+      if (terms.length > 0) out.push({ bullet, terms });
+    }
+  }
+  return out;
+}
+
+const CLAUSE_BREAK = /(?:,|;|\s[-\u2013\u2014])\s+/;
+
+/** The candidate's own résumé line closest to a bullet, by shared words. Null when none is close. */
+function closestSourceLine(bullet: string, originalResumeText: string): string | null {
+  const wordsOf = (t: string) => new Set(t.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4));
+  const target = wordsOf(bullet);
+  let best: { line: string; score: number } | null = null;
+  for (const raw of trustedResumeText(originalResumeText).split('\n')) {
+    const line = raw.replace(/^\s*[•\-*]\s*/, '').trim();
+    if (line.length < 12) continue;
+    const ws = wordsOf(line);
+    const shared = [...ws].filter((w) => target.has(w)).length;
+    const score = ws.size === 0 ? 0 : shared / ws.size;
+    if (!best || score > best.score) best = { line, score };
+  }
+  return best && best.score >= 0.5 ? best.line : null;
+}
+
+/**
+ * Deterministic fallback for a bullet that still carries job-only words after the
+ * repair. Cut the clauses that carry them ("..., providing insights to non-technical
+ * stakeholders"); if the main clause carries them, put back the candidate's own line.
+ * Never deletes a bullet, so a role can never be emptied. Returns null when neither
+ * works, and the bullet is reported as unresolved.
+ */
+function cleanBullet(bullet: string, originalResumeText: string, jobDescription: string): string | null {
+  const ctx = { resumeText: trustedResumeText(originalResumeText), jobText: jobDescription };
+  const clauses = bullet.split(CLAUSE_BREAK);
+  if (findJobOnlyTerms(clauses[0], ctx).length === 0) {
+    const kept = clauses.filter((c) => findJobOnlyTerms(c, ctx).length === 0);
+    const joined = kept.join(', ').replace(/[\s,;.]+$/, '');
+    if (joined.length >= 12) return `${joined}.`;
+  }
+  const source = closestSourceLine(bullet, originalResumeText);
+  return source && findJobOnlyTerms(source, ctx).length === 0 ? source : null;
+}
+
+export function removeJobOnlyPhrases(
+  resume: OptimizedResume,
+  originalResumeText: string,
+  jobDescription: string
+): { resume: OptimizedResume; cleaned: number; unresolved: string[] } {
+  const flagged = new Map(findJobOnlyBulletTerms(resume, originalResumeText, jobDescription).map((f) => [f.bullet, f.terms]));
+  if (flagged.size === 0) return { resume, cleaned: 0, unresolved: [] };
+  let cleaned = 0;
+  const unresolved = new Set<string>();
+
+  const experience = (Array.isArray(resume.experience) ? resume.experience : []).map((role) => {
+    // A bullet with no clean clause and no source line is the job post, not the
+    // candidate: it goes, unless it is all the role has (WP-64: never empty a role).
+    const fix = (bullets: string[] | undefined, othersInRole: number) => {
+      if (!bullets) return bullets;
+      const out: string[] = [];
+      for (const [i, b] of bullets.entries()) {
+        const terms = flagged.get(b);
+        if (!terms) {
+          out.push(b);
+          continue;
+        }
+        const next = cleanBullet(b, originalResumeText, jobDescription);
+        if (next !== null) {
+          out.push(next);
+          cleaned++;
+        } else if (othersInRole + out.length + (bullets.length - i - 1) > 0) {
+          cleaned++;
+        } else {
+          terms.forEach((t) => unresolved.add(t));
+          out.push(b);
+        }
+      }
+      return out;
+    };
+    const achievements = fix(role.achievements, role.responsibilities?.length ?? 0) ?? role.achievements;
+    return {
+      ...role,
+      achievements,
+      ...(role.responsibilities ? { responsibilities: fix(role.responsibilities, achievements?.length ?? 0) } : {}),
+    };
+  });
+  return { resume: { ...resume, experience }, cleaned, unresolved: [...unresolved] };
+}
+
 export interface RemovalResult {
   resume: OptimizedResume;
   removed: string[];
@@ -348,7 +463,8 @@ export function restoreSupportedTerms(resume: OptimizedResume, terms: string[]):
   return { ...resume, skills: { technical, soft: resume.skills?.soft ?? [] } };
 }
 
-export type TruthGuardRetryReason = 'unsupported_job_ad_terms' | 'lost_supported_terms' | 'both';
+/** 'both' means more than one kind of problem was found. */
+export type TruthGuardRetryReason = 'unsupported_job_ad_terms' | 'lost_supported_terms' | 'job_only_phrases' | 'both';
 
 export interface TruthGuardReport {
   checkedTerms: number;
@@ -362,11 +478,17 @@ export interface TruthGuardReport {
   removedTerms: string[];
   restoredTerms: string[];
   unresolvedTerms: string[];
+  /** Job-only words found in experience bullets before any repair. */
+  jobPhrasesBefore: string[];
+  /** Bullets the deterministic fallback cut, reverted to the candidate's own line, or dropped. */
+  jobPhraseBulletsCleaned: number;
+  /** Job-only words still in a bullet because no safe cut or source line existed. */
+  jobPhrasesUnresolved: string[];
 }
 
 export type TruthRepair = (
   candidate: OptimizedResume,
-  issues: { unsupported: string[]; lost: string[] }
+  issues: { unsupported: string[]; lost: string[]; jobPhrases: string[] }
 ) => Promise<OptimizedResume | null>;
 
 /** Mirrors the WP-64 pass-2 rule: a repair may consolidate, not delete a third of the evidence. */
@@ -388,6 +510,9 @@ export async function enforceJobAdTruth(
   const terms = extractJobAdTerms(input.jobDescription);
   const unsupported = findUnsupportedTerms(candidate, input.resumeText, terms);
   const lost = findLostSupportedTerms(candidate, input.resumeText, terms);
+  const phraseTerms = (r: OptimizedResume) =>
+    [...new Set(findJobOnlyBulletTerms(r, input.resumeText, input.jobDescription).flatMap((f) => f.terms))];
+  const jobPhrases = phraseTerms(candidate);
   const report: TruthGuardReport = {
     checkedTerms: terms.length,
     unsupportedBefore: unsupported,
@@ -399,16 +524,25 @@ export async function enforceJobAdTruth(
     removedTerms: [],
     restoredTerms: [],
     unresolvedTerms: [],
+    jobPhrasesBefore: jobPhrases,
+    jobPhraseBulletsCleaned: 0,
+    jobPhrasesUnresolved: [],
   };
-  if (unsupported.length === 0 && lost.length === 0) return { resume: candidate, report, changed: false };
+  if (unsupported.length === 0 && lost.length === 0 && jobPhrases.length === 0) {
+    return { resume: candidate, report, changed: false };
+  }
 
   report.retried = true;
-  report.retryReason = unsupported.length && lost.length ? 'both' : unsupported.length ? 'unsupported_job_ad_terms' : 'lost_supported_terms';
+  const reasons: TruthGuardRetryReason[] = [];
+  if (unsupported.length) reasons.push('unsupported_job_ad_terms');
+  if (lost.length) reasons.push('lost_supported_terms');
+  if (jobPhrases.length) reasons.push('job_only_phrases');
+  report.retryReason = reasons.length > 1 ? 'both' : reasons[0];
 
   let best = candidate;
   let repaired: OptimizedResume | null = null;
   try {
-    repaired = await input.repair(candidate, { unsupported, lost });
+    repaired = await input.repair(candidate, { unsupported, lost, jobPhrases });
   } catch {
     repaired = null;
   }
@@ -424,7 +558,9 @@ export async function enforceJobAdTruth(
   if (repaired && keepsContent(repaired, candidate) && report.repairIntroducedTerms.length === 0) {
     const u = findUnsupportedTerms(repaired, input.resumeText, terms);
     const l = findLostSupportedTerms(repaired, input.resumeText, terms);
-    if (u.length <= unsupported.length && l.length <= lost.length && u.length + l.length < unsupported.length + lost.length) {
+    const p = phraseTerms(repaired);
+    const notWorse = u.length <= unsupported.length && l.length <= lost.length && p.length <= jobPhrases.length;
+    if (notWorse && u.length + l.length + p.length < unsupported.length + lost.length + jobPhrases.length) {
       best = repaired;
       report.repairAccepted = true;
     }
@@ -442,6 +578,11 @@ export async function enforceJobAdTruth(
     best = restoreSupportedTerms(best, stillLost);
     report.restoredTerms = stillLost;
   }
+  // Last, so a restored tool cannot reintroduce a phrase and a cut cannot drop a tool.
+  const phrases = removeJobOnlyPhrases(best, input.resumeText, input.jobDescription);
+  if (phrases.cleaned > 0) best = phrases.resume;
+  report.jobPhraseBulletsCleaned = phrases.cleaned;
+  report.jobPhrasesUnresolved = phrases.unresolved;
   return { resume: best, report, changed: best !== candidate };
 }
 

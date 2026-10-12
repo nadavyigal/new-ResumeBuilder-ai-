@@ -275,6 +275,7 @@ export async function runOptimizePipeline(
             truth_repair: true,
             unsupported_terms_count: issues.unsupported.length,
             lost_terms_count: issues.lost.length,
+            job_phrase_terms_count: issues.jobPhrases.length,
           },
         }
       );
@@ -292,6 +293,9 @@ export async function runOptimizePipeline(
     removed: report.removedTerms.length,
     restored: report.restoredTerms.length,
     unresolved: report.unresolvedTerms.length,
+    jobPhrases: report.jobPhrasesBefore.length,
+    jobPhraseBulletsCleaned: report.jobPhraseBulletsCleaned,
+    jobPhrasesUnresolved: report.jobPhrasesUnresolved.length,
   });
 
   if (!guarded.changed) return { ...selected, truthGuard: report };

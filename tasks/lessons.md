@@ -9,7 +9,7 @@
 **Fix:** `src/lib/ats/quick-wins/grounding.ts` rejects a rewrite that adds or drops a number, puts a placeholder over a real number, inflates a number, borrows any term the job uses and the résumé does not (only an action-verb swap such as "monitor" -> "track" is allowed), quotes a "before" that is not verbatim résumé text, or takes a number from another bullet (a summary may gather numbers only with their original wording). The first version allowed two job-only terms; the first live preview run used that room to append job duties, so the budget is zero. One repair retry with the reasons; no template padding. Fixtures and tests: `tests/fixtures/free-check-2026-10-11/`, `src/lib/ats/__tests__/free-check-truthfulness.test.ts`.
 
 **Rules:**
-1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check.
+1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check. The reverse held a day later: the optimizer's tool-only guard let "non-technical stakeholders" into a bullet on iOS (2026-10-12). Both paths now share `findJobOnlyTerms` in `src/lib/ats/quick-wins/grounding.ts`; a third rewriting surface must call it too.
 2. Never pad a short AI result with template claims. Fewer suggestions is an honest result.
 3. Filler keywords ("finish", "acting early risk", "write sql queries") come from clause atomization, not from the model. Fix them in `skill-phrase-extractor.ts` and re-run the calibration benchmark (zero score changes on 2026-10-11).
 
