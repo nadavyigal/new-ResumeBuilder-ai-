@@ -286,24 +286,71 @@ function bulletsOf(role: OptimizedResume['experience'][number]): string[] {
   return [...(role.achievements ?? []), ...(role.responsibilities ?? [])];
 }
 
-/** Job-only words in each experience bullet of the rewrite. */
+/**
+ * The job's title, from its first line ("Instructional Designer (fictional demo
+ * role) - Lomda Labs, Haifa" -> "Instructional Designer"). A summary may name the
+ * role the candidate is targeting; that is positioning, not a claim of experience.
+ */
+function jobTitleLine(jobDescription: string): string {
+  const first = jobDescription.split('\n').find((l) => l.trim()) ?? '';
+  return first.replace(/\(.*?\)/g, ' ').split(/\s[-\u2013\u2014|]\s|,/)[0].trim();
+}
+
+/**
+ * Nouns a summary uses to frame the bullets below it ("a record of beating
+ * quota" over "Reached 118% of annual quota"). They borrow the job's framing, not
+ * a fact; the facts they frame are checked in the bullets.
+ */
+const SUMMARY_FRAMING = new Set(['record', 'background', 'expertise']);
+
+function groundingFor(originalResumeText: string, jobDescription: string) {
+  return { resumeText: trustedResumeText(originalResumeText), jobText: jobDescription, jobTitle: jobTitleLine(jobDescription) };
+}
+
+/** Job-only words in one claim; detection and the fallback both use this, so they agree. */
+function jobOnlyIn(text: string, ctx: ReturnType<typeof groundingFor>, isSummary = false): string[] {
+  return findJobOnlyTerms(text, ctx, isSummary).filter((t) => !(isSummary && SUMMARY_FRAMING.has(t)));
+}
+
+/**
+ * Job-only words in each claim of the rewrite: experience bullets, project
+ * descriptions and summary sentences (goal sentences excepted). Moving the
+ * phrase out of a bullet must not be a way around the guard.
+ */
 export function findJobOnlyBulletTerms(
   resume: OptimizedResume,
   originalResumeText: string,
   jobDescription: string
 ): Array<{ bullet: string; terms: string[] }> {
-  const ctx = { resumeText: trustedResumeText(originalResumeText), jobText: jobDescription };
+  const ctx = groundingFor(originalResumeText, jobDescription);
   const out: Array<{ bullet: string; terms: string[] }> = [];
-  for (const role of Array.isArray(resume.experience) ? resume.experience : []) {
-    for (const bullet of bulletsOf(role)) {
-      const terms = findJobOnlyTerms(bullet, ctx);
-      if (terms.length > 0) out.push({ bullet, terms });
-    }
+  const check = (text: unknown, isSummary = false) => {
+    if (typeof text !== 'string' || !text.trim()) return;
+    const terms = jobOnlyIn(text, ctx, isSummary);
+    if (terms.length > 0) out.push({ bullet: text, terms });
+  };
+  for (const role of Array.isArray(resume.experience) ? resume.experience : []) bulletsOf(role).forEach((b) => check(b));
+  for (const p of Array.isArray(resume.projects) ? resume.projects : []) check(p.description);
+  for (const sentence of sentences(typeof resume.summary === 'string' ? resume.summary : '')) {
+    if (!ASPIRATION.test(sentence)) check(sentence, true);
   }
   return out;
 }
 
 const CLAUSE_BREAK = /(?:,|;|\s[-\u2013\u2014])\s+/;
+
+/**
+ * A résumé line that can stand in for a bullet: a sentence, not a role header,
+ * contact line, title or skills list. Without this, an invented bullet came
+ * back as "Data Analyst" or "Excel, Google Sheets, Communication, Teamwork".
+ */
+function isSourceSentence(line: string): boolean {
+  if (line.split(/\s+/).length < 4) return false;
+  if (/(?<![0-9])(?:19|20)\d\d(?![0-9])/.test(line)) return false;
+  if (/@|·|\|/.test(line)) return false;
+  const items = line.split(',');
+  return !(items.length >= 3 && items.every((item) => item.trim().split(/\s+/).length <= 3));
+}
 
 /** The candidate's own résumé line closest to a bullet, by shared words. Null when none is close. */
 function closestSourceLine(bullet: string, originalResumeText: string): string | null {
@@ -312,7 +359,7 @@ function closestSourceLine(bullet: string, originalResumeText: string): string |
   let best: { line: string; score: number } | null = null;
   for (const raw of trustedResumeText(originalResumeText).split('\n')) {
     const line = raw.replace(/^\s*[•\-*]\s*/, '').trim();
-    if (line.length < 12) continue;
+    if (!isSourceSentence(line)) continue;
     const ws = wordsOf(line);
     const shared = [...ws].filter((w) => target.has(w)).length;
     const score = ws.size === 0 ? 0 : shared / ws.size;
@@ -328,16 +375,20 @@ function closestSourceLine(bullet: string, originalResumeText: string): string |
  * Never deletes a bullet, so a role can never be emptied. Returns null when neither
  * works, and the bullet is reported as unresolved.
  */
+function cutClauses(text: string, ctx: ReturnType<typeof groundingFor>, isSummary = false): string | null {
+  const clauses = text.split(CLAUSE_BREAK);
+  if (jobOnlyIn(clauses[0], ctx, isSummary).length > 0) return null;
+  const kept = clauses.filter((c) => jobOnlyIn(c, ctx, isSummary).length === 0);
+  const joined = kept.join(', ').replace(/[\s,;.]+$/, '');
+  return joined.length >= 12 ? `${joined}.` : null;
+}
+
 function cleanBullet(bullet: string, originalResumeText: string, jobDescription: string): string | null {
-  const ctx = { resumeText: trustedResumeText(originalResumeText), jobText: jobDescription };
-  const clauses = bullet.split(CLAUSE_BREAK);
-  if (findJobOnlyTerms(clauses[0], ctx).length === 0) {
-    const kept = clauses.filter((c) => findJobOnlyTerms(c, ctx).length === 0);
-    const joined = kept.join(', ').replace(/[\s,;.]+$/, '');
-    if (joined.length >= 12) return `${joined}.`;
-  }
+  const ctx = groundingFor(originalResumeText, jobDescription);
+  const cut = cutClauses(bullet, ctx);
+  if (cut !== null) return cut;
   const source = closestSourceLine(bullet, originalResumeText);
-  return source && findJobOnlyTerms(source, ctx).length === 0 ? source : null;
+  return source && jobOnlyIn(source, ctx).length === 0 ? source : null;
 }
 
 export function removeJobOnlyPhrases(
@@ -382,7 +433,48 @@ export function removeJobOnlyPhrases(
       ...(role.responsibilities ? { responsibilities: fix(role.responsibilities, achievements?.length ?? 0) } : {}),
     };
   });
-  return { resume: { ...resume, experience }, cleaned, unresolved: [...unresolved] };
+  // Summary: cut the clause; a sentence that is the job post goes, unless it is
+  // the whole summary. Projects: cut the clause or report it.
+  const ctx = groundingFor(originalResumeText, jobDescription);
+  const summaryParts = sentences(typeof resume.summary === 'string' ? resume.summary : '');
+  const summary: string[] = [];
+  summaryParts.forEach((sentence, i) => {
+    const terms = flagged.get(sentence);
+    if (!terms || ASPIRATION.test(sentence)) return summary.push(sentence);
+    const cut = cutClauses(sentence, ctx, true);
+    if (cut !== null) {
+      cleaned++;
+      return summary.push(cut);
+    }
+    if (summary.length + (summaryParts.length - i - 1) > 0) {
+      cleaned++;
+      return;
+    }
+    terms.forEach((t) => unresolved.add(t));
+    summary.push(sentence);
+  });
+  const projects = resume.projects?.map((p) => {
+    const terms = typeof p.description === 'string' ? flagged.get(p.description) : undefined;
+    if (!terms) return p;
+    const cut = cutClauses(p.description as string, ctx);
+    if (cut === null) {
+      terms.forEach((t) => unresolved.add(t));
+      return p;
+    }
+    cleaned++;
+    return { ...p, description: cut };
+  });
+
+  return {
+    resume: {
+      ...resume,
+      experience,
+      ...(typeof resume.summary === 'string' ? { summary: summary.join(' ') } : {}),
+      ...(resume.projects ? { projects } : {}),
+    },
+    cleaned,
+    unresolved: [...unresolved],
+  };
 }
 
 export interface RemovalResult {

@@ -296,6 +296,10 @@ function qualifiedNumbers(text: string): Set<string> {
  */
 export function findJobOnlyTerms(text: string, ctx: GroundingContext, isSummary = false): string[] {
   const resumeStems = new Set(contentStems(ctx.resumeText));
+  // "mid market", "mid-market" and a PDF's "self-\npaced" are one word to a
+  // reader, so adjacent résumé words also count joined.
+  const resumeWords = words(ctx.resumeText);
+  for (let i = 0; i + 1 < resumeWords.length; i++) resumeStems.add(stem(resumeWords[i] + resumeWords[i + 1]));
   const jobStems = new Set(contentStems(ctx.jobText));
   const titleStems = isSummary && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
   return Array.from(

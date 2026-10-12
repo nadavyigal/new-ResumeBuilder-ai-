@@ -25,6 +25,7 @@ const read = (name: string) => fs.readFileSync(path.join(FIXTURES, name), 'utf8'
 
 const MAYA = { resume: read('maya-levin-resume.txt'), job: read('job-data-analyst.txt') };
 const ITAY = { resume: read('itay-shalev-resume.txt'), job: read('job-customer-success.txt') };
+const NOA = { resume: read('noa-mizrahi-resume.txt'), job: read('job-instructional-designer.txt') };
 
 const ORIGINAL_BULLET = 'Prepared monthly reports for managers.';
 const OBSERVED_BULLET =
@@ -32,7 +33,8 @@ const OBSERVED_BULLET =
 
 function resumeWith(bullets: string[], company = 'Northwind Retail', title = 'Data Analyst'): OptimizedResume {
   return {
-    summary: 'Data Analyst with 4 years of experience working with sales and operations data.',
+    // Empty: the summary is checked too, and each test sets its own when it matters.
+    summary: '',
     contact: { name: 'Maya Levin', email: 'maya.levin@example.test', phone: '', location: 'Tel Aviv' },
     skills: { technical: ['Excel', 'Google Sheets', 'SQL', 'Looker'], soft: ['Communication', 'Teamwork'] },
     experience: [
@@ -144,5 +146,49 @@ describe('removeJobOnlyPhrases: other shapes from the 2026-10-12 iOS capture (It
     const out = removeJobOnlyPhrases(r, ITAY.resume, ITAY.job);
     expect(bulletsOf(out.resume)).toHaveLength(1);
     expect(out.unresolved.length).toBeGreaterThan(0);
+  });
+});
+
+// Review of PR #169, 2026-10-12. Each case failed before its fix.
+describe('review: false positives from résumé formatting', () => {
+  it('accepts "mid-market" when the résumé writes "mid market"', () => {
+    const resumeText = ITAY.resume.replace('mid-market', 'mid market');
+    const r = resumeWith(['Managed a portfolio of mid-market accounts and ensured customer satisfaction.'], 'Brightdesk');
+    expect(findJobOnlyBulletTerms(r, resumeText, ITAY.job)).toEqual([]);
+  });
+
+  it('accepts "self-paced" when the PDF text breaks it across a line', () => {
+    const resumeText = NOA.resume.replace('self-paced', 'self-\npaced');
+    const r = resumeWith(['Built 12 self-paced online course units in Moodle, used by 150 students during remote learning.'], 'Carmel High School');
+    expect(findJobOnlyBulletTerms(r, resumeText, NOA.job)).toEqual([]);
+  });
+});
+
+describe('review: the fallback never puts a header or a skills list in a bullet', () => {
+  it.each([
+    ['role header', 'Data analyst presenting insights to stakeholders at Northwind Retail.'],
+    ['skills line', 'Used Excel and Google Sheets for stakeholder communication and teamwork.'],
+  ])('%s', (_label, invented) => {
+    const out = removeJobOnlyPhrases(resumeWith([invented, 'Supported the sales team with Excel analysis.']), MAYA.resume, MAYA.job);
+    expect(bulletsOf(out.resume)).toEqual(['Supported the sales team with Excel analysis.']);
+  });
+});
+
+describe('review: the same phrase moved out of the bullets', () => {
+  it('cuts it from a summary sentence', () => {
+    const r = { ...resumeWith([ORIGINAL_BULLET]), summary: 'Data Analyst with 4 years of experience, presenting insights to non-technical stakeholders.' } as OptimizedResume;
+    const out = removeJobOnlyPhrases(r, MAYA.resume, MAYA.job);
+    expect(out.resume.summary).toBe('Data Analyst with 4 years of experience.');
+  });
+
+  it('lets a summary name the target role from the job title', () => {
+    const r = { ...resumeWith(['Built 12 self-paced online course units in Moodle, used by 150 students during remote learning.'], 'Carmel High School'), summary: 'Instructional designer with 8 years of teaching experience.' } as OptimizedResume;
+    expect(findJobOnlyBulletTerms(r, NOA.resume, NOA.job)).toEqual([]);
+  });
+
+  it('cuts it from a project description', () => {
+    const r = { ...resumeWith([ORIGINAL_BULLET]), projects: [{ name: 'Monthly reports', description: 'Prepared monthly reports for managers, presenting insights to non-technical stakeholders.' }] } as unknown as OptimizedResume;
+    const out = removeJobOnlyPhrases(r, MAYA.resume, MAYA.job);
+    expect(out.resume.projects?.[0].description).toBe('Prepared monthly reports for managers.');
   });
 });
