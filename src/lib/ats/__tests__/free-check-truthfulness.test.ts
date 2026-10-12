@@ -203,6 +203,30 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     expect(check.ok).toBe(false);
   });
 
+  // CodeRabbit on PR #167: both passed the first version of the guard.
+  it('rejects a "before" built from résumé words but never written', () => {
+    const check = checkQuickWinGrounding(
+      qw('Managed quarterly renewals for key accounts.', 'Managed quarterly renewals for key accounts.'),
+      ctxFor(CASES.itay),
+    );
+    expect(check.violations).toContain('original_not_in_resume');
+  });
+
+  it.each(['experience', 'summary'] as const)(
+    'rejects a number taken from another bullet (%s): 41 renewals become a portfolio of 41',
+    (section) => {
+      const check = checkQuickWinGrounding(
+        qw(
+          'Managed a portfolio of mid-market accounts and ensured customer satisfaction.',
+          'Managed a portfolio of 41 mid-market accounts and ensured customer satisfaction.',
+          section,
+        ),
+        ctxFor(CASES.itay),
+      );
+      expect(check.violations).toContain('invented_number');
+    },
+  );
+
   it('rejects a "before" that is not in the résumé', () => {
     const check = checkQuickWinGrounding(
       qw('Managed 12 enterprise accounts in EMEA.', 'Managed 12 enterprise accounts in EMEA.'),
@@ -236,6 +260,18 @@ describe('quick-win grounding: honest rewrites pass', () => {
   });
 
   it('Itay: uses his own 38 of 41 and the rate computed from it', () => {
+    // As a summary line, gathering the renewal result with its own wording is fine.
+    expect(
+      checkQuickWinGrounding(
+        qw(
+          'Spearheaded customer success initiatives to drive engagement and value.',
+          'Renewed 38 of 41 accounts up for renewal in 2024 (93%).',
+          'summary',
+        ),
+        ctxFor(CASES.itay),
+      ).ok,
+    ).toBe(true);
+    // As a rewrite of a different experience bullet, the numbers are borrowed.
     expect(
       checkQuickWinGrounding(
         qw(
@@ -243,8 +279,8 @@ describe('quick-win grounding: honest rewrites pass', () => {
           'Renewed 38 of 41 accounts up for renewal in 2024 (93%).',
         ),
         ctxFor(CASES.itay),
-      ).ok,
-    ).toBe(true);
+      ).violations,
+    ).toContain('invented_number');
     expect(
       checkQuickWinGrounding(
         qw(
@@ -296,12 +332,12 @@ describe('generateQuickWins', () => {
 
   it('discards fabricated rewrites, retries once, and never shows the job\'s numbers', async () => {
     const honest = qw(
-      'Spearheaded customer success initiatives to drive engagement and value.',
-      'Renewed 38 of 41 accounts up for renewal in 2024 (93%).',
+      'Ran quarterly business reviews with account stakeholders.',
+      'Ran quarterly business reviews with account stakeholders across a portfolio of mid-market accounts.',
     );
     const honestReplacement = qw(
-      'Ran quarterly business reviews with account stakeholders.',
-      'Ran quarterly business reviews with stakeholders across a portfolio of mid-market accounts.',
+      'Renewed 38 of 41 accounts up for renewal in 2024.',
+      'Achieved a 93% renewal rate by renewing 38 of 41 accounts up for renewal in 2024.',
     );
     mockCompletion
       .mockResolvedValueOnce(
@@ -335,6 +371,29 @@ describe('generateQuickWins', () => {
     expect(wins.map((w) => w.optimized_text)).toEqual([honest.optimized_text, honestReplacement.optimized_text]);
     const shown = wins.map((w) => w.optimized_text).join(' ');
     expect(shown).not.toMatch(/\b60\b|\[X%\]|churn|account health/);
+  });
+
+  it('shows one card per bullet when the model rewrites the same bullet twice', async () => {
+    const original = 'Ran quarterly business reviews with account stakeholders.';
+    mockCompletion.mockResolvedValueOnce(
+      reply([
+        qw(original, 'Led quarterly business reviews with account stakeholders.'),
+        qw(original, 'Ran quarterly business reviews with stakeholders of each account.'),
+        qw(
+          'Renewed 38 of 41 accounts up for renewal in 2024.',
+          'Renewed 38 of 41 accounts up for renewal in 2024 (93%).',
+        ),
+      ]),
+    );
+    const wins = await generateQuickWins({
+      resume_text: `${CASES.itay.resume}\n\n`, // distinct cache key
+      resume_json: {} as never,
+      job_data: jobDataFor(CASES.itay.job),
+      job_text: CASES.itay.job,
+      subscores,
+      current_ats_score: 61,
+    });
+    expect(wins.map((w) => w.original_text)).toEqual([original, 'Renewed 38 of 41 accounts up for renewal in 2024.']);
   });
 
   it('returns nothing rather than a template claim when the model fails', async () => {

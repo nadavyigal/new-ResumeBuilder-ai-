@@ -6,7 +6,7 @@
 
 **Root cause:** the quick-win prompt passed the job's responsibility sentences verbatim, numbers included, and asked for "relevant keywords from the job description". The only check on the output was length and JSON shape. Same class as the 2026-09-25 lesson below, in a second generator that lesson's fix never reached.
 
-**Fix:** `src/lib/ats/quick-wins/grounding.ts` rejects a rewrite that adds or drops a number, puts a placeholder over a real number, inflates a number, or borrows more than two job-only terms (or any, while discarding the original's facts). One repair retry with the reasons; no template padding. Fixtures and tests: `tests/fixtures/free-check-2026-10-11/`, `src/lib/ats/__tests__/free-check-truthfulness.test.ts`.
+**Fix:** `src/lib/ats/quick-wins/grounding.ts` rejects a rewrite that adds or drops a number, puts a placeholder over a real number, inflates a number, borrows any term the job uses and the résumé does not (only an action-verb swap such as "monitor" -> "track" is allowed), quotes a "before" that is not verbatim résumé text, or takes a number from another bullet (a summary may gather numbers only with their original wording). The first version allowed two job-only terms; the first live preview run used that room to append job duties, so the budget is zero. One repair retry with the reasons; no template padding. Fixtures and tests: `tests/fixtures/free-check-2026-10-11/`, `src/lib/ats/__tests__/free-check-truthfulness.test.ts`.
 
 **Rules:**
 1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check.

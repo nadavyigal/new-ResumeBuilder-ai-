@@ -64,7 +64,7 @@ const LEADING_VERBS = new Set([
  * became the keyword `finish`, "up to date in Gainsight" became
  * `date gainsight`, and users were told to add them to their resume.
  */
-const IDIOMS = /\b(?:from start to finish|start to finish|end to end|up to date|over time|on time)\b/g;
+const IDIOMS = /\b(?:from start to finish|start to finish|up to date|over time|on time)\b/g;
 
 /**
  * The same class of filler in Hebrew.

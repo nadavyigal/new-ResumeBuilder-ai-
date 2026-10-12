@@ -138,6 +138,33 @@ function derivedPercents(text: string): Set<string> {
   return out;
 }
 
+/** Lowercase words only, so bullets, dashes, quotes and line breaks never decide a match. */
+function flatten(text: string): string {
+  return words(text).join(' ');
+}
+
+/** The nearest non-filler word before and after each occurrence of `n`. */
+function numberContexts(n: string, text: string): Array<[string, string]> {
+  const ws = words(text).map((w) => w.replace(/,/g, ''));
+  const isContext = (w: string) => !/^\d/.test(w) && w.length >= 3 && !STOPWORDS.has(w);
+  const out: Array<[string, string]> = [];
+  ws.forEach((w, i) => {
+    if (w !== n) return;
+    const before = ws.slice(0, i).reverse().find(isContext) ?? '';
+    const after = ws.slice(i + 1).find(isContext) ?? '';
+    out.push([stem(before), stem(after)]);
+  });
+  return out;
+}
+
+/** "8 years" stays "8 years"; "41 accounts" may not become "41 mid-market accounts" of a portfolio. */
+function keepsSourceContext(n: string, optimized: string, resumeText: string): boolean {
+  const source = numberContexts(n, resumeText);
+  return numberContexts(n, optimized).every(([before, after]) =>
+    source.some(([b, a]) => (before && before === b) || (after && after === a)),
+  );
+}
+
 const PLACEHOLDER = /\[[^\]\n]{1,40}\]/;
 const QUALIFIED_NUMBER =
   /\b(over|more than|above|nearly|almost|up to|at least|exceeding|upwards of)\s+(\d[\d,]*)|(\d[\d,]*)\s*\+/gi;
@@ -162,27 +189,30 @@ export function checkQuickWinGrounding(
   const optimized = qw.optimized_text;
 
   const resumeStems = new Set(contentStems(ctx.resumeText));
-  const resumeNumbers = new Set(numbers(ctx.resumeText));
 
-  // The "before" must be the user's own text, or the card misquotes them.
-  const originalStems = contentStems(original);
-  const foundInResume = originalStems.filter((s) => resumeStems.has(s)).length;
-  if (
-    originalStems.length === 0 ||
-    foundInResume / originalStems.length < 0.9 ||
-    numbers(original).some((n) => !resumeNumbers.has(n))
-  ) {
+  // The "before" must be the user's own text, or the card misquotes them. A bag
+  // of résumé words is not enough: "Managed quarterly renewals for key accounts"
+  // reuses Itay's words but is a sentence he never wrote.
+  const flatOriginal = flatten(original);
+  if (!flatOriginal || !flatten(ctx.resumeText).includes(flatOriginal)) {
     violations.push('original_not_in_resume');
   }
 
   // Numbers are facts. None may be added, none dropped, none hidden behind a template.
   const originalNumbers = numbers(original);
   const optimizedNumbers = numbers(optimized);
-  // A rate may be computed from numbers the résumé states: 38 of 41 -> 93%.
-  const percents = derivedPercents(
-    [original, ...optimizedNumbers.filter((n) => resumeNumbers.has(n))].join(' '),
+  // A number from another bullet is a new fact here: "a portfolio of 41
+  // accounts" when 41 counts renewals. Only a summary may gather numbers from
+  // the rest of the résumé, and each must keep the words it stands next to.
+  const borrowed = optimizedNumbers.filter(
+    (n) =>
+      !originalNumbers.includes(n) &&
+      qw.location?.section === 'summary' &&
+      keepsSourceContext(n, optimized, ctx.resumeText),
   );
-  if (optimizedNumbers.some((n) => !resumeNumbers.has(n) && !percents.has(n))) {
+  // A rate may be computed from numbers the résumé states: 38 of 41 -> 93%.
+  const percents = derivedPercents([...originalNumbers, ...borrowed].join(' '));
+  if (optimizedNumbers.some((n) => !originalNumbers.includes(n) && !borrowed.includes(n) && !percents.has(n))) {
     violations.push('invented_number');
   }
   if (originalNumbers.some((n) => !optimizedNumbers.includes(n))) {

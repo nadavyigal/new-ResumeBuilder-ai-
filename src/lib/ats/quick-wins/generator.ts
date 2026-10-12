@@ -78,7 +78,17 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
     ];
 
     const first = await requestQuickWins(messages, params.current_ats_score);
-    const { accepted, rejected } = groundQuickWins(first.candidates, ctx);
+    const grounded = groundQuickWins(first.candidates, ctx);
+    const rejected = grounded.rejected;
+    // One card per bullet, in both rounds.
+    const used = new Set<string>();
+    const accepted: QuickWinSuggestion[] = [];
+    for (const qw of grounded.accepted) {
+      const key = qw.original_text.toLowerCase();
+      if (used.has(key)) continue;
+      used.add(key);
+      accepted.push(qw);
+    }
 
     // One repair round when rewrites were discarded. The model is told why, so
     // the second answer is not the same fabrication again.
@@ -88,7 +98,6 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
         { role: 'user', content: buildRepairMessage(rejected, accepted, TARGET_COUNT - accepted.length) },
       );
       const second = await requestQuickWins(messages, params.current_ats_score);
-      const used = new Set(accepted.map((qw) => qw.original_text.toLowerCase()));
       for (const qw of groundQuickWins(second.candidates, ctx).accepted) {
         if (accepted.length >= TARGET_COUNT) break;
         if (used.has(qw.original_text.toLowerCase())) continue;
