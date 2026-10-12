@@ -100,6 +100,9 @@ export async function POST(req: NextRequest) {
     const parsed = await req.json();
     resumeId = parsed.resumeId;
     jobDescriptionId = parsed.jobDescriptionId;
+    // Web review page only: hold job-post phrases as "Add only if true" items.
+    // Installed iOS builds never send it and keep today's behaviour.
+    const confirmJobPhrases = parsed.confirmJobPhrases === true;
 
     if (!resumeId || !jobDescriptionId) {
       return NextResponse.json({ error: "resumeId and jobDescriptionId are required." }, { status: 400 });
@@ -146,6 +149,7 @@ export async function POST(req: NextRequest) {
       jobDescriptionText,
       {
         ...(parsedData ? { jobExtractedJson: parsedData } : {}),
+        confirmJobPhrases,
         aiTrace: {
           distinctId: user.id,
           traceName: 'optimize',
@@ -178,6 +182,7 @@ export async function POST(req: NextRequest) {
       jobTitle: (jdData as { title?: string }).title || 'Position',
       jobExtractedJson: parsedData,
       optimizedResume,
+      heldPhrases: pipelineResult.heldPhrases,
     });
 
     // The fit check the user sees between optimizing and accepting.

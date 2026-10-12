@@ -73,6 +73,8 @@ export default function DashboardPage() {
         body: JSON.stringify({
           resumeId: carriedResumeId,
           jobDescriptionId: carriedJobDescriptionId,
+          // This page goes to the review page, which can show "Add only if true".
+          confirmJobPhrases: true,
         }),
       });
 

@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
+
+**Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.
+
+**Decision (founder):** never ship an unconfirmed claim, and never take a score away without asking. The guard now *holds* job-post phrases instead of deleting them, and the web review page offers each one as "Add only if true", unselected. Confirming restores the optimizer's line and its score exactly (Maya: optimizer 52, confirmed 52, declined 50). Only clients that can show the item opt in (`confirmJobPhrases`); installed iOS builds keep the old behaviour until their own UI ships.
+
+**Rules:**
+1. When a guard removes something that might be true, offer it back to the user rather than deleting it. The score then reflects only what the user stands behind.
+2. A behaviour change on a shared API needs an opt-in from clients that can render it. Installed native builds cannot, and silently degrading them is a product decision, not a default.
+
 ## A better job-title parser can lower a correct candidate's score (2026-10-12)
 
 **Symptom:** the iOS free check showed "Align your headline or summary with the target title '{targetTitle}'". The job text ("Kesher Commerce is looking for a Data Analyst to join...") matched none of `extractJobTitle`'s patterns, so the title was empty and `fillTemplate` left the placeholder in.
@@ -21,7 +31,7 @@
 **Fix:** `src/lib/ats/quick-wins/grounding.ts` rejects a rewrite that adds or drops a number, puts a placeholder over a real number, inflates a number, borrows any term the job uses and the résumé does not (only an action-verb swap such as "monitor" -> "track" is allowed), quotes a "before" that is not verbatim résumé text, or takes a number from another bullet (a summary may gather numbers only with their original wording). The first version allowed two job-only terms; the first live preview run used that room to append job duties, so the budget is zero. One repair retry with the reasons; no template padding. Fixtures and tests: `tests/fixtures/free-check-2026-10-11/`, `src/lib/ats/__tests__/free-check-truthfulness.test.ts`.
 
 **Rules:**
-1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check.
+1. Every AI surface that rewrites résumé text needs its own deterministic grounding check. A guard in the optimizer does not protect the free check. The reverse held a day later: the optimizer's tool-only guard let "non-technical stakeholders" into a bullet on iOS (2026-10-12). Both paths now share `findJobOnlyTerms` in `src/lib/ats/quick-wins/grounding.ts`; a third rewriting surface must call it too.
 2. Never pad a short AI result with template claims. Fewer suggestions is an honest result.
 3. Filler keywords ("finish", "acting early risk", "write sql queries") come from clause atomization, not from the model. Fix them in `skill-phrase-extractor.ts` and re-run the calibration benchmark (zero score changes on 2026-10-11).
 

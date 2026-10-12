@@ -2,9 +2,11 @@ import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { scoreOptimization } from "@/lib/ats/integration";
 import { applyModifications, type ModificationOperation } from "@/lib/resume/modification-applier";
 import { normalizeOptimizedResume } from "@/lib/resume/canonicalize";
+import type { HeldPhrase } from "@/lib/ai-optimizer/job-ad-terms";
 import type {
   ReviewATSPreview,
   ReviewChangeGroup,
+  ReviewConfirmClaim,
   ReviewModificationOperation,
   ReviewSection,
 } from "@/types/optimization-review";
@@ -211,6 +213,121 @@ export function createReviewChangeGroups(
     });
 }
 
+/** One "Add only if true" item per held-back phrase. Never pre-selected. */
+export function createConfirmGroups(heldPhrases: HeldPhrase[] | undefined): ReviewChangeGroup[] {
+  return (heldPhrases ?? []).map((held, i) => ({
+    id: `confirm-${i + 1}`,
+    section: held.section,
+    title: "Add only if true",
+    summary: "Matches the job, but your resume does not say it. Add it only if it is true for you.",
+    before_excerpt: held.kept ?? "",
+    after_excerpt: held.proposed,
+    affected_fields: [held.section],
+    operations: [],
+    reason_tags: ["confirm"],
+    confirm: {
+      requires: held.section,
+      index: held.index,
+      kept: held.kept,
+      proposed: held.proposed,
+      after: held.after,
+      terms: held.terms,
+      estimated_gain: null,
+      ...(held.clauses ? { clauses: held.clauses, kept_clauses: held.keptClauses ?? [], clause: held.clause } : {}),
+    },
+  }));
+}
+
+/** Same rule as the guard's `joinClauses`, kept here so this module stays free of the optimizer. */
+function joinClauses(clauses: string[], keep: number[]): string {
+  const joined = [...new Set(keep)]
+    .sort((a, b) => a - b)
+    .map((i) => clauses[i])
+    .join(", ")
+    .replace(/[\s,;.]+$/, "");
+  return `${joined}.`;
+}
+
+/**
+ * Clause items of the same line become one claim whose text has every
+ * confirmed clause back, so confirming two of three gives exactly those two.
+ */
+function mergeClauseClaims(claims: ReviewConfirmClaim[]): ReviewConfirmClaim[] {
+  const lines = new Map<string, ReviewConfirmClaim[]>();
+  const out: ReviewConfirmClaim[] = [];
+  for (const claim of claims) {
+    if (!claim.clauses || claim.clause === undefined) {
+      out.push(claim);
+      continue;
+    }
+    const key = `${claim.requires}|${claim.index}|${claim.kept}`;
+    lines.set(key, [...(lines.get(key) ?? []), claim]);
+  }
+  for (const group of lines.values()) {
+    const [first] = group;
+    const keep = [...(first.kept_clauses ?? []), ...group.map((c) => c.clause as number)];
+    out.push({ ...first, proposed: joinClauses(first.clauses as string[], keep) });
+  }
+  return out;
+}
+
+const same = (a: unknown, b: string | null) => typeof a === "string" && b !== null && a.trim() === b.trim();
+
+/** Put one confirmed phrase back where the guard took it from. */
+function applyConfirmation(resume: OptimizedResume, claim: ReviewConfirmClaim): OptimizedResume {
+  if (claim.requires === "summary") {
+    const summary = typeof resume.summary === "string" ? resume.summary : "";
+    if (claim.kept !== null) {
+      return summary.includes(claim.kept.trim())
+        ? { ...resume, summary: summary.replace(claim.kept.trim(), claim.proposed) }
+        : resume;
+    }
+    if (claim.after === null) return { ...resume, summary: `${claim.proposed} ${summary}`.trim() };
+    const at = summary.indexOf(claim.after.trim());
+    if (at === -1) return { ...resume, summary: `${summary} ${claim.proposed}`.trim() };
+    const end = at + claim.after.trim().length;
+    return { ...resume, summary: `${summary.slice(0, end)} ${claim.proposed}${summary.slice(end)}` };
+  }
+
+  if (claim.requires === "projects") {
+    const projects = (resume.projects ?? []).map((project, i) =>
+      i === claim.index && same(project.description, claim.kept) ? { ...project, description: claim.proposed } : project
+    );
+    return { ...resume, projects };
+  }
+
+  // Experience: the role it came from first, then any role, so a reordered
+  // section still finds the bullet.
+  const roles = Array.isArray(resume.experience) ? resume.experience : [];
+  const order = [claim.index, ...roles.map((_, i) => i).filter((i) => i !== claim.index)].filter((i) => roles[i]);
+  for (const i of order) {
+    const role = roles[i];
+    const lists = { achievements: role.achievements ?? [], responsibilities: role.responsibilities ?? [] };
+    if (claim.kept !== null) {
+      if (![...lists.achievements, ...lists.responsibilities].some((b) => same(b, claim.kept))) continue;
+      const swap = (list: string[]) => list.map((b) => (same(b, claim.kept) ? claim.proposed : b));
+      const next = { ...role, achievements: swap(lists.achievements), ...(role.responsibilities ? { responsibilities: swap(lists.responsibilities) } : {}) };
+      return { ...resume, experience: roles.map((r, j) => (j === i ? next : r)) };
+    }
+    if (i !== claim.index) continue;
+    const list = lists.achievements;
+    const anchor = claim.after === null ? -1 : list.findIndex((b) => same(b, claim.after));
+    const at = claim.after === null ? 0 : anchor === -1 ? list.length : anchor + 1;
+    const next = { ...role, achievements: [...list.slice(0, at), claim.proposed, ...list.slice(at)] };
+    return { ...resume, experience: roles.map((r, j) => (j === i ? next : r)) };
+  }
+  return resume;
+}
+
+/** Confirmed phrases whose section change is approved too; the rest have nothing to attach to. */
+export function applyConfirmedPhrases(resume: OptimizedResume, approvedGroups: ReviewChangeGroup[]): OptimizedResume {
+  const approvedSections = new Set(approvedGroups.filter((g) => !g.confirm).map((g) => g.section));
+  const claims = approvedGroups
+    .filter((g) => g.confirm && (g.confirm.standalone || approvedSections.has(g.confirm.requires)))
+    .map((g) => g.confirm as ReviewConfirmClaim);
+  return mergeClauseClaims(claims).reduce(applyConfirmation, resume);
+}
+
 export function buildResumeFromApprovedGroups(
   originalResume: OptimizedResume,
   approvedGroups: ReviewChangeGroup[],
@@ -229,11 +346,11 @@ export function buildResumeFromApprovedGroups(
     ? (applyModifications(originalResume, operations) as OptimizedResume)
     : originalResume;
 
-  return normalizeOptimizedResume(updatedResume, {
+  return normalizeOptimizedResume(applyConfirmedPhrases(updatedResume, approvedGroups), {
     ...metadata,
     keyImprovements:
       metadata?.keyImprovements ||
-      approvedGroups.map((group) => group.title).slice(0, 6),
+      approvedGroups.filter((group) => !group.confirm).map((group) => group.title).slice(0, 6),
   });
 }
 
@@ -301,7 +418,7 @@ export function buildFinalResumeMetadata(
   return {
     matchScore:
       typeof atsPreview?.after === "number" ? Math.round(atsPreview.after) : 0,
-    keyImprovements: approvedGroups.map((group) => group.title).slice(0, 6),
+    keyImprovements: approvedGroups.filter((group) => !group.confirm).map((group) => group.title).slice(0, 6),
     missingKeywords: extractMissingKeywordsFromSuggestions(atsPreview?.suggestions),
   };
 }

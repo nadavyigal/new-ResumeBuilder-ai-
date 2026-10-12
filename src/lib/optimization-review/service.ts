@@ -8,9 +8,12 @@ import {
   resolveJourneyScores,
 } from "@/lib/ats/journey-score";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
+import type { HeldPhrase } from "@/lib/ai-optimizer/job-ad-terms";
 import {
+  applyConfirmedPhrases,
   buildATSPreview,
   buildFinalResumeMetadata,
+  createConfirmGroups,
   buildResumeFromApprovedGroups,
   createReviewChangeGroups,
 } from "@/lib/optimization-review";
@@ -46,7 +49,12 @@ interface CreateReviewRunParams {
   jobTitle?: string | null;
   jobExtractedJson?: Record<string, unknown>;
   optimizedResume: OptimizedResume;
+  /** Job-post phrases held back by the guard, offered as "Add only if true". */
+  heldPhrases?: HeldPhrase[];
 }
+
+/** Scored one by one so each card can say what it is worth; more than this gets no number. */
+const MAX_MEASURED_CONFIRMATIONS = 5;
 
 interface ApplyReviewRunParams {
   supabase: AppSupabaseClient;
@@ -118,6 +126,7 @@ export async function createOptimizationReviewRun({
   jobTitle,
   jobExtractedJson,
   optimizedResume,
+  heldPhrases,
 }: CreateReviewRunParams): Promise<{ reviewId: string; reviewRun: OptimizationReviewRun }> {
   const { data: resumeRow } = await supabase
     .from("resumes")
@@ -133,13 +142,35 @@ export async function createOptimizationReviewRun({
   });
 
   const normalizedOptimizedResume = normalizeOptimizedResume(optimizedResume, originalResume);
-  const groupedChanges = createReviewChangeGroups(originalResume, normalizedOptimizedResume);
-  const atsPreview = await buildATSPreview(normalizedOptimizedResume, {
+  const sectionGroups = createReviewChangeGroups(originalResume, normalizedOptimizedResume);
+  const previewContext = {
     jobDescriptionText,
     jobTitle,
     resumeOriginalText: resumeRawText,
     jobExtractedJson,
+  };
+  const atsPreview = await buildATSPreview(normalizedOptimizedResume, previewContext);
+
+  // "Add only if true": what each held-back phrase is worth if the user confirms
+  // it, measured on the same document the preview scored, so the page can show
+  // the score coming back as they confirm.
+  const confirmGroups = createConfirmGroups(heldPhrases);
+  confirmGroups.forEach((group) => {
+    if (group.confirm && !sectionGroups.some((s) => s.section === group.confirm?.requires)) {
+      group.confirm.standalone = true;
+    }
   });
+  await Promise.all(
+    confirmGroups.slice(0, MAX_MEASURED_CONFIRMATIONS).map(async (group) => {
+      if (typeof atsPreview?.after !== "number" || !group.confirm) return;
+      const confirmed = applyConfirmedPhrases(normalizedOptimizedResume, [...sectionGroups, group]);
+      const preview = await buildATSPreview(confirmed, previewContext);
+      if (typeof preview?.after === "number") {
+        group.confirm.estimated_gain = Math.max(0, Math.round(preview.after - atsPreview.after));
+      }
+    })
+  );
+  const groupedChanges = [...sectionGroups, ...confirmGroups];
 
   const { data: inserted, error } = await supabase
     .from("optimization_review_runs")
@@ -164,7 +195,8 @@ export async function createOptimizationReviewRun({
     resume_id: resumeId,
     job_description_id: jobDescriptionId,
     projected_ats_after: atsPreview?.after ?? null,
-    grouped_changes: groupedChanges.length,
+    grouped_changes: sectionGroups.length,
+    confirm_offered: confirmGroups.length,
   });
 
   return {
@@ -392,7 +424,9 @@ export async function applyOptimizationReviewRun({
     improvement:
       (finalATSPreview?.after ?? reviewRun.ats_preview_json?.after ?? 0) -
       (finalATSPreview?.before ?? reviewRun.ats_preview_json?.before ?? 0),
-    approved_groups: approvedGroups.length,
+    approved_groups: approvedGroups.filter((group) => !group.confirm).length,
+    confirm_offered: reviewRun.grouped_changes_json.filter((group) => group.confirm).length,
+    confirm_accepted: approvedGroups.filter((group) => group.confirm).length,
   });
 
   return {

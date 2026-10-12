@@ -287,6 +287,32 @@ function qualifiedNumbers(text: string): Set<string> {
 }
 
 /**
+ * Words in `text` that the job uses and the résumé never does: each one is a
+ * duty, scope, audience or skill claimed on the job post's say-so. Swapping one
+ * action verb for another is allowed. In a summary, the target title may appear.
+ *
+ * Shared by the free-check quick wins and the optimizer's bullet guard
+ * (`enforceJobAdTruth`), so both paths agree on what counts as copied.
+ */
+export function findJobOnlyTerms(text: string, ctx: GroundingContext, isSummary = false): string[] {
+  const resumeStems = new Set(contentStems(ctx.resumeText));
+  // "mid market", "mid-market" and a PDF's "self-\npaced" are one word to a
+  // reader, so adjacent résumé words also count joined.
+  const resumeWords = words(ctx.resumeText);
+  for (let i = 0; i + 1 < resumeWords.length; i++) resumeStems.add(stem(resumeWords[i] + resumeWords[i + 1]));
+  const jobStems = new Set(contentStems(ctx.jobText));
+  const titleStems = isSummary && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
+  return Array.from(
+    new Set(
+      contentWords(text).filter((w) => {
+        const s = stem(w);
+        return !hasStem(resumeStems, s) && hasStem(jobStems, s) && !isRewordingVerb(s) && !hasStem(titleStems, s);
+      }),
+    ),
+  );
+}
+
+/**
  * Check one rewrite against the résumé. Pure and deterministic.
  */
 export function checkQuickWinGrounding(
@@ -296,8 +322,6 @@ export function checkQuickWinGrounding(
   const violations: GroundingViolation[] = [];
   const original = qw.original_text;
   const optimized = qw.optimized_text;
-
-  const resumeStems = new Set(contentStems(ctx.resumeText));
 
   // The "before" must be the user's own text, or the card misquotes them. A bag
   // of résumé words is not enough: "Managed quarterly renewals for key accounts"
@@ -343,19 +367,7 @@ export function checkQuickWinGrounding(
     }
   }
 
-  // Job terms the résumé never uses: each one is a duty, scope or skill claimed
-  // on the job post's say-so.
-  const jobStems = new Set(contentStems(ctx.jobText));
-  const titleStems =
-    qw.location?.section === 'summary' && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
-  const jobOnlyTerms = Array.from(
-    new Set(
-      contentWords(optimized).filter((w) => {
-        const s = stem(w);
-        return !hasStem(resumeStems, s) && hasStem(jobStems, s) && !isRewordingVerb(s) && !hasStem(titleStems, s);
-      }),
-    ),
-  );
+  const jobOnlyTerms = findJobOnlyTerms(optimized, ctx, qw.location?.section === 'summary');
   if (jobOnlyTerms.length > 0) {
     violations.push('job_terms_added');
   }

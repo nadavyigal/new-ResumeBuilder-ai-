@@ -322,6 +322,9 @@ describe('toWireTruthGuard (additive /api/optimize field)', () => {
       removedTerms: ['Salesforce'],
       restoredTerms: [],
       unresolvedTerms: [],
+      jobPhrasesBefore: [],
+      jobPhraseBulletsCleaned: 0,
+      jobPhrasesUnresolved: [],
     });
     expect(wire).toEqual({ checked: true, repaired: false, removedTerms: ['Salesforce'], restoredTerms: [], unresolvedTerms: [] });
   });

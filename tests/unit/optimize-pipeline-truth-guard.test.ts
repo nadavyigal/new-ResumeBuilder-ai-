@@ -133,3 +133,28 @@ describe('prompts no longer ask for keywords the résumé lacks', () => {
     expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).not.toMatch(/explicitly address each one/i);
   });
 });
+
+describe('runOptimizePipeline: job-post phrases are held only for clients that can confirm them', () => {
+  // "B2B" and "SaaS" are the job's words; Daniel's résumé never uses them.
+  const LEAKED = candidate(['HubSpot'], 'Logged every opportunity in HubSpot for B2B SaaS accounts.');
+
+  it('changes nothing for a caller that did not opt in (installed iOS builds)', async () => {
+    openaiReturning(LEAKED);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+    expect(result.heldPhrases).toBeUndefined();
+    expect(result.optimizedResume.experience[0].achievements).toContain('Logged every opportunity in HubSpot for B2B SaaS accounts.');
+  });
+
+  it('holds the phrase back and returns it for the review page to offer', async () => {
+    openaiReturning(LEAKED);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD, { confirmJobPhrases: true });
+    expect(result.optimizedResume.experience[0].achievements).toContain('Logged every opportunity in HubSpot.');
+    expect(result.heldPhrases).toEqual([
+      expect.objectContaining({
+        section: 'experience',
+        kept: 'Logged every opportunity in HubSpot.',
+        proposed: 'Logged every opportunity in HubSpot for B2B SaaS accounts.',
+      }),
+    ]);
+  });
+});

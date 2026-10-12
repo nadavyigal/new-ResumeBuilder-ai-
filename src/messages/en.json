@@ -1131,6 +1131,23 @@
             "before": "Before",
             "after": "After",
             "emptyExcerpt": "No visible text in this section."
+          },
+          "confirm": {
+            "badge": "Add only if true",
+            "intro": "These lines match the job, but your résumé does not say them. Add only what is true for you.",
+            "question": "This line uses the job's words. Is it true for you?",
+            "now": "Now it says",
+            "nowEmpty": "Not on your résumé",
+            "withLine": "If you confirm",
+            "gain": "+{points} pts",
+            "add": "Yes, add it",
+            "remove": "Don't add",
+            "needsSection": "Include the {section} change above to use this.",
+            "sections": {
+              "summary": "summary",
+              "experience": "experience",
+              "projects": "projects"
+            }
           }
         },
         "preview": {

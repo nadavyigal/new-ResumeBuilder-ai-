@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CompactATSScoreCard } from "@/components/ats/CompactATSScoreCard";
 import { ReadinessOverview } from "@/components/optimization/ReadinessOverview";
 import { ReviewChangeCard } from "@/components/optimization-review/ReviewChangeCard";
+import { ConfirmClaimCard } from "@/components/optimization-review/ConfirmClaimCard";
 import { DesignRenderer } from "@/components/design/DesignRenderer";
 import { buildResumeFromApprovedGroups } from "@/lib/optimization-review";
 import type { OptimizationReviewRun, ReviewChangeGroup } from "@/types/optimization-review";
@@ -58,7 +59,10 @@ export default function OptimizationReviewPage() {
         }
 
         setPayload(data as ReviewPayload);
-        const groupIds = ((data as ReviewPayload).review.grouped_changes_json || []).map((group) => group.id);
+        // "Add only if true" items start unselected: only the user can confirm them.
+        const groupIds = ((data as ReviewPayload).review.grouped_changes_json || [])
+          .filter((group) => !group.confirm)
+          .map((group) => group.id);
         setSelectedIds(new Set(groupIds));
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : t("errors.load"));
@@ -70,33 +74,67 @@ export default function OptimizationReviewPage() {
     void run();
   }, [params.id, t]);
 
+  const sectionGroups = useMemo<ReviewChangeGroup[]>(
+    () => (payload?.review.grouped_changes_json ?? []).filter((group) => !group.confirm),
+    [payload]
+  );
+  const confirmGroups = useMemo<ReviewChangeGroup[]>(
+    () => (payload?.review.grouped_changes_json ?? []).filter((group) => group.confirm),
+    [payload]
+  );
+
+  // A confirmation edits its section's new text, so it counts only while that
+  // section's change is included (or when there is no section change at all).
+  const isConfirmAvailable = (group: ReviewChangeGroup) =>
+    Boolean(group.confirm?.standalone || (group.confirm && selectedIds.has(group.confirm.requires)));
+
   const selectedGroups = useMemo<ReviewChangeGroup[]>(() => {
     if (!payload) return [];
     return payload.review.grouped_changes_json.filter((group) => selectedIds.has(group.id));
   }, [payload, selectedIds]);
 
+  const selectedSectionCount = selectedGroups.filter((group) => !group.confirm).length;
+
+  // What confirmed items add back, measured per item when the review was created.
+  const confirmedGain = useMemo(
+    () =>
+      confirmGroups
+        .filter((group) => selectedIds.has(group.id) && isConfirmAvailable(group))
+        .reduce((sum, group) => sum + (group.confirm?.estimated_gain ?? 0), 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [confirmGroups, selectedIds]
+  );
+  const projectedAfter =
+    typeof payload?.review.ats_preview_json?.after === "number"
+      ? payload.review.ats_preview_json.after + confirmedGain
+      : null;
+  const projectedDelta =
+    typeof payload?.review.ats_preview_json?.delta === "number"
+      ? payload.review.ats_preview_json.delta + confirmedGain
+      : null;
+
   const previewResume = useMemo(() => {
     if (!payload) return null;
     return buildResumeFromApprovedGroups(payload.review.original_resume_json, selectedGroups, {
-      keyImprovements: selectedGroups.map((group) => group.title),
-      matchScore: payload.review.ats_preview_json?.after ?? 0,
+      keyImprovements: selectedGroups.filter((group) => !group.confirm).map((group) => group.title),
+      matchScore: projectedAfter ?? 0,
     });
-  }, [payload, selectedGroups]);
+  }, [payload, selectedGroups, projectedAfter]);
 
   const highlights = useMemo(() => {
-    if (selectedGroups.length > 0) {
-      return selectedGroups.map((group) => group.summary);
+    if (selectedSectionCount > 0) {
+      return selectedGroups.filter((group) => !group.confirm).map((group) => group.summary);
     }
     return [t("hero.emptySelection")];
-  }, [selectedGroups, t]);
+  }, [selectedGroups, selectedSectionCount, t]);
 
   const stats = useMemo(() => {
-    const delta = payload?.review.ats_preview_json?.delta;
-    const after = payload?.review.ats_preview_json?.after;
+    const delta = projectedDelta;
+    const after = projectedAfter;
     return [
       {
         label: t("hero.stats.selected"),
-        value: String(selectedGroups.length),
+        value: String(selectedSectionCount),
       },
       {
         label: t("hero.stats.projectedScore"),
@@ -107,7 +145,7 @@ export default function OptimizationReviewPage() {
         value: delta !== null && delta !== undefined ? `${delta > 0 ? "+" : ""}${Math.round(delta)}` : "--",
       },
     ];
-  }, [payload, selectedGroups.length, t]);
+  }, [projectedAfter, projectedDelta, selectedSectionCount, t]);
 
   const toggleGroup = (groupId: string) => {
     setSelectedIds((current) => {
@@ -121,9 +159,16 @@ export default function OptimizationReviewPage() {
     });
   };
 
+  // Never confirms a claim on the user's behalf: confirmed items stay as they are.
   const selectAll = () => {
     if (!payload) return;
-    setSelectedIds(new Set(payload.review.grouped_changes_json.map((group) => group.id)));
+    setSelectedIds((current) => {
+      const next = new Set(sectionGroups.map((group) => group.id));
+      confirmGroups.forEach((group) => {
+        if (current.has(group.id)) next.add(group.id);
+      });
+      return next;
+    });
   };
 
   const clearSelection = () => {
@@ -131,7 +176,7 @@ export default function OptimizationReviewPage() {
   };
 
   const applySelection = async () => {
-    if (!payload || selectedGroups.length === 0) return;
+    if (!payload || selectedSectionCount === 0) return;
 
     try {
       setSubmitting(true);
@@ -225,13 +270,13 @@ export default function OptimizationReviewPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={clearSelection} disabled={selectedGroups.length === 0}>
+            <Button variant="outline" onClick={clearSelection} disabled={selectedSectionCount === 0}>
               {t("actions.clear")}
             </Button>
             <Button variant="outline" onClick={selectAll}>
               {t("actions.selectAll")}
             </Button>
-            <Button onClick={applySelection} disabled={selectedGroups.length === 0 || submitting}>
+            <Button onClick={applySelection} disabled={selectedSectionCount === 0 || submitting}>
               {submitting ? t("actions.applying") : t("actions.apply")}
             </Button>
           </div>
@@ -252,7 +297,7 @@ export default function OptimizationReviewPage() {
           <div className="space-y-2">
             <CompactATSScoreCard
               atsScoreOriginal={payload.review.ats_preview_json.before ?? 0}
-              atsScoreOptimized={payload.review.ats_preview_json.after ?? 0}
+              atsScoreOptimized={projectedAfter ?? 0}
             />
             <p className="text-xs text-muted-foreground">
               {t("atsNote")}
@@ -267,10 +312,10 @@ export default function OptimizationReviewPage() {
           <div className="space-y-4">
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle>{t("changes.title", { count: payload.review.grouped_changes_json.length })}</CardTitle>
+                <CardTitle>{t("changes.title", { count: sectionGroups.length })}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {payload.review.grouped_changes_json.map((group) => (
+                {sectionGroups.map((group) => (
                   <ReviewChangeCard
                     key={group.id}
                     group={group}
@@ -291,6 +336,39 @@ export default function OptimizationReviewPage() {
                 ))}
               </CardContent>
             </Card>
+
+            {confirmGroups.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle>{t("changes.confirm.badge")}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{t("changes.confirm.intro")}</p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {confirmGroups.map((group) => (
+                    <ConfirmClaimCard
+                      key={group.id}
+                      group={group}
+                      confirmed={selectedIds.has(group.id)}
+                      available={isConfirmAvailable(group)}
+                      onToggle={toggleGroup}
+                      labels={{
+                        badge: t("changes.confirm.badge"),
+                        question: t("changes.confirm.question"),
+                        now: t("changes.confirm.now"),
+                        nowEmpty: t("changes.confirm.nowEmpty"),
+                        withLine: t("changes.confirm.withLine"),
+                        gain: (points) => t("changes.confirm.gain", { points }),
+                        add: t("changes.confirm.add"),
+                        remove: t("changes.confirm.remove"),
+                        needsSection: t("changes.confirm.needsSection", {
+                          section: t(`changes.confirm.sections.${group.confirm?.requires ?? "experience"}`),
+                        }),
+                      }}
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="space-y-4 xl:sticky xl:top-6 xl:self-start">
@@ -300,8 +378,8 @@ export default function OptimizationReviewPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  {selectedGroups.length > 0
-                    ? t("preview.selected", { count: selectedGroups.length })
+                  {selectedSectionCount > 0
+                    ? t("preview.selected", { count: selectedSectionCount })
                     : t("preview.empty")}
                 </p>
                 {previewResume && (

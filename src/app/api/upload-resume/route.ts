@@ -61,6 +61,8 @@ export async function POST(req: NextRequest) {
     const jobDescription = formData.get("jobDescription") as string;
     const jobDescriptionUrl = formData.get("jobDescriptionUrl") as string;
     const deferOptimization = formData.get("deferOptimization") === "true";
+    // Web review page only: hold job-post phrases as "Add only if true" items.
+    const confirmJobPhrases = formData.get("confirmJobPhrases") === "true";
 
     if (!resumeFile) {
       return NextResponse.json({ error: "Resume file is required." }, { status: 400 });
@@ -248,6 +250,7 @@ export async function POST(req: NextRequest) {
     });
     const pipelineResult = await runOptimizePipeline(resumeMarkdown, scoringJobText, {
       jobExtractedJson: extractedData,
+      confirmJobPhrases,
       aiTrace: {
         distinctId: user.id,
         traceName: 'optimize',
@@ -277,6 +280,7 @@ export async function POST(req: NextRequest) {
       jobTitle: extractedTitle || jdData.title,
       jobExtractedJson: extractedData,
       optimizedResume,
+      heldPhrases: pipelineResult.heldPhrases,
     });
 
     // FR-021: Increment optimization counter for user (DISABLED FOR NOW)
