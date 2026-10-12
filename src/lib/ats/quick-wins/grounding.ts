@@ -153,30 +153,50 @@ function tokensWithNumbers(text: string): string[] {
   ).map((t) => t.replace(/,/g, ''));
 }
 
-/** The nearest non-filler word before and after each occurrence of `n`. */
-function numberContexts(n: string, text: string): Array<[string, string]> {
-  const ws = tokensWithNumbers(text);
+/**
+ * The phrase that gives each occurrence of `n` its meaning: from the nearest
+ * content word before it to the nearest content word after it, within its
+ * sentence. "Renewed 38 of 41 accounts in 2024." gives 41 the span
+ * "renewed 38 of 41 accounts".
+ */
+function numberSpans(n: string, text: string): string[] {
   const isContext = (w: string) => !/^\d/.test(w) && w.length >= 3 && !STOPWORDS.has(w);
-  const out: Array<[string, string]> = [];
-  ws.forEach((w, i) => {
-    if (w !== n) return;
-    const before = ws.slice(0, i).reverse().find(isContext) ?? '';
-    const after = ws.slice(i + 1).find(isContext) ?? '';
-    out.push([stem(before), stem(after)]);
-  });
+  const out: string[] = [];
+  // A period ends a sentence only before whitespace or the end, so "4.5" survives.
+  for (const sentence of text.split(/[.!?;](?=\s|$)|\n+/)) {
+    const ws = tokensWithNumbers(sentence);
+    ws.forEach((w, i) => {
+      if (w !== n) return;
+      let b = i;
+      for (let j = i - 1; j >= 0; j--) if (isContext(ws[j])) { b = j; break; }
+      let a = i;
+      for (let j = i + 1; j < ws.length; j++) if (isContext(ws[j])) { a = j; break; }
+      out.push(ws.slice(b, a + 1).join(' '));
+    });
+  }
   return out;
 }
 
-/** "8 years" stays "8 years"; "41 accounts" may not become "41 mid-market accounts" of a portfolio. */
+function countSpan(haystack: string, span: string): number {
+  let count = 0;
+  for (let at = haystack.indexOf(` ${span} `); at !== -1; at = haystack.indexOf(` ${span} `, at + 1)) count++;
+  return count;
+}
+
+/**
+ * A summary may carry a number from elsewhere in the résumé only with the whole
+ * phrase it came in. One shared neighbour is not enough: "Renewed 38 of 41
+ * accounts" and "a portfolio of 41 accounts" share "accounts" and claim
+ * different things, and "Renewed 41 accounts" drops the "38 of". Each use of the
+ * number needs its own copy of a source phrase.
+ */
 function keepsSourceContext(n: string, optimized: string, resumeText: string): boolean {
-  const source = numberContexts(n, resumeText);
-  const used = numberContexts(n, optimized);
-  // Fail closed: a number the résumé never states, or one we could not locate,
-  // is never "borrowed".
-  if (source.length === 0 || used.length === 0) return false;
-  return used.every(([before, after]) =>
-    source.some(([b, a]) => (before && before === b) || (after && after === a)),
-  );
+  const spans = Array.from(new Set(numberSpans(n, resumeText)));
+  const uses = tokensWithNumbers(optimized).filter((w) => w === n).length;
+  // Fail closed: a number the résumé never states, or one we could not locate.
+  if (spans.length === 0 || uses === 0) return false;
+  const flat = ` ${tokensWithNumbers(optimized).join(' ')} `;
+  return spans.reduce((sum, span) => sum + countSpan(flat, span), 0) >= uses;
 }
 
 const PLACEHOLDER = /\[[^\]\n]{1,40}\]/;

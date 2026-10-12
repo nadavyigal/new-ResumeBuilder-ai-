@@ -227,6 +227,31 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     },
   );
 
+  // PR Steward review on #167, 2026-10-12: one shared neighbour ("accounts")
+  // let a renewal count become a portfolio size.
+  describe('summary numbers keep the phrase they came from', () => {
+    const steward: GroundingContext = {
+      resumeText: 'Experienced account manager. Managed a portfolio of accounts. Renewed 38 of 41 accounts in 2024.',
+      jobText: 'Manage a portfolio of 41 accounts.',
+    };
+    it.each([
+      ['steward reproduction', 'Experienced account manager managing a portfolio of 41 accounts.'],
+      ['drops "38 of", claims all 41 renewed', 'Experienced account manager. Renewed 41 accounts in 2024.'],
+      ['second use without its own source phrase', 'Renewed 38 of 41 accounts in 2024, across a portfolio of 41 accounts.'],
+    ])('rejects: %s', (_label, optimized) => {
+      const check = checkQuickWinGrounding(qw('Experienced account manager.', optimized, 'summary'), steward);
+      expect(check.violations).toContain('invented_number');
+    });
+
+    it('accepts the same numbers with their whole source phrase', () => {
+      const check = checkQuickWinGrounding(
+        qw('Experienced account manager.', 'Experienced account manager. Renewed 38 of 41 accounts in 2024 (93%).', 'summary'),
+        steward,
+      );
+      expect(check).toMatchObject({ ok: true, violations: [] });
+    });
+  });
+
   it.each(['Managed 1,500 customer accounts.', 'Managed 4.5 customer accounts.'])(
     'rejects a comma or decimal number the résumé never states, even in a summary: %s',
     (optimized) => {
