@@ -1,0 +1,19 @@
+Maya Levin
+Data Analyst
+Tel Aviv · maya.levin@example.test · Fictional demo candidate
+Summary
+Analyst with 4 years of experience. Worked with data for sales and operations teams. Detail-oriented team player who enjoys solving problems.
+Experience
+Data Analyst, Northwind Retail 2022 – Present
+• Worked with data from several departments.
+• Prepared monthly reports for managers.
+• Supported the sales team with Excel analysis.
+• Built SQL dashboards in Looker to monitor weekly sales by region.
+Junior Analyst, Bluebird Logistics 2020 – 2022
+• Cleaned shipment data in Excel.
+• Answered ad-hoc questions from the operations team.
+• Helped update the weekly delivery report.
+Education
+B.A. in Economics, 2020
+Skills
+Excel, Google Sheets, Communication, Teamwork

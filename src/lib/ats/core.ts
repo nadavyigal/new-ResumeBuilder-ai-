@@ -47,6 +47,8 @@ export type QuickWinsGenerator = (args: {
   job_data: JobExtraction;
   subscores: SubScores;
   current_ats_score: number;
+  /** Raw job text, so the generator can reject rewrites that copy the posting. */
+  job_text?: string;
 }) => Promise<QuickWinSuggestion[]>;
 
 /**
@@ -236,6 +238,7 @@ export async function scoreResume(
           job_data: preparedInput.job_data,
           subscores: optimizedAggregate.subscores,
           current_ats_score: Math.round(normalizedOptimized),
+          job_text: input.job_clean_text,
         });
 
         console.log('✨ Generated quick wins:', quickWins.length);

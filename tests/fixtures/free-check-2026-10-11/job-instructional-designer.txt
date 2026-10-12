@@ -1,0 +1,22 @@
+Instructional Designer (fictional demo role) - Lomda Labs, Haifa
+
+About the role
+Lomda Labs builds online courses for companies and schools. We are looking for an Instructional Designer who can turn expert knowledge into clear, engaging e-learning.
+
+What you will do
+- Design e-learning modules and self-paced courses from start to finish.
+- Write storyboards and learning objectives with subject matter experts.
+- Build interactive content and assessments with automatic feedback.
+- Publish and maintain courses in our LMS (Moodle).
+- Use learner data to improve courses over time.
+
+Requirements
+- 2+ years designing learning experiences, in education or in companies.
+- Experience building online or self-paced courses.
+- Strong understanding of instructional design and assessment design.
+- Experience with an LMS such as Moodle.
+- Clear writing in Hebrew and English.
+
+Nice to have
+- Articulate Storyline or Rise.
+- Video editing for short learning videos.

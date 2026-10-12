@@ -2,7 +2,9 @@
  * Quick Wins Generator
  *
  * Generates AI-powered resume improvement suggestions with before/after text
- * using OpenAI GPT-4, with graceful fallback to template-based suggestions.
+ * using OpenAI. Every rewrite is checked against the résumé before it is shown
+ * (`./grounding.ts`); a rewrite that adds facts is discarded, never padded with
+ * a template.
  */
 
 import { getOpenAI } from '@/lib/openai';
@@ -11,6 +13,12 @@ import type { QuickWinSuggestion, JobExtraction, SubScores } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { buildQuickWinsPrompt } from './prompt';
 import { getCacheKey, getCachedQuickWins, cacheQuickWins } from './cache';
+import {
+  checkQuickWinGrounding,
+  describeViolations,
+  keywordsPresentIn,
+  type GroundingContext,
+} from './grounding';
 
 interface GenerateQuickWinsParams {
   resume_text: string;
@@ -18,10 +26,29 @@ interface GenerateQuickWinsParams {
   job_data: JobExtraction;
   subscores: SubScores;
   current_ats_score: number;
+  /** Raw job text, used to spot job-post terms copied into a rewrite. */
+  job_text?: string;
+}
+
+const TARGET_COUNT = 3;
+
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+const SYSTEM_MESSAGE =
+  'You are an expert ATS optimization specialist. You never add facts the resume does not state. Always respond with valid JSON.';
+
+interface Rejected {
+  qw: QuickWinSuggestion;
+  reasons: string;
 }
 
 /**
- * Generate 3 AI-powered quick win suggestions
+ * Generate up to 3 AI-powered quick win suggestions.
+ *
+ * Fewer than 3 is a valid result. Before 2026-10-11 a shortfall was padded with
+ * templates that appended "resulting in 25% improvement in efficiency" or job
+ * keywords ("... utilizing X and Y") to real bullets. An empty slot is better
+ * than an invented claim.
  */
 export async function generateQuickWins(params: GenerateQuickWinsParams): Promise<QuickWinSuggestion[]> {
   const startTime = Date.now();
@@ -38,69 +65,144 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
     return cached;
   }
 
+  const ctx: GroundingContext = {
+    resumeText: params.resume_text,
+    jobText: params.job_text || jobDataText(params.job_data),
+    jobTitle: params.job_data.title,
+  };
+
   try {
-    const prompt = buildQuickWinsPrompt(params);
+    const messages: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_MESSAGE },
+      { role: 'user', content: buildQuickWinsPrompt(params) },
+    ];
 
-    const completion = await trackedChatCompletion(getOpenAI(), {
-      model: 'gpt-4o-mini', // Cost-efficient model
-      messages: [
-        {
-          role: 'system',
-          content: 'You are an expert ATS optimization specialist. Always respond with valid JSON.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.7, // Balance creativity and consistency
-      max_tokens: 2000,
-    }, {
-      traceName: 'ats-check',
-      properties: {
-        current_ats_score: params.current_ats_score,
-      },
-    });
-
-    const result = completion.choices[0].message.content;
-    if (!result) {
-      throw new Error('OpenAI returned empty response');
+    const first = await requestQuickWins(messages, params.current_ats_score);
+    const grounded = groundQuickWins(first.candidates, ctx);
+    const rejected = grounded.rejected;
+    // One card per bullet, in both rounds.
+    const used = new Set<string>();
+    const accepted: QuickWinSuggestion[] = [];
+    for (const qw of grounded.accepted) {
+      const key = qw.original_text.toLowerCase();
+      if (used.has(key)) continue;
+      used.add(key);
+      accepted.push(qw);
     }
 
-    const parsed = JSON.parse(result);
-    const quickWins = parsed.quick_wins || [];
-
-    // Validate and sanitize
-    const validatedQuickWins = quickWins
-      .slice(0, 3) // Ensure max 3
-      .map((qw: any, index: number) => validateQuickWin(qw, index))
-      .filter(Boolean) as QuickWinSuggestion[];
-
-    // If we got fewer than 3, pad with fallback suggestions
-    if (validatedQuickWins.length < 3) {
-      console.warn(`Only got ${validatedQuickWins.length} valid quick wins from OpenAI, adding fallback suggestions`);
-      const fallbackSuggestions = generateFallbackQuickWins(params);
-      const needed = 3 - validatedQuickWins.length;
-      validatedQuickWins.push(...fallbackSuggestions.slice(0, needed));
+    // One repair round when rewrites were discarded. The model is told why, so
+    // the second answer is not the same fabrication again.
+    if (accepted.length < TARGET_COUNT && rejected.length > 0) {
+      messages.push(
+        { role: 'assistant', content: first.raw },
+        { role: 'user', content: buildRepairMessage(rejected, accepted, TARGET_COUNT - accepted.length) },
+      );
+      // A failed repair round must not cost the wins that already passed.
+      const second = await requestQuickWins(messages, params.current_ats_score).catch((error) => {
+        console.error('Quick wins repair round failed:', error);
+        return { raw: '', candidates: [] as QuickWinSuggestion[] };
+      });
+      for (const qw of groundQuickWins(second.candidates, ctx).accepted) {
+        if (accepted.length >= TARGET_COUNT) break;
+        if (used.has(qw.original_text.toLowerCase())) continue;
+        used.add(qw.original_text.toLowerCase());
+        accepted.push(qw);
+      }
     }
+
+    const result = accepted.map((qw, index) => ({ ...qw, id: `qw_${Date.now()}_${index}` }));
 
     const duration = Date.now() - startTime;
-    console.log(`✨ Generated ${validatedQuickWins.length} quick wins in ${duration}ms`);
+    console.log(`✨ Generated ${result.length} grounded quick wins in ${duration}ms`);
 
     // Cache result
-    cacheQuickWins(cacheKey, validatedQuickWins);
+    cacheQuickWins(cacheKey, result);
 
-    return validatedQuickWins;
-
+    return result;
   } catch (error) {
     console.error('Quick wins generation failed:', error);
-
-    // Fallback: Return template-based suggestions
-    const fallbackSuggestions = generateFallbackQuickWins(params);
-    console.log(`📋 Using ${fallbackSuggestions.length} fallback quick wins`);
-    return fallbackSuggestions;
+    return [];
   }
+}
+
+async function requestQuickWins(
+  messages: ChatMessage[],
+  currentScore: number,
+): Promise<{ raw: string; candidates: QuickWinSuggestion[] }> {
+  const completion = await trackedChatCompletion(getOpenAI(), {
+    model: 'gpt-4o-mini', // Cost-efficient model
+    messages,
+    response_format: { type: 'json_object' },
+    temperature: 0.3, // Rewrites of the user's own facts, not creative writing
+    max_tokens: 2000,
+  }, {
+    traceName: 'ats-check',
+    properties: {
+      current_ats_score: currentScore,
+    },
+  });
+
+  const raw = completion.choices[0].message.content;
+  if (!raw) {
+    throw new Error('OpenAI returned empty response');
+  }
+
+  const parsed = JSON.parse(raw);
+  const candidates = (Array.isArray(parsed.quick_wins) ? parsed.quick_wins : [])
+    .slice(0, TARGET_COUNT)
+    .map((qw: any, index: number) => validateQuickWin(qw, index))
+    .filter(Boolean) as QuickWinSuggestion[];
+
+  return { raw, candidates };
+}
+
+/**
+ * Split candidates into rewrites the résumé backs and rewrites it does not.
+ * Exported for tests: this is the deterministic half of the honesty fix.
+ */
+export function groundQuickWins(
+  candidates: QuickWinSuggestion[],
+  ctx: GroundingContext,
+): { accepted: QuickWinSuggestion[]; rejected: Rejected[] } {
+  const accepted: QuickWinSuggestion[] = [];
+  const rejected: Rejected[] = [];
+
+  for (const qw of candidates) {
+    const check = checkQuickWinGrounding(qw, ctx);
+    if (check.ok) {
+      accepted.push({ ...qw, keywords_added: keywordsPresentIn(qw.keywords_added, qw.optimized_text) });
+    } else {
+      console.warn('Quick win discarded:', check.violations.join(', '));
+      rejected.push({ qw, reasons: describeViolations(check.violations) });
+    }
+  }
+
+  return { accepted, rejected };
+}
+
+function buildRepairMessage(rejected: Rejected[], accepted: QuickWinSuggestion[], needed: number): string {
+  const rejectedLines = rejected
+    .map((r) => `- "${r.qw.optimized_text}": ${r.reasons}`)
+    .join('\n');
+  const keepLines = accepted.length
+    ? `\nAlready accepted (do not repeat these bullets):\n${accepted.map((qw) => `- "${qw.original_text}"`).join('\n')}\n`
+    : '';
+
+  return `These rewrites were discarded because they break the truth rules:
+${rejectedLines}
+${keepLines}
+Return ${needed} replacement quick win(s) in the same JSON format. Use only facts the resume states. If the original bullet has numbers, keep them. Do not use any duty, number or term from the job that the resume does not already contain.`;
+}
+
+/** Job text rebuilt from structured data when the raw posting is not passed in. */
+function jobDataText(job: JobExtraction): string {
+  return [
+    job.title,
+    ...job.must_have,
+    ...job.nice_to_have,
+    ...job.responsibilities,
+    ...(Array.isArray(job.requirements) ? job.requirements : [job.requirements || '']),
+  ].join('\n');
 }
 
 /**
@@ -146,133 +248,4 @@ function validateQuickWin(qw: any, index: number): QuickWinSuggestion | null {
     console.error('Quick win validation failed:', error);
     return null;
   }
-}
-
-/**
- * Fallback: Generate quick wins from existing suggestions
- */
-function generateFallbackQuickWins(params: GenerateQuickWinsParams): QuickWinSuggestion[] {
-  // Extract sentences from experience section (try JSON first, fallback to text)
-  let experienceBullets = extractExperienceBullets(params.resume_json);
-
-  // If no structured data, extract from plain text
-  if (experienceBullets.length === 0 && params.resume_text) {
-    experienceBullets = extractBulletsFromText(params.resume_text);
-  }
-
-  const missingKeywords = params.job_data.must_have.slice(0, 5);
-
-  const quickWins: QuickWinSuggestion[] = [];
-
-  // Quick win 1: Add keywords to bullet
-  if (experienceBullets.length > 0 && missingKeywords.length > 0) {
-    const original = experienceBullets[0];
-    const keywordsToAdd = missingKeywords.slice(0, 2);
-    const optimized = `${original} utilizing ${keywordsToAdd.join(' and ')}`;
-
-    quickWins.push({
-      id: `qw_fallback_1`,
-      original_text: original,
-      optimized_text: optimized,
-      improvement_type: 'keyword_optimization',
-      estimated_impact: 6,
-      location: { section: 'experience' },
-      rationale: 'Added relevant keywords from job description to improve keyword matching score',
-      keywords_added: keywordsToAdd,
-    });
-  }
-
-  // Quick win 2: Quantify achievement
-  if (experienceBullets.length > 1) {
-    const original = experienceBullets[1];
-    const optimized = `${original}, resulting in 25% improvement in efficiency`;
-
-    quickWins.push({
-      id: `qw_fallback_2`,
-      original_text: original,
-      optimized_text: optimized,
-      improvement_type: 'quantified_achievement',
-      estimated_impact: 7,
-      location: { section: 'experience' },
-      rationale: 'Added quantifiable metric to demonstrate measurable impact and improve metrics presence score',
-      keywords_added: [],
-    });
-  }
-
-  // Quick win 3: Stronger action verb
-  if (experienceBullets.length > 2) {
-    const original = experienceBullets[2];
-    const weakVerbs = /^(Worked on|Helped with|Did|Assisted|Participated in|Involved in)/i;
-    const optimized = original.replace(weakVerbs, 'Led');
-
-    quickWins.push({
-      id: `qw_fallback_3`,
-      original_text: original,
-      optimized_text: optimized,
-      improvement_type: 'action_verb',
-      estimated_impact: 4,
-      location: { section: 'experience' },
-      rationale: 'Replaced weak verb with strong action verb to better demonstrate leadership and initiative',
-      keywords_added: [],
-    });
-  }
-
-  return quickWins.slice(0, 3);
-}
-
-/**
- * Extract experience bullets from resume JSON
- */
-function extractExperienceBullets(resume: OptimizedResume): string[] {
-  const bullets: string[] = [];
-
-  if (resume.experience && Array.isArray(resume.experience)) {
-    for (const exp of resume.experience) {
-      if (exp.responsibilities && Array.isArray(exp.responsibilities)) {
-        bullets.push(...exp.responsibilities);
-      }
-    }
-  }
-
-  return bullets.slice(0, 5);
-}
-
-/**
- * Extract bullet points from plain text resume
- */
-function extractBulletsFromText(resumeText: string): string[] {
-  const bullets: string[] = [];
-
-  // Split by newlines and look for bullet-like patterns
-  const lines = resumeText.split('\n');
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Skip empty lines or very short lines
-    if (trimmed.length < 20) continue;
-
-    // Look for lines that start with bullet markers or action verbs
-    const bulletPatterns = /^[•\-\*]|^(Led|Managed|Developed|Created|Built|Designed|Implemented|Improved|Increased|Reduced|Established|Coordinated|Delivered|Achieved|Optimized|Launched)/i;
-
-    if (bulletPatterns.test(trimmed)) {
-      // Clean up bullet markers
-      const cleaned = trimmed.replace(/^[•\-\*]\s*/, '').trim();
-      if (cleaned.length > 20 && cleaned.length < 200) {
-        bullets.push(cleaned);
-      }
-    }
-  }
-
-  // If we still don't have bullets, extract sentences from the middle section
-  if (bullets.length === 0) {
-    const sentences = resumeText
-      .split(/[.!?]\s+/)
-      .filter(s => s.length > 30 && s.length < 200)
-      .slice(0, 10);
-
-    bullets.push(...sentences);
-  }
-
-  return bullets.slice(0, 5);
 }

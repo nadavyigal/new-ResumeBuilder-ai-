@@ -33,6 +33,8 @@ export function buildQuickWinsPrompt(params: QuickWinsPromptParams): string {
 
   // Extract missing keywords
   const missingKeywords = extractMissingKeywords(job_data, resume_text);
+  const resumeLower = resume_text.toLowerCase();
+  const presentKeywords = job_data.must_have.filter(skill => resumeLower.includes(skill.toLowerCase()));
 
   // Truncate resume text to save tokens
   const truncatedResume = resume_text.slice(0, 2000);
@@ -40,31 +42,38 @@ export function buildQuickWinsPrompt(params: QuickWinsPromptParams): string {
 
   return `You are an ATS optimization specialist. Identify the 3 highest-impact resume improvements for the target job.
 
-**Current Resume**:
+**Current Resume** (the ONLY source of facts about the candidate):
 ${truncatedResume}${resumeSuffix}
 
 **Target Job**:
 - Title: ${job_data.title}
-- Must-have skills: ${job_data.must_have.slice(0, 10).join(', ')}
-- Key responsibilities: ${job_data.responsibilities.slice(0, 3).join('; ')}
+- Job keywords the resume already uses (safe to bring forward): ${presentKeywords.slice(0, 10).join(', ') || 'none'}
 
 **Current ATS Score**: ${current_ats_score}/100
 
 **Weak Areas** (prioritize these):
 ${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
 
-**Missing Keywords**: ${missingKeywords.slice(0, 15).join(', ')}
+**Job terms NOT found in the resume (do not claim these)**: ${missingKeywords.slice(0, 15).join(', ')}
+
+**Truth rules** (a rewrite that breaks one is discarded):
+1. Every fact in optimized_text must already be in the resume: numbers, counts, scopes, tools, activities, outcomes.
+2. Do not add any term from the job that the resume does not already use: no duty, scope, skill, audience or result the candidate did not write. You may swap one action verb for another ("monitor" -> "track"). Never append a job duty to a bullet.
+3. Keep every number from the original bullet. If the bullet has numbers, build on them (you may compute a rate from two of them, e.g. "38 of 41" -> "93%"). Never replace a real number with a placeholder.
+4. Use a bracket placeholder like [X%] only when the bullet has no number at all, and never invent one.
+5. Do not inflate numbers ("over 150" when the resume says 150).
+6. original_text must be copied exactly from the resume.
 
 **Instructions**:
 1. Select 3 specific sentences or bullets from the resume that can be improved.
-2. Rewrite each one to improve ATS match while staying truthful.
+2. Rewrite each one to improve ATS match while following the truth rules.
 3. Prioritize:
-   - Relevant keywords from the job description
-   - Clear action + scope + outcome phrasing
-   - Quantification when it is supported by the source text
-4. If exact metrics are missing, use bracket placeholders like [X%], [N users], or [timeframe] instead of fabricating numbers.
-5. Target different resume sections when possible.
-6. Keep rationale short and practical.
+   - Moving the candidate's own results and numbers forward
+   - Clear action + scope + outcome phrasing, using only what the resume says
+   - Job terms the resume already uses
+4. Target different resume sections when possible.
+5. Keep rationale short and practical.
+6. keywords_added lists only terms that actually appear in optimized_text.
 
 **Output Format** (strict JSON):
 {
