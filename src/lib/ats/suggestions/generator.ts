@@ -127,6 +127,12 @@ function createSuggestion(
     // Fill template
     const text = fillTemplate(template, templateData);
 
+    // A template whose data is missing leaves its placeholder in place. When the
+    // job text had no parseable title, users read "Align your headline or summary
+    // with the target title '{targetTitle}'" (iOS free check, 2026-10-12). No
+    // suggestion beats a broken one.
+    if (UNFILLED_PLACEHOLDER.test(text)) return null;
+
     // Estimate impact
     const estimatedGain = estimateImpact(subscore, currentScore, template.estimatedGain);
 
@@ -329,9 +335,30 @@ const GENERIC_KEYWORD_PATTERNS: RegExp[] = [
   /^position$/i,
 ];
 
+const UNFILLED_PLACEHOLDER = /\{[a-zA-Z_]+\}/;
+
+/**
+ * Words that cannot name a skill on their own. A keyword made only of these is
+ * leftover sentence structure: "3+ years as a data analyst or in a similar role"
+ * reached users as "Add the missing skill 'similar role' to Skills" (2026-10-12).
+ * Only an ALL-filler keyword is rejected, so "role based access" or "similar bi
+ * tool" still pass. The extractor drops most of these upstream; this is the last
+ * check before a keyword is shown to a user.
+ */
+const FILLER_KEYWORD_TOKENS = new Set([
+  'similar', 'role', 'roles', 'position', 'positions', 'job', 'jobs',
+  'have', 'has', 'having', 'why', 'what', 'how', 'when', 'where', 'which', 'who',
+  'relevant', 'related', 'equivalent', 'other', 'experience', 'experienced',
+  'years', 'year', 'ability', 'skills', 'skill', 'knowledge', 'plus', 'bonus',
+  'nice', 'must', 'required', 'preferred', 'requirements', 'requirement',
+  'qualifications', 'qualification', 'responsibilities', 'responsibility',
+]);
+
 function isGenericKeyword(keyword: string): boolean {
   const cleaned = keyword.trim().toLowerCase();
   if (cleaned.length < 3) return true;
+  const tokens = cleaned.split(/[^a-z0-9+#]+/).filter(Boolean);
+  if (tokens.length > 0 && tokens.every((token) => FILLER_KEYWORD_TOKENS.has(token))) return true;
   if (GENERIC_KEYWORD_PATTERNS.some((pattern) => pattern.test(cleaned))) return true;
   if (cleaned.startsWith('job title')) return true;
   if (cleaned.startsWith('company')) return true;
