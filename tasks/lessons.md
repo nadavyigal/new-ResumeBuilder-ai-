@@ -1,5 +1,17 @@
 # Lessons Learned — ResumeBuilder
 
+## A better job-title parser can lower a correct candidate's score (2026-10-12)
+
+**Symptom:** the iOS free check showed "Align your headline or summary with the target title '{targetTitle}'". The job text ("Kesher Commerce is looking for a Data Analyst to join...") matched none of `extractJobTitle`'s patterns, so the title was empty and `fillTemplate` left the placeholder in.
+
+**Trap:** teaching `extractJobTitle` that sentence dropped the Data Analyst candidate from 52 to 48. With a target title, title_alignment compares against the resume's titles; `parsePdf` flattens the PDF to one line, the resume-side title parser finds none, and the analyzer returns 20 instead of the neutral 50 it returns when the job has no title. The offline calibration benchmark did not move because none of its cases use that sentence shape.
+
+**Fix:** guard the output (`createSuggestion` drops any suggestion with an unfilled `{placeholder}`), and parse the hiring sentence in a separate `extractHiringSentence` used only to label the saved job in upload-resume. Scoring reads `parsed_data`, not the row's title.
+
+**Rules:**
+1. A template with missing data must produce no suggestion, never a partly filled one. Check after filling, not by hoping every caller supplies every key.
+2. Before changing any extractor that feeds scoring, run one real fixture end to end and compare the score, not only the calibration benchmark. A benchmark only covers the shapes it contains.
+
 ## Free-check quick wins copied the job post into the résumé (2026-10-11)
 
 **Symptom:** on the live free check, fictional candidates got "before/after" rewrites carrying the job's facts: "a portfolio of 60 mid-market accounts" (60 is the job's number), "reducing churn by tracking account health and acting early on risk" (a job duty), "learning objectives and storyboards" (never in the résumé). A real "38 of 41" became "[X%]". When OpenAI failed, the fallback appended "resulting in 25% improvement in efficiency" to a real bullet.
