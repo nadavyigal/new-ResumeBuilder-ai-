@@ -227,6 +227,17 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     },
   );
 
+  it.each(['Managed 1,500 customer accounts.', 'Managed 4.5 customer accounts.'])(
+    'rejects a comma or decimal number the résumé never states, even in a summary: %s',
+    (optimized) => {
+      const check = checkQuickWinGrounding(
+        qw('Spearheaded customer success initiatives to drive engagement and value.', optimized, 'summary'),
+        ctxFor(CASES.itay),
+      );
+      expect(check.violations).toContain('invented_number');
+    },
+  );
+
   it('rejects a "before" that is not in the résumé', () => {
     const check = checkQuickWinGrounding(
       qw('Managed 12 enterprise accounts in EMEA.', 'Managed 12 enterprise accounts in EMEA.'),
@@ -394,6 +405,27 @@ describe('generateQuickWins', () => {
       current_ats_score: 61,
     });
     expect(wins.map((w) => w.original_text)).toEqual([original, 'Renewed 38 of 41 accounts up for renewal in 2024.']);
+  });
+
+  it('keeps first-round wins when the repair round fails', async () => {
+    const honest = qw(
+      'Renewed 38 of 41 accounts up for renewal in 2024.',
+      'Achieved a 93% renewal rate by renewing 38 of 41 accounts up for renewal in 2024.',
+    );
+    mockCompletion
+      .mockResolvedValueOnce(
+        reply([honest, qw('Managed a portfolio of mid-market accounts and ensured customer satisfaction.', 'Managed a portfolio of 60 mid-market accounts')]),
+      )
+      .mockRejectedValueOnce(new Error('network'));
+    const wins = await generateQuickWins({
+      resume_text: `${CASES.itay.resume}\n\n\n`, // distinct cache key
+      resume_json: {} as never,
+      job_data: jobDataFor(CASES.itay.job),
+      job_text: CASES.itay.job,
+      subscores,
+      current_ats_score: 61,
+    });
+    expect(wins.map((w) => w.optimized_text)).toEqual([honest.optimized_text]);
   });
 
   it('returns nothing rather than a template claim when the model fails', async () => {

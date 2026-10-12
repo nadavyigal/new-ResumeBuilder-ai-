@@ -97,7 +97,11 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
         { role: 'assistant', content: first.raw },
         { role: 'user', content: buildRepairMessage(rejected, accepted, TARGET_COUNT - accepted.length) },
       );
-      const second = await requestQuickWins(messages, params.current_ats_score);
+      // A failed repair round must not cost the wins that already passed.
+      const second = await requestQuickWins(messages, params.current_ats_score).catch((error) => {
+        console.error('Quick wins repair round failed:', error);
+        return { raw: '', candidates: [] as QuickWinSuggestion[] };
+      });
       for (const qw of groundQuickWins(second.candidates, ctx).accepted) {
         if (accepted.length >= TARGET_COUNT) break;
         if (used.has(qw.original_text.toLowerCase())) continue;

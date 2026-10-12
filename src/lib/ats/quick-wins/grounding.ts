@@ -143,9 +143,19 @@ function flatten(text: string): string {
   return words(text).join(' ');
 }
 
+/** Like `words`, but "1,500" and "4.5" stay one token, spelled as `numbers` spells them. */
+function tokensWithNumbers(text: string): string[] {
+  return (
+    text
+      .toLowerCase()
+      .replace(/(\p{L})[-\u2010-\u2014](\p{L})/gu, '$1$2')
+      .match(/\d[\d,]*(?:\.\d+)?|\p{L}[\p{L}\p{N}]*/gu) || []
+  ).map((t) => t.replace(/,/g, ''));
+}
+
 /** The nearest non-filler word before and after each occurrence of `n`. */
 function numberContexts(n: string, text: string): Array<[string, string]> {
-  const ws = words(text).map((w) => w.replace(/,/g, ''));
+  const ws = tokensWithNumbers(text);
   const isContext = (w: string) => !/^\d/.test(w) && w.length >= 3 && !STOPWORDS.has(w);
   const out: Array<[string, string]> = [];
   ws.forEach((w, i) => {
@@ -160,7 +170,11 @@ function numberContexts(n: string, text: string): Array<[string, string]> {
 /** "8 years" stays "8 years"; "41 accounts" may not become "41 mid-market accounts" of a portfolio. */
 function keepsSourceContext(n: string, optimized: string, resumeText: string): boolean {
   const source = numberContexts(n, resumeText);
-  return numberContexts(n, optimized).every(([before, after]) =>
+  const used = numberContexts(n, optimized);
+  // Fail closed: a number the résumé never states, or one we could not locate,
+  // is never "borrowed".
+  if (source.length === 0 || used.length === 0) return false;
+  return used.every(([before, after]) =>
     source.some(([b, a]) => (before && before === b) || (after && after === a)),
   );
 }
