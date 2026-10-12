@@ -227,6 +227,20 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     },
   );
 
+  // Re-review of caf41ac, 2026-10-12: each of these passed the guard.
+  it.each([
+    ['a spelled-out number (the job says 60)', 'itay', 'Managed a portfolio of mid-market accounts and ensured customer satisfaction.', 'Managed a portfolio of sixty mid-market accounts and ensured customer satisfaction.', 'invented_number'],
+    ['a quantity word', 'itay', 'Handled escalations for key customers.', 'Handled dozens of escalations for key customers.', 'invented_number'],
+    ['a multiplier', 'maya', 'Supported the sales team with Excel analysis.', 'Supported the sales team with Excel analysis, doubling report speed.', 'invented_number'],
+    ['a percent from an unrelated pair (12 units, 150 students)', 'noa', 'Built 12 self-paced online course units in Moodle, used by 150 students during remote learning.', 'Built 12 self-paced online course units in Moodle, used by 150 students during remote learning, lifting completion 8%.', 'invented_number'],
+    ['a percent from a range (grades 10-12)', 'noa', 'Taught algebra and geometry to grades 10–12.', 'Taught algebra and geometry to grades 10–12 with an 83% pass rate.', 'invented_number'],
+    ['a tool neither the résumé nor the job names', 'noa', 'Recorded short video lessons and designed quizzes with automatic feedback.', 'Recorded short video lessons in Camtasia and designed quizzes with automatic feedback.', 'invented_term'],
+    ['an acronym the résumé never uses', 'maya', 'Cleaned shipment data in Excel.', 'Cleaned shipment data in Excel and SAP.', 'invented_term'],
+  ] as const)('rejects %s', (_label, who, original, optimized, violation) => {
+    const c = { itay: CASES.itay, noa: CASES.noa, maya: CASES.maya }[who];
+    expect(checkQuickWinGrounding(qw(original, optimized), ctxFor(c)).violations).toContain(violation);
+  });
+
   // PR Steward review on #167, 2026-10-12: one shared neighbour ("accounts")
   // let a renewal count become a portfolio size.
   describe('summary numbers keep the phrase they came from', () => {
