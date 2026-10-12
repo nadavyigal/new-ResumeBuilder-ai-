@@ -241,6 +241,24 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     expect(checkQuickWinGrounding(qw(original, optimized), ctxFor(c)).violations).toContain(violation);
   });
 
+  // Re-review of fed7054, 2026-10-12: claims that need no number or job term to be false.
+  it.each([
+    ['scope: "enterprise"', 'itay', 'Renewed 38 of 41 accounts up for renewal in 2024.', 'Renewed 38 of 41 enterprise accounts up for renewal in 2024.', 'inflated_claim'],
+    ['scope: "global"', 'itay', 'Handled escalations for key customers.', 'Handled global escalations for key customers.', 'inflated_claim'],
+    ['authority: mentoring becomes managing a team', 'itay', 'Mentored new support agents.', 'Led and managed a team of new support agents.', 'inflated_claim'],
+    ['authority: "Supervised"', 'itay', 'Mentored new support agents.', 'Supervised new support agents.', 'inflated_claim'],
+    ['absolute: "all"', 'itay', 'Handled escalations for key customers.', 'Resolved all escalations for key customers.', 'inflated_claim'],
+    ['absolute: "zero"', 'itay', 'Handled escalations for key customers.', 'Handled escalations for key customers with zero lost accounts.', 'inflated_claim'],
+    ['outcome: revenue', 'itay', 'Handled escalations for key customers.', 'Handled escalations for key customers, increasing revenue.', 'inflated_claim'],
+    ['outcome: efficiency', 'maya', 'Supported the sales team with Excel analysis.', 'Supported the sales team with Excel analysis, boosting efficiency.', 'inflated_claim'],
+    ['distinction: award', 'noa', 'Taught algebra and geometry to grades 10–12.', 'Taught algebra and geometry to grades 10–12 as an award-winning teacher.', 'inflated_claim'],
+    ['distinction: top performer', 'itay', 'Handled escalations for key customers.', 'Top performer handling escalations for key customers.', 'inflated_claim'],
+    ['full-width digits', 'itay', 'Managed a portfolio of mid-market accounts and ensured customer satisfaction.', 'Managed a portfolio of ６０ mid-market accounts and ensured customer satisfaction.', 'invented_number'],
+  ] as const)('rejects %s', (_label, who, original, optimized, violation) => {
+    const c = { itay: CASES.itay, noa: CASES.noa, maya: CASES.maya }[who];
+    expect(checkQuickWinGrounding(qw(original, optimized), ctxFor(c)).violations).toContain(violation);
+  });
+
   // PR Steward review on #167, 2026-10-12: one shared neighbour ("accounts")
   // let a renewal count become a portfolio size.
   describe('summary numbers keep the phrase they came from', () => {
@@ -427,7 +445,7 @@ describe('generateQuickWins', () => {
     const original = 'Ran quarterly business reviews with account stakeholders.';
     mockCompletion.mockResolvedValueOnce(
       reply([
-        qw(original, 'Led quarterly business reviews with account stakeholders.'),
+        qw(original, 'Conducted quarterly business reviews with account stakeholders.'),
         qw(original, 'Ran quarterly business reviews with stakeholders of each account.'),
         qw(
           'Renewed 38 of 41 accounts up for renewal in 2024.',

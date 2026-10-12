@@ -43,7 +43,8 @@ export type GroundingViolation =
   | 'placeholder_over_real_number'
   | 'inflated_number'
   | 'job_terms_added'
-  | 'invented_term';
+  | 'invented_term'
+  | 'inflated_claim';
 
 export interface GroundingResult {
   ok: boolean;
@@ -175,6 +176,37 @@ function namedTerms(text: string): string[] {
   return out;
 }
 
+/**
+ * Claims that need no number or job term to be false. Each list is a kind of
+ * claim the candidate must have made first: re-review of fed7054 found every
+ * one of them passing ("enterprise accounts", "Led and managed a team" from
+ * "Mentored", "all escalations", "increasing revenue", "award-winning").
+ */
+const SCOPE = /^(?:enterprise|global|globally|international|internationally|worldwide|nationwide|multinational|companywide|organizationwide|fortune|clevel|executives?|strategic|largescale|flagship|highprofile|highvalue)$/;
+const OUTCOME = /^(?:revenues?|profits?|profitability|costs?|savings?|efficiency|efficiencies|productivity|roi|growth|conversions?|retention|churn|satisfaction|engagement|performance|accuracy|adoption|uptime|sales|nps|csat)$/;
+const DISTINCTION = /^(?:awards?|awarded|awardwinning|recogni[sz]ed|recognition|promoted|promotion|top|best|record|recordbreaking|ranked|exceeded|exceeding|surpassed|outperformed|outperforming)$/;
+/** Authority over people or work; the bullet itself must claim it first. */
+const AUTHORITY = /^(?:led|leads?|leading|leadership|manag\w*|direct(?:ed|ing|s)?|owned|owner|ownership|oversaw|oversee\w*|spearhead\w*|head(?:ed|ing|s)?|supervis\w*|chair(?:ed|ing)?|command(?:ed|ing)?)$/;
+const ABSOLUTE = /^(?:all|every|entire|entirely|zero|none|always|never|fully)$/;
+
+function inflatedClaims(original: string, optimized: string, resumeText: string, isSummary: boolean): string[] {
+  const inResume = new Set(words(resumeText));
+  // A summary speaks for the whole résumé; a bullet only for itself.
+  const inSource = isSummary ? inResume : new Set(words(original));
+  return Array.from(
+    new Set(
+      words(optimized).filter(
+        (w) =>
+          ((SCOPE.test(w) || OUTCOME.test(w) || DISTINCTION.test(w)) && !inResume.has(w)) ||
+          ((AUTHORITY.test(w) && ![...inSource].some((x) => AUTHORITY.test(x))) || (ABSOLUTE.test(w) && !inSource.has(w))),
+      ),
+    ),
+  );
+}
+
+/** Digits outside 0-9 (full-width, Arabic-Indic) slip past every number check. */
+const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
+
 function inventedTerms(optimized: string, ctx: GroundingContext, isSummary: boolean): string[] {
   const known = new Set(words(ctx.resumeText));
   if (isSummary && ctx.jobTitle) words(ctx.jobTitle).forEach((w) => known.add(w));
@@ -292,7 +324,8 @@ export function checkQuickWinGrounding(
   const originalQuantities = quantityWords(original);
   if (
     optimizedNumbers.some((n) => !originalNumbers.includes(n) && !borrowed.includes(n) && !percents.has(n)) ||
-    [...quantityWords(optimized)].some((w) => !originalQuantities.has(w))
+    [...quantityWords(optimized)].some((w) => !originalQuantities.has(w)) ||
+    (NON_ASCII_DIGIT.test(optimized) && !NON_ASCII_DIGIT.test(original))
   ) {
     violations.push('invented_number');
   }
@@ -331,6 +364,10 @@ export function checkQuickWinGrounding(
     violations.push('invented_term');
   }
 
+  if (inflatedClaims(original, optimized, ctx.resumeText, qw.location?.section === 'summary').length > 0) {
+    violations.push('inflated_claim');
+  }
+
   return { ok: violations.length === 0, violations, jobOnlyTerms };
 }
 
@@ -342,6 +379,7 @@ const VIOLATION_FEEDBACK: Record<GroundingViolation, string> = {
   inflated_number: 'it inflates a number ("over", "more than", "+")',
   job_terms_added: 'it adds duties, scopes or terms from the job post that the resume never mentions',
   invented_term: 'it names a tool, product or name the resume never mentions',
+  inflated_claim: 'it adds scope, authority, an outcome, an award or an absolute ("all", "zero") the resume does not state',
 };
 
 export function describeViolations(violations: GroundingViolation[]): string {
