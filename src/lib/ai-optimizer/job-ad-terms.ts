@@ -344,20 +344,49 @@ const CLAUSE_BREAK = /(?:,|;|\s[-\u2013\u2014])\s+/;
  * contact line, title or skills list. Without this, an invented bullet came
  * back as "Data Analyst" or "Excel, Google Sheets, Communication, Teamwork".
  */
+/**
+ * A role or education header: a date range ("2021 – Present", "Apr 2021 to
+ * Present", "2018 – 2021"). A bullet that mentions one year ("in 2024") is not.
+ */
+const DATE_RANGE =
+  /(?<![0-9])(?:19|20)\d\d\s*(?:[-\u2013\u2014]|to)\s*(?:(?:[A-Za-z]{3,9}\s+)?(?:19|20)\d\d(?![0-9])|present|current|now|today|היום|כיום)/i;
+
 function isSourceSentence(line: string): boolean {
   if (line.split(/\s+/).length < 4) return false;
-  if (/(?<![0-9])(?:19|20)\d\d(?![0-9])/.test(line)) return false;
+  if (DATE_RANGE.test(line)) return false;
   if (/@|·|\|/.test(line)) return false;
   const items = line.split(',');
   return !(items.length >= 3 && items.every((item) => item.trim().split(/\s+/).length <= 3));
 }
 
-/** The candidate's own résumé line closest to a bullet, by shared words. Null when none is close. */
-function closestSourceLine(bullet: string, originalResumeText: string): string | null {
+/**
+ * The résumé lines under one role: from its header (the line naming its company,
+ * or its title) to the next role header or section heading. Restoring a line from
+ * anywhere else would credit one employer with another's work (Codex review of
+ * #169). Empty when the role cannot be located, so nothing is restored.
+ */
+function roleSourceLines(originalResumeText: string, role: { company?: string; title?: string }): string[] {
+  const lines = trustedResumeText(originalResumeText).split('\n');
+  const name = (role.company || role.title || '').trim().toLowerCase();
+  if (name.length < 2) return [];
+  const header = lines.findIndex((l) => l.toLowerCase().includes(name));
+  if (header === -1) return [];
+  const out: string[] = [];
+  for (const line of lines.slice(header + 1)) {
+    const isRoleHeader = !/^\s*[•\-*]/.test(line) && DATE_RANGE.test(line);
+    const isSection = /^\s*(?:education|skills|certifications?|projects|summary|languages|השכלה|כישורים|פרויקטים|תעודות)\b/i.test(line);
+    if (isRoleHeader || isSection) break;
+    out.push(line);
+  }
+  return out;
+}
+
+/** The candidate's own line under this role closest to a bullet, by shared words. Null when none is close. */
+function closestSourceLine(bullet: string, sourceLines: string[]): string | null {
   const wordsOf = (t: string) => new Set(t.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4));
   const target = wordsOf(bullet);
   let best: { line: string; score: number } | null = null;
-  for (const raw of trustedResumeText(originalResumeText).split('\n')) {
+  for (const raw of sourceLines) {
     const line = raw.replace(/^\s*[•\-*]\s*/, '').trim();
     if (!isSourceSentence(line)) continue;
     const ws = wordsOf(line);
@@ -412,11 +441,16 @@ function cutClauses(text: string, ctx: ReturnType<typeof groundingFor>, isSummar
 
 type BulletFix = { cut: ClauseCut } | { source: string } | null;
 
-function cleanBullet(bullet: string, originalResumeText: string, jobDescription: string): BulletFix {
+function cleanBullet(
+  bullet: string,
+  originalResumeText: string,
+  jobDescription: string,
+  role: { company?: string; title?: string }
+): BulletFix {
   const ctx = groundingFor(originalResumeText, jobDescription);
   const cut = cutClauses(bullet, ctx);
   if (cut !== null) return { cut };
-  const source = closestSourceLine(bullet, originalResumeText);
+  const source = closestSourceLine(bullet, roleSourceLines(originalResumeText, role));
   return source && jobOnlyIn(source, ctx).length === 0 ? { source } : null;
 }
 
@@ -483,7 +517,7 @@ export function removeJobOnlyPhrases(
           out.push(b);
           continue;
         }
-        const next = cleanBullet(b, originalResumeText, jobDescription);
+        const next = cleanBullet(b, originalResumeText, jobDescription, role);
         if (next !== null && 'cut' in next) {
           out.push(next.cut.kept);
           cleaned++;
@@ -753,7 +787,11 @@ export async function enforceJobAdTruth(
   // Phrases last, on the final text, so each record points at what the user will
   // see. Deterministic: no repair call, so nothing the user could confirm is lost.
   let held: HeldPhrase[] = [];
-  if (input.holdJobPhrases) {
+  // Hebrew is not handled yet: the job-word check has English verb lists and does
+  // not strip Hebrew proclitics (ב, ה, ו...), so an honest Hebrew rewrite would be
+  // held (Codex review of #169). Off until it is, for either side in Hebrew.
+  const hebrew = HEBREW.test(input.resumeText) || HEBREW.test(input.jobDescription);
+  if (input.holdJobPhrases && !hebrew) {
     report.jobPhrasesBefore = [
       ...new Set(findJobOnlyBulletTerms(best, input.resumeText, input.jobDescription).flatMap((f) => f.terms)),
     ];
@@ -762,6 +800,13 @@ export async function enforceJobAdTruth(
     report.jobPhraseBulletsCleaned = phrases.cleaned;
     report.jobPhrasesUnresolved = phrases.unresolved;
     held = phrases.held;
+    // Holding a whole bullet can take out the only mention of a tool the résumé
+    // really has; it goes back into skills, as in the tools guard above.
+    const lostAfterHold = findLostSupportedTerms(best, input.resumeText, terms);
+    if (lostAfterHold.length > 0) {
+      best = restoreSupportedTerms(best, lostAfterHold);
+      report.restoredTerms = [...new Set([...report.restoredTerms, ...lostAfterHold])];
+    }
   }
   return { resume: best, report, changed: best !== candidate, held };
 }

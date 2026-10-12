@@ -195,3 +195,55 @@ describe('review: the same phrase moved out of the bullets', () => {
     expect(out.resume.projects?.[0].description).toBe('Prepared monthly reports for managers.');
   });
 });
+
+// Codex review of #169 (2026-10-12). Each failed before its fix.
+describe('Codex review', () => {
+  it('P1: restores a source line only from the same role, never another employer', () => {
+    const resumeText = [
+      'Dana Cohen',
+      'Experience',
+      'Analyst, Acme Corp 2021 – Present',
+      '• Prepared weekly sales summaries.',
+      'Assistant, Beta Ltd 2018 – 2021',
+      '• Answered customer calls and logged tickets.',
+    ].join('\n');
+    const job = 'Analyst. Present insights to non-technical stakeholders. Answer business questions.';
+    const r = {
+      ...resumeWith(['Prepared weekly sales summaries.', 'Answered customer calls for non-technical stakeholders and logged tickets.'], 'Acme Corp', 'Analyst'),
+    } as OptimizedResume;
+    const out = removeJobOnlyPhrases(r, resumeText, job);
+    // The Beta Ltd line must not appear under Acme Corp.
+    expect(bulletsOf(out.resume)).not.toContain('Answered customer calls and logged tickets.');
+  });
+
+  it('P1: holds nothing for a Hebrew résumé or job, until Hebrew prefixes and verbs are handled', async () => {
+    const hebrewResume = 'נועה מזרחי\nמורה למתמטיקה, תיכון כרמל 2017 – היום\n• טיפלתי בדוחות חודשיים למנהלים.';
+    const hebrewJob = 'מעצבת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין.';
+    const r = resumeWith(['ניהלתי דוחות חודשיים למנהלים והצגתי תובנות.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const out = await enforceJobAdTruth(r, { resumeText: hebrewResume, jobDescription: hebrewJob, repair: repairReturning(null), holdJobPhrases: true });
+    expect(out.held).toEqual([]);
+    expect(out.changed).toBe(false);
+  });
+
+  it('P2: holding a whole bullet never loses a tool the résumé really has', async () => {
+    const resumeText = ['Itay Shalev', 'Customer Success Manager, Brightdesk 2021 – Present', '• Renewed 38 of 41 accounts up for renewal in 2024.', 'Skills', 'Salesforce'].join('\n');
+    const job = 'Customer Success Manager. Run executive business reviews. Keep account data in Salesforce.';
+    const r = resumeWith(
+      ['Renewed 38 of 41 accounts up for renewal in 2024.', 'Ran executive business reviews in Salesforce.'],
+      'Brightdesk',
+      'Customer Success Manager',
+    );
+    r.skills = { technical: [], soft: [] } as any;
+    const out = await enforceJobAdTruth(r, { resumeText, jobDescription: job, repair: repairReturning(null), holdJobPhrases: true });
+    expect(JSON.stringify(out.resume)).toContain('Salesforce');
+  });
+});
+
+describe('role blocks: a bullet with a year is not a role header', () => {
+  it('restores a source line that mentions a year, from the right role', () => {
+    const r = resumeWith(['Renewed 38 of 41 accounts up for executive renewal in 2024.'], 'Brightdesk', 'Customer Success Manager');
+    r.experience[0].achievements.push('Mentored new support agents.');
+    const out = removeJobOnlyPhrases(r, ITAY.resume, ITAY.job);
+    expect(bulletsOf(out.resume)[0]).toBe('Renewed 38 of 41 accounts up for renewal in 2024.');
+  });
+});
