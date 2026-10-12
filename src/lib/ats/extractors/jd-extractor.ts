@@ -288,3 +288,31 @@ export function isJobExtractionComplete(extraction: JobExtraction): {
     missingFields,
   };
 }
+
+// "Kesher Commerce is looking for a Data Analyst to join ...". The role ends at
+// the first preposition, relative word or punctuation: "a Data Analyst to join",
+// "a Senior Product Designer who loves", "an Account Executive for the EMEA region".
+const HIRING_SENTENCE =
+  /(?:^|[.!?]\s+)([A-Z][\w&'.-]*(?:\s+[A-Z][\w&'.-]*){0,3})\s+(?:is|are)\s+(?:looking for|hiring|seeking)\s+(?:a|an)\s+([A-Z][^\n.,;:!?]*?)(?=\s+(?:to|who|that|for|in|at|on|with|and|based)\b|[\n.,;:!?]|$)/m;
+
+/** Capitalised sentence openers that are not company names. */
+const NON_COMPANY_SUBJECTS = new Set(['the', 'our', 'this', 'your', 'we', 'it', 'company', 'team']);
+
+/**
+ * Title and company from a pasted post's "<Company> is looking for a <Title>"
+ * sentence, for LABELLING the saved job only.
+ *
+ * Deliberately not wired into `extractJobData`: a non-empty job title makes
+ * title_alignment compare against the resume's titles, and when those cannot be
+ * parsed from flattened PDF text the analyzer returns 20 instead of its neutral
+ * 50. On the 2026-10-12 Maya fixture that cost a real Data Analyst 4 points.
+ * Changing the score is its own story; this only stops the saved job reading
+ * "Job Position" / "Company Name" in the iOS preview header.
+ */
+export function extractHiringSentence(text: string): { title: string; company: string } {
+  const match = text.match(HIRING_SENTENCE);
+  if (!match) return { title: '', company: '' };
+  const subject = match[1].trim();
+  const generic = NON_COMPANY_SUBJECTS.has(subject.split(/\s+/)[0].toLowerCase());
+  return { title: match[2].trim(), company: generic ? '' : subject };
+}

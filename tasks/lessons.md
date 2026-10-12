@@ -1,5 +1,17 @@
 # Lessons Learned — ResumeBuilder
 
+## A better job-title parser can lower a correct candidate's score (2026-10-12)
+
+**Symptom:** the iOS free check showed "Align your headline or summary with the target title '{targetTitle}'". The job text ("Kesher Commerce is looking for a Data Analyst to join...") matched none of `extractJobTitle`'s patterns, so the title was empty and `fillTemplate` left the placeholder in.
+
+**Trap:** teaching `extractJobTitle` that sentence dropped the Data Analyst candidate from 52 to 48. With a target title, title_alignment compares against the resume's titles; `parsePdf` flattens the PDF to one line, the resume-side title parser finds none, and the analyzer returns 20 instead of the neutral 50 it returns when the job has no title. The offline calibration benchmark did not move because none of its cases use that sentence shape.
+
+**Fix:** guard the output (`createSuggestion` drops any suggestion with an unfilled `{placeholder}`), and parse the hiring sentence in a separate `extractHiringSentence` used only to label the saved job in upload-resume. Scoring reads `parsed_data`, not the row's title.
+
+**Rules:**
+1. A template with missing data must produce no suggestion, never a partly filled one. Check after filling, not by hoping every caller supplies every key.
+2. Before changing any extractor that feeds scoring, run one real fixture end to end and compare the score, not only the calibration benchmark. A benchmark only covers the shapes it contains.
+
 ## Telling a model which keywords are missing makes it insert them (2026-09-25)
 
 **Symptom:** the optimizer added named tools from the job ad that the résumé never mentions (Salesforce, Google Ads, Postman, SAP, AWS) in 17 of 120 eval runs. The nightly gate passed all 17: its checks read only the certifications array, and its judge passed 5 of 7 planted fabrications.
