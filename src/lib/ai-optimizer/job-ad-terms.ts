@@ -375,20 +375,49 @@ function closestSourceLine(bullet: string, originalResumeText: string): string |
  * Never deletes a bullet, so a role can never be emptied. Returns null when neither
  * works, and the bullet is reported as unresolved.
  */
-function cutClauses(text: string, ctx: ReturnType<typeof groundingFor>, isSummary = false): string | null {
-  const clauses = text.split(CLAUSE_BREAK);
-  if (jobOnlyIn(clauses[0], ctx, isSummary).length > 0) return null;
-  const kept = clauses.filter((c) => jobOnlyIn(c, ctx, isSummary).length === 0);
-  const joined = kept.join(', ').replace(/[\s,;.]+$/, '');
-  return joined.length >= 12 ? `${joined}.` : null;
+/**
+ * A line rebuilt from its clauses, keeping only `keep` (in their original
+ * order). The review page uses the same rule to put confirmed clauses back.
+ */
+export function joinClauses(clauses: string[], keep: number[]): string {
+  const joined = [...new Set(keep)]
+    .sort((a, b) => a - b)
+    .map((i) => clauses[i])
+    .join(', ')
+    .replace(/[\s,;.]+$/, '');
+  return `${joined}.`;
 }
 
-function cleanBullet(bullet: string, originalResumeText: string, jobDescription: string): string | null {
+interface ClauseCut {
+  kept: string;
+  clauses: string[];
+  keptIdx: number[];
+  /** Each held clause on its own, so the user can confirm one and not another. */
+  held: Array<{ clause: number; terms: string[] }>;
+}
+
+function cutClauses(text: string, ctx: ReturnType<typeof groundingFor>, isSummary = false): ClauseCut | null {
+  const clauses = text.split(CLAUSE_BREAK);
+  if (jobOnlyIn(clauses[0], ctx, isSummary).length > 0) return null;
+  const keptIdx: number[] = [];
+  const held: ClauseCut['held'] = [];
+  clauses.forEach((c, i) => {
+    const terms = jobOnlyIn(c, ctx, isSummary);
+    if (terms.length === 0) keptIdx.push(i);
+    else held.push({ clause: i, terms });
+  });
+  const kept = joinClauses(clauses, keptIdx);
+  return kept.length >= 13 ? { kept, clauses, keptIdx, held } : null;
+}
+
+type BulletFix = { cut: ClauseCut } | { source: string } | null;
+
+function cleanBullet(bullet: string, originalResumeText: string, jobDescription: string): BulletFix {
   const ctx = groundingFor(originalResumeText, jobDescription);
   const cut = cutClauses(bullet, ctx);
-  if (cut !== null) return cut;
+  if (cut !== null) return { cut };
   const source = closestSourceLine(bullet, originalResumeText);
-  return source && jobOnlyIn(source, ctx).length === 0 ? source : null;
+  return source && jobOnlyIn(source, ctx).length === 0 ? { source } : null;
 }
 
 /**
@@ -409,6 +438,25 @@ export interface HeldPhrase {
   after: string | null;
   /** The job-post words it uses that the résumé does not. */
   terms: string[];
+  /** When one clause of a line is held: the line's clauses as written, which are kept, and this one. */
+  clauses?: string[];
+  keptClauses?: number[];
+  clause?: number;
+}
+
+/** One hold per held clause: each is its own "Add only if true" item. */
+function clauseHolds(section: HeldPhrase['section'], index: number, cut: ClauseCut): HeldPhrase[] {
+  return cut.held.map(({ clause, terms }) => ({
+    section,
+    index,
+    kept: cut.kept,
+    proposed: joinClauses(cut.clauses, [...cut.keptIdx, clause]),
+    after: null,
+    terms,
+    clauses: cut.clauses,
+    keptClauses: cut.keptIdx,
+    clause,
+  }));
 }
 
 export function removeJobOnlyPhrases(
@@ -436,10 +484,14 @@ export function removeJobOnlyPhrases(
           continue;
         }
         const next = cleanBullet(b, originalResumeText, jobDescription);
-        if (next !== null) {
-          out.push(next);
+        if (next !== null && 'cut' in next) {
+          out.push(next.cut.kept);
           cleaned++;
-          held.push({ section: 'experience', index: roleIndex, kept: next, proposed: b, after: null, terms });
+          held.push(...clauseHolds('experience', roleIndex, next.cut));
+        } else if (next !== null) {
+          out.push(next.source);
+          cleaned++;
+          held.push({ section: 'experience', index: roleIndex, kept: next.source, proposed: b, after: null, terms });
         } else if (othersInRole + out.length + (bullets.length - i - 1) > 0) {
           cleaned++;
           held.push({ section: 'experience', index: roleIndex, kept: null, proposed: b, after: out[out.length - 1] ?? null, terms });
@@ -468,8 +520,8 @@ export function removeJobOnlyPhrases(
     const cut = cutClauses(sentence, ctx, true);
     if (cut !== null) {
       cleaned++;
-      held.push({ section: 'summary', index: 0, kept: cut, proposed: sentence, after: null, terms });
-      return summary.push(cut);
+      held.push(...clauseHolds('summary', 0, cut));
+      return summary.push(cut.kept);
     }
     if (summary.length + (summaryParts.length - i - 1) > 0) {
       cleaned++;
@@ -488,8 +540,8 @@ export function removeJobOnlyPhrases(
       return p;
     }
     cleaned++;
-    held.push({ section: 'projects', index: projectIndex, kept: cut, proposed: p.description as string, after: null, terms });
-    return { ...p, description: cut };
+    held.push(...clauseHolds('projects', projectIndex, cut));
+    return { ...p, description: cut.kept };
   });
 
   return {

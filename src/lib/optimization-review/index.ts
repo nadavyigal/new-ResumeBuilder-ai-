@@ -233,8 +233,42 @@ export function createConfirmGroups(heldPhrases: HeldPhrase[] | undefined): Revi
       after: held.after,
       terms: held.terms,
       estimated_gain: null,
+      ...(held.clauses ? { clauses: held.clauses, kept_clauses: held.keptClauses ?? [], clause: held.clause } : {}),
     },
   }));
+}
+
+/** Same rule as the guard's `joinClauses`, kept here so this module stays free of the optimizer. */
+function joinClauses(clauses: string[], keep: number[]): string {
+  const joined = [...new Set(keep)]
+    .sort((a, b) => a - b)
+    .map((i) => clauses[i])
+    .join(", ")
+    .replace(/[\s,;.]+$/, "");
+  return `${joined}.`;
+}
+
+/**
+ * Clause items of the same line become one claim whose text has every
+ * confirmed clause back, so confirming two of three gives exactly those two.
+ */
+function mergeClauseClaims(claims: ReviewConfirmClaim[]): ReviewConfirmClaim[] {
+  const lines = new Map<string, ReviewConfirmClaim[]>();
+  const out: ReviewConfirmClaim[] = [];
+  for (const claim of claims) {
+    if (!claim.clauses || claim.clause === undefined) {
+      out.push(claim);
+      continue;
+    }
+    const key = `${claim.requires}|${claim.index}|${claim.kept}`;
+    lines.set(key, [...(lines.get(key) ?? []), claim]);
+  }
+  for (const group of lines.values()) {
+    const [first] = group;
+    const keep = [...(first.kept_clauses ?? []), ...group.map((c) => c.clause as number)];
+    out.push({ ...first, proposed: joinClauses(first.clauses as string[], keep) });
+  }
+  return out;
 }
 
 const same = (a: unknown, b: string | null) => typeof a === "string" && b !== null && a.trim() === b.trim();
@@ -288,9 +322,10 @@ function applyConfirmation(resume: OptimizedResume, claim: ReviewConfirmClaim): 
 /** Confirmed phrases whose section change is approved too; the rest have nothing to attach to. */
 export function applyConfirmedPhrases(resume: OptimizedResume, approvedGroups: ReviewChangeGroup[]): OptimizedResume {
   const approvedSections = new Set(approvedGroups.filter((g) => !g.confirm).map((g) => g.section));
-  return approvedGroups
+  const claims = approvedGroups
     .filter((g) => g.confirm && (g.confirm.standalone || approvedSections.has(g.confirm.requires)))
-    .reduce((current, g) => applyConfirmation(current, g.confirm as ReviewConfirmClaim), resume);
+    .map((g) => g.confirm as ReviewConfirmClaim);
+  return mergeClauseClaims(claims).reduce(applyConfirmation, resume);
 }
 
 export function buildResumeFromApprovedGroups(

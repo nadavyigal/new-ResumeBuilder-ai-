@@ -95,14 +95,14 @@ describe('enforceJobAdTruth: "Prepared monthly reports for managers." never gain
     expect(JSON.stringify(out.resume.experience)).not.toMatch(/non-?technical|stakeholders/i);
     expect(out.changed).toBe(true);
     expect(out.held).toEqual([
-      {
+      expect.objectContaining({
         section: 'experience',
         index: 0,
         kept: ORIGINAL_BULLET,
         proposed: OBSERVED_BULLET,
         after: null,
         terms: expect.arrayContaining(['nontechnical', 'stakeholders', 'insights']),
-      },
+      }),
     ]);
     expect(out.report).toMatchObject({ retried: false, jobPhraseBulletsCleaned: 1, jobPhrasesUnresolved: [] });
   });

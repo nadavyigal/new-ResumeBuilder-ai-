@@ -38,6 +38,14 @@ export interface ReviewConfirmClaim {
   /** Score points confirming adds, measured when the review was created. Null when not measured. */
   estimated_gain: number | null;
   /**
+   * When the item is one clause of a line: the line's clauses as the optimizer
+   * wrote them, the ones kept, and this one. Several confirmed clauses of the
+   * same line are put back together, in their original order.
+   */
+  clauses?: string[];
+  kept_clauses?: number[];
+  clause?: number;
+  /**
    * True when holding the phrase back left its section identical to the original,
    * so there is no section change to approve: the item then applies on its own.
    */

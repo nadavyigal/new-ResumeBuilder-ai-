@@ -124,4 +124,47 @@ describe('"Add only if true" on the review page', () => {
     const confirm = createConfirmGroups([{ section: 'summary', index: 0, kept: cut, proposed, after: null, terms: ['stakeholders'] }]);
     expect(buildResumeFromApprovedGroups(maya([ORIGINAL_BULLET], 'Old summary.'), [...sectionGroups, ...confirm]).summary).toBe(proposed);
   });
+
+  it('shows no card when Resumely is sure: every word of the rewrite is in the résumé or a verb swap', async () => {
+    const clean = maya([
+      'Built SQL dashboards in Looker to track weekly sales by region.',
+      ORIGINAL_BULLET,
+      'Supported the sales team with Excel analysis.',
+    ]);
+    const guarded = await enforceJobAdTruth(clean, { resumeText: MAYA_RESUME, jobDescription: MAYA_JOB, repair: async () => null, holdJobPhrases: true });
+    expect(guarded.held).toEqual([]);
+    expect(createConfirmGroups(guarded.held)).toEqual([]);
+  });
+
+  describe('one card per claim', () => {
+    const TWO_CLAIMS =
+      'Prepared monthly reports for managers, presenting insights to non-technical stakeholders, and writing SQL queries against the data warehouse.';
+
+    async function twoClaimReview() {
+      const optimized = maya([TWO_CLAIMS, 'Supported the sales team with Excel analysis.']);
+      const guarded = await enforceJobAdTruth(optimized, { resumeText: MAYA_RESUME, jobDescription: MAYA_JOB, repair: async () => null, holdJobPhrases: true });
+      return [...createReviewChangeGroups(ORIGINAL, guarded.resume), ...createConfirmGroups(guarded.held)];
+    }
+
+    it('splits two job-post claims in one bullet into two cards', async () => {
+      const confirm = (await twoClaimReview()).filter((g) => g.confirm);
+      expect(confirm.map((g) => g.confirm?.proposed)).toEqual([
+        'Prepared monthly reports for managers, presenting insights to non-technical stakeholders.',
+        'Prepared monthly reports for managers, and writing SQL queries against the data warehouse.',
+      ]);
+      expect(confirm.every((g) => g.confirm?.kept === ORIGINAL_BULLET)).toBe(true);
+    });
+
+    it.each([
+      [[0], 'Prepared monthly reports for managers, presenting insights to non-technical stakeholders.'],
+      [[1], 'Prepared monthly reports for managers, and writing SQL queries against the data warehouse.'],
+      [[0, 1], TWO_CLAIMS],
+      [[], ORIGINAL_BULLET],
+    ])('confirming cards %j gives exactly that line', async (picked, expected) => {
+      const groups = await twoClaimReview();
+      const confirm = groups.filter((g) => g.confirm);
+      const approved = [...groups.filter((g) => !g.confirm), ...picked.map((i) => confirm[i])];
+      expect(bullets(buildResumeFromApprovedGroups(ORIGINAL, approved))[0]).toBe(expected);
+    });
+  });
 });
