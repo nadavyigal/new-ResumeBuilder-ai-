@@ -1,13 +1,13 @@
 # Project Progress
 
-- Status: Reliability upgrade Stage 2 (PR #160) approved by the founder on 2026-09-26 and merged; merging deploys production via Vercel. CI green except the Cloudflare "Workers Builds: match1resume1to1job" check, which has failed on every main commit since August and was accepted as unrelated. Stage 1 (#159) merged 2026-09-25 as 1fbcbfb.
-- Current Phase: 2026-09-24 reliability upgrade (`docs/plans/2026-09-24-resumely-reliability-upgrade.md`), Stage 1, alongside the 2026-09-19 plan
+- Status: Fix branch `fix/ats-suggestion-placeholders-junk-keywords` open as a PR, not deployed. Raw template placeholders and all-filler keywords no longer reach the "what's holding the score back" list; pasted jobs saved by upload-resume get a real title/company label instead of "Job Position" / "Company Name".
+- Current Phase: Free-check and optimize output quality, from the 2026-10-12 iOS capture (Maya fixture)
 - Active Story: none
-- Last Completed Story: Reliability upgrade Stage 2, job-ad terms guard (PR #160)
-- Next Recommended Story: seniority and scope inflation (the next measured failure, caught today only by the grounded judge); then WP-77, then R2. Separately: fix or disconnect the stale Cloudflare Workers project (match1resume1to1job) so red on a PR means something again.
-- Blockers: spend approval for the paid batch; founder calls on the R8 gate (Stage 2) and on reviving the parked Career Evidence Pilot (Stage 3); founder review of the 13 new eval cases and 10 calibration labels. Host still saturated (CoreSimulator `mediaanalysisd` near 700% CPU for 15 days), so cold jest, tsc and lint runs take many minutes. Security triage of five trigger functions still flagged by advisors 0028/0029 is recorded in `tasks/todo.md`, outside both stories.
-- Last Validation: 2026-09-25 after review fixes: `npx jest` over job-ad-terms, optimize-pipeline-truth-guard, optimize-pipeline, api/optimize-fit-response and evals/resume-optimizer 141 passed, 3 skipped (paid); scoped `tsc -p` exit 0; `eslint` on changed files exit 0; the 10 existing suites that import the changed modules fail identically on the branch and on main (same 25 failure lines, all pre-existing). Batch 3 (paid): 0 job-ad tool insertions in 60 runs. Full-repo `npm test` not run to completion (host saturated).
-- Last Updated: 2026-09-26
+- Last Completed Story: suggestion placeholders, filler keywords and pasted-job labels (iOS capture bugs 1 to 3)
+- Next Recommended Story: land #167 (removes the remaining extractor junk such as `write sql queries`, `explain what changed`). Then the optimizer job-phrase leak (bug 4: "to non-technical stakeholders" added to a bullet on the /api/optimize path, which #160's tools guard and #167's quick-win guard do not cover). Separately: title_alignment returns 20 when resume titles cannot be parsed from flattened PDF text, which is why job-title extraction for "X is looking for a Y" was kept out of scoring.
+- Blockers: none for this story. Founder merge decision.
+- Last Validation: 2026-10-12: new suite 18/18; full `npx jest --ci` 18 failed suites / 77 failed tests, the same failing suites by name as origin/main (+16 new passing tests); offline calibration benchmark (`RUN_LIVE_EVAL=1`) all 98 per-case final scores identical to origin/main, same 3 pre-existing band failures; Maya fixture end to end: score 52 before and after, no `{targetTitle}`, label "Data Analyst @ Kesher Commerce"; `eslint` on changed files clean; `tsc --noEmit` 27 errors, same as main, none in changed files; `npm run build` exit 0.
+- Last Updated: 2026-10-12
 
 ## 2026-09-12 — The growth loop gets an output path, and campaign identity reaches the store
 

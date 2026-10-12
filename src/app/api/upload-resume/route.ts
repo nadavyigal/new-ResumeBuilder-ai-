@@ -9,6 +9,7 @@ import {
   resolveJobDescriptionText,
 } from "@/lib/ats/job-data-resolver";
 import { isSupportedResumeFile } from "@/lib/utils/file-validation";
+import { extractHiringSentence } from "@/lib/ats/extractors/jd-extractor";
 import { convertResumeBuffer } from "@/lib/markitdown-client";
 import path from "path";
 import { logger } from "@/lib/agent/utils/logger";
@@ -184,12 +185,19 @@ export async function POST(req: NextRequest) {
       parsed_data: extractedData,
     });
 
+    const hiringSentence = extractHiringSentence(jobDescriptionText);
+
     const jdInsert = supabase
       .from("job_descriptions")
       .insert({
         user_id: user.id,
-        title: extractedTitle || "Job Position",
-        company: extractedCompany || "Company Name",
+        // Pasted text never set extractedTitle/extractedCompany, so a title the
+        // parser DID find was discarded and the row read "Job Position" /
+        // "Company Name", which iOS showed as the preview header (2026-10-12).
+        // Labels only: scoring reads parsed_data, not these columns. The
+        // sentinels stay as the last resort because v1/applications backfills on them.
+        title: extractedTitle || extractedData?.job_title || hiringSentence.title || "Job Position",
+        company: extractedCompany || extractedData?.company_name || hiringSentence.company || "Company Name",
         raw_text: jobDescriptionText,
         clean_text: scoringJobText,
         parsed_data: extractedData,
