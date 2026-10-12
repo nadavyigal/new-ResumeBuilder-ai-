@@ -42,7 +42,8 @@ export type GroundingViolation =
   | 'dropped_number'
   | 'placeholder_over_real_number'
   | 'inflated_number'
-  | 'job_terms_added';
+  | 'job_terms_added'
+  | 'invented_term';
 
 export interface GroundingResult {
   ok: boolean;
@@ -122,20 +123,62 @@ function numbers(text: string): string[] {
   return (text.match(/\d[\d,]*(?:\.\d+)?/g) || []).map((n) => n.replace(/,/g, ''));
 }
 
-/** Percentages a rewrite may compute from two numbers in the same bullet (38 of 41 -> 93%). */
-function derivedPercents(text: string): Set<string> {
-  const values = numbers(text).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+/**
+ * Percentages a rewrite may compute: only from a stated part-of-whole pair
+ * ("38 of 41", "38 out of 41", "38/41") whose numbers are both allowed. Any
+ * other pair is unrelated: "12 units ... 150 students" is not an 8% anything,
+ * and "grades 10-12" is not an 83% pass rate.
+ */
+function derivedPercents(texts: string[], allowed: Set<string>): Set<string> {
   const out = new Set<string>();
-  for (const a of values) {
-    for (const b of values) {
-      if (a >= b) continue;
-      const pct = (100 * a) / b;
+  const PAIR = /(\d[\d,]*(?:\.\d+)?)\s*(?:of|out of|\/)\s*(\d[\d,]*(?:\.\d+)?)/gi;
+  for (const text of texts) {
+    for (const m of text.matchAll(PAIR)) {
+      const [a, b] = [m[1].replace(/,/g, ''), m[2].replace(/,/g, '')];
+      if (!allowed.has(a) || !allowed.has(b) || Number(a) <= 0 || Number(a) >= Number(b)) continue;
+      const pct = (100 * Number(a)) / Number(b);
       out.add(String(Math.floor(pct)));
       out.add(String(Math.round(pct)));
       out.add(String(Math.ceil(pct)));
     }
   }
   return out;
+}
+
+/**
+ * Quantities written as words. Digits are checked above; these were not, so
+ * "sixty mid-market accounts" passed where "60" was caught.
+ */
+const QUANTITY_WORDS =
+  /\b(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|billions?|dozens?|doubl(?:e|ed|es|ing)|tripl(?:e|ed|es|ing)|quadrupl(?:e|ed|ing)|halv(?:ed|ing)|twice|thrice|(?:two|three|four|five|ten)fold)\b/gi;
+
+function quantityWords(text: string): Set<string> {
+  return new Set((text.match(QUANTITY_WORDS) || []).map((w) => w.toLowerCase()));
+}
+
+/**
+ * Names a rewrite introduces: acronyms (SAP), mixed case (HubSpot) and
+ * capitalised words inside a sentence (Camtasia). The job-term rule only sees
+ * words the job uses; a tool from nowhere passed it.
+ */
+function namedTerms(text: string): string[] {
+  const out: string[] = [];
+  for (const sentence of text.split(/[.!?:;](?=\s|$)|\n+/)) {
+    const tokens = sentence.match(/[A-Za-z][A-Za-z0-9+#&]*(?:\.[A-Za-z]+)?/g) || [];
+    tokens.forEach((t, i) => {
+      const acronym = /^[A-Z]{2,}[0-9]*s?$/.test(t);
+      const mixed = /[a-z][A-Z]/.test(t);
+      const capitalised = i > 0 && /^[A-Z][a-z]/.test(t);
+      if (acronym || mixed || capitalised) out.push(t);
+    });
+  }
+  return out;
+}
+
+function inventedTerms(optimized: string, ctx: GroundingContext, isSummary: boolean): string[] {
+  const known = new Set(words(ctx.resumeText));
+  if (isSummary && ctx.jobTitle) words(ctx.jobTitle).forEach((w) => known.add(w));
+  return Array.from(new Set(namedTerms(optimized).filter((t) => words(t).some((w) => !known.has(w)))));
 }
 
 /** Lowercase words only, so bullets, dashes, quotes and line breaks never decide a match. */
@@ -265,8 +308,12 @@ export function checkQuickWinGrounding(
       keepsSourceContext(n, optimized, ctx.resumeText),
   );
   // A rate may be computed from numbers the résumé states: 38 of 41 -> 93%.
-  const percents = derivedPercents([...originalNumbers, ...borrowed].join(' '));
-  if (optimizedNumbers.some((n) => !originalNumbers.includes(n) && !borrowed.includes(n) && !percents.has(n))) {
+  const percents = derivedPercents([original, optimized], new Set([...originalNumbers, ...borrowed]));
+  const originalQuantities = quantityWords(original);
+  if (
+    optimizedNumbers.some((n) => !originalNumbers.includes(n) && !borrowed.includes(n) && !percents.has(n)) ||
+    [...quantityWords(optimized)].some((w) => !originalQuantities.has(w))
+  ) {
     violations.push('invented_number');
   }
   if (originalNumbers.some((n) => !optimizedNumbers.includes(n))) {
@@ -288,6 +335,10 @@ export function checkQuickWinGrounding(
     violations.push('job_terms_added');
   }
 
+  if (inventedTerms(optimized, ctx, qw.location?.section === 'summary').length > 0) {
+    violations.push('invented_term');
+  }
+
   return { ok: violations.length === 0, violations, jobOnlyTerms };
 }
 
@@ -298,6 +349,7 @@ const VIOLATION_FEEDBACK: Record<GroundingViolation, string> = {
   placeholder_over_real_number: 'it uses a [placeholder] although the bullet already has a real number',
   inflated_number: 'it inflates a number ("over", "more than", "+")',
   job_terms_added: 'it adds duties, scopes or terms from the job post that the resume never mentions',
+  invented_term: 'it names a tool, product or name the resume never mentions',
 };
 
 export function describeViolations(violations: GroundingViolation[]): string {
