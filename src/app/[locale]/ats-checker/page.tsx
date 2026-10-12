@@ -13,7 +13,7 @@ interface AtsCheckerPageProps {
 export async function generateMetadata({ params }: AtsCheckerPageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.meta' });
-  const baseUrl = 'https://resumelybuilderai.com';
+  const baseUrl = 'https://www.resumelybuilderai.com';
   const pageUrl = locale === 'en'
     ? `${baseUrl}/ats-checker`
     : `${baseUrl}/${locale}/ats-checker`;
@@ -40,12 +40,13 @@ export async function generateMetadata({ params }: AtsCheckerPageProps): Promise
 export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.appStoreCta' });
+  const tHero = await getTranslations({ locale, namespace: 'atsCheckerPage.hero' });
 
   return (
     <>
       <Header />
       <main>
-        <FreeATSChecker />
+        <FreeATSChecker heading={tHero('title')} />
 
         {/* App Store attribution CTA — shown below the checker */}
         <section className="py-12 bg-muted/30 border-t border-border">

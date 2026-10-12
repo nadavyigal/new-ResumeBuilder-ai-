@@ -59,7 +59,12 @@ export interface ATSCheckerResponse {
   };
 }
 
-export function FreeATSChecker() {
+interface FreeATSCheckerProps {
+  /** Overrides the hero H1 so pages that embed the checker do not share the homepage heading. */
+  heading?: string;
+}
+
+export function FreeATSChecker({ heading }: FreeATSCheckerProps = {}) {
   const [step, setStep] = useState<CheckerStep>("upload");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [scoreData, setScoreData] = useState<ATSCheckerResponse | null>(null);
@@ -251,7 +256,7 @@ export function FreeATSChecker() {
                   data-testid="ats-checker-heading"
                   className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
                 >
-                  {t("title")}
+                  {heading ?? t("title")}
                 </h1>
                 <p className="text-lg text-foreground/80 leading-relaxed">
                   {t("description")}

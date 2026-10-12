@@ -8,6 +8,8 @@ import { HowItWorks } from "@/components/landing/how-it-works";
 import { FinalCta } from "@/components/landing/final-cta";
 import { defaultLocale } from "@/locales";
 
+const SITE_URL = "https://www.resumelybuilderai.com";
+
 interface HomePageProps {
   params: Promise<{ locale: string }>;
 }
@@ -15,23 +17,32 @@ interface HomePageProps {
 export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "meta.home" });
+  const pageUrl = locale === defaultLocale ? `${SITE_URL}/` : `${SITE_URL}/${locale}`;
 
   return {
     title: t("title"),
-    description: t("description")
+    description: t("description"),
+    alternates: {
+      canonical: pageUrl,
+      languages: {
+        en: `${SITE_URL}/`,
+        he: `${SITE_URL}/he`,
+        "x-default": `${SITE_URL}/`
+      }
+    }
   };
 }
 
 export default async function Home({ params }: HomePageProps) {
   const { locale } = await params;
   const localePath = locale === defaultLocale ? "" : `/${locale}`;
-  const pageUrl = `https://resumelybuilderai.com${localePath}`;
+  const pageUrl = `${SITE_URL}${localePath}`;
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Resumely",
-    url: "https://resumelybuilderai.com",
-    logo: "https://resumelybuilderai.com/images/og-image.jpg",
+    url: SITE_URL,
+    logo: `${SITE_URL}/images/og-image.jpg`,
     sameAs: []
   };
   const websiteSchema = {

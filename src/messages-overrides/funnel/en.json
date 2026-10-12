@@ -358,6 +358,11 @@
     },
     "footnote": "Prices in USD. Taxes may apply based on your region."
   },
+  "atsCheckerPage": {
+    "hero": {
+      "title": "Free Resume Match Score for Any Job Posting"
+    }
+  },
   "meta": {
     "home": {
       "title": "Resumely | Resume Match Score and Job Fit Checker",
