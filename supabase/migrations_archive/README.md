@@ -25,7 +25,8 @@ policies, catalog rows and privilege lock-downs the dump leaves out).
 ## Production history before the baseline (snapshot 2026-10-13)
 
 `supabase_migrations.schema_migrations` on project `brtdyamysfmctrhuankn` held
-these 43 versions:
+these 43 versions (the purge migration `20261013105018` was added later the
+same day and is not part of this list):
 
 ```
 20231027110000 20231027115959 20231027120000 20231027120001 20231027120002
@@ -50,8 +51,10 @@ supabase migration repair --linked --status applied 20261012000000
 supabase migration list --linked
 ```
 
-`migration list` should then show one row, `20261012000000`, applied on both
-sides.
+`migration list` should then show the baseline `20261012000000` applied on
+both sides, plus any later migrations. As of 2026-10-13 that includes
+`20261013105018_purge_expired_anonymous_ats_scores` (#172), which was applied
+to production before this baseline merged; leave its row alone.
 
 To undo, mark the baseline reverted and the 43 versions above applied again
 (`--status reverted 20261012000000`, then `--status applied <the 43>`).
