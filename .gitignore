@@ -72,3 +72,6 @@ evals/**/output/
 # iCloud sync duplicates ("route 2.ts", "en 2.json") — always stale copies of a
 # tracked file, and anything reading by glob picks up the wrong version.
 * [0-9].*
+
+# Supabase CLI local state (written by `supabase link`); never commit
+supabase/.temp/
