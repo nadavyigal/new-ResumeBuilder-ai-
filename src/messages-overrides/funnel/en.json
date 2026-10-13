@@ -52,7 +52,7 @@
       "resumeLabel": "Resume (PDF)",
       "selectedFile": "Selected file: {fileName}",
       "dropzoneCta": "Choose a file",
-      "fileConstraints": "PDF only, up to 5MB. Processed privately, never stored.",
+      "fileConstraints": "PDF only, up to 5MB. We save the text so you can keep this check in a free account.",
       "jobDescriptionLabel": "Job description",
       "inputModes": {
         "text": "Paste text",

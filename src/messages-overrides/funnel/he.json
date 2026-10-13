@@ -52,7 +52,7 @@
       "resumeLabel": "קורות חיים (PDF)",
       "selectedFile": "קובץ נבחר: {fileName}",
       "dropzoneCta": "בחרו קובץ",
-      "fileConstraints": "PDF בלבד, עד 5MB. מעובד באופן פרטי, לא נשמר.",
+      "fileConstraints": "PDF בלבד, עד 5MB. אנחנו שומרים את הטקסט כדי שתוכלו לשמור את הבדיקה בחשבון חינמי.",
       "jobDescriptionLabel": "תיאור משרה",
       "inputModes": {
         "text": "הדבקת טקסט",
