@@ -2,6 +2,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppStoreCta } from '@/components/landing/AppStoreCta';
+import { AtsCheckerExplainer } from '@/components/landing/AtsCheckerExplainer';
 import { FreeATSChecker } from '@/components/landing/FreeATSChecker';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -49,6 +50,8 @@ export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
       <Header />
       <main>
         <FreeATSChecker heading={tHero('title')} />
+
+        <AtsCheckerExplainer locale={locale} />
 
         {/* App Store attribution CTA — shown below the checker */}
         <section className="py-12 bg-muted/30 border-t border-border">

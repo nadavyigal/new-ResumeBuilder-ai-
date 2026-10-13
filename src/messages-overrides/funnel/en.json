@@ -363,6 +363,81 @@
   "atsCheckerPage": {
     "hero": {
       "title": "Free Resume Match Score for Any Job Posting"
+    },
+    "explainer": {
+      "title": "What the Resumely Match Score tells you",
+      "intro": "The Resumely Match Score is our estimate of how well your resume fits one specific job posting, on a scale from 0 to 100. It is not a score from any employer's hiring system. No employer sees it, and no employer uses it to rank you. Use it as a quick read on fit and a list of what to fix first.",
+      "measuresTitle": "What the score looks at",
+      "measures": [
+        {
+          "name": "Keywords",
+          "text": "Which skills and terms from the job posting appear in your resume. This carries the most weight."
+        },
+        {
+          "name": "Meaning match",
+          "text": "Whether your experience describes the same kind of work, even when the wording is different."
+        },
+        {
+          "name": "Readable format",
+          "text": "Whether the text in your PDF can be extracted cleanly, so the content you wrote is the content that gets read."
+        },
+        {
+          "name": "Title match",
+          "text": "How closely your recent job titles line up with the role."
+        },
+        {
+          "name": "Numbers",
+          "text": "Whether your bullets show results with numbers, such as volume, time saved, or team size."
+        },
+        {
+          "name": "Complete sections",
+          "text": "Whether the core sections are there: experience, skills, education, and contact details."
+        },
+        {
+          "name": "Recency",
+          "text": "Whether your relevant experience is recent or from years ago."
+        }
+      ],
+      "notTitle": "What it does not measure",
+      "not": [
+        "How a specific employer's applicant tracking system will treat your application. Every company sets up its own system, and we have no access to any of them.",
+        "Your chances of getting an interview or an offer. Hiring depends on the other applicants, the recruiter, timing, and much more than the resume.",
+        "Visual design. The check reads the text of your resume, not its colors or style.",
+        "Whether what your resume says is true. Only add a skill if you really have it."
+      ],
+      "howToUseTitle": "How to use it",
+      "howToUse": [
+        "Check one resume against one job at a time. The same resume will score differently for different postings, and that is expected.",
+        "Start with the top gaps. Add a missing skill only where it honestly describes your work.",
+        "Check again after you edit to see which changes moved the estimate."
+      ],
+      "faqTitle": "Common questions",
+      "faq": [
+        {
+          "q": "Is this my ATS score?",
+          "a": "No. It is Resumely's own estimate of how well your resume fits the job. Employers use many different tracking systems, each set up differently, and none of them shares a score with us. Treat the number as guidance, not a verdict."
+        },
+        {
+          "q": "Do I need an account?",
+          "a": "No. You can run up to 5 free checks a week without signing up. Create a free account if you want to keep a check and tailor your resume from it."
+        },
+        {
+          "q": "Will a higher score get me more interviews?",
+          "a": "We can't promise that, and nobody honestly can. A higher score means your resume covers more of what this posting asks for. Whether you are invited to interview is up to the employer."
+        },
+        {
+          "q": "Why does my score change between jobs?",
+          "a": "Each score compares your resume with one posting. A resume that fits a data analyst role well may fit a product manager role poorly."
+        },
+        {
+          "q": "What happens to my resume?",
+          "a": "We save the text of your resume and the job posting so you can keep this check in a free account. The text is used to calculate your score and suggestions."
+        },
+        {
+          "q": "Can I use it in Hebrew or on my phone?",
+          "a": "Yes. The checker works in Hebrew at resumelybuilderai.com/he/ats-checker, and the Resumely iPhone app is available in English and Hebrew."
+        }
+      ]
     }
   },
   "meta": {
