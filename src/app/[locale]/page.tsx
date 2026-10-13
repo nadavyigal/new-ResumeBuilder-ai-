@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { FreeATSChecker } from "@/components/landing/FreeATSChecker";
@@ -35,6 +35,8 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
 
 export default async function Home({ params }: HomePageProps) {
   const { locale } = await params;
+  // Without this, server components below (Footer) render in the default locale on /he.
+  setRequestLocale(locale);
   const localePath = locale === defaultLocale ? "" : `/${locale}`;
   const pageUrl = `${SITE_URL}${localePath}`;
   const organizationSchema = {

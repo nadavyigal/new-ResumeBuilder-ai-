@@ -1,6 +1,6 @@
 // src/app/[locale]/ats-checker/page.tsx
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppStoreCta } from '@/components/landing/AppStoreCta';
 import { FreeATSChecker } from '@/components/landing/FreeATSChecker';
 import { Header } from '@/components/layout/header';
@@ -39,6 +39,8 @@ export async function generateMetadata({ params }: AtsCheckerPageProps): Promise
 
 export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
   const { locale } = await params;
+  // Without this, server components below (Footer) render in the default locale on /he.
+  setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.appStoreCta' });
   const tHero = await getTranslations({ locale, namespace: 'atsCheckerPage.hero' });
 
