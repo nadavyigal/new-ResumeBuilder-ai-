@@ -146,7 +146,9 @@
     "finalCta": {
       "title": "Know your fit before you apply.",
       "subtitle": "Paste the posting, tailor your resume, and export from your phone.",
-      "cta": "Check your fit free"
+      "cta": "Check your fit free",
+      "appStoreLead": "Prefer your phone? Resumely is on iPhone, in English and Hebrew.",
+      "appStoreButton": "Get Resumely on the App Store"
     },
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",

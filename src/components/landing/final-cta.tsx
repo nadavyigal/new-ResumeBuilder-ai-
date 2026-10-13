@@ -1,11 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { AppStoreCta } from "@/components/landing/AppStoreCta";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "@/lib/icons";
 
 export function FinalCta() {
   const t = useTranslations("landing.finalCta");
+  const locale = useLocale();
 
   const handleCtaClick = () => {
     const uploadCard = document.getElementById("ats-upload");
@@ -36,6 +38,15 @@ export function FinalCta() {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
           </Button>
+          <div className="pt-4 border-t border-border space-y-3">
+            <p className="text-base text-muted-foreground">{t("appStoreLead")}</p>
+            {/* Same campaign-aware store link as /ats-checker. */}
+            <AppStoreCta
+              label={t("appStoreButton")}
+              locale={locale}
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-foreground text-background font-semibold text-base hover:bg-foreground/90 transition-colors"
+            />
+          </div>
         </div>
       </div>
     </section>
