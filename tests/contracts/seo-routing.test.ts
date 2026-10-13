@@ -25,8 +25,8 @@ describe('SEO routing metadata', () => {
     expect(urls).toContain('https://www.resumelybuilderai.com/he/pricing');
     expect(urls).toContain('https://www.resumelybuilderai.com/blog');
     expect(urls).toContain('https://www.resumelybuilderai.com/he/blog');
-    expect(urls).toContain('https://www.resumelybuilderai.com/blog/how-to-beat-ats-systems-2025');
-    expect(urls).toContain('https://www.resumelybuilderai.com/he/blog/how-to-beat-ats-systems-2025');
+    expect(urls).toContain('https://www.resumelybuilderai.com/blog/resume-tailoring-checklist-2026');
+    expect(urls).toContain('https://www.resumelybuilderai.com/he/blog/resume-tailoring-checklist-2026');
     expect(urls).toContain('https://www.resumelybuilderai.com/ats-checker');
     expect(urls).toContain('https://www.resumelybuilderai.com/he/ats-checker');
   });
