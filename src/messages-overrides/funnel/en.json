@@ -333,7 +333,7 @@
   "pricingPage": {
     "badge": "Simple Pricing",
     "title": "Choose the plan for your job-search pace",
-    "subtitle": "Start free. Upgrade for Interview-Ready Expert Modes, unlimited optimizations, and premium templates.",
+    "subtitle": "Start free. Upgrade for Expert Modes, unlimited optimizations, and premium templates.",
     "free": {
       "title": "Free",
       "price": "$0",
@@ -348,7 +348,7 @@
       "title": "Premium",
       "price": "$9.99",
       "period": "/month",
-      "description": "For active applicants who want interview-ready positioning, not just ATS diagnostics",
+      "description": "For active job seekers tailoring their resume to several roles",
       "feature1": "Unlimited resume optimizations",
       "feature2": "Expert Modes: rewrite, quantifier, ATS report, summary lab",
       "feature3": "Premium templates and priority support",
