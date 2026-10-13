@@ -342,13 +342,33 @@ CREATE TABLE IF NOT EXISTS events (
 -- Enable RLS on events table
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 -- Events policies
-CREATE POLICY IF NOT EXISTS "Users can insert own events" ON events
-    FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
-CREATE POLICY IF NOT EXISTS "Users can view own events" ON events
-    FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
+-- Postgres has no CREATE POLICY IF NOT EXISTS (it was a syntax error that stopped
+-- every fresh replay of this history); each policy is created only when missing.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'events' AND policyname = 'Users can insert own events') THEN
+        CREATE POLICY "Users can insert own events" ON events
+            FOR INSERT WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
+    END IF;
+END
+$$;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'events' AND policyname = 'Users can view own events') THEN
+        CREATE POLICY "Users can view own events" ON events
+            FOR SELECT USING (auth.uid() = user_id OR user_id IS NULL);
+    END IF;
+END
+$$;
 -- Service role can manage all events for analytics
-CREATE POLICY IF NOT EXISTS "Service role can manage all events" ON events
-    FOR ALL TO service_role USING (true);
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'events' AND policyname = 'Service role can manage all events') THEN
+        CREATE POLICY "Service role can manage all events" ON events
+            FOR ALL TO service_role USING (true);
+    END IF;
+END
+$$;
 -- Create index for events
 CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
 CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
