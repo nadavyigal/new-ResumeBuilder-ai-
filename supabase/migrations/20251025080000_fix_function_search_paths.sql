@@ -1,42 +1,13 @@
 -- Fix search_path security issues in functions
 -- This migration adds SET search_path = public to all security definer functions
 
--- Fix: check_subscription_limit
-CREATE OR REPLACE FUNCTION check_subscription_limit(user_id_param UUID)
-RETURNS TABLE(allowed BOOLEAN, current_count INTEGER, max_allowed INTEGER) AS $$
-DECLARE
-  user_plan TEXT;
-  current_usage INTEGER;
-  plan_limit INTEGER;
-BEGIN
-  SET search_path = public;
-
-  -- Get user's plan type
-  SELECT plan_type INTO user_plan
-  FROM profiles
-  WHERE user_id = user_id_param;
-
-  -- Get current optimization count
-  SELECT optimizations_used INTO current_usage
-  FROM profiles
-  WHERE user_id = user_id_param;
-
-  -- Determine limit based on plan
-  IF user_plan = 'free' THEN
-    plan_limit := 1;
-  ELSIF user_plan = 'premium' THEN
-    plan_limit := 999999; -- Effectively unlimited
-  ELSE
-    plan_limit := 0;
-  END IF;
-
-  -- Return results
-  RETURN QUERY SELECT
-    (current_usage < plan_limit)::BOOLEAN,
-    current_usage,
-    plan_limit;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- check_subscription_limit: removed. This block redefined the function as
+-- RETURNS TABLE(...) with the same (uuid) signature as the boolean version from
+-- 20250915000000_complete_schema_setup.sql, which Postgres rejects ("cannot change
+-- return type of existing function"), so every fresh replay stopped here.
+-- Production never had the TABLE version: it still has
+-- check_subscription_limit(user_uuid uuid) RETURNS boolean (checked 2026-10-13),
+-- redefined with search_path by 20260104144852_remote_schema.sql.
 -- Fix: update_applications_updated_at
 CREATE OR REPLACE FUNCTION update_applications_updated_at()
 RETURNS TRIGGER AS $$
@@ -46,22 +17,11 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
--- Fix: increment_optimization_usage
-CREATE OR REPLACE FUNCTION increment_optimization_usage(user_id_param UUID)
-RETURNS profiles AS $$
-DECLARE
-  updated_profile profiles;
-BEGIN
-  SET search_path = public;
-
-  UPDATE profiles
-  SET optimizations_used = optimizations_used + 1
-  WHERE user_id = user_id_param
-  RETURNING * INTO updated_profile;
-
-  RETURN updated_profile;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-- increment_optimization_usage: removed for the same reason. This block
+-- redefined it as RETURNS profiles over the same (uuid) signature; Postgres
+-- rejects the return-type change. Production still has
+-- increment_optimization_usage(user_uuid uuid) RETURNS boolean (checked
+-- 2026-10-13), defined with search_path by 20260104144852_remote_schema.sql.
 -- Fix: applications_update_search
 CREATE OR REPLACE FUNCTION applications_update_search()
 RETURNS TRIGGER AS $$
