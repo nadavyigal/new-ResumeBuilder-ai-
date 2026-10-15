@@ -70,7 +70,9 @@ export async function AtsCheckerExplainer({ locale }: AtsCheckerExplainerProps) 
           </ul>
         </div>
 
-        <div className="space-y-4">
+        {/* The hero's "See how it works" button scrolls to #how-it-works. The homepage
+            gets it from HowItWorks; this route has no HowItWorks, so the steps live here. */}
+        <div id="how-it-works" className="scroll-mt-24 space-y-4">
           <h3 className="text-xl font-semibold text-foreground">{t('howToUseTitle')}</h3>
           <ol className="list-decimal ps-6 space-y-2 text-foreground/75 leading-relaxed">
             {howToUse.map((item) => (

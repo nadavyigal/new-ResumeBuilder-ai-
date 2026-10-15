@@ -143,7 +143,7 @@
       "steps": [
         {
           "title": "Upload your resume",
-          "description": "Add a PDF or Word resume from your phone."
+          "description": "Add your resume as a PDF."
         },
         {
           "title": "Paste the job posting",
@@ -1697,7 +1697,7 @@
   "atsCheckerPage": {
     "meta": {
       "title": "Free Resume Match Score Checker — See What's Missing",
-      "description": "Paste your resume and a job description to get a free Resumely Match Score: an estimate of your fit for the job, plus the top keyword gaps. No sign-up required."
+      "description": "Upload your resume and paste a job description to get a free Resumely Match Score: an estimate of your fit for the job, plus the top keyword gaps. No sign-up required."
     },
     "appStoreCta": {
       "heading": "Fix your resume in the Resumely app",
