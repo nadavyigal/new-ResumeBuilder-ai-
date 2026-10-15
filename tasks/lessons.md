@@ -1,5 +1,17 @@
 # Lessons Learned — ResumeBuilder
 
+## The hiring company's name is not a skill (2026-10-15)
+
+**Symptom:** on a real optimization for "Business Development Manager - Ad tech at Appstock", the dashboard Quick fixes banner said "Skills/Tools: appstock" and "Improved appstock by [X%] by [action]" (Hebrew too: "שיפרתי appstock ב-[X%]").
+
+**Root cause:** two defects. (1) Job ads name their employer in their duties ("Drive revenue growth for Appstock", "Represent Appstock at industry events"). The requirement atomizer and the capitalised-word fallback both read the name as a skill, even when the scraper had stored `company_name: "Appstock"`. It was also a must-have no résumé can hold, so it held the keyword score down. (2) `MainIssuesSummary` filled the metrics example's `{metric}` with the first missing skill, so any skill read as a number to improve.
+
+**Fix:** `src/lib/ats/extractors/company-names.ts` finds the employer (company fields, "<Title> at <Company>" heading, "<Company> is looking for", "About <Company>", "Company:", "At <Company>, we") and removes it from requirement terms in `extractJobData` and `buildJobDataFromExtractedJson`. The metrics example now uses its own fallback term ("a core KPI").
+
+**Rules:**
+1. Before an extracted term reaches the user as a "missing skill", ask whether any résumé could ever contain it. The employer's name, the job title and section headings cannot.
+2. Fill a template slot only with a value of the slot's kind. A skill in a metric slot reads as nonsense even when the skill is real.
+
 ## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
 
 **Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.
