@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { describe, expect, it } from '@jest/globals';
 import { checkQuickWinGrounding, findJobOnlyTerms, type GroundingContext } from '@/lib/ats/quick-wins/grounding';
+import { findJobOnlyBulletTerms } from '@/lib/ai-optimizer/job-ad-terms';
 import type { QuickWinSuggestion } from '@/lib/ats/types';
 
 /**
@@ -108,5 +109,48 @@ describe('Hebrew job ad fixture (fictional, 2026-10-15)', () => {
     ['satisfaction metrics', 'עקבתי אחרי מדדי שביעות רצון.', ['מדדי', 'שביעות', 'רצון']],
   ])('job-post claim is flagged: %s', (_label, rewrite, expected) => {
     expect(findJobOnlyTerms(rewrite, dana).sort()).toEqual([...expected].sort());
+  });
+});
+
+// Codex review of efa8926 (2026-10-15).
+describe('Hebrew job-only terms: second review', () => {
+  it('P1 authority is scoped to the role, not the whole résumé', () => {
+    const resumeText = [
+      'דנה לוי',
+      'נציגת שירות, מוקד אופק 2021 – היום',
+      '• תמכתי בצוות השירות.',
+      'אחראית משמרת, רשת קפה 2017 – 2021',
+      '• ניהלתי צוות של 6 עובדים.',
+    ].join('\n');
+    const job = 'ראש צוות שירות. ניהול צוות השירות.';
+    const resume = {
+      summary: '',
+      experience: [
+        { company: 'מוקד אופק', title: 'נציגת שירות', achievements: ['ניהול צוות השירות.'] },
+        { company: 'רשת קפה', title: 'אחראית משמרת', achievements: ['ניהול צוות של 6 עובדים.'] },
+      ],
+    } as unknown as Parameters<typeof findJobOnlyBulletTerms>[0];
+    const found = findJobOnlyBulletTerms(resume, resumeText, job);
+    expect(found).toEqual([{ bullet: 'ניהול צוות השירות.', terms: ['ניהול'] }]);
+  });
+
+  it('P1 authority in the free check counts only the bullet being rewritten', () => {
+    const c = ctx('דנה לוי\n• תמכתי בצוות השירות.\n• ניהלתי צוות של 6 עובדים.', 'ניהול צוות השירות.');
+    expect(checkQuickWinGrounding(qw('תמכתי בצוות השירות.', 'ניהול צוות השירות.'), c).ok).toBe(false);
+  });
+
+  it('P1 a final ה is part of the word: "מורה" (teacher) is not the name "מור"', () => {
+    const c = ctx('מור כהן\nרכזת משרד\n• טיפלתי בדוחות.', 'דרוש/ה מורה למתמטיקה. טיפול בדוחות.');
+    expect(findJobOnlyTerms('טיפלתי בדוחות כמורה.', c)).toEqual(['כמורה']);
+  });
+
+  it.each([
+    ['עובדות', 'עובדת'],
+    ['מנהלות', 'מנהלת'],
+    ['משימות', 'משימה'],
+    ['דוחות', 'דוח'],
+  ])('P2 plural "%s" supports singular "%s"', (plural, singular) => {
+    const c = ctx(`דנה לוי\n• טיפלתי ב${plural} חדשות.`, `טיפול ב${singular} חדשה.`);
+    expect(findJobOnlyTerms(`טיפלתי ב${singular} חדשה.`, c)).toEqual([]);
   });
 });

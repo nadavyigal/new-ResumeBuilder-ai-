@@ -34,6 +34,13 @@ export interface GroundingContext {
   jobText: string;
   /** Target title. A summary may name it: that is positioning, not a claim. */
   jobTitle?: string;
+  /**
+   * The text whose own claims of authority let a rewrite say "managed" or
+   * "led": the bullet being rewritten, or its role. Defaults to the whole
+   * résumé, which is right only for a summary. Codex review of #170: with the
+   * whole résumé, managing in one job let every other job say "managed" too.
+   */
+  authoritySource?: string;
 }
 
 export type GroundingViolation =
@@ -65,20 +72,25 @@ const STOPWORDS = new Set([
   // Hebrew function words, as `stem` spells them (final letters normalised).
   ...['של', 'את', 'עם', 'על', 'או', 'גם', 'כי', 'אם', 'לא', 'כל', 'זה', 'זו', 'זאת', 'הם', 'הן', 'אני',
     'היא', 'הוא', 'אנחנו', 'אשר', 'שלי', 'שלו', 'שלה', 'יותר', 'מאוד', 'כמו', 'בין', 'אל', 'עד', 'לפי',
-    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].map(hebrewKey),
+    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].flatMap(hebrewKeys),
 ]);
 
 /**
- * One Hebrew word without its number or gender ending: final letter forms are
- * normalised, then a plural ים/ות or, failing that, a feminine singular ה comes
- * off while three letters remain. "משימות" and "משימה" both give "משימ" (review
- * of #170: stripping only ות left the singular flagged against its own plural).
+ * The singular spellings a Hebrew word may stand for. Final letter forms are
+ * normalised first. A plural ים gives its stem ("פרויקטים" -> "פרויקט"). A plural
+ * ות gives the stem and both feminine singulars: "משימות" -> "משימה",
+ * "עובדות" -> "עובדת", "דוחות" -> "דוח". A singular is never cut down: its final
+ * ה is part of the word, or "מורה" (teacher) would match the name "מור"
+ * (Codex review of #170, which also found the ת singulars missing).
  */
-function hebrewKey(word: string): string {
+function hebrewKeys(word: string): string[] {
   const w = word.replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' })[c] as string);
-  if (w.length >= 5 && /(?:ימ|ות)$/.test(w)) return w.slice(0, -2);
-  if (w.length >= 4 && w.endsWith('ה')) return w.slice(0, -1);
-  return w;
+  if (w.length >= 5 && w.endsWith('ות')) {
+    const stem = w.slice(0, -2);
+    return [stem, `${stem}ה`, `${stem}ת`];
+  }
+  if (w.length >= 5 && w.endsWith('ימ')) return [w.slice(0, -2)];
+  return [w];
 }
 
 /**
@@ -105,13 +117,13 @@ const HEBREW_PROCLITICS = /^ו?(?:ש|כש)?[בלכמ]?ה?$/;
  * meet on a short core: "בכירה" (senior) and "מכירות" (sales) both reach "כיר".
  */
 function hebrewTags(word: string): string[] {
-  const out = new Set<string>([`B:${hebrewKey(word)}`]);
+  const out = new Set<string>(hebrewKeys(word).map((key) => `B:${key}`));
   for (let k = 1; k <= 4 && word.length - k >= 3; k++) {
     if (!HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
     const core = word.slice(k);
-    const key = hebrewKey(core);
-    if (key.length < 3) continue;
-    out.add(`P:${key}`);
+    const keys = hebrewKeys(core).filter((key) => key.length >= 3);
+    if (keys.length === 0) continue;
+    keys.forEach((key) => out.add(`P:${key}`));
     out.add(`C:${core}`);
   }
   return [...out];
@@ -128,8 +140,7 @@ function hebrewForms(word: string, minCore = 3): string[] {
   const out = new Set<string>();
   for (let k = 0; k <= 4 && word.length - k >= minCore; k++) {
     if (k > 0 && !HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
-    const key = hebrewKey(word.slice(k));
-    if (key.length >= minCore) out.add(key);
+    for (const key of hebrewKeys(word.slice(k))) if (key.length >= minCore) out.add(key);
   }
   return [...out];
 }
@@ -170,7 +181,7 @@ const REWORDING_VERBS = new Set(
     'הגדיל', 'הגדלתי', 'הגדלת', 'צמצם', 'צמצמתי', 'צמצום', 'הפחית', 'הפחתתי', 'הפחתת',
     'השתמש', 'השתמשתי', 'שימוש', 'סייע', 'סייעתי', 'סיוע', 'עזר', 'עזרתי',
     'השיג', 'השגתי', 'שיתף', 'שיתפתי', 'שיתוף',
-  ].map(stem),
+  ].flatMap((w) => (HEBREW_WORD.test(w) ? hebrewKeys(w) : [stem(w)])),
 );
 
 /** Joins hyphenated words ("mid-market" -> "midmarket") so both sides compare alike. */
@@ -183,7 +194,7 @@ function words(text: string): string[] {
 }
 
 function stem(word: string): string {
-  if (HEBREW_WORD.test(word)) return hebrewKey(word);
+  if (HEBREW_WORD.test(word)) return hebrewKeys(word)[0];
   const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '').replace(/e$/, '');
   return stripped.length >= 4 ? stripped : word;
 }
@@ -309,7 +320,7 @@ const AUTHORITY = /^(?:led|leads?|leading|leadership|manag\w*|direct(?:ed|ing|s)
  */
 const HEBREW_AUTHORITY = new Set(
   ['ניהל', 'ניהלתי', 'ניהלה', 'ניהלו', 'ניהול', 'הוביל', 'הובלתי', 'הובילה', 'הובילו', 'הובלה', 'הובלת',
-    'פיקח', 'פיקחתי', 'פיקחה', 'פיקוח', 'ניצח', 'ניצחתי'].map(hebrewKey),
+    'פיקח', 'פיקחתי', 'פיקחה', 'פיקוח', 'ניצח', 'ניצחתי'].flatMap(hebrewKeys),
 );
 
 function isAuthority(word: string): boolean {
@@ -425,9 +436,9 @@ function qualifiedNumbers(text: string): Set<string> {
 export function findJobOnlyTerms(text: string, ctx: GroundingContext, isSummary = false): string[] {
   const resumeStems = new Set(contentStems(ctx.resumeText));
   // "Supported the team" -> "Managed the team" is a new claim, not a verb swap
-  // (review of #170). A verb of authority swaps freely only for a résumé that
-  // already claims authority somewhere.
-  const resumeClaimsAuthority = words(ctx.resumeText).some(isAuthority);
+  // (review of #170). A verb of authority swaps freely only where the source,
+  // the bullet or its role, already claims authority.
+  const resumeClaimsAuthority = words(ctx.authoritySource ?? ctx.resumeText).some(isAuthority);
   // "mid market", "mid-market" and a PDF's "self-\npaced" are one word to a
   // reader, so adjacent résumé words also count joined.
   const resumeWords = words(ctx.resumeText);
@@ -499,7 +510,9 @@ export function checkQuickWinGrounding(
     }
   }
 
-  const jobOnlyTerms = findJobOnlyTerms(optimized, ctx, qw.location?.section === 'summary');
+  const isSummary = qw.location?.section === 'summary';
+  // A bullet speaks for itself; a summary for the whole résumé (as in `inflatedClaims`).
+  const jobOnlyTerms = findJobOnlyTerms(optimized, { ...ctx, authoritySource: isSummary ? ctx.resumeText : original }, isSummary);
   if (jobOnlyTerms.length > 0) {
     violations.push('job_terms_added');
   }

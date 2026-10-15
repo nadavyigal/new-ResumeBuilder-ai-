@@ -1,6 +1,6 @@
 import type { OptimizedResume } from './index';
 import { countBullets } from './normalize-experience';
-import { findJobOnlyTerms } from '@/lib/ats/quick-wins/grounding';
+import { findJobOnlyTerms, type GroundingContext } from '@/lib/ats/quick-wins/grounding';
 
 /**
  * Job-ad terms guard (reliability upgrade, Stage 2).
@@ -308,7 +308,7 @@ function groundingFor(originalResumeText: string, jobDescription: string) {
 }
 
 /** Job-only words in one claim; detection and the fallback both use this, so they agree. */
-function jobOnlyIn(text: string, ctx: ReturnType<typeof groundingFor>, isSummary = false): string[] {
+function jobOnlyIn(text: string, ctx: GroundingContext, isSummary = false): string[] {
   return findJobOnlyTerms(text, ctx, isSummary).filter((t) => !(isSummary && SUMMARY_FRAMING.has(t)));
 }
 
@@ -324,13 +324,18 @@ export function findJobOnlyBulletTerms(
 ): Array<{ bullet: string; terms: string[] }> {
   const ctx = groundingFor(originalResumeText, jobDescription);
   const out: Array<{ bullet: string; terms: string[] }> = [];
-  const check = (text: unknown, isSummary = false) => {
+  const check = (text: unknown, isSummary = false, authoritySource?: string) => {
     if (typeof text !== 'string' || !text.trim()) return;
-    const terms = jobOnlyIn(text, ctx, isSummary);
+    const terms = jobOnlyIn(text, { ...ctx, authoritySource }, isSummary);
     if (terms.length > 0) out.push({ bullet: text, terms });
   };
-  for (const role of Array.isArray(resume.experience) ? resume.experience : []) bulletsOf(role).forEach((b) => check(b));
-  for (const p of Array.isArray(resume.projects) ? resume.projects : []) check(p.description);
+  // "Managed" is a swap only where the same role already claims authority
+  // (Codex review of #170). A role that cannot be located claims none.
+  for (const role of Array.isArray(resume.experience) ? resume.experience : []) {
+    const source = roleAuthoritySource(originalResumeText, role);
+    bulletsOf(role).forEach((b) => check(b, false, source));
+  }
+  for (const p of Array.isArray(resume.projects) ? resume.projects : []) check(p.description, false, '');
   for (const sentence of sentences(typeof resume.summary === 'string' ? resume.summary : '')) {
     if (!ASPIRATION.test(sentence)) check(sentence, true);
   }
@@ -357,6 +362,13 @@ function isSourceSentence(line: string): boolean {
   if (/@|·|\|/.test(line)) return false;
   const items = line.split(',');
   return !(items.length >= 3 && items.every((item) => item.trim().split(/\s+/).length <= 3));
+}
+
+/** One role's header line and the lines under it: what that role claims. */
+function roleAuthoritySource(originalResumeText: string, role: { company?: string; title?: string }): string {
+  const name = (role.company || role.title || '').trim().toLowerCase();
+  const header = name.length < 2 ? undefined : trustedResumeText(originalResumeText).split('\n').find((l) => l.toLowerCase().includes(name));
+  return header ? [header, ...roleSourceLines(originalResumeText, role)].join('\n') : '';
 }
 
 /**
