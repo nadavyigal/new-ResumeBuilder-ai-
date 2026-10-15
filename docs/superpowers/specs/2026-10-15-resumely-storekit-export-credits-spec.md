@@ -143,17 +143,18 @@ This is what makes the spend idempotent without request IDs.
 `authenticated` in the same migration, the R1 pattern). One call is one transaction:
 
 1. `select ... from optimizations where id = p_optimization_id and user_id = p_user_id`. None: return `{status: 'not_found'}`.
-1b. If `p_charge` is false (section 6.5, ungated): insert `export_unlocks (source 'ungated')` on conflict do nothing, return `{status: 'ungated'}`. Nothing is spent.
-2. Insert the profile if missing (balance 1), then `select credit_balance from profiles where user_id = p_user_id for update`. The row lock serializes every unlock and grant for this user.
-3. If `export_unlocks` already has `(p_user_id, p_optimization_id)`: return `{status: 'already_unlocked', balance}`. No spend.
-4. If `credit_balance < 1`: return `{status: 'insufficient', balance: 0}`. No row written.
-5. Decrement `credit_balance` by 1, insert `export_unlocks (source 'credit')`, insert a ledger row (`delta -1`, `reason 'export_unlock'`, `source 'usage'`, `optimization_id`). Return `{status: 'unlocked', balance}`.
+2. Insert the profile if missing (balance 1), then `select credit_balance from profiles where user_id = p_user_id for update`. The row lock serializes every unlock, grant and refund for this user, charged or not.
+3. If `export_unlocks` already has `(p_user_id, p_optimization_id)`: return `{status: 'already_unlocked', source, balance}`, whatever `p_charge` is. No spend. So a paid unlock re-downloaded after the kill switch still reports as paid.
+4. If `p_charge` is false (section 6.5, ungated): insert `export_unlocks (source 'ungated')`, return `{status: 'ungated'}`. Nothing is spent.
+5. If `credit_balance < 1`: return `{status: 'insufficient', balance: 0}`. No row written.
+6. Insert `export_unlocks (source 'credit')` with `on conflict do nothing` and check the row count, as `grant_apple_credits` does (`20260503000000_credit_ledger.sql:115-138`). Zero rows: return `already_unlocked` and spend nothing. One row: decrement `credit_balance` by 1 and insert a ledger row (`delta -1`, `reason 'export_unlock'`, `source 'usage'`, `optimization_id`). Return `{status: 'unlocked', balance}`.
 
-If rendering fails after step 5, the user has paid for that optimization and the retry is free (step 3).
+If rendering fails after step 6, the user has paid for that optimization and the retry is free (step 3).
 
 Concurrency: two requests for the same optimization serialize on the profile lock; the second sees
 step 3 and spends nothing. Two requests for different optimizations with a balance of 1 serialize
-too; the second gets `insufficient`.
+too; the second gets `insufficient`. An ungated call and a charged call for the same optimization
+also take the lock, so whichever runs second sees step 3.
 
 ### 6.3 The one free export
 
@@ -218,7 +219,9 @@ cannot be backfilled; at today's volume (4 exports in 30 days) that is accepted.
 Response: `{ success: true, status: 'granted' | 'already_granted', creditsGranted, balance }`.
 `already_granted` when the transaction ID is already on the ledger **for this user**. If it is on
 the ledger for another user, answer 409 `transaction_owned_by_another_account` (today it returns
-success with nothing granted). The amount always comes from the verified transaction, never from
+success with nothing granted). Check 6 makes this unreachable for any transaction bought under this
+spec. It stays as a guard for ledger rows written by the pre-spec route, which bound no account; the
+section 13 audit should leave none, and the branch logs `iap_verify_failed` if it ever fires. The amount always comes from the verified transaction, never from
 the request body.
 
 ### 7.3 Configuration (names only, values live in Vercel)
@@ -235,11 +238,17 @@ and the Apple root certificates bundled in the repo (public files, not secrets).
   `SignedDataVerifier`; unverified payloads get 400 and change nothing.
 - Idempotency: the notification's `notificationUUID` is stored in
   `credit_transactions.apple_notification_uuid` (unique). A repeat changes nothing and returns 200.
+- Both balance changes below run in one `SECURITY DEFINER` function, `apply_iap_refund(p_user_id,
+  p_transaction_id, p_notification_uuid, p_reversed boolean)`, service-role only (same revoke as
+  `unlock_export`). One call is one transaction: it takes the same `profiles ... for update` lock
+  first, then inserts the ledger row keyed on `apple_notification_uuid` with `on conflict do
+  nothing` and changes the balance only if that row was new. So a refund cannot race an unlock or
+  a grant, and a repeated notification changes nothing.
 - `REFUND`: find the grant row by transaction ID. Deduct `min(credits granted, current balance)`
   with a ledger row (`reason 'iap_refund'`, negative delta, `related_apple_transaction_id` set,
   `apple_transaction_id` null). The balance never goes below 0.
   Exports already unlocked stay unlocked.
-- `REFUND_REVERSED`: re-grant the amount that the refund deducted.
+- `REFUND_REVERSED`: re-grant the amount that the refund deducted, through the same function.
 - `CONSUMPTION_REQUEST`: logged only in v1. Answering it with consumption data is a later decision.
 - Any other type: logged, 200, no change.
 
@@ -292,7 +301,7 @@ No email, name or résumé text in any property. Existing `export_started`, `exp
 | 0 | Section 13 ships (allowed before the gate). | Claude Code, founder merges |
 | 1 | Gate opens: all four conditions hold and the founder says yes. | Founder |
 | 2 | Migration (section 5) applied after a separate yes for the migration. | Founder yes, Claude Code applies |
-| 3 | Server code merged with `EXPORT_CREDITS_ENABLED` unset (off). Nothing changes for users. | Claude Code |
+| 3 | Server code merged with `EXPORT_CREDITS_ENABLED` unset (off). Nothing changes for users. **Precondition:** in the same change, `ats_score` and `refine_section` no longer touch `credit_balance` at all (see below), proven by a test. | Claude Code |
 | 4 | Three consumables created in App Store Connect; notification URL set; Paid Applications agreement and banking active. | Founder |
 | 5 | iOS build with the sheet, tested in Sandbox and TestFlight against a preview deployment with the flag on. | Claude Code, founder tests on device |
 | 6 | Build submitted with the products attached. Production flag still off; review purchases are Sandbox (F6). | Founder |
@@ -304,8 +313,14 @@ are kept, and no build is needed because the iOS app shows the sheet only on a s
 that to hold, P3b removes the sheet's dependency on the compile-time
 `BackendConfig.isMonetizationEnabled` (`Core/API/BackendConfig.swift:27`): the server decides.
 
-P3b also deletes the dormant `ats_score` and `refine_section` charges that P2 put behind
-`MONETIZATION_ENABLED`: credits are export credits only.
+**Credits are export credits only.** Two other routes spend from the same `credit_balance` today:
+`/api/ats/score` (`route.ts:60`, no live caller found) and `/api/v1/refine-section` (`route.ts:34`,
+called live by the chat sidebar on the optimization page, `src/components/chat/ChatSidebar.tsx:192`).
+On `main` on 2026-10-15 both charge unconditionally. PR #179 (P2) puts both behind
+`MONETIZATION_ENABLED`, which stays off (F5); until #179 merges, every chat refinement spends one of
+the user's credits. P3b deletes both charges outright, as a precondition of step 3, before any
+credit is sold. Otherwise a chat refinement could eat a purchased export credit, and new accounts
+starting at 1 credit (section 5) would get 402 from the chat.
 
 ## 12. Tests (P3b writes them first)
 
@@ -316,6 +331,8 @@ Database (against a local Supabase, or a Supabase branch after the founder appro
 - `anon` and `authenticated` cannot execute `unlock_export` or write `export_unlocks`.
 
 Routes (Jest, mocked Supabase and verifier, the `tests/api/` harness):
+- `/api/ats/score` and `/api/v1/refine-section` never call `consumeCredit`, whatever any flag says (before step 3).
+- `unlock_export` paths: a charged unlock of a row already written by an ungated call returns `already_unlocked` and spends nothing; a credit-unlocked row returns `already_unlocked` with `source 'credit'` when called ungated.
 - `/api/download/[id]`: gated with credits renders and spends once; gated without credits returns 402 and never calls a renderer; ungated never calls `unlock_export`; web client ungated even with the flag on (F1).
 - `/api/v1/iap/verify`: every row of 7.2 has a test that fails on today's route first, including missing config (no grant), client `productId` different from the signed one, foreign `appAccountToken`, revoked transaction, quantity 2 grants twice the credits.
 - `/api/v1/iap/notifications`: unverified payload changes nothing; `REFUND` and `REFUND_REVERSED` move the balance and are idempotent.
@@ -329,7 +346,7 @@ iOS (unit tests plus a Sandbox run):
 
 `/api/v1/iap/verify` grants 100 to 2,500 credits for any made-up transaction ID whenever
 `APPLE_VERIFY_TRANSACTIONS_URL` is unset (`route.ts:33`). Whether it is set in Vercel production
-was not checked on 2026-10-15. Today no route spends credits (after P2), and the ledger has no Apple
+was not checked on 2026-10-15. Once P2 (#179) merges no route spends credits, and the ledger has no Apple
 grant, so nothing has been lost. But balances carry into launch (F2), so credits minted now would
 become free exports later.
 
