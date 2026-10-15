@@ -14,6 +14,7 @@ function buildRequest(body: unknown) {
 function loadRouteHarness({
   user = { id: 'user-1' } as { id: string } | null,
   rpcResult = { data: 20, error: null } as { data: unknown; error: { message: string } | null },
+  verification = { verified: true, message: 'ok' } as { verified: boolean; message?: string },
 } = {}) {
   jest.resetModules();
 
@@ -60,7 +61,7 @@ function loadRouteHarness({
   jest.doMock('@/lib/iap', () => ({
     __esModule: true,
     creditsForProduct: jest.fn(() => 20),
-    verifyAppleTransaction: jest.fn(async () => ({ verified: true, message: 'ok' })),
+    verifyAppleTransaction: jest.fn(async () => verification),
   }));
 
   const { POST } = require('@/app/api/v1/iap/verify/route');
@@ -99,6 +100,40 @@ describe('POST /api/v1/iap/verify', () => {
     );
 
     expect(response.status).toBe(401);
+    expect(createServiceRoleClient).not.toHaveBeenCalled();
+    expect(serviceRpc).not.toHaveBeenCalled();
+  });
+
+  it('refuses with 503 and grants nothing when Apple verification is not configured', async () => {
+    // Fail closed: before this, an unset APPLE_VERIFY_TRANSACTIONS_URL skipped
+    // the check and granted credits for any made-up transaction ID.
+    const { POST, serviceRpc, createServiceRoleClient } = loadRouteHarness({
+      verification: { verified: false, message: 'apple_verification_not_configured' },
+    });
+
+    const response = await POST(
+      buildRequest({ productId: 'credits_20', appleTransactionId: 'made-up-txn' })
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: 'iap_verification_unavailable' });
+    expect(createServiceRoleClient).not.toHaveBeenCalled();
+    expect(serviceRpc).not.toHaveBeenCalled();
+  });
+
+  it('refuses with 400 and grants nothing when Apple does not verify the transaction', async () => {
+    const { POST, serviceRpc, createServiceRoleClient } = loadRouteHarness({
+      verification: { verified: false, message: 'apple_verification_failed:404:not found' },
+    });
+
+    const response = await POST(
+      buildRequest({ productId: 'credits_20', appleTransactionId: 'made-up-txn' })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual(
+      expect.objectContaining({ error: 'apple_verification_failed' })
+    );
     expect(createServiceRoleClient).not.toHaveBeenCalled();
     expect(serviceRpc).not.toHaveBeenCalled();
   });
