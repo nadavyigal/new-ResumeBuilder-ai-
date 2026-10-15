@@ -26,6 +26,7 @@ const SCOPED_PATHS = [
   "auth.form",
   "dashboard.home",
   "dashboard.paywall",
+  "dashboard.chat.suggestionsBanner.mainIssues",
   "contact",
   "blog.index",
   "blog.post.cta",
@@ -171,6 +172,11 @@ function main() {
   const heLeaves = new Set(scopedLeaves(heMerged));
 
   const missingInHe = enLeaves.filter((leaf) => !heLeaves.has(leaf));
+  // A block deleted from both locales passes the parity check above, while the
+  // UI renders raw keys. Every scoped path must exist in the English messages.
+  const missingScopedPaths = SCOPED_PATHS.filter(
+    (scopedPath) => typeof getAtPath(enMerged, scopedPath) === "undefined"
+  );
   const invalidStrings = scopedStringValues(heMerged)
     .filter((entry) => hasPlaceholderOrCorruption(entry.value))
     .map((entry) => entry.path);
@@ -179,15 +185,17 @@ function main() {
     checkedAt: new Date().toISOString(),
     scopedPathCount: SCOPED_PATHS.length,
     scopedLeafCount: enLeaves.length,
+    missingScopedPathCount: missingScopedPaths.length,
     missingInHeCount: missingInHe.length,
     invalidStringCount: invalidStrings.length,
+    missingScopedPaths,
     missingInHe: missingInHe.slice(0, 200),
     invalidStringPaths: invalidStrings.slice(0, 200)
   };
 
   console.log(JSON.stringify(report, null, 2));
 
-  if (missingInHe.length > 0 || invalidStrings.length > 0) {
+  if (missingScopedPaths.length > 0 || missingInHe.length > 0 || invalidStrings.length > 0) {
     process.exit(1);
   }
 }
