@@ -12,7 +12,7 @@ desktop app's built-in browser, signed out. Quotes are short and verbatim.
 
 | # | Product | Price (public) | Tailors a CV to a job ad? | Meaning for G3 |
 |---|---|---|---|---|
-| R3 | Resumaker (resumake.co.il) | Not public. Behind a name, email and marketing-consent form | Not claimed on any public page | The Hebrew incumbent sells a builder. "Fit my CV to this job" is not its promise |
+| R3 | Resumaker (resumake.co.il) | Not on its own site. Reviewers report ₪19.90 to ₪20, paid at download (2022). Danish sister site: 19 kr trial, then 229 kr every 4 weeks (2025 to 2026) | Not claimed on any public page | The Hebrew incumbent sells a builder and charges at the end. "Fit my CV to this job", priced up front, is open |
 | R4 | "Adjusting your resume" by Ben Rotenberg, on Amazon PartyRock | Free | Yes, that is the whole tool | The Hebrew promise already exists for free. Win on trust and a finished file, not on "AI tailoring" |
 | R5 | Teal (tealhq.com) | Free plan; Teal+ $13 / 7 days, $29 / 30 days, $79 / 90 days | Yes: job keyword matching and a Match Score | English price anchor. D1 packs are cheaper for one job search |
 
@@ -43,17 +43,41 @@ Quotes:
 
 Other signals: home page counter "1214 קורות חיים נוצרו היום" on 2026-10-15; a link to upload
 an existing CV; the same company runs builders in about 20 countries (footer links).
-Trustpilot lists 151 reviews for resumake.co.il (page read, not analysed).
+**Prices from public reviews (closes the open point from batch 1).** Read 2026-10-15,
+signed out, all reviews in all languages. Prices below are what reviewers say they paid,
+not prices the company states.
 
-Not verified, a guess: a web search summary said a review of the Danish sister site mentions
-a repeating charge every 4 weeks. That suggests a subscription after a free start, as is
-common for builders. I did not open that review and it is about another domain.
+*resumake.co.il:* https://www.trustpilot.com/review/resumake.co.il?languages=all . TrustScore
+2.2 from 151 reviews; almost all are from 2022. Pattern: build for free, pay at download.
+- 2022-06-11: "דרש תשלום של החבילה של ה-19.90 אותה שילמתי" (asked to pay for the 19.90 package)
+- 2022-05-29: "עולה לי 20 שקלים לערוך את זה בכל פעם שעובר שבוע" (₪20 to edit again after a week)
+- 2022-05-30: "התשלום החד פעמי הוא שיטה נהדרת - לא צריך להחיל מנוי" (one-time payment, no subscription)
+- 2024-01-25: "רק בסוף מודיעים שזה בתשלום ואי אפשר לקבל את המסמך בלי לשלם"
+- 2026-08-05: "שילמתי פעמיים סתם ולא הצלחתי להתחבר שוב" (paid twice, could not log in again)
+
+The most common complaint (more than ten reviews) is learning about the price only after
+writing the CV. No Israeli review states a renewal period. In 2022 the Israeli model was a
+one-time payment of about ₪20; one reviewer says editing again a week later cost another ₪20.
+
+*resumaker.dk (same company, Denmark):* https://www.trustpilot.com/review/resumaker.dk?languages=all .
+TrustScore 4.5 from 1,665 reviews; I read the 200 newest (Trustpilot shows 10 pages signed
+out). Pattern: a cheap trial at download that turns into a subscription.
+- 2026-10-08: "prøveperiode på 14 dage til 19 kr" (a 14-day trial for 19 kr)
+- 2026-10-08: "14 dage senere tikker en betaling på 229 kr ind" (229 kr charged 14 days later)
+- 2026-02-17: "trækker automatisk 229 kroner hvert 4uge. Fremgår ikke tydeligt!!!" (229 kr every 4 weeks, not shown clearly)
+
+About 15 of the 200 newest reviews report an unexpected subscription after a small download
+payment, from 2025 to 2026; 10 of them name the renewal amount (219 to 230 kr). Whether resumake.co.il now runs the same trial-to-subscription model is still
+unverified: only a logged-in purchase would show it, and D4 rules that out.
 
 **What it means for G3.** Resumaker owns "Hebrew CV builder": templates, free to start, large
 Hebrew SEO library of CV examples. Fighting it there loses. Its public promise stops at "build
 a good-looking CV"; it does not say "paste the job, see what is missing". G3's "fit my CV to
 this job" sits in the space Resumaker does not claim. Lead with the job ad as the input, not
-with templates.
+with templates. Two more lessons from the reviews: name the price before the user
+invests time (Resumaker's top complaint is the price shown only at the end), and say "no
+subscription" out loud, because the D1 packs never renew and Resumaker's Danish site is
+attacked for exactly that.
 
 ## R4. The Israeli CV-to-job tool from Geektime
 
