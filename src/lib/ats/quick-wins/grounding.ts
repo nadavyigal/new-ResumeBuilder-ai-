@@ -34,6 +34,13 @@ export interface GroundingContext {
   jobText: string;
   /** Target title. A summary may name it: that is positioning, not a claim. */
   jobTitle?: string;
+  /**
+   * The text whose own claims of authority let a rewrite say "managed" or
+   * "led": the bullet being rewritten, or its role. Defaults to the whole
+   * résumé, which is right only for a summary. Codex review of #170: with the
+   * whole résumé, managing in one job let every other job say "managed" too.
+   */
+  authoritySource?: string;
 }
 
 export type GroundingViolation =
@@ -62,7 +69,83 @@ const STOPWORDS = new Set([
   'per', 'via', 'over', 'under', 'about', 'across', 'within', 'while', 'during', 'after',
   'before', 'through', 'between', 'more', 'most', 'other', 'some', 'very', 'will', 'can',
   'out', 'off', 'too', 'both', 'own', 'new', 'key', 'well', 'able',
+  // Hebrew function words, as `stem` spells them (final letters normalised).
+  ...['של', 'את', 'עם', 'על', 'או', 'גם', 'כי', 'אם', 'לא', 'כל', 'זה', 'זו', 'זאת', 'הם', 'הן', 'אני',
+    'היא', 'הוא', 'אנחנו', 'אשר', 'שלי', 'שלו', 'שלה', 'יותר', 'מאוד', 'כמו', 'בין', 'אל', 'עד', 'לפי',
+    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].flatMap(hebrewKeys),
 ]);
+
+/**
+ * The singular spellings a Hebrew word may stand for. Final letter forms are
+ * normalised first. A plural ים gives its stem ("פרויקטים" -> "פרויקט"). A plural
+ * ות gives the stem and both feminine singulars: "משימות" -> "משימה",
+ * "עובדות" -> "עובדת", "דוחות" -> "דוח". A singular is never cut down: its final
+ * ה is part of the word, or "מורה" (teacher) would match the name "מור"
+ * (Codex review of #170, which also found the ת singulars missing).
+ */
+function hebrewKeys(word: string): string[] {
+  const w = word.replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' })[c] as string);
+  if (w.length >= 5 && w.endsWith('ות')) {
+    const stem = w.slice(0, -2);
+    return [stem, `${stem}ה`, `${stem}ת`];
+  }
+  if (w.length >= 5 && w.endsWith('ימ')) return [w.slice(0, -2)];
+  return [w];
+}
+
+/**
+ * Hebrew glues "and, that, when, in/to/from/as, the" onto the next word, always
+ * in that order: ו, then ש or כש, then one of ב ל כ מ, then ה last. So "בדוחות"
+ * and "דוחות" are the same word to a reader, but "הכשרה" (training) is not ה+כ
+ * on "שרה" (ה never comes before כ), and "מכירות" (sales) is not מ+כ on anything.
+ *
+ * Review of #170 (Codex, confirmed by the PR Steward 2026-10-13): stripping any
+ * two prefix-looking letters made "הכשרה" match the name "שרה" and "מכירות" match
+ * "שירות" (service). Only a prefix in that grammatical order comes off, the rest
+ * must keep three letters, and a form shorter than three letters is dropped.
+ */
+const HEBREW_PROCLITICS = /^ו?(?:ש|כש)?[בלכמ]?ה?$/;
+
+/**
+ * How two Hebrew words may match, as tags in one pool:
+ *   B:key  the word as written, ending normalised;
+ *   P:key  a reading with a prefix stripped, ending normalised;
+ *   C:core a reading with a prefix stripped, spelled exactly.
+ * A prefix may differ on one side only (B against B or P: "דוחות" / "בדוחות",
+ * "משימה" / "במשימות"). With prefixes on both sides the rest must be spelled the
+ * same (C against C: "בדוחות" / "הדוחות"). Otherwise two lexical first letters
+ * meet on a short core: "בכירה" (senior) and "מכירות" (sales) both reach "כיר".
+ */
+function hebrewTags(word: string): string[] {
+  const out = new Set<string>(hebrewKeys(word).map((key) => `B:${key}`));
+  for (let k = 1; k <= 4 && word.length - k >= 3; k++) {
+    if (!HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
+    const core = word.slice(k);
+    const keys = hebrewKeys(core).filter((key) => key.length >= 3);
+    if (keys.length === 0) continue;
+    keys.forEach((key) => out.add(`P:${key}`));
+    out.add(`C:${core}`);
+  }
+  return [...out];
+}
+
+function hebrewTagMatches(pool: Set<string>, tag: string): boolean {
+  const [kind, value] = [tag.slice(0, 2), tag.slice(2)];
+  if (kind === 'B:') return pool.has(`B:${value}`) || pool.has(`P:${value}`);
+  if (kind === 'P:') return pool.has(`B:${value}`);
+  return pool.has(tag);
+}
+
+function hebrewForms(word: string, minCore = 3): string[] {
+  const out = new Set<string>();
+  for (let k = 0; k <= 4 && word.length - k >= minCore; k++) {
+    if (k > 0 && !HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
+    for (const key of hebrewKeys(word.slice(k))) if (key.length >= minCore) out.add(key);
+  }
+  return [...out];
+}
+
+const HEBREW_WORD = /^[\u0590-\u05FF]+$/;
 
 /**
  * Verbs that re-describe an action rather than add one. Swapping "Built" for
@@ -76,7 +159,29 @@ const REWORDING_VERBS = new Set(
     'oversaw', 'oversee', 'establish', 'launch', 'achieve', 'spearhead', 'streamline',
     'utilize', 'leverage', 'conduct', 'handle', 'prepare', 'use', 'ensure', 'focus',
     'enhance', 'increase', 'reduce', 'help', 'provide', 'perform', 'make', 'made',
-  ].map(stem),
+    // Hebrew: the same verbs in past (3rd person, 1st person "-תי", feminine,
+    // plural) and as the action noun job posts use ("ניהול דוחות"). Present
+    // forms are left out on purpose: "מנהל" is also a job title.
+    'ניהל', 'ניהלתי', 'ניהלה', 'ניהלו', 'ניהול',
+    'הוביל', 'הובלתי', 'הובילה', 'הובילו', 'הובלה', 'הובלת',
+    'פיתח', 'פיתחתי', 'פיתחה', 'פיתחו', 'פיתוח',
+    'בנה', 'בניתי', 'בנתה', 'בנו', 'בניית', 'בנייה',
+    'יצר', 'יצרתי', 'יצרה', 'יצרו', 'יצירת', 'יצירה',
+    'עיצב', 'עיצבתי', 'עיצבה', 'עיצבו', 'עיצוב', 'תכנן', 'תכננתי', 'תכננה', 'תכננו', 'תכנון',
+    'טיפל', 'טיפלתי', 'טיפלה', 'טיפלו', 'טיפול',
+    'ביצע', 'ביצעתי', 'ביצעה', 'ביצעו', 'ביצוע',
+    'יישם', 'יישמתי', 'יישמה', 'יישמו', 'יישום', 'הטמיע', 'הטמעתי', 'הטמעה',
+    'שיפר', 'שיפרתי', 'שיפרה', 'שיפרו', 'שיפור',
+    'הכין', 'הכנתי', 'הכינה', 'הכינו', 'הכנת', 'הכנה',
+    'עבד', 'עבדתי', 'עבדה', 'עבדו',
+    'תמך', 'תמכתי', 'תמכה', 'תמכו', 'תמיכה',
+    'תיאם', 'תיאמתי', 'תיאמה', 'תיאמו', 'תיאום', 'ריכז', 'ריכזתי', 'ריכוז',
+    'הקים', 'הקמתי', 'הקימה', 'הקמת', 'השיק', 'השקתי', 'השקת',
+    'עקב', 'עקבתי', 'מעקב', 'ניטר', 'ניטרתי', 'ניטור',
+    'הגדיל', 'הגדלתי', 'הגדלת', 'צמצם', 'צמצמתי', 'צמצום', 'הפחית', 'הפחתתי', 'הפחתת',
+    'השתמש', 'השתמשתי', 'שימוש', 'סייע', 'סייעתי', 'סיוע', 'עזר', 'עזרתי',
+    'השיג', 'השגתי', 'שיתף', 'שיתפתי', 'שיתוף',
+  ].flatMap((w) => (HEBREW_WORD.test(w) ? hebrewKeys(w) : [stem(w)])),
 );
 
 /** Joins hyphenated words ("mid-market" -> "midmarket") so both sides compare alike. */
@@ -89,27 +194,48 @@ function words(text: string): string[] {
 }
 
 function stem(word: string): string {
+  if (HEBREW_WORD.test(word)) return hebrewKeys(word)[0];
   const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '').replace(/e$/, '');
   return stripped.length >= 4 ? stripped : word;
 }
 
+/**
+ * Every spelling a word may match by: one stem in English, each grammatical
+ * prefix reading in Hebrew. Two Hebrew words match when any readings agree.
+ */
+function stemsOf(word: string): string[] {
+  return HEBREW_WORD.test(word) ? hebrewTags(word) : [stem(word)];
+}
+
 /** Exact match only: by prefix, "performance" would pass as the verb "perform". */
-function isRewordingVerb(s: string): boolean {
-  return REWORDING_VERBS.has(s);
+function isRewordingVerb(word: string): boolean {
+  return HEBREW_WORD.test(word) ? hebrewForms(word).some((s) => REWORDING_VERBS.has(s)) : REWORDING_VERBS.has(stem(word));
 }
 
 function sameStem(a: string, b: string): boolean {
   if (a === b) return true;
+  // Hebrew is matched by tag (`hebrewTagMatches`), never by shared letters.
+  if (/[\u0590-\u05FF]/.test(a) || /[\u0590-\u05FF]/.test(b)) return false;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
   return short.length >= 5 && long.startsWith(short);
 }
 
 function contentWords(text: string): string[] {
-  return words(text).filter((w) => w.length >= 3 && !/^\d/.test(w) && !STOPWORDS.has(w));
+  // Hebrew words are shorter (no vowel letters): two letters can name a thing.
+  const minLength = (w: string) => (HEBREW_WORD.test(w) ? 2 : 3);
+  const isStopword = (w: string) =>
+    STOPWORDS.has(w) || (HEBREW_WORD.test(w) ? hebrewForms(w, 2).some((f) => STOPWORDS.has(f)) : STOPWORDS.has(stem(w)));
+  return words(text).filter((w) => w.length >= minLength(w) && !/^\d/.test(w) && !isStopword(w));
 }
 
 function contentStems(text: string): string[] {
-  return contentWords(text).map(stem);
+  return contentWords(text).flatMap(stemsOf);
+}
+
+/** Any reading of `word` in the pool. */
+function hasWord(pool: Set<string>, word: string): boolean {
+  if (HEBREW_WORD.test(word)) return hebrewTags(word).some((t) => hebrewTagMatches(pool, t));
+  return hasStem(pool, stem(word));
 }
 
 function hasStem(pool: Set<string>, s: string): boolean {
@@ -187,6 +313,19 @@ const OUTCOME = /^(?:revenues?|profits?|profitability|costs?|savings?|efficiency
 const DISTINCTION = /^(?:awards?|awarded|awardwinning|recogni[sz]ed|recognition|promoted|promotion|top|best|record|recordbreaking|ranked|exceeded|exceeding|surpassed|outperformed|outperforming)$/;
 /** Authority over people or work; the bullet itself must claim it first. */
 const AUTHORITY = /^(?:led|leads?|leading|leadership|manag\w*|direct(?:ed|ing|s)?|owned|owner|ownership|oversaw|oversee\w*|spearhead\w*|head(?:ed|ing|s)?|supervis\w*|chair(?:ed|ing)?|command(?:ed|ing)?)$/;
+/**
+ * The same in Hebrew: managed, led, supervised, in past form and as the action
+ * noun a job post uses ("ניהול צוות"). The title "מנהל" is left out on purpose:
+ * "למנהלים" (for managers) is the commonest use and claims nothing.
+ */
+const HEBREW_AUTHORITY = new Set(
+  ['ניהל', 'ניהלתי', 'ניהלה', 'ניהלו', 'ניהול', 'הוביל', 'הובלתי', 'הובילה', 'הובילו', 'הובלה', 'הובלת',
+    'פיקח', 'פיקחתי', 'פיקחה', 'פיקוח', 'ניצח', 'ניצחתי'].flatMap(hebrewKeys),
+);
+
+function isAuthority(word: string): boolean {
+  return HEBREW_WORD.test(word) ? hebrewForms(word).some((f) => HEBREW_AUTHORITY.has(f)) : AUTHORITY.test(word);
+}
 const ABSOLUTE = /^(?:all|every|entire|entirely|zero|none|always|never|fully)$/;
 
 function inflatedClaims(original: string, optimized: string, resumeText: string, isSummary: boolean): string[] {
@@ -198,7 +337,7 @@ function inflatedClaims(original: string, optimized: string, resumeText: string,
       words(optimized).filter(
         (w) =>
           ((SCOPE.test(w) || OUTCOME.test(w) || DISTINCTION.test(w)) && !inResume.has(w)) ||
-          ((AUTHORITY.test(w) && ![...inSource].some((x) => AUTHORITY.test(x))) || (ABSOLUTE.test(w) && !inSource.has(w))),
+          ((isAuthority(w) && ![...inSource].some(isAuthority)) || (ABSOLUTE.test(w) && !inSource.has(w))),
       ),
     ),
   );
@@ -296,17 +435,21 @@ function qualifiedNumbers(text: string): Set<string> {
  */
 export function findJobOnlyTerms(text: string, ctx: GroundingContext, isSummary = false): string[] {
   const resumeStems = new Set(contentStems(ctx.resumeText));
+  // "Supported the team" -> "Managed the team" is a new claim, not a verb swap
+  // (review of #170). A verb of authority swaps freely only where the source,
+  // the bullet or its role, already claims authority.
+  const resumeClaimsAuthority = words(ctx.authoritySource ?? ctx.resumeText).some(isAuthority);
   // "mid market", "mid-market" and a PDF's "self-\npaced" are one word to a
   // reader, so adjacent résumé words also count joined.
   const resumeWords = words(ctx.resumeText);
-  for (let i = 0; i + 1 < resumeWords.length; i++) resumeStems.add(stem(resumeWords[i] + resumeWords[i + 1]));
+  for (let i = 0; i + 1 < resumeWords.length; i++) stemsOf(resumeWords[i] + resumeWords[i + 1]).forEach((s) => resumeStems.add(s));
   const jobStems = new Set(contentStems(ctx.jobText));
   const titleStems = isSummary && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
   return Array.from(
     new Set(
       contentWords(text).filter((w) => {
-        const s = stem(w);
-        return !hasStem(resumeStems, s) && hasStem(jobStems, s) && !isRewordingVerb(s) && !hasStem(titleStems, s);
+        const swap = isRewordingVerb(w) && (!isAuthority(w) || resumeClaimsAuthority);
+        return !hasWord(resumeStems, w) && hasWord(jobStems, w) && !swap && !hasWord(titleStems, w);
       }),
     ),
   );
@@ -367,7 +510,9 @@ export function checkQuickWinGrounding(
     }
   }
 
-  const jobOnlyTerms = findJobOnlyTerms(optimized, ctx, qw.location?.section === 'summary');
+  const isSummary = qw.location?.section === 'summary';
+  // A bullet speaks for itself; a summary for the whole résumé (as in `inflatedClaims`).
+  const jobOnlyTerms = findJobOnlyTerms(optimized, { ...ctx, authoritySource: isSummary ? ctx.resumeText : original }, isSummary);
   if (jobOnlyTerms.length > 0) {
     violations.push('job_terms_added');
   }
@@ -405,7 +550,7 @@ export function describeViolations(violations: GroundingViolation[]): string {
 export function keywordsPresentIn(keywords: string[], text: string): string[] {
   const textStems = new Set(contentStems(text));
   return keywords.filter((keyword) => {
-    const kw = contentStems(keyword);
-    return kw.length > 0 && kw.every((s) => hasStem(textStems, s));
+    const kw = contentWords(keyword);
+    return kw.length > 0 && kw.every((w) => hasWord(textStems, w));
   });
 }
