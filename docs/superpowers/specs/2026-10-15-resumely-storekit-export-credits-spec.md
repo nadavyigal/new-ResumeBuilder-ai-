@@ -2,7 +2,7 @@
 
 - **Written:** 2026-10-15, market play Track 2, story P3a (`docs/plans/2026-10-14-market-play-implementation.md`).
 - **Decision it implements:** EXD-035 (Agentic OS): packs of 1 / 5 / 10 tailored exports at $3.99 / $12.99 / $19.99, credits never expire, no subscription at launch.
-- **Status:** draft for founder approval. Approving it closes StoreKit gate condition 4 only.
+- **Status:** F1 to F6 decided by the founder on 2026-10-15 (section 2). The whole spec waits for founder approval after the independent review. Approving it closes StoreKit gate condition 4 only.
 - **Replaces:** the skeleton tasks in `docs/superpowers/plans/2026-06-07-resumely-plan-3-storekit-paywall.md` (its four-tier products, the `storekit-verify` edge function and the `user_credits` / `iap_purchases` tables). Pricing context stays in `docs/superpowers/specs/2026-06-07-resumely-growth-pricing-design.md`, except its Tier 4.
 
 ## 0. The gate (unchanged)
@@ -31,16 +31,18 @@ Does not cover: a web checkout (Stripe stays closed, 2026-07-03 Gate A record in
 `DECISIONS.md`), subscriptions, price experiments, App Store Connect copy and screenshots, and the
 paid home of features the June spec put in "Unlimited only" (see decision F5).
 
-## 2. Founder decisions this spec needs
+## 2. Founder decisions (decided 2026-10-15)
 
-Each has a recommendation. The build does not start until all six are answered.
+The founder answered all six on 2026-10-15, each as recommended: "f1 yes, f2 yes, f3 yes, f4 yes,
+f5 yes f6 yes". One founder step stays open: check App Store Connect for the old `credits_*`
+product IDs (F4).
 
-| # | Question | Recommendation | Why |
+| # | Question | Decided 2026-10-15 | Why |
 |---|---|---|---|
 | F1 | Do web exports need a credit at launch? | **No.** Gate iOS only. Web exports stay free until a web checkout exists. | A web user at zero credits would hit a wall with nothing to buy behind it. That is the exact failure measured on 2026-08-12 (`src/lib/premium-access.ts:3-11`). Cost: an iOS user can export the same résumé from the web for free. Measure it with `export_unlocked` by platform (section 10). |
 | F2 | What happens to the 3 credits every account holds today? | **Keep them** as export credits. New accounts start with 1 (the free export). | 80 external accounts hold 3 each (read 2026-10-15). At most 240 exports, about $5 of AI cost at R1 prices. Zeroing them takes something users were given. |
-| F3 | May the build add `@apple/app-store-server-library` (npm)? | **Yes.** | Apple's own library verifies the signed transaction against Apple's root certificate and checks bundle and environment. Writing that chain check by hand is the riskiest code in this feature. Global rule: no new dependency without the founder's yes. |
-| F4 | Product IDs | **New IDs:** `resumely.exports.1`, `resumely.exports.5`, `resumely.exports.10`. | A product ID can never be reused once created in App Store Connect. The iOS catalog today names `credits_basic` / `credits_saver` / `credits_super` at 100 / 500 / 2,500 units. Founder checks in App Store Connect whether any of those exist; if they do, they are never sold and never mapped. |
+| F3 | May the build add `@apple/app-store-server-library` (npm)? | **Yes.** Installed only when P3b starts, not before. | Apple's own library verifies the signed transaction against Apple's root certificate and checks bundle and environment. Writing that chain check by hand is the riskiest code in this feature. Global rule: no new dependency without the founder's yes. |
+| F4 | Product IDs | **New IDs:** `resumely.exports.1`, `resumely.exports.5`, `resumely.exports.10`. | A product ID can never be reused once created in App Store Connect. The iOS catalog today names `credits_basic` / `credits_saver` / `credits_super` at 100 / 500 / 2,500 units. **Open founder step:** check App Store Connect for those three IDs; if any exist, they are never sold and never mapped. |
 | F5 | Expert workflows with no Unlimited tier | **Leave them ungated.** `MONETIZATION_ENABLED` stays off; export credits use their own flag. | EXD-035 removed their paid home. Gating them again needs its own decision row. |
 | F6 | Accept Sandbox transactions on the production server? | **Yes, flagged.** Grant them, store `environment = 'Sandbox'` on the ledger row, and exclude them from revenue reads. | App Review buys in Sandbox against the production server. Rejecting Sandbox there fails review. Only App Review, TestFlight testers and Sandbox accounts the founder creates can make Sandbox purchases for this app. |
 
@@ -353,7 +355,7 @@ verified transaction.
 
 ## 15. Done means
 
-- Founder approves this spec and answers F1 to F6.
+- Founder approves this spec. F1 to F6 are answered (2026-10-15).
 - The Agentic OS work packet `executive-os/work-packets/WP-2-monetization-spec.md` points to this
   spec and states the pack shape (June spec section 10 asked for this).
 - Gate conditions 2 and 3 are still the founder's and the traffic's; this spec does not move them.
