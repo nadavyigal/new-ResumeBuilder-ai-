@@ -28,10 +28,6 @@ jest.mock('@/components/landing/SocialShareButton', () => ({
   SocialShareButton: () => null,
 }));
 
-jest.mock('@/components/landing/ContextualSignupPopup', () => ({
-  ContextualSignupPopup: () => null,
-}));
-
 jest.mock('@/components/ats/QuickWinsSection', () => ({
   QuickWinsSection: () => null,
 }));

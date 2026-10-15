@@ -38,6 +38,8 @@ export interface ATSCheckerResponse {
   };
   preview: {
     topIssues: ATSIssue[];
+    /** Every issue after the top three. Absent from responses before G1c-1. */
+    moreIssues?: ATSIssue[];
     totalIssues: number;
     lockedCount: number;
   };

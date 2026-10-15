@@ -37,6 +37,17 @@ const scoreRow = {
 };
 
 describe('formatResponse', () => {
+  // G1c-1 (2026-10-15): the free check no longer locks issues behind an account.
+  // `moreIssues` is additive; topIssues and lockedCount keep their meaning so
+  // installed iOS builds that decode them see no change.
+  it('returns every issue past the top three as moreIssues, without changing the old fields', () => {
+    const response = buildPublicAtsCheckResponse(scoreRow, 'session-1', 3);
+    expect(response.preview.topIssues.map((i: { id: string }) => i.id)).toEqual(['one', 'two', 'three']);
+    expect(response.preview.moreIssues.map((i: { id: string }) => i.id)).toEqual(['four']);
+    expect(response.preview.totalIssues).toBe(4);
+    expect(response.preview.lockedCount).toBe(1);
+  });
+
   it('adds the fit block with verdict, score note, top gaps, and missing keywords', () => {
     const response = buildPublicAtsCheckResponse(scoreRow, 'session-1', 3, {
       resumeText: 'I led market research for partner expansion.',
@@ -97,6 +108,8 @@ describe('formatResponse', () => {
       },
       preview: {
         topIssues: scoreRow.ats_suggestions.slice(0, 3),
+        // G1c-1: additive; the fields around it are unchanged.
+        moreIssues: scoreRow.ats_suggestions.slice(3),
         totalIssues: 4,
         lockedCount: 1,
       },
