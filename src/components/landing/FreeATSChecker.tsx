@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { Sparkles, ShieldCheck } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { UploadForm } from "@/components/landing/UploadForm";
 import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
+import { AppStoreCta } from "@/components/landing/AppStoreCta";
 import { RateLimitMessage } from "@/components/landing/RateLimitMessage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,8 @@ export interface ATSCheckerResponse {
   }>;
   checksRemaining: number;
   fit?: {
-    verdict: "Strong" | "Stretch" | "Skip";
+    /** null when the job extraction was too thin to support a verdict. */
+    verdict: "Strong" | "Stretch" | "Skip" | null;
     scoreNote: string;
     topGaps: string[];
     missingKeywords: string[];
@@ -72,6 +74,7 @@ export function FreeATSChecker({ heading }: FreeATSCheckerProps = {}) {
   const [rateLimitResetAt, setRateLimitResetAt] = useState<Date | null>(null);
   const router = useRouter();
   const t = useTranslations("landing.atsChecker");
+  const locale = useLocale();
 
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_KEY);
@@ -318,6 +321,13 @@ export function FreeATSChecker({ heading }: FreeATSCheckerProps = {}) {
                   {t("bullets.unlockFixes")}
                 </div>
               </div>
+
+              {/* Campaign-aware: carries the arriving campaign as the store `ct` token. */}
+              <AppStoreCta
+                label={t("appStoreLink")}
+                locale={locale}
+                className="inline-flex text-sm font-semibold text-foreground underline underline-offset-4 decoration-foreground/30 hover:decoration-foreground"
+              />
 
               <div className="hidden pt-4 border-t border-border/50 lg:block">
                 <p className="text-sm text-foreground/60">

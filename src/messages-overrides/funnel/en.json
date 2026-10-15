@@ -22,8 +22,8 @@
   "landing": {
     "atsChecker": {
       "badge": "Resumely Match Score",
-      "title": "See how your resume matches the job before you apply.",
-      "description": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
+      "title": "Paste the job. See what's missing. Fix it.",
+      "description": "Upload your resume as a PDF and paste the job posting. You get a Resumely Match Score, the skills the job asks for that your resume does not show yet, and the first fixes to make.",
       "badges": {
         "atsSafe": "Fit before you apply",
         "topFixes": "Missing skills surfaced",
@@ -38,6 +38,7 @@
       "loginLink": "Log in",
       "heroCta": "Check your fit free",
       "heroCtaSecondary": "See how it works",
+      "appStoreLink": "Also on iPhone, in English and Hebrew",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "connection": "We could not reach the server. Please try again.",
@@ -67,7 +68,7 @@
       "urlHelper": "Paste a public job post URL and we will fetch the description.",
       "shortTextNudge": "Short on text? Switch to \"From URL\" and paste the job link instead.",
       "linkedinWarning": "LinkedIn blocks automated fetch. Paste the description text instead for an accurate score.",
-      "checking": "Running ATS check...",
+      "checking": "Checking your match...",
       "submit": "Get my Match Score",
       "invalidUrl": "Enter a valid job post URL.",
       "checklist": {
@@ -153,7 +154,13 @@
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
       "fit": {
-        "label": "Estimated fit"
+        "label": "Estimated fit",
+        "note": "An estimate of your fit for this job, not a hiring guarantee.",
+        "verdicts": {
+          "Strong": "Strong",
+          "Stretch": "Stretch",
+          "Skip": "Skip"
+        }
       },
       "topIssues": "Highest-impact fixes first",
       "lockedTitle": "Unlock {count} more high-impact fixes",

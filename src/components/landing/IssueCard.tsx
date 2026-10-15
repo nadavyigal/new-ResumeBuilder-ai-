@@ -32,7 +32,7 @@ export function IssueCard({ issue, rank }: IssueCardProps) {
             )}
             {typeof issue.estimated_gain === "number" && (
               <Badge variant="outline" className="text-xs">
-                {t("points", { points: issue.estimated_gain })}
+                {t("points", { points: Math.round(issue.estimated_gain * 10) / 10 })}
               </Badge>
             )}
             {issue.quick_win && (

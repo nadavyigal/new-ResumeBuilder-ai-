@@ -184,7 +184,10 @@ function sumEstimatedGain(items: IssueItem[], category: MainIssueKey): number | 
   const total = items
     .filter((item) => normalizeCategory(item.category) === category)
     .reduce((sum, item) => sum + (typeof item.estimated_gain === 'number' ? item.estimated_gain : 0), 0);
-  return total > 0 ? total : null;
+  // Gains are fractional (1.1 + 0.8), and summing them in floating point printed
+  // "+1.9000000000000001" on the free check. One decimal is all the precision they carry.
+  const rounded = Math.round(total * 10) / 10;
+  return rounded > 0 ? rounded : null;
 }
 
 export function MainIssuesSummary({

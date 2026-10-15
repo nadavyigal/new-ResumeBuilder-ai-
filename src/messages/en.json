@@ -21,8 +21,8 @@
   "landing": {
     "atsChecker": {
       "badge": "Resumely Match Score",
-      "title": "See how your resume matches the job before you apply.",
-      "description": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
+      "title": "Paste the job. See what's missing. Fix it.",
+      "description": "Upload your resume as a PDF and paste the job posting. You get a Resumely Match Score, the skills the job asks for that your resume does not show yet, and the first fixes to make.",
       "badges": {
         "atsSafe": "Fit before you apply",
         "topFixes": "Missing skills surfaced",
@@ -35,6 +35,7 @@
       },
       "heroCta": "Check your fit free",
       "heroCtaSecondary": "See how it works",
+      "appStoreLink": "Also on iPhone, in English and Hebrew",
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
       "errors": {
@@ -84,13 +85,14 @@
     },
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
-      "match": {
-        "strong": "Strong match",
-        "good": "Good match",
-        "needsImprovement": "Needs improvement"
-      },
       "fit": {
-        "label": "Estimated fit"
+        "label": "Estimated fit",
+        "note": "An estimate of your fit for this job, not a hiring guarantee.",
+        "verdicts": {
+          "Strong": "Strong",
+          "Stretch": "Stretch",
+          "Skip": "Skip"
+        }
       },
       "topIssues": "Top issues",
       "lockedTitle": "Unlock {count} more fixes",
@@ -1700,9 +1702,9 @@
       "description": "Upload your resume and paste a job description to get a free Resumely Match Score: an estimate of your fit for the job, plus the top keyword gaps. No sign-up required."
     },
     "appStoreCta": {
-      "heading": "Fix your resume in the Resumely app",
-      "subheading": "AI rewrites your resume to match the job description. Export a tailored PDF in 5 minutes.",
-      "button": "Download Resumely — Free",
+      "heading": "Tailor it on your iPhone",
+      "subheading": "Paste the same job into the Resumely app, tailor your resume to it, and export a PDF. In English and Hebrew.",
+      "button": "Get Resumely on the App Store",
       "orText": "or"
     }
   }

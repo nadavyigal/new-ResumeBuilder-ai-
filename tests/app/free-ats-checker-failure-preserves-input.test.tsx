@@ -47,6 +47,7 @@ function formatMessage(template: string, values?: Record<string, unknown>) {
 
 jest.mock('next-intl', () => ({
   __esModule: true,
+  useLocale: () => 'en',
   useTranslations: (namespace?: string) => (key: string, values?: Record<string, unknown>) => {
     const fullKey = namespace ? `${namespace}.${key}` : key;
     return formatMessage(translations[fullKey] ?? fullKey, values);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Lock, Sparkles } from "@/lib/icons";
+import { Lock } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CountUp } from "@/components/ui/CountUp";
@@ -37,8 +37,11 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
       ? "border-amber-500/30 bg-amber-500/10 text-amber-700"
       : "border-rose-500/30 bg-rose-500/10 text-rose-700";
 
-  const matchLabel =
-    score >= 85 ? t("match.strong") : score >= 70 ? t("match.good") : t("match.needsImprovement");
+  // One label, from one scale. The verdict comes from the calibrated fit bands
+  // (src/lib/ats/config/bands.ts). A second label from fixed 85/70 cut-offs used
+  // to sit under the score and could say "Needs improvement" under a "Strong"
+  // verdict. When the verdict is withheld (thin job extraction), no label shows.
+  const verdict = data.fit?.verdict ?? null;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -83,7 +86,7 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
   return (
     <div data-testid="ats-score-display" className="space-y-6">
       <div className="text-center space-y-2">
-        {data.fit && (
+        {verdict && (
           <div
             data-testid="fit-verdict"
             className={`mx-auto mb-3 max-w-sm rounded-2xl border px-4 py-3 ${fitTone}`}
@@ -91,17 +94,13 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
             <div className="text-xs font-semibold text-foreground/60">
               {t("fit.label")}
             </div>
-            <div className="text-2xl font-bold text-foreground">{data.fit.verdict}</div>
-            <p className="mt-1 text-xs text-foreground/60">{data.fit.scoreNote}</p>
+            <div className="text-2xl font-bold text-foreground">{t(`fit.verdicts.${verdict}`)}</div>
+            <p className="mt-1 text-xs text-foreground/60">{t("fit.note")}</p>
           </div>
         )}
         <div data-testid="ats-score" className="text-5xl font-bold text-foreground">
           <CountUp end={score} duration={2} />
           <span className="text-2xl text-foreground/60">/100</span>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full bg-secondary/60 px-4 py-1 text-sm font-semibold">
-          <Sparkles className="w-4 h-4 text-mobile-cta" />
-          {matchLabel}
         </div>
         {checksRemainingLabel && (
           <div className="text-xs text-foreground/60">{checksRemainingLabel}</div>
