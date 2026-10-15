@@ -107,7 +107,7 @@ on iOS (diagnostic only); App Store ratings 0 in the US and 2 in Israel (average
 - **G3, Hebrew positioning.** "Fit my CV to this job" in Hebrew, not "a Hebrew CV builder".
   The listing exists, so the work is copy in the G0 posts and the G1 Hebrew page.
 
-### Pricing (decide now, build behind a switch)
+### Pricing (decide and specify now; StoreKit build waits for the gate)
 
 - **P1, pack shape.** Record D1 as a new EXD row in Agentic OS, superseding the spec's
   subscription tier if the founder agrees.
