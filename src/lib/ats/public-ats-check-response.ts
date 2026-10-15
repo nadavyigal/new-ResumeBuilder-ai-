@@ -63,6 +63,10 @@ export function buildPublicAtsCheckResponse(score: any, sessionId: string, remai
     },
     preview: {
       topIssues,
+      // G1c-1 (2026-10-15): every issue is shown without an account. Additive:
+      // topIssues and lockedCount keep their old meaning, so installed iOS
+      // builds that decode them behave exactly as before.
+      moreIssues: suggestions.slice(3),
       totalIssues: suggestions.length,
       lockedCount: Math.max(0, suggestions.length - 3),
     },
