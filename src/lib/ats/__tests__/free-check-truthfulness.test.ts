@@ -259,6 +259,29 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
     expect(checkQuickWinGrounding(qw(original, optimized), ctxFor(c)).violations).toContain(violation);
   });
 
+  // Hebrew (2026-10-12): proclitics and verb swaps no longer read as job terms.
+  describe('Hebrew', () => {
+    const he: GroundingContext = {
+      resumeText: 'נועה מזרחי\nמורה למתמטיקה, תיכון כרמל 2017 – היום\n• טיפלתי בדוחות חודשיים למנהלים.\n• בניתי 12 יחידות לימוד מקוונות במודל.',
+      jobText: 'מעצב/ת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין. פיתוח יחידות לימוד.',
+    };
+    it.each([
+      // Not "ניהול": handled -> managed is an authority claim (review of #170).
+      ['verb swap + dropped proclitic', 'טיפלתי בדוחות חודשיים למנהלים.', 'הכנת דוחות חודשיים למנהלים.'],
+      ['verb swap', 'בניתי 12 יחידות לימוד מקוונות במודל.', 'פיתוח 12 יחידות לימוד מקוונות במודל.'],
+    ])('accepts an honest rewrite: %s', (_label, original, optimized) => {
+      expect(checkQuickWinGrounding(qw(original, optimized), he)).toMatchObject({ ok: true, violations: [] });
+    });
+
+    it('still rejects a job-post duty added in Hebrew', () => {
+      const check = checkQuickWinGrounding(
+        qw('טיפלתי בדוחות חודשיים למנהלים.', 'טיפלתי בדוחות חודשיים למנהלים והצגתי תובנות לבעלי עניין.'),
+        he,
+      );
+      expect(check.violations).toContain('job_terms_added');
+    });
+  });
+
   // PR Steward review on #167, 2026-10-12: one shared neighbour ("accounts")
   // let a renewal count become a portfolio size.
   describe('summary numbers keep the phrase they came from', () => {

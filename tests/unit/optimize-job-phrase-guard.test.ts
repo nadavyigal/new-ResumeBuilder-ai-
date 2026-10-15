@@ -216,13 +216,33 @@ describe('Codex review', () => {
     expect(bulletsOf(out.resume)).not.toContain('Answered customer calls and logged tickets.');
   });
 
-  it('P1: holds nothing for a Hebrew résumé or job, until Hebrew prefixes and verbs are handled', async () => {
-    const hebrewResume = 'נועה מזרחי\nמורה למתמטיקה, תיכון כרמל 2017 – היום\n• טיפלתי בדוחות חודשיים למנהלים.';
-    const hebrewJob = 'מעצבת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין.';
-    const r = resumeWith(['ניהלתי דוחות חודשיים למנהלים והצגתי תובנות.'], 'תיכון כרמל', 'מורה למתמטיקה');
-    const out = await enforceJobAdTruth(r, { resumeText: hebrewResume, jobDescription: hebrewJob, repair: repairReturning(null), holdJobPhrases: true });
+  // Hebrew (2026-10-12): proclitics (ו ה ב ל מ ש כ) and verb swaps are handled,
+  // so Hebrew pairs get the same guard as English.
+  const HE_RESUME = 'נועה מזרחי\nמורה למתמטיקה, תיכון כרמל 2017 – היום\n• טיפלתי בדוחות חודשיים למנהלים.\n• בניתי 12 יחידות לימוד מקוונות במודל.';
+  const HE_JOB = 'מעצב/ת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין. פיתוח יחידות לימוד.';
+
+  it('Hebrew: a verb swap and a dropped proclitic hold nothing', async () => {
+    const r = resumeWith(['הכנת דוחות חודשיים למנהלים.', 'פיתוח 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const out = await enforceJobAdTruth(r, { resumeText: HE_RESUME, jobDescription: HE_JOB, repair: repairReturning(null), holdJobPhrases: true });
     expect(out.held).toEqual([]);
     expect(out.changed).toBe(false);
+  });
+
+  // Review of #170: "handled" -> the job's "management" claims authority the
+  // résumé never states, so it is held like any other job-post phrase.
+  it('Hebrew: swapping in the job\'s "ניהול" is held when the résumé claims no authority', async () => {
+    const r = resumeWith(['ניהול דוחות חודשיים למנהלים.', 'בניתי 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const out = await enforceJobAdTruth(r, { resumeText: HE_RESUME, jobDescription: HE_JOB, repair: repairReturning(null), holdJobPhrases: true });
+    expect(out.held).toEqual([expect.objectContaining({ proposed: 'ניהול דוחות חודשיים למנהלים.' })]);
+  });
+
+  it('Hebrew: a job-post phrase is held back like in English', async () => {
+    const r = resumeWith(['טיפלתי בדוחות חודשיים למנהלים, והצגתי תובנות לבעלי עניין.', 'בניתי 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const out = await enforceJobAdTruth(r, { resumeText: HE_RESUME, jobDescription: HE_JOB, repair: repairReturning(null), holdJobPhrases: true });
+    expect(bulletsOf(out.resume)[0]).toBe('טיפלתי בדוחות חודשיים למנהלים.');
+    expect(out.held).toEqual([
+      expect.objectContaining({ kept: 'טיפלתי בדוחות חודשיים למנהלים.', proposed: 'טיפלתי בדוחות חודשיים למנהלים, והצגתי תובנות לבעלי עניין.' }),
+    ]);
   });
 
   it('P2: holding a whole bullet never loses a tool the résumé really has', async () => {
