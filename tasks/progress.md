@@ -19,6 +19,10 @@ G3 promise exists for free; Resumely must win on no account, "Add only if true" 
 finished file. Teal: free plan, Teal+ $13 / 7 days, $29 / 30 days, $79 / 90 days, and it
 also calls its number a Match Score. R2, R6 and the new R8 (Apple Small Business Program,
 StoreKit gate condition 2) are written as founder steps. R7 waits for 30 exporters.
+Follow-up the same day: Resumaker prices from public Trustpilot reviews. Israel: about ₪20
+paid at download (2022 reviews), no renewal stated. Denmark (same company): 19 kr 14-day
+trial, then 229 kr every 4 weeks (2025 to 2026). Whether Israel now auto-renews is still
+unverified (it would need a purchase).
 
 **How.** Public pages only, signed out, in the built-in browser (D4). Docs only, no code;
 lint and tests not applicable.
