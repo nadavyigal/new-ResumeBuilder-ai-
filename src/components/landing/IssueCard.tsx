@@ -1,6 +1,7 @@
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { ATSIssue } from "@/components/landing/FreeATSChecker";
+import { localizeIssueText } from "@/lib/ats/suggestions/localize-issue-text";
 
 interface IssueCardProps {
   issue: ATSIssue;
@@ -9,6 +10,10 @@ interface IssueCardProps {
 
 export function IssueCard({ issue, rank }: IssueCardProps) {
   const t = useTranslations("landing.issueCard");
+  const tIssueText = useTranslations("landing.issueCard.issueText");
+  const locale = useLocale();
+  // The API sends English text (iOS reads it as-is); other locales re-render it here.
+  const issueText = locale === "en" ? issue.text : localizeIssueText(issue, tIssueText);
   const categoryKey = issue.category?.trim().toLowerCase();
   const categoryLabel =
     categoryKey && t.has(`categories.${categoryKey}`) ? t(`categories.${categoryKey}`) : issue.category;
@@ -23,7 +28,7 @@ export function IssueCard({ issue, rank }: IssueCardProps) {
           {rank}
         </div>
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="break-words text-sm font-medium text-foreground">{issue.text}</p>
+          <p className="break-words text-sm font-medium text-foreground">{issueText}</p>
           <div className="flex flex-wrap items-center gap-2">
             {categoryLabel && (
               <Badge variant="secondary" className="text-xs">
