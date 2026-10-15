@@ -101,7 +101,62 @@
     },
     "issueCard": {
       "points": "+{points} pts",
-      "quickWin": "Quick win"
+      "quickWin": "Quick win",
+      "issueText": {
+        "keywordExact": {
+          "addMissingSkill": "Add the missing skill \"{keyword}\" to Skills and mention it in a recent, relevant achievement if accurate",
+          "prioritizeMustHave": "Prioritize these {count} must-have skills in Skills and experience bullets: {keywords}",
+          "addNiceToHave": "If accurate, add these nice-to-have skills to Skills or your tools list: {keywords}",
+          "keywordInContext": "Add \"{keyword}\" in context on your resume"
+        },
+        "keywordPhrase": {
+          "workConcept": "Work the concept \"{phrase}\" into an existing achievement using your own wording",
+          "addPhrases": "Add 1-2 job-description phrases to achievements or summary (in your own wording): {phrases}"
+        },
+        "semanticRelevance": {
+          "updateSummary": "Update your summary to clearly describe relevant experience for this role",
+          "addContext": "Add context to achievements to show where and how your skills were applied"
+        },
+        "titleAlignment": {
+          "alignTitle": "Align your headline or summary with the target title \"{targetTitle}\" if it matches your experience",
+          "clarifySeniority": "Clarify your seniority level ({seniority}) in the summary without changing official job titles"
+        },
+        "metricsPresence": {
+          "quantify": "Quantify {count} achievements with concrete outcomes (percent, cost, time, or scale)",
+          "addRecentMetric": "Add at least one metric to your most recent role (for example: time saved, revenue, users, or efficiency)",
+          "addTimeframes": "Include timeframes showing speed of delivery (e.g., \"in 3 months\")"
+        },
+        "sectionCompleteness": {
+          "addSection": "Add the missing section: {section}",
+          "expandSummary": "Expand your professional summary to 50-150 words with role-focused detail",
+          "achievementBullets": "Ensure all experience roles have achievement bullets"
+        },
+        "formatParseability": {
+          "safeTemplate": "Switch to a simple template (single column, no graphics)",
+          "removeTables": "Remove tables and use simple text formatting instead",
+          "removeImages": "Remove images, logos, and graphics, which many resume readers cannot parse",
+          "singleColumn": "Convert multi-column layout to single column"
+        },
+        "recencyFit": {
+          "moveRecent": "Move recent, relevant projects closer to the top of your experience",
+          "highlightGrowth": "Highlight recent skill growth to show current relevance",
+          "addCertifications": "Add recent certifications or training to demonstrate current expertise"
+        },
+        "listMore": "{list}, and {count} more",
+        "sections": {
+          "summary": "summary",
+          "skills": "skills",
+          "experience": "experience",
+          "education": "education"
+        },
+        "seniority": {
+          "entry": "entry",
+          "junior": "junior",
+          "mid": "mid",
+          "senior": "senior",
+          "executive": "executive"
+        }
+      }
     },
     "share": {
       "messageLinkedIn": "I just ran my resume through Resumely and scored {score}/100! See how your resume performs: {url}",
