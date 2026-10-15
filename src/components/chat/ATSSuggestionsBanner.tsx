@@ -7,9 +7,10 @@
 import React, { useState } from 'react';
 import type { Suggestion } from '@/lib/ats/types';
 import { ChevronDown, ChevronUp, Lightbulb, Zap, TrendingUp } from '@/lib/icons';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { MainIssuesSummary } from '@/components/ats/MainIssuesSummary';
 import { SUGGESTION_THRESHOLDS } from '@/lib/ats/config/thresholds';
+import { localizeIssueText } from '@/lib/ats/suggestions/localize-issue-text';
 
 interface ATSSuggestionsBannerProps {
   suggestions: Suggestion[];
@@ -20,6 +21,8 @@ type NumberedSuggestion = Suggestion & { number: number };
 
 export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps) {
   const t = useTranslations('dashboard.chat.suggestionsBanner');
+  const tIssueText = useTranslations('landing.issueCard.issueText');
+  const locale = useLocale();
   const [isExpanded, setIsExpanded] = useState(false); // Start collapsed to match target UI
 
   if (suggestions.length === 0) {
@@ -86,7 +89,8 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
                       <span className="font-semibold text-blue-600 dark:text-blue-400">
                         {t('tipLabel', { number: suggestion.number })}
                       </span>{' '}
-                      {suggestion.text}
+                      {/* The API sends English text (iOS reads it as-is); other locales re-render it here. */}
+                      {locale === 'en' ? suggestion.text : localizeIssueText(suggestion, tIssueText)}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded font-medium">
