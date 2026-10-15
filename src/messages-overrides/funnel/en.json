@@ -73,7 +73,7 @@
       "invalidUrl": "Enter a valid job post URL.",
       "checklist": {
         "resume": "Add your resume",
-        "job": "Add a job description — 100+ words or a job link"
+        "job": "Add a job description of 100+ words, or a job link"
       },
       "hints": {
         "resumeRequired": "Upload your resume to start.",
