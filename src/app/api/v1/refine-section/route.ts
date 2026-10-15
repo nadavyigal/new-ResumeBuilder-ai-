@@ -6,6 +6,8 @@ import type { RefineSectionRequest, RefineSectionResponse } from '@/types/refine
 import { buildRefineSectionPrompt } from '@/lib/ai/prompt-builders/refineSectionPrompt';
 import { coerceModelJson, validateRefineSuggestion } from '@/lib/ai/validators/refineSection';
 import { consumeCredit } from '@/lib/credits';
+import { MONETIZATION_ENABLED } from '@/lib/premium-access';
+import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -31,15 +33,36 @@ export async function POST(request: NextRequest) {
 
     const temperature = 0.2;
 
-    const creditResult = await consumeCredit(user.id, 'refine_section');
-    if (!creditResult.ok) {
-      if (creditResult.status === 402) {
-        return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
-      }
+    // With the credit charge off, this is the only cap on OpenAI spend here.
+    const rateResult = checkRateLimit(`refine-section:${user.id}`, RATE_LIMITS.ai);
+    if (!rateResult.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((rateResult.resetTime - Date.now()) / 1000));
       return NextResponse.json(
-        { error: 'credit_consume_failed', details: creditResult.details },
-        { status: 500 }
+        { error: 'Rate limit exceeded. Please slow down and try again shortly.' },
+        {
+          status: 429,
+          headers: {
+            ...getRateLimitHeaders(rateResult),
+            'Retry-After': retryAfter.toString(),
+            'X-RateLimit-Limit': RATE_LIMITS.ai.maxRequests.toString(),
+          },
+        }
       );
+    }
+
+    // No credit is charged before the StoreKit gate opens. With monetization
+    // off (the default) nothing is consumed and nothing answers 402.
+    if (MONETIZATION_ENABLED) {
+      const creditResult = await consumeCredit(user.id, 'refine_section');
+      if (!creditResult.ok) {
+        if (creditResult.status === 402) {
+          return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
+        }
+        return NextResponse.json(
+          { error: 'credit_consume_failed', details: creditResult.details },
+          { status: 500 }
+        );
+      }
     }
 
     const { system, user: userMsg } = buildRefineSectionPrompt({ req: body });

@@ -29,8 +29,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'unknown_product' }, { status: 400 });
   }
 
+  // Fail closed: no verified Apple transaction, no credits. An unconfigured
+  // verifier used to skip this check and grant for any made-up transaction ID.
   const verification = await verifyAppleTransaction(appleTransactionId);
-  if (process.env.APPLE_VERIFY_TRANSACTIONS_URL && !verification.verified) {
+  if (verification.message === 'apple_verification_not_configured') {
+    return NextResponse.json({ error: 'iap_verification_unavailable' }, { status: 503 });
+  }
+  if (!verification.verified) {
     return NextResponse.json(
       {
         error: 'apple_verification_failed',
@@ -63,6 +68,6 @@ export async function POST(request: NextRequest) {
     success: true,
     creditsGranted: grantAmount,
     balance: typeof data === 'number' ? data : null,
-    verification: verification.verified ? 'verified' : 'not_configured',
+    verification: 'verified',
   });
 }
