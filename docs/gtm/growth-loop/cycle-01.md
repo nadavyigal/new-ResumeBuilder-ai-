@@ -1,7 +1,8 @@
 # Cycle 1 — `rb-li-20260910-trusted-workspace`
 
-Seeded, not run. Paste these into [`experiment-card.html`](./experiment-card.html) and
-work the six stages. Nothing here has been published and nothing has been measured.
+Stage 2 run 2026-10-15: tracking verified, baseline not yet read, signed-out check needs a
+founder decision (see stage 2). Paste these into [`experiment-card.html`](./experiment-card.html)
+and work the six stages. Nothing here has been published.
 
 ## 1. Frame
 
@@ -39,16 +40,79 @@ no rating claim, no employment-outcome claim. The avoid-list it was checked agai
 the Resumely iOS repo's `.agents/product-marketing.md`: *pass ATS, guaranteed, beat the
 bots, official ATS score, get interviews, pass filters, auto-apply, למצוא עבודה*.
 
-**Pre-action baseline — NOT YET READ.** Run this in the Resumely iOS repo before
-publishing and paste the headline plus the read timestamp into the card:
+**Copy (prompt 1):** filed 2026-10-15 as `builder-os-exchange` PR #27,
+`outbox/2026-10-15-growth-communications-rb-cycle-01-post.md`. Vault post 2 with reason 3
+removed (founder decision D2), cover-letter claim checked against the live listing and
+kept. Independent review (marketing contract section 5) still pending.
+
+### Stage 2 record, 2026-10-15 (Claude Code)
+
+| Check | Result |
+|---|---|
+| Baseline | **NOT YET READ.** `measurement_contract.py` stopped: `AGENTIC_OS_POSTHOG_API_KEY` is not set on this machine. No number was read or estimated. |
+| Tracking | **`verified`**, 2026-10-15 06:02 UTC. |
+| Signed-out score check | **Score and gaps shown, no 402. A sign-up prompt does appear.** Founder decision before posting. |
+
+**Pre-action baseline: NOT YET READ.** The script reads the key only from the
+environment and stopped with `STOPPED: AGENTIC_OS_POSTHOG_API_KEY is not set`. Run this in
+the Resumely iOS repo before publishing and paste the headline plus the read timestamp here:
 
 ```bash
 AGENTIC_OS_POSTHOG_API_KEY=… python3 scripts/measurement_contract.py
 ```
 
-**Tracking status: `unverified`.** It becomes `verified` only after the destination link
-above is opened end to end and `campaign_id` is observed on the arrival. Until then the
-card blocks a real publication, and founder approval does not lift that block.
+**Tracking: `verified`.** The destination link above was opened signed-out in a clean
+browser on 2026-10-15. Observed:
+
+- The page stored `resumely_campaign_context` with `campaign_id = rb-li-20260910-trusted-workspace`,
+  and the App Store button pointed at `…id6776752349?ct=rb-li-20260910-trusted-workspace&at=organic`.
+- PostHog project 270848, after an explicit switch (`/api/projects/270848/` returned
+  "ResumeBuilder AI", current team 270848) and a fingerprint check (`$ai_generation` with
+  `$ai_lib = resumely-posthog-node`, `optimization_review_created`, `resume_file_selected`
+  all present in the last 30 days). Read-only SQL:
+
+| UTC | Event | distinct_id | campaign_id |
+|---|---|---|---|
+| 05:59:15 | `$pageview` | `01a06220-b48b-72b0-b5a0-3592090fe11f` | `rb-li-20260910-trusted-workspace` |
+| 06:00:02 | `campaign_store_handoff` | `01a06220-b48b-72b0-b5a0-3592090fe11f` | `rb-li-20260910-trusted-workspace` |
+| 06:00:54 | `$pageview` | `01a13e26-3555-7afd-933c-82079b5b0dba` | `rb-li-20260910-trusted-workspace` |
+| 06:01:25 | `ats_checker_score_displayed` | `01a13e26-3555-7afd-933c-82079b5b0dba` | `rb-li-20260910-trusted-workspace` |
+| 06:01:26 | `signup_popup_viewed` | `01a13e26-3555-7afd-933c-82079b5b0dba` | `rb-li-20260910-trusted-workspace` |
+
+Every event also carried `utm_campaign` and `utm_content = he_li_trusted_01`.
+
+**Test arrivals to exclude from every later count.** Exactly two distinct ids have ever
+carried this campaign id (read 2026-10-15 06:02 UTC, all events since 2026-09-01):
+`01a06220-b48b-72b0-b5a0-3592090fe11f` (1 pageview, 1 store handoff) and
+`01a13e26-3555-7afd-933c-82079b5b0dba` (1 pageview, the score check). Both are excluded
+twice over: the readout window starts at the post time, which is after 06:02 UTC on
+2026-10-15, and the readout query adds `distinct_id not in (these two)`.
+
+**Signed-out score check: score and gaps yes, no 402, but a sign-up prompt appears.**
+Same campaign link, signed out (no Supabase session in storage), a fictional demo resume
+(`tests/fixtures/free-check-2026-10-11/maya-levin-resume.txt` as a PDF) and job ad
+(`job-data-analyst.txt`):
+
+- `POST /api/public/ats-check` returned **200**. No 402 anywhere.
+- The page showed the score (62/100), the top 3 gaps with the missing keywords
+  (`sql queries, tableau, regional performance, sales leadership`) and 3 quick wins.
+- **About 1 second later a sign-up modal covers the result** ("רוצים את כל תוכנית
+  התיקון? ... פתיחת חשבון חינם / לא עכשיו"). It is dismissible. Trigger:
+  `src/components/landing/ATSScoreDisplay.tsx:43-61`, a 900 ms timer whenever
+  `preview.lockedCount > 0` (here 7 of 10 issues are locked behind an account).
+
+The post itself does not claim "no sign-up". Its claims (a match score and what is
+missing) held with no account. Whether the post goes out with the modal in place, or waits
+for G1c to remove it, is the founder's call.
+
+**Seen on the way (not fixed here; G1a or G1c):**
+
+- The fit verdict reads "Strong" above a 62/100 score labelled "דורש שיפור" (needs
+  improvement). The two labels disagree.
+- English strings on the Hebrew page: "Estimated fit vs this job, not a hiring
+  guarantee." and the issue texts ("Add the missing skill ...").
+- Gap 2 shows "+1.9000000000000001 נק׳" (unrounded float).
+- The App Store button reads "הורד Resumely — חינם" (a "free" claim and an em dash).
 
 ## 3–6
 
