@@ -36,8 +36,13 @@ async function loadFunnelOverrides(locale: Locale): Promise<Messages> {
   }
 }
 
-export default getRequestConfig(async ({ locale }) => {
-  const resolvedLocale = isLocale(locale) ? locale : defaultLocale;
+export default getRequestConfig(async ({ locale, requestLocale }) => {
+  // next-intl v4 only fills `locale` when a caller passes one explicitly
+  // (getTranslations({ locale })). Implicit calls, like the server Footer's
+  // getTranslations("footer"), carry the route's locale in `requestLocale`.
+  // Reading `locale` alone rendered the footer in English on every /he page.
+  const candidate = locale ?? (await requestLocale);
+  const resolvedLocale = isLocale(candidate) ? candidate : defaultLocale;
   const messages = (await import(`./messages/${resolvedLocale}.json`)).default as Messages;
   const enOverrides = await loadFunnelOverrides(defaultLocale);
 

@@ -6,16 +6,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Upload, FileSearch, Download } from "@/lib/icons";
+import { Upload, FileSearch, Download, FileText } from "@/lib/icons";
 import { useTranslations } from "next-intl";
 
 export function HowItWorks() {
   const t = useTranslations("landing.howItWorks");
   const steps = t.raw("steps") as Array<{ title: string; description: string }>;
-  const stepIcons = [Upload, FileSearch, Download];
+  const stepIcons = [Upload, FileText, FileSearch, Download];
 
   return (
-    <section className="py-16 md:py-24 bg-background">
+    <section id="how-it-works" className="py-16 md:py-24 bg-background">
       <div className="container px-4 mx-auto">
         {/* Section Header */}
         <div className="max-w-3xl mx-auto mb-12 md:mb-16 text-center">
@@ -66,7 +66,7 @@ export function HowItWorks() {
         </div>
 
         {/* Desktop: Cards */}
-        <div className="hidden md:grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <div className="hidden md:grid md:grid-cols-2 xl:grid-cols-4 gap-8 max-w-6xl mx-auto">
           {steps.map((step, index) => {
             const StepIcon = stepIcons[index];
             if (!StepIcon) return null;

@@ -1,7 +1,8 @@
 // src/app/[locale]/ats-checker/page.tsx
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { AppStoreCta } from '@/components/landing/AppStoreCta';
+import { AtsCheckerExplainer } from '@/components/landing/AtsCheckerExplainer';
 import { FreeATSChecker } from '@/components/landing/FreeATSChecker';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -13,7 +14,7 @@ interface AtsCheckerPageProps {
 export async function generateMetadata({ params }: AtsCheckerPageProps): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.meta' });
-  const baseUrl = 'https://resumelybuilderai.com';
+  const baseUrl = 'https://www.resumelybuilderai.com';
   const pageUrl = locale === 'en'
     ? `${baseUrl}/ats-checker`
     : `${baseUrl}/${locale}/ats-checker`;
@@ -39,13 +40,18 @@ export async function generateMetadata({ params }: AtsCheckerPageProps): Promise
 
 export default async function AtsCheckerPage({ params }: AtsCheckerPageProps) {
   const { locale } = await params;
+  // Without this, server components below (Footer) render in the default locale on /he.
+  setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: 'atsCheckerPage.appStoreCta' });
+  const tHero = await getTranslations({ locale, namespace: 'atsCheckerPage.hero' });
 
   return (
     <>
       <Header />
       <main>
-        <FreeATSChecker />
+        <FreeATSChecker heading={tHero('title')} />
+
+        <AtsCheckerExplainer locale={locale} />
 
         {/* App Store attribution CTA — shown below the checker */}
         <section className="py-12 bg-muted/30 border-t border-border">

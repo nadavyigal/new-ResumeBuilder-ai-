@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/navigation";
 import { Sparkles, ShieldCheck } from "@/lib/icons";
 import { posthog } from "@/lib/posthog";
 import { UploadForm } from "@/components/landing/UploadForm";
 import { LoadingState } from "@/components/landing/LoadingState";
 import { ATSScoreDisplay } from "@/components/landing/ATSScoreDisplay";
+import { AppStoreCta } from "@/components/landing/AppStoreCta";
 import { RateLimitMessage } from "@/components/landing/RateLimitMessage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,14 +53,20 @@ export interface ATSCheckerResponse {
   }>;
   checksRemaining: number;
   fit?: {
-    verdict: "Strong" | "Stretch" | "Skip";
+    /** null when the job extraction was too thin to support a verdict. */
+    verdict: "Strong" | "Stretch" | "Skip" | null;
     scoreNote: string;
     topGaps: string[];
     missingKeywords: string[];
   };
 }
 
-export function FreeATSChecker() {
+interface FreeATSCheckerProps {
+  /** Overrides the hero H1 so pages that embed the checker do not share the homepage heading. */
+  heading?: string;
+}
+
+export function FreeATSChecker({ heading }: FreeATSCheckerProps = {}) {
   const [step, setStep] = useState<CheckerStep>("upload");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [scoreData, setScoreData] = useState<ATSCheckerResponse | null>(null);
@@ -67,6 +74,7 @@ export function FreeATSChecker() {
   const [rateLimitResetAt, setRateLimitResetAt] = useState<Date | null>(null);
   const router = useRouter();
   const t = useTranslations("landing.atsChecker");
+  const locale = useLocale();
 
   useEffect(() => {
     const stored = localStorage.getItem(SESSION_KEY);
@@ -113,6 +121,13 @@ export function FreeATSChecker() {
     uploadCard?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
     const fileInput = document.getElementById("resume") as HTMLInputElement | null;
     fileInput?.focus();
+  };
+
+  const handleSecondaryCtaClick = () => {
+    posthog.capture("ats_checker_secondary_cta_clicked");
+    const howItWorks = document.getElementById("how-it-works");
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    howItWorks?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
   };
 
   const handleSubmit = async (
@@ -244,21 +259,44 @@ export function FreeATSChecker() {
                   data-testid="ats-checker-heading"
                   className="text-4xl md:text-5xl font-bold text-foreground leading-tight"
                 >
-                  {t("title")}
+                  {heading ?? t("title")}
                 </h1>
                 <p className="text-lg text-foreground/80 leading-relaxed">
                   {t("description")}
                 </p>
               </div>
 
-              <Button
-                type="button"
-                data-testid="ats-checker-hero-cta"
-                onClick={handleHeroCtaClick}
-                className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)] lg:hidden"
-              >
-                {t("heroCta")}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 lg:hidden">
+                <Button
+                  type="button"
+                  data-testid="ats-checker-hero-cta"
+                  onClick={handleHeroCtaClick}
+                  className="w-full border-0 bg-[hsl(142_76%_24%)] text-white hover:bg-[hsl(142_76%_20%)]"
+                >
+                  {t("heroCta")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="ats-checker-secondary-cta"
+                  onClick={handleSecondaryCtaClick}
+                  className="w-full border-2"
+                >
+                  {t("heroCtaSecondary")}
+                </Button>
+              </div>
+
+              <div className="hidden lg:flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="ats-checker-secondary-cta-desktop"
+                  onClick={handleSecondaryCtaClick}
+                  className="border-2"
+                >
+                  {t("heroCtaSecondary")}
+                </Button>
+              </div>
 
               <div className="flex flex-wrap gap-3">
                 <Badge variant="secondary" className="gap-2">
@@ -283,6 +321,13 @@ export function FreeATSChecker() {
                   {t("bullets.unlockFixes")}
                 </div>
               </div>
+
+              {/* Campaign-aware: carries the arriving campaign as the store `ct` token. */}
+              <AppStoreCta
+                label={t("appStoreLink")}
+                locale={locale}
+                className="inline-flex text-sm font-semibold text-foreground underline underline-offset-4 decoration-foreground/30 hover:decoration-foreground"
+              />
 
               <div className="hidden pt-4 border-t border-border/50 lg:block">
                 <p className="text-sm text-foreground/60">

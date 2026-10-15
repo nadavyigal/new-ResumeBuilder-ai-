@@ -21,22 +21,24 @@
   },
   "landing": {
     "atsChecker": {
-      "badge": "Free ATS Resume Check",
-      "title": "See How Recruiter Systems Read Your Resume",
-      "description": "Upload your resume, match it to a real job description, and get the most important fixes to apply first.",
+      "badge": "Resumely Match Score",
+      "title": "Paste the job. See what's missing. Fix it.",
+      "description": "Upload your resume as a PDF and paste the job posting. You get a Resumely Match Score, the skills the job asks for that your resume does not show yet, and the first fixes to make.",
       "badges": {
-        "atsSafe": "ATS-safe guidance",
-        "topFixes": "Prioritized fixes",
+        "atsSafe": "Fit before you apply",
+        "topFixes": "Missing skills surfaced",
         "weeklyChecks": "Free weekly checks"
       },
       "bullets": {
-        "v2Engine": "Role-aware analysis tuned for ATS parsing and recruiter review",
-        "hashPrivacy": "Privacy-first handling with secure processing",
-        "unlockFixes": "Create a free account to unlock the full fix plan and save progress"
+        "v2Engine": "Upload your resume and add a job description or link",
+        "hashPrivacy": "See strongest matches, missing skills, and top gaps",
+        "unlockFixes": "Tailor bullets and export your application package from your phone"
       },
       "existingAccount": "Already have an account?",
       "loginLink": "Log in",
-      "heroCta": "Check my resume →",
+      "heroCta": "Check your fit free",
+      "heroCtaSecondary": "See how it works",
+      "appStoreLink": "Also on iPhone, in English and Hebrew",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "connection": "We could not reach the server. Please try again.",
@@ -51,7 +53,7 @@
       "resumeLabel": "Resume (PDF)",
       "selectedFile": "Selected file: {fileName}",
       "dropzoneCta": "Choose a file",
-      "fileConstraints": "PDF only, up to 5MB. Processed privately, never stored.",
+      "fileConstraints": "PDF only, up to 5MB. We save the text so you can keep this check in a free account.",
       "jobDescriptionLabel": "Job description",
       "inputModes": {
         "text": "Paste text",
@@ -66,12 +68,12 @@
       "urlHelper": "Paste a public job post URL and we will fetch the description.",
       "shortTextNudge": "Short on text? Switch to \"From URL\" and paste the job link instead.",
       "linkedinWarning": "LinkedIn blocks automated fetch. Paste the description text instead for an accurate score.",
-      "checking": "Running ATS check...",
+      "checking": "Checking your match...",
       "submit": "Get my Match Score",
       "invalidUrl": "Enter a valid job post URL.",
       "checklist": {
         "resume": "Add your resume",
-        "job": "Add a job description — 100+ words or a job link"
+        "job": "Add a job description of 100+ words, or a job link"
       },
       "hints": {
         "resumeRequired": "Upload your resume to start.",
@@ -125,27 +127,40 @@
       }
     },
     "hero": {
-      "badge": "Job-Ready Resume Guidance",
-      "titleLine1": "Pass ATS Filters",
-      "titleLine2": "And Read Better to Recruiters",
-      "subtitle": "Get role-specific resume edits, clearer positioning, and stronger evidence of impact before you apply.",
+      "badge": "Resumely Match Score",
+      "titleLine1": "See how your resume matches",
+      "titleLine2": "the job before you apply",
+      "subtitle": "Paste the posting, get a Resumely Match Score, tailor in minutes, and export from your phone.",
       "benefits": [
-        "Spot ATS blockers before submitting",
-        "Match role language without keyword stuffing",
-        "Improve clarity and relevance section by section"
+        "Check fit before you apply",
+        "See missing skills and top gaps",
+        "Tailor and export from your phone"
       ],
-      "ctaPrimary": "Run Free ATS Check",
-      "ctaSecondary": "See The Process",
+      "ctaPrimary": "Check your fit free",
+      "ctaSecondary": "See how it works",
       "socialProof": {
         "resumesOptimized": "<strong>Role-aware</strong> resume analysis",
         "reviews": "<strong>Clear</strong> recruiter-facing guidance",
-        "atsApproved": "Built on ATS-safe writing principles"
+        "atsApproved": "ATS-friendly formatting with no guarantee of passage through any employer filter"
       }
+    },
+    "finalCta": {
+      "title": "Know your fit before you apply.",
+      "subtitle": "Paste the posting, tailor your resume, and export from your phone.",
+      "cta": "Check your fit free",
+      "appStoreLead": "Prefer your phone? Resumely is on iPhone, in English and Hebrew.",
+      "appStoreButton": "Get Resumely on the App Store"
     },
     "score": {
       "explainer": "Based on formatting + keyword match vs the job you paste. Not affiliated with any ATS vendor.",
       "fit": {
-        "label": "Estimated fit"
+        "label": "Estimated fit",
+        "note": "An estimate of your fit for this job, not a hiring guarantee.",
+        "verdicts": {
+          "Strong": "Strong",
+          "Stretch": "Stretch",
+          "Skip": "Skip"
+        }
       },
       "topIssues": "Highest-impact fixes first",
       "lockedTitle": "Unlock {count} more high-impact fixes",
@@ -262,7 +277,7 @@
       }
     },
     "paywall": {
-      "title": "Upgrade for Interview-Ready Optimization",
+      "title": "Unlimited tailoring, with a Match Score estimate for each job",
       "usedFree": "You used {count} free optimization(s). Upgrade to unlock Expert Modes and continue without limits.",
       "bestValue": "Premium",
       "perMonth": "/month",
@@ -327,7 +342,7 @@
   "pricingPage": {
     "badge": "Simple Pricing",
     "title": "Choose the plan for your job-search pace",
-    "subtitle": "Start free. Upgrade for Interview-Ready Expert Modes, unlimited optimizations, and premium templates.",
+    "subtitle": "Start free. Upgrade for Expert Modes, unlimited optimizations, and premium templates.",
     "free": {
       "title": "Free",
       "price": "$0",
@@ -342,7 +357,7 @@
       "title": "Premium",
       "price": "$9.99",
       "period": "/month",
-      "description": "For active applicants who want interview-ready positioning, not just ATS diagnostics",
+      "description": "For active job seekers tailoring their resume to several roles",
       "feature1": "Unlimited resume optimizations",
       "feature2": "Expert Modes: rewrite, quantifier, ATS report, summary lab",
       "feature3": "Premium templates and priority support",
@@ -352,10 +367,90 @@
     },
     "footnote": "Prices in USD. Taxes may apply based on your region."
   },
+  "atsCheckerPage": {
+    "hero": {
+      "title": "Free Resume Match Score for Any Job Posting"
+    },
+    "explainer": {
+      "title": "What the Resumely Match Score tells you",
+      "intro": "The Resumely Match Score is our estimate of how well your resume fits one specific job posting, on a scale from 0 to 100. It is not a score from any employer's hiring system. No employer sees it, and no employer uses it to rank you. Use it as a quick read on fit and a list of what to fix first.",
+      "measuresTitle": "What the score looks at",
+      "measures": [
+        {
+          "name": "Keywords",
+          "text": "Which skills and terms from the job posting appear in your resume. This carries the most weight."
+        },
+        {
+          "name": "Meaning match",
+          "text": "Whether your experience describes the same kind of work, even when the wording is different."
+        },
+        {
+          "name": "Readable format",
+          "text": "Whether the text in your PDF can be extracted cleanly, so the content you wrote is the content that gets read."
+        },
+        {
+          "name": "Title match",
+          "text": "How closely your recent job titles line up with the role."
+        },
+        {
+          "name": "Numbers",
+          "text": "Whether your bullets show results with numbers, such as volume, time saved, or team size."
+        },
+        {
+          "name": "Complete sections",
+          "text": "Whether the core sections are there: experience, skills, education, and contact details."
+        },
+        {
+          "name": "Recency",
+          "text": "Whether your relevant experience is recent or from years ago."
+        }
+      ],
+      "notTitle": "What it does not measure",
+      "not": [
+        "How a specific employer's applicant tracking system will treat your application. Every company sets up its own system, and we have no access to any of them.",
+        "Your chances of getting an interview or an offer. Hiring depends on the other applicants, the recruiter, timing, and much more than the resume.",
+        "Visual design. The check reads the text of your resume, not its colors or style.",
+        "Whether what your resume says is true. Only add a skill if you really have it."
+      ],
+      "howToUseTitle": "How to use it",
+      "howToUse": [
+        "Check one resume against one job at a time. The same resume will score differently for different postings, and that is expected.",
+        "Start with the top gaps. Add a missing skill only where it honestly describes your work.",
+        "Check again after you edit to see which changes moved the estimate."
+      ],
+      "faqTitle": "Common questions",
+      "faq": [
+        {
+          "q": "Is this my ATS score?",
+          "a": "No. It is Resumely's own estimate of how well your resume fits the job. Employers use many different tracking systems, each set up differently, and none of them shares a score with us. Treat the number as guidance, not a verdict."
+        },
+        {
+          "q": "Do I need an account?",
+          "a": "No. You can run up to 5 free checks a week without signing up. Create a free account if you want to keep a check and tailor your resume from it."
+        },
+        {
+          "q": "Will a higher score get me more interviews?",
+          "a": "We can't promise that, and nobody honestly can. A higher score means your resume covers more of what this posting asks for. Whether you are invited to interview is up to the employer."
+        },
+        {
+          "q": "Why does my score change between jobs?",
+          "a": "Each score compares your resume with one posting. A resume that fits a data analyst role well may fit a product manager role poorly."
+        },
+        {
+          "q": "What happens to my resume?",
+          "a": "We save the text of your resume and the job posting so you can keep this check in a free account. The text is used to calculate your score and suggestions."
+        },
+        {
+          "q": "Can I use it in Hebrew or on my phone?",
+          "a": "Yes. The checker works in Hebrew at resumelybuilderai.com/he/ats-checker, and the Resumely iPhone app is available in English and Hebrew."
+        }
+      ]
+    }
+  },
   "meta": {
     "home": {
-      "title": "Resumely | ATS Resume Checker and Optimization",
-      "description": "Check how ATS systems read your resume, find high-impact blockers, and continue with role-specific optimization."
+      "title": "Resumely | Resume Match Score and Job Fit Checker",
+      "description": "Paste a job posting, see your Resumely Match Score, tailor your resume, and export your application package from your phone."
     },
     "pricing": {
       "title": "Pricing | Resumely",

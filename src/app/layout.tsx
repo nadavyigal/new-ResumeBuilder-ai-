@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     template: "%s | Resumely",
   },
   description:
-    "Check how ATS systems read your resume, fix high-impact blockers, and continue with role-specific optimization.",
+    "Paste a job posting, see your Resumely Match Score, tailor your resume, and export your application package from your phone.",
   keywords: [
     "resume optimizer",
     "ATS resume checker",
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     siteName: "Resumely",
     title: "Resumely | ATS Resume Checker and Optimization",
     description:
-      "Check how ATS systems read your resume and apply role-specific optimization.",
+      "See your Resumely Match Score for any job posting, then tailor your resume from your phone.",
     images: [
       {
         url: "https://www.resumelybuilderai.com/api/og",
@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Resumely | ATS Resume Checker and Optimization",
     description:
-      "Check how ATS systems read your resume and apply role-specific optimization.",
+      "See your Resumely Match Score for any job posting, then tailor your resume from your phone.",
     creator: "@resumelyai",
     images: [
       {

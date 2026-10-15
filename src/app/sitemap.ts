@@ -3,11 +3,12 @@ import { getAllPosts } from "@/lib/blog";
 import { defaultLocale, locales } from "@/locales";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = "https://resumelybuilderai.com";
+  const baseUrl = "https://www.resumelybuilderai.com";
 
   const withLocale = (path: string, locale: string) => {
     if (locale === defaultLocale) return path;
-    return `/${locale}${path}`;
+    // "/he", not "/he/": the trailing-slash form redirects.
+    return path === "/" ? `/${locale}` : `/${locale}${path}`;
   };
 
   const localizedPosts = await Promise.all(
@@ -23,14 +24,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
   );
 
-  // Static pages
+  // Static pages. /auth/* is left out on purpose: robots.ts disallows it.
   const staticPaths = [
     { path: "/", changeFrequency: "daily" as const, priority: 1 },
+    { path: "/ats-checker", changeFrequency: "weekly" as const, priority: 0.9 },
     { path: "/blog", changeFrequency: "weekly" as const, priority: 0.8 },
     { path: "/pricing", changeFrequency: "weekly" as const, priority: 0.8 },
     { path: "/contact", changeFrequency: "monthly" as const, priority: 0.5 },
-    { path: "/auth/signup", changeFrequency: "monthly" as const, priority: 0.9 },
-    { path: "/auth/signin", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/privacy", changeFrequency: "yearly" as const, priority: 0.3 },
     { path: "/terms", changeFrequency: "yearly" as const, priority: 0.3 },
   ];

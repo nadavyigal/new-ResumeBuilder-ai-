@@ -1,7 +1,7 @@
 ---
 title: "The 7 ATS Mistakes That Block Qualified Candidates (And How to Fix Them)"
 date: "2026-02-16"
-excerpt: "A practical guide to the most common ATS resume mistakes and what to change this week to improve interview chances."
+excerpt: "A practical guide to the most common ATS resume mistakes and what to change this week so recruiters can read your fit faster."
 author: "Resumely Team"
 tags: ["ATS", "Resume Mistakes", "Job Search", "Resume Optimization"]
 ---

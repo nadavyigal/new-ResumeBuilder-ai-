@@ -46,6 +46,18 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  async redirects() {
+    // The old slug promised to "beat" ATS systems. The post was retitled on
+    // 2026-06-29; the URL now matches. 301 (not Next's default 308) so search
+    // engines move the existing ranking to the new URL.
+    const oldSlug = "/blog/how-to-beat-ats-systems-2025";
+    const newSlug = "/blog/resume-tailoring-checklist-2026";
+    return [
+      { source: oldSlug, destination: newSlug, statusCode: 301 },
+      { source: `/en${oldSlug}`, destination: newSlug, statusCode: 301 },
+      { source: `/he${oldSlug}`, destination: `/he${newSlug}`, statusCode: 301 },
+    ];
+  },
   async headers() {
     const headers = [
       {
