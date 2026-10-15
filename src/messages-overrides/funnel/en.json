@@ -163,9 +163,9 @@
         }
       },
       "topIssues": "Highest-impact fixes first",
-      "lockedTitle": "Unlock {count} more high-impact fixes",
-      "lockedDescription": "Create a free account to unlock the full action plan, editable examples, and one-click continuation.",
-      "lockedCta": "Create Free Account",
+      "saveTitle": "Keep this check",
+      "saveDescription": "Create a free account to save this result and tailor your resume to this job.",
+      "saveCta": "Save my check",
       "checkAnother": "Check another resume",
       "mainIssues": {
         "title": "Your 3 highest-impact gaps",
@@ -232,13 +232,6 @@
           }
         }
       }
-    },
-    "popup": {
-      "title": "Want the full fix plan?",
-      "description": "Create a free account to unlock every issue, save your progress, and continue into full optimization.",
-      "primaryCta": "Create Free Account",
-      "secondaryCta": "Not now",
-      "privacyNote": "No spam. Unsubscribe anytime."
     }
   },
   "auth": {
