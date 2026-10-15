@@ -65,21 +65,73 @@ const STOPWORDS = new Set([
   // Hebrew function words, as `stem` spells them (final letters normalised).
   ...['של', 'את', 'עם', 'על', 'או', 'גם', 'כי', 'אם', 'לא', 'כל', 'זה', 'זו', 'זאת', 'הם', 'הן', 'אני',
     'היא', 'הוא', 'אנחנו', 'אשר', 'שלי', 'שלו', 'שלה', 'יותר', 'מאוד', 'כמו', 'בין', 'אל', 'עד', 'לפי',
-    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].map(hebrewStem),
+    'תוך', 'דרך', 'כדי', 'אחרי', 'לפני', 'מול', 'רק', 'עוד', 'כבר', 'יש', 'אין', 'היה', 'היו', 'הייתה'].map(hebrewKey),
 ]);
 
 /**
- * Hebrew glues "and, the, in, to, from, that, as" onto the next word (ו ה ב ל מ
- * ש כ), and plurals add ים/ות, so "בדוחות" and "דוחות" are the same word to a
- * reader. Without this, a Hebrew rewrite that only dropped a prefix read as a
- * job-post term. Up to two proclitics come off while at least three letters
- * remain; final letter forms are normalised first so plural stripping lines up.
+ * One Hebrew word without its number or gender ending: final letter forms are
+ * normalised, then a plural ים/ות or, failing that, a feminine singular ה comes
+ * off while three letters remain. "משימות" and "משימה" both give "משימ" (review
+ * of #170: stripping only ות left the singular flagged against its own plural).
  */
-function hebrewStem(word: string): string {
-  let w = word.replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' })[c] as string);
-  for (let i = 0; i < 2 && w.length > 3 && 'והבלמשכ'.includes(w[0]); i++) w = w.slice(1);
-  if (w.length > 4 && /(?:ימ|ות)$/.test(w)) w = w.slice(0, -2);
+function hebrewKey(word: string): string {
+  const w = word.replace(/[ךםןףץ]/g, (c) => ({ ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' })[c] as string);
+  if (w.length >= 5 && /(?:ימ|ות)$/.test(w)) return w.slice(0, -2);
+  if (w.length >= 4 && w.endsWith('ה')) return w.slice(0, -1);
   return w;
+}
+
+/**
+ * Hebrew glues "and, that, when, in/to/from/as, the" onto the next word, always
+ * in that order: ו, then ש or כש, then one of ב ל כ מ, then ה last. So "בדוחות"
+ * and "דוחות" are the same word to a reader, but "הכשרה" (training) is not ה+כ
+ * on "שרה" (ה never comes before כ), and "מכירות" (sales) is not מ+כ on anything.
+ *
+ * Review of #170 (Codex, confirmed by the PR Steward 2026-10-13): stripping any
+ * two prefix-looking letters made "הכשרה" match the name "שרה" and "מכירות" match
+ * "שירות" (service). Only a prefix in that grammatical order comes off, the rest
+ * must keep three letters, and a form shorter than three letters is dropped.
+ */
+const HEBREW_PROCLITICS = /^ו?(?:ש|כש)?[בלכמ]?ה?$/;
+
+/**
+ * How two Hebrew words may match, as tags in one pool:
+ *   B:key  the word as written, ending normalised;
+ *   P:key  a reading with a prefix stripped, ending normalised;
+ *   C:core a reading with a prefix stripped, spelled exactly.
+ * A prefix may differ on one side only (B against B or P: "דוחות" / "בדוחות",
+ * "משימה" / "במשימות"). With prefixes on both sides the rest must be spelled the
+ * same (C against C: "בדוחות" / "הדוחות"). Otherwise two lexical first letters
+ * meet on a short core: "בכירה" (senior) and "מכירות" (sales) both reach "כיר".
+ */
+function hebrewTags(word: string): string[] {
+  const out = new Set<string>([`B:${hebrewKey(word)}`]);
+  for (let k = 1; k <= 4 && word.length - k >= 3; k++) {
+    if (!HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
+    const core = word.slice(k);
+    const key = hebrewKey(core);
+    if (key.length < 3) continue;
+    out.add(`P:${key}`);
+    out.add(`C:${core}`);
+  }
+  return [...out];
+}
+
+function hebrewTagMatches(pool: Set<string>, tag: string): boolean {
+  const [kind, value] = [tag.slice(0, 2), tag.slice(2)];
+  if (kind === 'B:') return pool.has(`B:${value}`) || pool.has(`P:${value}`);
+  if (kind === 'P:') return pool.has(`B:${value}`);
+  return pool.has(tag);
+}
+
+function hebrewForms(word: string, minCore = 3): string[] {
+  const out = new Set<string>();
+  for (let k = 0; k <= 4 && word.length - k >= minCore; k++) {
+    if (k > 0 && !HEBREW_PROCLITICS.test(word.slice(0, k))) continue;
+    const key = hebrewKey(word.slice(k));
+    if (key.length >= minCore) out.add(key);
+  }
+  return [...out];
 }
 
 const HEBREW_WORD = /^[\u0590-\u05FF]+$/;
@@ -131,35 +183,48 @@ function words(text: string): string[] {
 }
 
 function stem(word: string): string {
-  if (HEBREW_WORD.test(word)) return hebrewStem(word);
+  if (HEBREW_WORD.test(word)) return hebrewKey(word);
   const stripped = word.replace(/(ments?|ings?|ions?|ers?|ed|es|al|ly|s)$/, '').replace(/e$/, '');
   return stripped.length >= 4 ? stripped : word;
 }
 
+/**
+ * Every spelling a word may match by: one stem in English, each grammatical
+ * prefix reading in Hebrew. Two Hebrew words match when any readings agree.
+ */
+function stemsOf(word: string): string[] {
+  return HEBREW_WORD.test(word) ? hebrewTags(word) : [stem(word)];
+}
+
 /** Exact match only: by prefix, "performance" would pass as the verb "perform". */
-function isRewordingVerb(s: string): boolean {
-  return REWORDING_VERBS.has(s);
+function isRewordingVerb(word: string): boolean {
+  return HEBREW_WORD.test(word) ? hebrewForms(word).some((s) => REWORDING_VERBS.has(s)) : REWORDING_VERBS.has(stem(word));
 }
 
 function sameStem(a: string, b: string): boolean {
   if (a === b) return true;
+  // Hebrew is matched by tag (`hebrewTagMatches`), never by shared letters.
+  if (/[\u0590-\u05FF]/.test(a) || /[\u0590-\u05FF]/.test(b)) return false;
   const [short, long] = a.length <= b.length ? [a, b] : [b, a];
-  // Hebrew: the same word with more proclitics left on ("מתמטיקה" / "תמטיקה":
-  // מ is both a prefix and a first letter, so stripping can stop at either).
-  if (HEBREW_WORD.test(long) && short.length >= 3 && long.endsWith(short)) {
-    return /^[והבלמשכ]{1,3}$/.test(long.slice(0, long.length - short.length));
-  }
   return short.length >= 5 && long.startsWith(short);
 }
 
 function contentWords(text: string): string[] {
   // Hebrew words are shorter (no vowel letters): two letters can name a thing.
   const minLength = (w: string) => (HEBREW_WORD.test(w) ? 2 : 3);
-  return words(text).filter((w) => w.length >= minLength(w) && !/^\d/.test(w) && !STOPWORDS.has(w) && !STOPWORDS.has(stem(w)));
+  const isStopword = (w: string) =>
+    STOPWORDS.has(w) || (HEBREW_WORD.test(w) ? hebrewForms(w, 2).some((f) => STOPWORDS.has(f)) : STOPWORDS.has(stem(w)));
+  return words(text).filter((w) => w.length >= minLength(w) && !/^\d/.test(w) && !isStopword(w));
 }
 
 function contentStems(text: string): string[] {
-  return contentWords(text).map(stem);
+  return contentWords(text).flatMap(stemsOf);
+}
+
+/** Any reading of `word` in the pool. */
+function hasWord(pool: Set<string>, word: string): boolean {
+  if (HEBREW_WORD.test(word)) return hebrewTags(word).some((t) => hebrewTagMatches(pool, t));
+  return hasStem(pool, stem(word));
 }
 
 function hasStem(pool: Set<string>, s: string): boolean {
@@ -237,6 +302,19 @@ const OUTCOME = /^(?:revenues?|profits?|profitability|costs?|savings?|efficiency
 const DISTINCTION = /^(?:awards?|awarded|awardwinning|recogni[sz]ed|recognition|promoted|promotion|top|best|record|recordbreaking|ranked|exceeded|exceeding|surpassed|outperformed|outperforming)$/;
 /** Authority over people or work; the bullet itself must claim it first. */
 const AUTHORITY = /^(?:led|leads?|leading|leadership|manag\w*|direct(?:ed|ing|s)?|owned|owner|ownership|oversaw|oversee\w*|spearhead\w*|head(?:ed|ing|s)?|supervis\w*|chair(?:ed|ing)?|command(?:ed|ing)?)$/;
+/**
+ * The same in Hebrew: managed, led, supervised, in past form and as the action
+ * noun a job post uses ("ניהול צוות"). The title "מנהל" is left out on purpose:
+ * "למנהלים" (for managers) is the commonest use and claims nothing.
+ */
+const HEBREW_AUTHORITY = new Set(
+  ['ניהל', 'ניהלתי', 'ניהלה', 'ניהלו', 'ניהול', 'הוביל', 'הובלתי', 'הובילה', 'הובילו', 'הובלה', 'הובלת',
+    'פיקח', 'פיקחתי', 'פיקחה', 'פיקוח', 'ניצח', 'ניצחתי'].map(hebrewKey),
+);
+
+function isAuthority(word: string): boolean {
+  return HEBREW_WORD.test(word) ? hebrewForms(word).some((f) => HEBREW_AUTHORITY.has(f)) : AUTHORITY.test(word);
+}
 const ABSOLUTE = /^(?:all|every|entire|entirely|zero|none|always|never|fully)$/;
 
 function inflatedClaims(original: string, optimized: string, resumeText: string, isSummary: boolean): string[] {
@@ -248,7 +326,7 @@ function inflatedClaims(original: string, optimized: string, resumeText: string,
       words(optimized).filter(
         (w) =>
           ((SCOPE.test(w) || OUTCOME.test(w) || DISTINCTION.test(w)) && !inResume.has(w)) ||
-          ((AUTHORITY.test(w) && ![...inSource].some((x) => AUTHORITY.test(x))) || (ABSOLUTE.test(w) && !inSource.has(w))),
+          ((isAuthority(w) && ![...inSource].some(isAuthority)) || (ABSOLUTE.test(w) && !inSource.has(w))),
       ),
     ),
   );
@@ -346,17 +424,21 @@ function qualifiedNumbers(text: string): Set<string> {
  */
 export function findJobOnlyTerms(text: string, ctx: GroundingContext, isSummary = false): string[] {
   const resumeStems = new Set(contentStems(ctx.resumeText));
+  // "Supported the team" -> "Managed the team" is a new claim, not a verb swap
+  // (review of #170). A verb of authority swaps freely only for a résumé that
+  // already claims authority somewhere.
+  const resumeClaimsAuthority = words(ctx.resumeText).some(isAuthority);
   // "mid market", "mid-market" and a PDF's "self-\npaced" are one word to a
   // reader, so adjacent résumé words also count joined.
   const resumeWords = words(ctx.resumeText);
-  for (let i = 0; i + 1 < resumeWords.length; i++) resumeStems.add(stem(resumeWords[i] + resumeWords[i + 1]));
+  for (let i = 0; i + 1 < resumeWords.length; i++) stemsOf(resumeWords[i] + resumeWords[i + 1]).forEach((s) => resumeStems.add(s));
   const jobStems = new Set(contentStems(ctx.jobText));
   const titleStems = isSummary && ctx.jobTitle ? new Set(contentStems(ctx.jobTitle)) : new Set<string>();
   return Array.from(
     new Set(
       contentWords(text).filter((w) => {
-        const s = stem(w);
-        return !hasStem(resumeStems, s) && hasStem(jobStems, s) && !isRewordingVerb(s) && !hasStem(titleStems, s);
+        const swap = isRewordingVerb(w) && (!isAuthority(w) || resumeClaimsAuthority);
+        return !hasWord(resumeStems, w) && hasWord(jobStems, w) && !swap && !hasWord(titleStems, w);
       }),
     ),
   );
@@ -455,7 +537,7 @@ export function describeViolations(violations: GroundingViolation[]): string {
 export function keywordsPresentIn(keywords: string[], text: string): string[] {
   const textStems = new Set(contentStems(text));
   return keywords.filter((keyword) => {
-    const kw = contentStems(keyword);
-    return kw.length > 0 && kw.every((s) => hasStem(textStems, s));
+    const kw = contentWords(keyword);
+    return kw.length > 0 && kw.every((w) => hasWord(textStems, w));
   });
 }

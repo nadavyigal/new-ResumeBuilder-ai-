@@ -222,10 +222,18 @@ describe('Codex review', () => {
   const HE_JOB = 'מעצב/ת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין. פיתוח יחידות לימוד.';
 
   it('Hebrew: a verb swap and a dropped proclitic hold nothing', async () => {
-    const r = resumeWith(['ניהול דוחות חודשיים למנהלים.', 'פיתוח 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const r = resumeWith(['הכנת דוחות חודשיים למנהלים.', 'פיתוח 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
     const out = await enforceJobAdTruth(r, { resumeText: HE_RESUME, jobDescription: HE_JOB, repair: repairReturning(null), holdJobPhrases: true });
     expect(out.held).toEqual([]);
     expect(out.changed).toBe(false);
+  });
+
+  // Review of #170: "handled" -> the job's "management" claims authority the
+  // résumé never states, so it is held like any other job-post phrase.
+  it('Hebrew: swapping in the job\'s "ניהול" is held when the résumé claims no authority', async () => {
+    const r = resumeWith(['ניהול דוחות חודשיים למנהלים.', 'בניתי 12 יחידות לימוד מקוונות במודל.'], 'תיכון כרמל', 'מורה למתמטיקה');
+    const out = await enforceJobAdTruth(r, { resumeText: HE_RESUME, jobDescription: HE_JOB, repair: repairReturning(null), holdJobPhrases: true });
+    expect(out.held).toEqual([expect.objectContaining({ proposed: 'ניהול דוחות חודשיים למנהלים.' })]);
   });
 
   it('Hebrew: a job-post phrase is held back like in English', async () => {

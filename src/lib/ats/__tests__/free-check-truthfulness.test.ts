@@ -266,7 +266,8 @@ describe('quick-win grounding: observed fabrications are rejected', () => {
       jobText: 'מעצב/ת הדרכה. ניהול דוחות והצגת תובנות לבעלי עניין. פיתוח יחידות לימוד.',
     };
     it.each([
-      ['verb swap + dropped proclitic', 'טיפלתי בדוחות חודשיים למנהלים.', 'ניהול דוחות חודשיים למנהלים.'],
+      // Not "ניהול": handled -> managed is an authority claim (review of #170).
+      ['verb swap + dropped proclitic', 'טיפלתי בדוחות חודשיים למנהלים.', 'הכנת דוחות חודשיים למנהלים.'],
       ['verb swap', 'בניתי 12 יחידות לימוד מקוונות במודל.', 'פיתוח 12 יחידות לימוד מקוונות במודל.'],
     ])('accepts an honest rewrite: %s', (_label, original, optimized) => {
       expect(checkQuickWinGrounding(qw(original, optimized), he)).toMatchObject({ ok: true, violations: [] });
