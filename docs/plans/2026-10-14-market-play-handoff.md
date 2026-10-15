@@ -1,6 +1,9 @@
 # Handoff: Resumely market play, plan and execute (pricing, go-to-market, research)
 
-Written 2026-10-14 by Claude Code. Read this whole file before doing anything.
+Written 2026-10-14 by Claude Code. **Pre-decision snapshot.** The five decisions below were
+answered on 2026-10-14 and the work now lives in
+`docs/plans/2026-10-14-market-play-implementation.md`, which wins wherever the two differ.
+Do not ask D1 to D5 again and do not write a second plan. Read this file for background only.
 The merged plan it implements: https://claude.ai/artifact/NXpvcK4E52sCAopobGaaRR
 (version 2, "Merged v1 + v2"). The page is the strategy; this file is the work.
 
@@ -8,17 +11,15 @@ The merged plan it implements: https://claude.ai/artifact/NXpvcK4E52sCAopobGaaRR
 
 Get Resumely to the EXD-029 traffic gate (one channel at 50 or more non-internal arrivals a
 week for 4 weeks), with the website, App Store page and product claims telling one honest
-story, and with pricing decided and built behind an off switch, ready for the gate.
+story, and with pricing decided and specified, ready to build when the StoreKit gate opens.
 
 ## Start here (session 1 agenda)
 
 1. Run the session-start ritual: auto-memory index, `docs/agent-os/project-context.md`,
    `tasks/lessons.md`. This is planning plus product work, so read both.
-2. Get the founder's answers to the five decisions below. Do not plan around a guess.
-3. Turn the answers into stories in `docs/plans/` (one file), grouped by track, ordered as in
-   "Order of work". Each story: files, change, verification, what could break.
-   This touches more than 2 files, so get the founder's OK on the plan before editing.
-4. Execute one story at a time: implement, lint and tests, report, ask before the next one.
+2. Done 2026-10-14: the founder answered the five decisions below.
+3. Done: the plan is `docs/plans/2026-10-14-market-play-implementation.md`.
+4. Execute that plan one story at a time: implement, lint and tests, report, ask before the next one.
 
 ## Five decisions the founder makes first
 
@@ -33,7 +34,9 @@ story, and with pricing decided and built behind an off switch, ready for the ga
 ## Rules that bind every track
 
 - **No paywall, no charge, no visible "Premium" before the gate.** EXD-009, EXD-029, EXD-018.
-  Pricing work now means deciding and building behind an off switch.
+  Pricing work now means deciding and specifying. StoreKit implementation stays behind the
+  June plan's four-condition gate (`docs/superpowers/plans/2026-06-07-resumely-plan-3-storekit-paywall.md:16-22`);
+  a feature flag does not satisfy it.
 - **Logged decisions to respect:** EXD-005 (freemium with a free activation moment),
   EXD-012 (no ATS claims), EXD-030 (App Store optimization is the Q4 channel), EXD-034
   (organic content pilot; paid acquisition excluded). Read them in Agentic OS
@@ -57,8 +60,9 @@ Web repo (`nadavyigal/new-ResumeBuilder-ai-`):
   `src/` references them.
 - The score already costs a credit: `src/app/api/ats/score/route.ts` calls
   `consumeCredit(user.id, 'ats_score')` and returns 402 `insufficient_credits`.
-  `src/app/api/v1/refine-section/route.ts` and `src/app/api/v1/expert-workflows/run/route.ts`
-  do the same. This conflicts with "unlimited free score". Find out how many credits a new
+  `src/app/api/v1/refine-section/route.ts` does the same. `src/app/api/v1/expert-workflows/run/route.ts`
+  does not charge credits: it is premium entitlement gating (`hasPremiumAccess`, 402
+  `PREMIUM_REQUIRED`, only when `MONETIZATION_ENABLED=true`). This conflicts with "unlimited free score". Find out how many credits a new
   user gets and whether anyone has hit a 402 (PostHog and Supabase, read-only) before changing it.
 - "Add only if true" (#169, merged 2026-10-12 in `9293b20`) runs on the web review page
   only. Commit `6a74947` switched phrase holding off for Hebrew.
@@ -88,9 +92,10 @@ on iOS (diagnostic only); App Store ratings 0 in the US and 2 in Israel (average
   under 10 arrivals each means change the channel. Retarget the link once G1 ships.
   Use the five voiced clips (Drive folder "סרטונים", files named "... - עם קול.mp4").
 - **G1, one promise on the web** (web repo). Hero: paste the job, see what is missing,
-  fix it. Remove ATS promises (EXD-012) but keep "ATS" as a search term. Remove the account
-  wall before the score and fixes, which depends on P2's credit fix. Add the App Store
-  badge. Check the Hebrew page too.
+  fix it. Remove ATS promises (EXD-012) but keep "ATS" as a search term. Add the App Store
+  badge. Check the Hebrew page too. None of this waits for P2: the free check already shows
+  the score and quick wins without an account (`FreeATSChecker.tsx:154`). Only any remaining
+  wall before the first export (G1c) may depend on P2.
 - **G1b, App Store screenshots** (iOS repo, founder submits). Rebuild the 5 ATS screenshots
   with Match Score naming. Before choosing an A/B test, read App Store Connect impressions:
   below about 1,000 per arm in 4 weeks, ship and compare the 4 weeks before and after.
@@ -110,7 +115,8 @@ on iOS (diagnostic only); App Store ratings 0 in the US and 2 in Israel (average
   unlimited with no account; one free tailored export; packs as export credits. Decide
   what happens to the `ats_score`, `refine-section` and `expert-workflows` credit charges.
   Tests first (TDD). The switch stays off.
-- **P3, StoreKit products** (iOS repo, founder sets them up in App Store Connect). Three
+- **P3, StoreKit products.** Superseded by P3a (spec, now) and P3b (build, gated) in the
+  implementation plan. Original note: (iOS repo, founder sets them up in App Store Connect). Three
   consumable in-app purchases with Israeli and US tiers, a paywall sheet at export behind a
   feature flag that defaults to off, and server verification through `verifyAppleTransaction`.
 - **Price floor.** Measure AI cost per optimization (OpenAI usage divided by optimizations,
@@ -158,10 +164,8 @@ B2B licences, SEO at scale, a Chrome extension, a weekly subscription.
 Open a new Claude Code session in `~/Developer/ResumeBuilder/new-ResumeBuilder-ai-` and paste:
 
 ```
-Read docs/plans/2026-10-14-market-play-handoff.md in full, then the merged plan at
-https://claude.ai/artifact/NXpvcK4E52sCAopobGaaRR. Run the session-start ritual for this
-repo. Then ask me the five decisions D1 to D5 in one message, with your recommendation for
-each. After I answer, write the implementation plan as one file in docs/plans/, grouped by
-track (go-to-market, pricing, research) in the handoff's order, and wait for my OK before
-editing code. Execute one story at a time.
+Read docs/plans/2026-10-14-market-play-implementation.md in full; it holds the founder's
+recorded D1 to D5 answers. Do not ask them again. Run the session-start ritual for this repo.
+Then take the next open story in your track, one story at a time: implement, lint and tests,
+report, ask before the next one.
 ```

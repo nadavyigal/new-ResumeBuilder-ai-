@@ -96,6 +96,9 @@ Read docs/gtm/growth-loop/README.md and cycle-01.md in the web repo
    carries campaign_id = rb-li-20260910-trusted-workspace and that campaign_store_handoff fired
    with the same id. Exclude this test arrival from any later count and say how.
    Before any PostHog read, run the explicit switch-project and fingerprint check.
+   In the same signed-out window, paste a resume and a job ad from the campaign link and
+   confirm the score and the missing items appear with no 402 and no sign-up prompt. If they
+   do not, report it: the post waits, or its claim changes, until it works.
 3. Write both results into stage 2 of docs/gtm/growth-loop/cycle-01.md on a branch, set
    tracking to verified only if step 2 showed the id, commit, push, open a PR.
 4. Report: baseline headline, tracking verified yes or no, PR link.
@@ -107,7 +110,8 @@ Must not: estimate a count, quote a rate below n=10, post anything, change any e
 
 ## Checklist 3: founder posts
 
-1. Prompt 1's PR is reviewed and merged. Prompt 2 reports tracking **verified**.
+1. Prompt 1's PR is reviewed and merged. Prompt 2 reports tracking **verified** and the
+   signed-out score check **passed**.
 2. Post the final Hebrew text from your personal LinkedIn profile.
 3. Put the tracked link as the first comment, exactly as given.
 4. Reply to every comment within an hour on day one.
@@ -127,7 +131,8 @@ Read docs/gtm/growth-loop/README.md and cycle-01.md first.
 1. Confirm 168 hours have passed since the post. If not, report "not yet measurable" and stop.
 2. PostHog, web project, read-only, after the switch-project and fingerprint check: count
    arrivals with campaign_id = rb-li-20260910-trusted-workspace and campaign_store_handoff events
-   with the same id. Exclude the founder, QA accounts and the step-2 test arrival.
+   with the same id, both only where Posted at <= timestamp < Posted at + 168 hours (UTC-convert
+   the posted time first). Exclude the founder, QA accounts and the step-2 test arrival.
 3. Re-run the iOS measurement contract (scripts/measurement_contract.py in the iOS repo) and paste
    its headline verbatim. Do not join it to the campaign: the App Store does not carry the id.
 4. Count replies on the post (founder pastes them if you cannot read LinkedIn).
