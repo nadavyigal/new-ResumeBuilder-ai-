@@ -250,12 +250,13 @@ No signups, no made-up identities, no disposable emails.
 | # | Question | Closes | How | Owner |
 |---|---|---|---|---|
 | R1 | AI cost per optimization, last 30 days | P1 price floor | **Done** 2026-10-14, re-verified 2026-10-15. $0.018 to $0.032 per run. See "R1 result" | Claude Code |
-| R2 | App Store impressions, conversion, sources, 90 days | G1b test choice | App Store Connect export | Founder |
-| R3 | Resumaker: prices, does it tailor to a job ad | G3 | resumake.co.il public pages | Claude Code |
-| R4 | The Israeli CV-to-job tool from the Geektime piece | G3 | Find the article and product | Claude Code |
-| R5 | Teal's prices | Evidence | tealhq.com/pricing in the browser | Claude Code |
-| R6 | Willingness to pay in shekels | P1, P3 | Five short founder conversations | Founder |
+| R2 | App Store impressions, conversion, sources, 90 days | G1b test choice | App Store Connect export; steps in `docs/research/2026-10-competitor-pricing.md` | Founder |
+| R3 | Resumaker: prices, does it tailor to a job ad | G3 | **Done** 2026-10-15. Prices behind a name and email form; no public job-ad tailoring claim. See `docs/research/2026-10-competitor-pricing.md` | Claude Code |
+| R4 | The Israeli CV-to-job tool from the Geektime piece | G3 | **Done** 2026-10-15. Ben Rotenberg's free PartyRock tool (Geektime, 2025-03-05); tailors to a job ad. Same doc | Claude Code |
+| R5 | Teal's prices | Evidence | **Done** 2026-10-15. Free plan; Teal+ $13 / 7 days, $29 / 30 days, $79 / 90 days. Same doc | Claude Code |
+| R6 | Willingness to pay in shekels | P1, P3 | Five short founder conversations; questions in `docs/research/2026-10-competitor-pricing.md` | Founder |
 | R7 | Exports per user | P2 | PostHog, only at 30 or more exporters | Claude Code, later |
+| R8 | Apple Small Business Program enrollment (15% or 30%) | StoreKit gate condition 2 | Founder steps in `docs/research/2026-10-competitor-pricing.md` | Founder |
 
 ---
 
