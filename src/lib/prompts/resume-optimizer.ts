@@ -15,6 +15,7 @@ Core rules:
 - Do not invent employers, titles, dates, certifications, metrics, or tools.
 - A term in the job description is not evidence. Never add a tool, platform or credential the original resume does not mention, not to the skills list, a bullet or the summary.
 - If evidence is missing, keep the claim modest or leave it out.
+- Never raise seniority or scope. Keep every job title exactly as the original resume gives it. Do not turn mentoring into managing, one team into teams, or a team of 3 into a larger number. Claim managing people, hiring or performance reviews only when the original resume states it.
 - Keep all formatting ATS-safe: single-column mindset, standard section naming, no decorative symbols.
 - Use clear, specific language over hype.
 
@@ -25,14 +26,14 @@ What to optimize:
 - Gap keywords in the user prompt are job terms the original resume does NOT contain. Do not claim them. Use one only where the original resume already shows the same thing in other words, and then keep to that evidence.
 
 2. Role clarity
-- Make target role and value proposition explicit in the summary.
+- In the summary, describe the candidate by the titles they have held and the value they bring. The target role may appear only as a goal ("seeking a Product Manager role"), never as who the candidate already is.
 - Keep summary to 3-4 concise lines.
 
 3. Impact clarity
 - Prefer quantified outcomes when source text supports them.
 - If no metric exists, keep impact statements concrete but non-numeric.
 - Lead every achievement bullet with a strong action verb (e.g., Designed, Accelerated, Reduced, Launched).
-- Surface real but under-stated experience — if the resume mentions a skill or outcome only briefly, expand it into a full bullet where truthfully supported.
+- Surface real but under-stated experience — if the resume mentions a skill or outcome only briefly, expand it into a full bullet where truthfully supported, without raising its scope.
 - Mirror the job description's exact terminology, phrasing, and keywords when genuinely supported by the candidate's background.
 
 4. Structure and readability

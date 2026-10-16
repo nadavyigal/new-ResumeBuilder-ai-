@@ -1,5 +1,18 @@
 # Lessons Learned — ResumeBuilder
 
+## A rewrite prompt cannot stop promotion; check titles, years and leadership claims after it (2026-10-07, consolidated 2026-10-16)
+
+**Symptom:** the optimizer retitled an individual contributor "Engineering Manager", claimed "8+ years" on a three-year career, and wrote "leading teams" for someone who mentored 2 interns. The nightly judge passed every one.
+
+**Fix:** `src/lib/ai-optimizer/seniority-claims.ts` compares each claim with the original résumé after the rewrite and corrects it without a model call, the same posture as `job-ad-terms.ts` and `stripFabricatedMetrics`. #161 (a competing guard with a model repair) was folded in on 2026-10-16: its prompt rule ("Never raise seniority or scope"), its Hebrew title and management patterns, and its "management experience" claim.
+
+**Rules:**
+1. Every new deterministic check runs against the calibration outputs before it ships: zero honest outputs may change.
+2. A leadership pattern must not match through a preposition, or "Led planning for the team" (true) reads as "led the team" (false).
+3. Evidence for a role comes from that role's own block (header lines and bullets). Career-wide evidence let a later manager job excuse a promoted earlier role (PR Steward, 2026-10-13).
+4. Read a role header as a block and accept a title only if it names a job. Reading only the adjacent line restored "New York, NY" as a title.
+5. Count years in roles, not from the first start date: a gap is not experience.
+
 ## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
 
 **Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.

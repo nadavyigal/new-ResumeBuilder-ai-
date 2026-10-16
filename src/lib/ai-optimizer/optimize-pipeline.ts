@@ -10,6 +10,7 @@ import {
 import { optimizeResume, type OptimizedResume } from './index';
 import { normalizeExperienceBullets, countBullets } from './normalize-experience';
 import { enforceJobAdTruth, type HeldPhrase, type TruthGuardReport } from './job-ad-terms';
+import { enforceSeniorityTruth, type SeniorityGuardReport } from './seniority-claims';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
 import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
@@ -35,6 +36,12 @@ export interface OptimizationPipelineResult {
    * outside runOptimizePipeline.
    */
   truthGuard?: TruthGuardReport;
+  /**
+   * What the seniority and scope guard corrected: promoted titles, inflated years,
+   * unearned leadership claims. Counts only. Absent only on results built outside
+   * runOptimizePipeline.
+   */
+  seniorityGuard?: SeniorityGuardReport;
   /** Job-post phrases held back for the user to confirm. Present only with `confirmJobPhrases`. */
   heldPhrases?: HeldPhrase[];
 }
@@ -251,12 +258,13 @@ function buildGapsFromAtsResult(
 }
 
 /**
- * Runs the optimizer, then the job-ad terms guard on the candidate it would return.
+ * Runs the optimizer, then the job-ad terms guard and the seniority guard on the
+ * candidate it would return.
  *
- * The guard runs once on the final candidate rather than on each pass, so it costs
- * nothing when the rewrite is clean and at most one repair call when it is not. If
- * the guard changes the résumé, the result is rescored, so the score the user sees
- * describes the résumé they get.
+ * The guards run once on the final candidate rather than on each pass, so they cost
+ * nothing when the rewrite is clean and at most one repair call when it is not (the
+ * seniority guard never calls the model). If either guard changes the résumé, the
+ * result is rescored, so the score the user sees describes the résumé they get.
  */
 export async function runOptimizePipeline(
   resumeText: string,
@@ -306,28 +314,36 @@ export async function runOptimizePipeline(
     jobPhrasesUnresolved: report.jobPhrasesUnresolved.length,
   });
 
+  // Never calls the model: it restores, lowers or cuts against the original résumé.
+  const seniority = enforceSeniorityTruth(guarded.resume, resumeText);
+  const seniorityGuard = seniority.report;
+  if (seniority.changed || seniorityGuard.unresolved > 0) {
+    console.warn('Pipeline seniority guard:', seniorityGuard);
+  }
+  const finalResume = seniority.resume;
+
   const heldPhrases = guarded.held.length > 0 ? { heldPhrases: guarded.held } : {};
-  if (!guarded.changed) return { ...selected, truthGuard: report, ...heldPhrases };
+  const guards = { truthGuard: report, seniorityGuard, ...heldPhrases };
+  if (!guarded.changed && !seniority.changed) return { ...selected, ...guards };
 
   const rescored = await scoreOptimization({
     resumeOriginalText: resumeText,
-    resumeOptimizedJson: guarded.resume,
+    resumeOptimizedJson: finalResume,
     jobDescriptionText: jobDescription,
     jobExtractedJson: options?.jobExtractedJson,
   });
   if (rescored.ats_score_optimized === 0 && rescored.confidence === 0) {
     // The scorer's zero-confidence fallback. Ship the corrected résumé with the last
     // real score rather than a 0 the user would read as a verdict.
-    console.warn('Pipeline truth guard: rescoring returned the zero-confidence fallback, keeping the prior score');
-    return { ...selected, optimizedResume: guarded.resume, truthGuard: report, ...heldPhrases };
+    console.warn('Pipeline guards: rescoring returned the zero-confidence fallback, keeping the prior score');
+    return { ...selected, optimizedResume: finalResume, ...guards };
   }
   return {
     ...selected,
-    optimizedResume: guarded.resume,
+    optimizedResume: finalResume,
     atsResult: rescored,
     lift: liftFor(rescored, selected.passesUsed),
-    truthGuard: report,
-    ...heldPhrases,
+    ...guards,
   };
 }
 
