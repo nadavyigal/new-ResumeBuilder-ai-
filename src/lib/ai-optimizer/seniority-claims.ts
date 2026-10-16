@@ -10,10 +10,13 @@ import { ASPIRATION, trustedResumeText } from './job-ad-terms';
  * role retitled to Engineering Manager, "8+ years" on a three-year career. The nightly
  * judge passed all of them; only the grounded eval judge saw them.
  *
- * Three narrow, deterministic checks, no model call:
+ * Five narrow, deterministic checks, no model call:
  * - a role title carrying a seniority word its original title lacks gets the original back;
+ * - a summary that names the candidate by a title they never held ("Engineering Manager",
+ *   "מנהל תפעול") loses that sentence, or falls back to the résumé's own summary;
  * - an "N years of experience" claim above what the dated roles allow is lowered to it;
- * - a people-leadership or track-record phrase the résumé never earns is cut.
+ * - a people-leadership or track-record phrase the résumé never earns is cut;
+ * - a head count no number in the résumé backs ("team of 3" become "org of 30") is cut.
  * Evidence for a role comes from that role's own block in the résumé (its header lines
  * and bullets), so a later manager job never excuses a promoted earlier one. The summary
  * and the skills speak for the whole career and are checked against all of it.
@@ -21,7 +24,8 @@ import { ASPIRATION, trustedResumeText } from './job-ad-terms';
  * résumé. A truthful reword ("Led sprint planning for the team") must pass untouched.
  *
  * Consolidated 2026-10-16 with #161, which brought the prompt rule, the Hebrew title and
- * management patterns, and the "management experience" claim.
+ * management patterns, the "management experience" claim, the summary title check and
+ * the head-count check (the two batch 3 failures #161 was opened for).
  */
 
 const HE = '\\u05d0-\\u05ea';
@@ -319,12 +323,118 @@ const MANAGER_WORK = /\bhired\s+\d+|\bdirect\s+reports?\b|\bperformance\s+review
 interface Evidence {
   text: string;
   leader: boolean;
+  /** Every number the résumé states, so a head count can be traced to it. */
+  numbers: Set<number>;
 }
 
 function unsupportedScope(text: string, evidence: Evidence): RegExp[] {
-  return SCOPE_PATTERNS.filter((p) => p.claim.test(text) && !p.support.test(evidence.text) && !(evidence.leader && p.leadership)).map(
-    (p) => p.claim
+  const patterns = SCOPE_PATTERNS.filter(
+    (p) => p.claim.test(text) && !p.support.test(evidence.text) && !(evidence.leader && p.leadership)
+  ).map((p) => p.claim);
+  // The verb that introduces a head count goes with it, so ", leading a team of 8" is cut as a clause.
+  const headcounts = headcountClaims(text, evidence.numbers).map(
+    (phrase) => new RegExp(`(?:\\b${LEAD_VERB}\\s+(?:[\\w-]+\\s+){0,3}?)?${escapeRegExp(phrase)}`, 'i')
   );
+  return [...patterns, ...headcounts];
+}
+
+// ------------------------------------------------------------------ team size (from #161)
+
+const HEADCOUNT_WORDS: Record<string, number> = {
+  two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+  fifteen: 15, twenty: 20, dozen: 12, שניים: 2, שתיים: 2, שני: 2, שתי: 2, שלושה: 3, שלוש: 3, ארבעה: 4, ארבע: 4,
+  חמישה: 5, חמש: 5, שישה: 6, שש: 6, שבעה: 7, שבע: 7, שמונה: 8, תשעה: 9, תשע: 9, עשרה: 10, עשר: 10,
+};
+
+/** Token-bounded and case-insensitive; a Hebrew word may carry an attached prefix. */
+function containsWord(text: string, word: string): boolean {
+  const lead = /[֐-׿]/.test(word) ? `(?<![${HE}])[הובלמשכ]{0,2}` : '(?<![A-Za-z0-9])';
+  return new RegExp(`${lead}${escapeRegExp(word)}(?![A-Za-z0-9${HE}])`, 'i').test(text);
+}
+
+function sourceNumbers(source: string): Set<number> {
+  const out = new Set<number>();
+  for (const m of source.matchAll(/\d[\d,]*(?:\.\d+)?/g)) out.add(Number(m[0].replace(/,/g, '')));
+  for (const [word, n] of Object.entries(HEADCOUNT_WORDS)) if (containsWord(source, word)) out.add(n);
+  return out;
+}
+
+/** A head count: "team of 30", "a 5-person team", "12 engineers", "צוות של 90", "90 חיילים". */
+const HEADCOUNT = [
+  /\b(?:team|teams|group|org|organization|department|staff|squad|unit|crew)\s+of\s+(?:over\s+|more\s+than\s+|up\s+to\s+|about\s+|nearly\s+)?(\d[\d,]*)/gi,
+  /(\d[\d,]*)\+?(?:\s*|-)(?:person|people|member|headcount|FTE)\b/gi,
+  /(\d[\d,]*)\+?\s+(?:[a-z-]+\s+)?(?:engineers|developers|employees|people|staff|reports|interns|analysts|agents|designers|nurses|soldiers|members|associates|technicians|volunteers|students|teachers|managers|reps|representatives)\b/gi,
+  /צוות(?:ים)?\s+של\s+(\d[\d,]*)/g,
+  /(\d[\d,]*)\s+(?:עובדים|עובדות|חיילים|חיילות|אנשים|מהנדסים|מפתחים|מפתחות|כפיפים|חברי\s+צוות|אנשי\s+צוות|סטודנטים|תלמידים|נציגים|אחיות|מתמחים)/g,
+];
+
+/** Head counts in the text that no number in the résumé backs. "30,000 requests" never backs "30 engineers". */
+function headcountClaims(text: string, known: Set<number>): string[] {
+  const out: string[] = [];
+  for (const re of HEADCOUNT) {
+    for (const m of text.matchAll(re)) if (!known.has(Number(m[1].replace(/,/g, '')))) out.push(m[0]);
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ who the summary says the candidate is (from #161)
+
+/** Where a summary sentence turns from a claim into a goal. Text after it is not a claim. */
+const GOAL_START =
+  /\b(?:seeking|looking (?:for|to)|aiming|aspiring|hoping|eager|keen|ready to|targeting|pursuing|interested in|transitioning (?:to|into)|wants? to|to (?:grow|move|advance|step|transition) into)\b|מחפש|מחפשת|שואף|שואפת|מעוניין|מעוניינת|מבקש|מבקשת/i;
+
+function claimPart(sentence: string): string {
+  const m = GOAL_START.exec(sentence);
+  return m ? sentence.slice(0, m.index) : sentence;
+}
+
+/**
+ * Whether the claim part of a summary sentence names the candidate by a titled phrase
+ * the résumé never uses, at a seniority no held title gives. Batch 3 called a logistics
+ * officer "מנהל תפעול" and an engineer "Engineering Manager": the job ad's title written
+ * as who the candidate is. A Senior Frontend Engineer called a "Senior React Engineer"
+ * changed specialty, not seniority, and passes.
+ */
+function summaryNamesUnheldTitle(sentence: string, source: string, heldTitles: string): boolean {
+  const claim = claimPart(sentence);
+  const phrases: string[] = [];
+  for (const m of claim.matchAll(/\b(?:Senior|Sr\.|Lead|Principal|Staff|Chief)\s+[A-Z][\w&/-]*/g)) phrases.push(m[0]);
+  for (const m of claim.matchAll(/\b(?:Head|Director|VP|Vice President)\s+of\s+(?:the\s+)?[A-Z][\w&/-]*/g)) phrases.push(m[0]);
+  for (const m of claim.matchAll(/\b[A-Z][\w&/-]*\s+(?:Manager|Director|Lead|Supervisor)\b/g)) phrases.push(m[0]);
+  const titled = new RegExp(`(?<![${HE}])[ושה]?(מנהל|מנהלת|ראש|סמנכ"ל|סמנכ״ל|מנכ"ל|מנכ״ל|דירקטור|דירקטורית)\\s+([${HE}"״]+)`, 'g');
+  for (const [, role, object] of claim.matchAll(titled)) {
+    // "מנהל X" also reads as the verb "manages X": fine when the résumé shows managing X.
+    const stem = object.replace(/^ה/, '').slice(0, 3);
+    if (role.startsWith('מנהל') && new RegExp(`(?:ניהול|ניהל|ניהלה|ניהלתי|מנהל|מנהלת)\\s+ה?${escapeRegExp(stem)}`).test(source)) continue;
+    phrases.push(`${role} ${object}`);
+  }
+  for (const m of claim.matchAll(new RegExp(`[${HE}]+\\s+(?:בכיר|בכירה)(?![${HE}])`, 'g'))) phrases.push(m[0]);
+  const held = canonical(heldTitles);
+  const canonicalSource = canonical(source);
+  return phrases.some((p) => {
+    if (canonicalSource.includes(canonical(p))) return false;
+    const words = seniorityWords(p);
+    return words.length === 0 || words.some((w) => !hasWord(held, w));
+  });
+}
+
+const SUMMARY_HEADING = /^\s*(?:professional\s+)?(?:summary|profile|about(?: me)?|objective|תקציר|תמצית|פרופיל|סיכום|אודות|על עצמי)\s*:?\s*$/i;
+
+/** The résumé's own summary: the lines under a summary heading, up to the next blank line. */
+function sourceSummary(source: string): string | null {
+  const lines = source.split('\n');
+  const start = lines.findIndex((l) => SUMMARY_HEADING.test(l));
+  if (start < 0) return null;
+  const body: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (!line.trim()) {
+      if (body.length > 0) break;
+      continue;
+    }
+    if (isHeading(line)) break;
+    body.push(line.trim());
+  }
+  return body.length > 0 ? body.join(' ') : null;
 }
 
 /**
@@ -383,8 +493,10 @@ export interface SeniorityGuardReport {
   checked: true;
   titlesRestored: number;
   yearsCorrected: number;
-  /** Summary sentences, bullets, clauses or skills taken out for an unearned leadership claim. */
+  /** Summary sentences, bullets, clauses or skills taken out for an unearned leadership claim or head count. */
   scopeRemoved: number;
+  /** Summary sentences that named the candidate by a title they never held, dropped or replaced by the résumé's own summary. */
+  summaryTitlesRemoved: number;
   /** Claims left in place because removing them would empty a role or the summary. */
   unresolved: number;
 }
@@ -399,12 +511,20 @@ export function enforceSeniorityTruth(
   now: Date = new Date()
 ): { resume: OptimizedResume; report: SeniorityGuardReport; changed: boolean } {
   const source = trustedResumeText(resumeText);
-  const report: SeniorityGuardReport = { checked: true, titlesRestored: 0, yearsCorrected: 0, scopeRemoved: 0, unresolved: 0 };
+  const report: SeniorityGuardReport = {
+    checked: true,
+    titlesRestored: 0,
+    yearsCorrected: 0,
+    scopeRemoved: 0,
+    summaryTitlesRemoved: 0,
+    unresolved: 0,
+  };
   const roles = sourceRoles(source, now);
   const allHeaders = roles.map((r) => r.header.join('\n')).join('\n');
   const managesPeople = (text: string, titles: string) => PEOPLE_LEADER_TITLE.test(titles) || MANAGER_WORK.test(text);
   // The summary and the skills speak for the whole career.
-  const career: Evidence = { text: source, leader: managesPeople(source, allHeaders) };
+  const numbers = sourceNumbers(source);
+  const career: Evidence = { text: source, leader: managesPeople(source, allHeaders), numbers };
   const years = yearsSupport(source, roles);
   let changed = false;
 
@@ -428,7 +548,12 @@ export function enforceSeniorityTruth(
   const summaryIn = typeof resume.summary === 'string' ? resume.summary : '';
   const summaryParts = sentences(summaryIn);
   const summaryOut: string[] = [];
+  let unheldTitles = 0;
   summaryParts.forEach((sentence) => {
+    if (summaryNamesUnheldTitle(sentence, source, allHeaders)) {
+      unheldTitles++;
+      return; // decided below, once it is known whether an honest sentence remains
+    }
     if (isPureGoal(sentence)) return summaryOut.push(sentence);
     const s = fixYears(sentence);
     if (unsupportedScope(s, career).length === 0) return summaryOut.push(s);
@@ -444,6 +569,17 @@ export function enforceSeniorityTruth(
     report.unresolved++;
     summaryOut.push(s);
   });
+  if (unheldTitles > 0) {
+    // Drop the sentence while an honest one remains; otherwise the résumé's own summary.
+    const own = summaryOut.length === 0 ? sourceSummary(source) : null;
+    if (summaryOut.length > 0 || own) {
+      if (own) summaryOut.push(own);
+      report.summaryTitlesRemoved += unheldTitles;
+    } else {
+      report.unresolved += unheldTitles;
+      summaryOut.push(...summaryParts);
+    }
+  }
   // Untouched sentences keep the summary exactly as written, line breaks included.
   const summaryChanged = summaryOut.length !== summaryParts.length || summaryOut.some((s, i) => s !== summaryParts[i]);
   const summary = summaryChanged ? summaryOut.join(' ') : resume.summary;
@@ -452,7 +588,9 @@ export function enforceSeniorityTruth(
   const experience = (Array.isArray(resume.experience) ? resume.experience : []).map((role) => {
     const match = findRole(role.company, role.startDate);
     // A role is checked against its own block; one that matches no block, against the career.
-    const evidence: Evidence = match ? { text: match.section, leader: managesPeople(match.section, match.header.join('\n')) } : career;
+    const evidence: Evidence = match
+      ? { text: match.section, leader: managesPeople(match.section, match.header.join('\n')), numbers }
+      : career;
     const titleEvidence = canonical(match ? match.header.join('\n') : roles.length > 0 ? allHeaders : source);
 
     let title = role.title;

@@ -41,5 +41,6 @@ export async function runPipelineForEval(c: EvalCase): Promise<PipelineOutcome> 
     passesUsed: result.passesUsed,
     lift: { meaningful: result.lift.meaningful, displayScores: result.lift.displayScores, delta: result.lift.delta },
     truthGuard: result.truthGuard,
+    seniorityGuard: result.seniorityGuard,
   };
 }

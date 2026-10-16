@@ -150,6 +150,8 @@ export function stripFabricatedMetrics(resume: OptimizedResume, originalResumeTe
         cleaned = cleaned
           // "by 20%", "to 20%"
           .replace(new RegExp(`\\s*(?:by|to)\\s+${escaped}\\b`, 'gi'), '')
+          // Hebrew "ב-20%", "ל-20%", "מ-20%": the preposition is attached to the number
+          .replace(new RegExp(`\\s*[בלמ]-?${escaped}`, 'g'), '')
           // "20% improvement/increase/reduction/growth/gain (in/to)"
           .replace(new RegExp(`${escaped}\\s+(?:improvement|increase|reduction|growth|gain)\\s*(?:in|to)?`, 'gi'), '')
           // leftover bare percentage

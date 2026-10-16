@@ -227,10 +227,25 @@ describe('enforceSeniorityTruth: false positives found in review (2026-10-07)', 
       title: 'Engineering Manager',
       company: 'Ledgerly',
       startDate: 'Jan 2021',
-      achievements: ['Shipped the reconciliation service, leading a team of 8 engineers.', 'Hired 6 engineers and ran quarterly performance reviews.'],
+      achievements: ['Shipped the reconciliation service, leading a team of engineers.', 'Hired 6 engineers and ran quarterly performance reviews.'],
     });
     resume.experience = [resume.experience[0]];
     expect(enforceSeniorityTruth(resume, source, NOW).changed).toBe(false);
+  });
+
+  it('still cuts a head count the manager\'s résumé never states (2026-10-16, from #161)', () => {
+    const source = `Maya Levi\nEngineering Manager, Ledgerly — Jan 2021 to Present\n- Hired 6 engineers and ran quarterly performance reviews.\n- Shipped the reconciliation service.`;
+    const resume = priya({ summary: 'Engineering manager with 5 years of experience.' }, {
+      title: 'Engineering Manager',
+      company: 'Ledgerly',
+      startDate: 'Jan 2021',
+      achievements: ['Shipped the reconciliation service, leading a team of 8 engineers.', 'Hired 6 engineers and ran quarterly performance reviews.'],
+    });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).resume.experience[0].achievements).toEqual([
+      'Shipped the reconciliation service.',
+      'Hired 6 engineers and ran quarterly performance reviews.',
+    ]);
   });
 
   it('reads a title written on the line below "Company — dates", and never restores a date as a title', () => {
@@ -523,5 +538,146 @@ describe('enforceSeniorityTruth: review of cd8c33a', () => {
     const resume = priya({ summary: 'Operations coordinator.' }, { title: 'Operations Coordinator', company: 'Brightline', startDate: 'Jan 2020', achievements: [rewritten, 'Ran weekly supply orders.'] });
     resume.experience = [resume.experience[0]];
     expect(enforceSeniorityTruth(resume, source, NOW).changed).toBe(false);
+  });
+});
+
+// The two batch 3 failures #161 was opened for (2026-09-25, config 342f88a3e2fa), ported
+// 2026-10-16: the summary named the target role as the candidate, and team sizes grew.
+const ARMY = `איתי ברק
+itai.barak@example.com | 050-0000003 | באר שבע
+
+תקציר
+קצין לוגיסטיקה לשעבר עם 5 שנות ניסיון בניהול שרשרת אספקה בצבא.
+
+ניסיון תעסוקתי
+קצין לוגיסטיקה, צבא ההגנה לישראל (צה"ל) — אוגוסט 2019 עד יולי 2024
+- ניהול מחסן ציוד של 1,200 פריטים ותכנון הפצה ל-14 יחידות.
+- פיקוד על צוות של 9 חיילים.
+- הובלת מעבר ממעקב ידני לגיליונות Excel משותפים.
+
+רכז תפעול, מרכז הפצה נגב — ספטמבר 2024 עד היום
+- תיאום משמרות וקליטת סחורה במרכז הפצה אזורי.
+
+השכלה
+תואר ראשון בכלכלה וניהול, האוניברסיטה הפתוחה — 2023`;
+
+function itai(summary: string, firstBullets?: string[]): OptimizedResume {
+  return {
+    summary,
+    contact: { name: 'איתי ברק', email: 'itai.barak@example.com', phone: '050-0000003', location: 'באר שבע' },
+    skills: { technical: ['Excel'], soft: [] },
+    experience: [
+      {
+        title: 'קצין לוגיסטיקה',
+        company: 'צבא ההגנה לישראל (צה"ל)',
+        location: '',
+        startDate: 'אוגוסט 2019',
+        endDate: 'יולי 2024',
+        achievements: firstBullets ?? ['ניהול מחסן ציוד של 1,200 פריטים ותכנון הפצה ל-14 יחידות', 'פיקוד על צוות של 9 חיילים', 'הובלת מעבר ממעקב ידני לגיליונות Excel משותפים'],
+      },
+      { title: 'רכז תפעול', company: 'מרכז הפצה נגב', location: '', startDate: 'ספטמבר 2024', endDate: 'היום', achievements: ['תיאום משמרות וקליטת סחורה במרכז הפצה אזורי'] },
+    ],
+    education: [],
+    certifications: [],
+    matchScore: 60,
+    keyImprovements: [],
+    missingKeywords: [],
+  } as OptimizedResume;
+}
+
+const SARA = `Sara Kim
+SUMMARY
+Senior frontend engineer, 6 years of React experience.
+
+EXPERIENCE
+Senior Frontend Engineer, Lumen Software — Feb 2019 to Present
+- Mentored 3 junior engineers.
+- Built a component library used by 12 product teams.`;
+
+const sara = (summary: string) =>
+  ({
+    ...priya({ summary }),
+    experience: [
+      { title: 'Senior Frontend Engineer', company: 'Lumen Software', location: '', startDate: 'Feb 2019', endDate: 'Present', achievements: ['Mentored 3 junior engineers.', 'Built a component library used by 12 product teams.'] },
+    ],
+  }) as OptimizedResume;
+
+describe('enforceSeniorityTruth: who the summary says the candidate is (from #161)', () => {
+  it.each([
+    'מנהל תפעול עם ניסיון בניהול שרשרת אספקה ותפעול לוגיסטי, כולל פיקוד על צוותים וניהול מחסנים.',
+    'מנהל תפעול עם ניסיון עשיר בניהול שרשרת אספקה וניהול צוותים, מחפש תפקיד במגזר העסקי לשיפור תהליכים ולהובלת צוותים.',
+  ])('gives back the résumé\'s own summary when a logistics officer is called an operations manager: %s', (summary) => {
+    const out = enforceSeniorityTruth(itai(summary), ARMY, NOW);
+    expect(out.resume.summary).toBe('קצין לוגיסטיקה לשעבר עם 5 שנות ניסיון בניהול שרשרת אספקה בצבא.');
+    expect(out.report.summaryTitlesRemoved).toBe(1);
+  });
+
+  it('drops the sentence that names the target role as the candidate, and keeps the honest one', () => {
+    const out = enforceSeniorityTruth(
+      priya({ summary: 'Engineering Manager with 5 years of experience building payment services. Built a refund service handling 30,000 requests a day.' }),
+      PRIYA,
+      NOW
+    );
+    expect(out.resume.summary).toBe('Built a refund service handling 30,000 requests a day.');
+    expect(out.report.summaryTitlesRemoved).toBe(1);
+  });
+
+  it('leaves the target role alone when it is stated as a goal, in English and Hebrew', () => {
+    const en = priya({ summary: 'Software engineer with 5 years of experience building payment services in Java. Seeking an Engineering Manager role.' });
+    const he = itai('קצין לוגיסטיקה לשעבר עם 5 שנות ניסיון בניהול שרשרת אספקה. מחפש תפקיד של מנהל תפעול.');
+    expect(enforceSeniorityTruth(en, PRIYA, NOW).changed).toBe(false);
+    expect(enforceSeniorityTruth(he, ARMY, NOW).changed).toBe(false);
+  });
+
+  it('keeps a summary that changes specialty but not seniority, and still catches a raise', () => {
+    expect(enforceSeniorityTruth(sara('Senior React Engineer with 6 years of experience in React.'), SARA, NOW).changed).toBe(false);
+    const raised = enforceSeniorityTruth(sara('Principal React Engineer with 6 years of React experience.'), SARA, NOW);
+    expect(raised.resume.summary).toBe('Senior frontend engineer, 6 years of React experience.');
+  });
+
+  it('reads Hebrew "מנהלת" as the verb it is when the résumé shows the same work', () => {
+    const source = `מיכל אברהם\nתקציר\nרכזת שיווק דיגיטלי עם 3 שנות ניסיון בניהול קמפיינים ברשתות חברתיות.\n\nניסיון תעסוקתי\nרכזת שיווק דיגיטלי, סטודיו אורן — יוני 2023 עד היום\n- ניהול קמפיינים ממומנים בפייסבוק ובאינסטגרם.`;
+    const out = { ...itai('רכזת שיווק דיגיטלי שמנהלת קמפיינים ממומנים ברשתות חברתיות.'), experience: [
+      { title: 'רכזת שיווק דיגיטלי', company: 'סטודיו אורן', location: '', startDate: 'יוני 2023', endDate: 'היום', achievements: ['ניהול קמפיינים ממומנים בפייסבוק ובאינסטגרם.'] },
+    ] } as OptimizedResume;
+    expect(enforceSeniorityTruth(out, source, NOW).changed).toBe(false);
+  });
+});
+
+describe('enforceSeniorityTruth: team size (from #161)', () => {
+  const BILLING = `Sam Ortiz\nSUMMARY\nBackend engineer focused on billing systems.\n\nEXPERIENCE\nEngineer, Acme Robotics — Jan 2020 to Present\n- Led a team of 3 engineers on the billing rewrite.\n- Built firmware for 3 robot arms.`;
+  const sam = (bullet: string) =>
+    ({
+      ...priya({ summary: 'Backend engineer focused on billing systems.' }),
+      experience: [{ title: 'Engineer', company: 'Acme Robotics', location: '', startDate: 'Jan 2020', endDate: 'Present', achievements: [bullet, 'Built firmware for 3 robot arms.'] }],
+    }) as OptimizedResume;
+
+  it('cuts a bullet whose team of 3 became an org of 30', () => {
+    const out = enforceSeniorityTruth(sam('Led an org of 30 engineers on the billing rewrite.'), BILLING, NOW);
+    expect(out.resume.experience[0].achievements).toEqual(['Built firmware for 3 robot arms.']);
+    expect(out.report.scopeRemoved).toBe(1);
+  });
+
+  it('accepts the same team size, however it is written', () => {
+    expect(enforceSeniorityTruth(sam('Led a 3-person engineering team on the billing rewrite.'), BILLING, NOW).changed).toBe(false);
+  });
+
+  it('does not let "30,000 requests" support "30 engineers"', () => {
+    const resume = priya({}, { achievements: ['Led the design of a refund service handling 30,000 requests a day.', 'Mentored 2 summer interns.', 'Ran sprint planning for 30 engineers across payments.'] });
+    const out = enforceSeniorityTruth(resume, PRIYA, NOW);
+    expect(out.resume.experience[0].achievements).toEqual(['Led the design of a refund service handling 30,000 requests a day.', 'Mentored 2 summer interns.']);
+  });
+
+  it('cuts a Hebrew team of 9 soldiers grown to 90', () => {
+    const out = enforceSeniorityTruth(
+      itai('קצין לוגיסטיקה לשעבר עם 5 שנות ניסיון בניהול שרשרת אספקה.', ['ניהול מחסן ציוד של 1,200 פריטים ותכנון הפצה ל-14 יחידות', 'פיקוד על צוות של 90 חיילים', 'הובלת מעבר ממעקב ידני לגיליונות Excel משותפים']),
+      ARMY,
+      NOW
+    );
+    expect(out.resume.experience[0].achievements).toEqual(['ניהול מחסן ציוד של 1,200 פריטים ותכנון הפצה ל-14 יחידות', 'הובלת מעבר ממעקב ידני לגיליונות Excel משותפים']);
+  });
+
+  it('leaves an honest Hebrew rewrite of the army résumé alone', () => {
+    expect(enforceSeniorityTruth(itai('קצין לוגיסטיקה לשעבר עם 5 שנות ניסיון בניהול שרשרת אספקה בצבא.'), ARMY, NOW).changed).toBe(false);
   });
 });
