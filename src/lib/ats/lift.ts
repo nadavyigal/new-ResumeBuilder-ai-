@@ -50,6 +50,13 @@ export interface LiftAssessment {
   stalledComponents: string[];
   /** Privacy-safe payload for the optimization_no_lift event. */
   analyticsProperties: Record<string, string | number | boolean>;
+  /**
+   * Set when the résumé that ships was never measured: a guard changed it after
+   * scoring and the rescore failed. `original` is the real baseline; `optimized`
+   * and `delta` are not measurements and must never reach a user. See
+   * `unavailableLift`.
+   */
+  scoreUnavailable?: true;
 }
 
 export function bucketDelta(delta: number): DeltaBucket {
@@ -57,6 +64,31 @@ export function bucketDelta(delta: number): DeltaBucket {
   if (delta < 5) return '0_to_4';
   if (delta < 10) return '5_to_9';
   return '10_plus';
+}
+
+/**
+ * The lift for a résumé that could not be measured (Phase 1 S4, 2026-10-16).
+ *
+ * The baseline stays, because it was measured on the user's own résumé. There is
+ * no after-score: `optimized` holds the baseline only so the type stays a number,
+ * the same "no movement" the journey contract falls back to without a fresh
+ * measurement, and `displayScores` is false so no caller presents a pair. Not a
+ * no-lift result either, so `meaningful` is false without counting as a failure.
+ */
+export function unavailableLift(original: number, passesUsed?: number): LiftAssessment {
+  return {
+    original,
+    optimized: original,
+    delta: 0,
+    meaningful: false,
+    displayScores: false,
+    stalledComponents: [],
+    analyticsProperties: {
+      score_unavailable: true,
+      ...(typeof passesUsed === 'number' ? { passes_used: passesUsed } : {}),
+    },
+    scoreUnavailable: true,
+  };
 }
 
 export function assessLift(params: {
