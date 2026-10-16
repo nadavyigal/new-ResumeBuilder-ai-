@@ -125,6 +125,28 @@ describe('runOptimizePipeline with the job-ad terms guard', () => {
   });
 });
 
+describe('runOptimizePipeline with the seniority guard', () => {
+  it('restores a promoted title without a model call, then rescores', async () => {
+    const promoted = { ...CLEAN, experience: [{ ...CLEAN.experience[0], title: 'Senior Account Manager' }] };
+    const create = openaiReturning(promoted);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockResolvedValueOnce(score(50, 77));
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(result.optimizedResume.experience[0].title).toBe('Account Executive');
+    expect(result.seniorityGuard).toMatchObject({ titlesRestored: 1, scopeRemoved: 0 });
+    expect(mockScore).toHaveBeenCalledTimes(2);
+    expect(result.atsResult.ats_score_optimized).toBe(77);
+  });
+
+  it('leaves a clean rewrite and its score alone', async () => {
+    openaiReturning(CLEAN);
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+    expect(result.seniorityGuard).toMatchObject({ titlesRestored: 0, yearsCorrected: 0, scopeRemoved: 0, unresolved: 0 });
+    expect(mockScore).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('prompts no longer ask for keywords the résumé lacks', () => {
   it('labels missing keywords as absent from the résumé, not as things to include', () => {
     const prompt = RESUME_OPTIMIZATION_GAP_PROMPT('resume', 'job', { missingKeywords: ['Salesforce'], lowSubscores: {}, mustHave: [] });

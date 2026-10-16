@@ -46,6 +46,7 @@ truthfulness verdict, recommendations and score each time? Plan and status:
 | `call-ledger.ts` | none | Records every model call at the HTTP layer (requested and returned model, tokens, latency, retries, cost). Caps transport retries at one, enforces a hard cost cap, and blocks any non-model host, which is how a run proves it made no analytics or database writes. |
 | `repeat.ts` | none | Plans the runs, executes them with cost-cap and repeated-failure stops, accounts for every planned run, and builds the stability report (verdict flips, score ranges, changed recommendation ids, evidence coverage, unsupported statements, regressions against a baseline, cost and time). |
 | `calibration.ts` | none | 10 labelled outputs, 7 with a deliberate fabrication. Agent-labelled, founder review pending. |
+| `planted.ts`, `planted.test.ts` | free, in CI | 6 planted failures (invented seniority, tool, metric; English and Hebrew) fed to the real `runOptimizePipeline` as the model's answer, OpenAI and the scorer mocked. The raw output must fail the grounding checks and what ships must pass them, so removing `enforceSeniorityTruth`, `enforceJobAdTruth` or `stripFabricatedMetrics` from the pipeline fails its two cases. Added 2026-10-16. |
 | `estimate.ts` | free | Cost estimate from the real prompts and the verified prices. |
 | `optimize-eval.repeat.live.test.ts` | paid, gated | The repeat runner. Skipped unless `RUN_REPEAT_EVAL=1` and a positive `EVAL_COST_CAP_USD`. |
 
