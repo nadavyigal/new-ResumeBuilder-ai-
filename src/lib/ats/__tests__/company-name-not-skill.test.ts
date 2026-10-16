@@ -197,7 +197,7 @@ describe('company detection does not delete real requirements or miss real emplo
 
   it('(d) reads a company name with a lowercase connector', () => {
     expect(detectCompanyNames('Data Analyst at Bank of America\n\nWe move money.')).toContain('Bank of America');
-    expect(detectCompanyNames('About Bank of America\nWe move money.')).toContain('Bank of America');
+    expect(detectCompanyNames('About Bank of America\nBank of America moves money.')).toContain('Bank of America');
   });
 
   it('(e) keeps a product requirement that shares the employer name', () => {
@@ -212,5 +212,21 @@ describe('company detection does not delete real requirements or miss real emplo
     expect(removeCompanyTerms(['Represent Appstock at industry events', 'appstock'], ['Appstock'])).toEqual([
       'Represent at industry events',
     ]);
+  });
+});
+
+/** Codex review of c0cd451 (2026-10-16): two headings read as employers on weak evidence. */
+describe('company headings need evidence that they name an employer', () => {
+  it('does not read a topic heading "<Topic> at <Word>" as "<Title> at <Company>"', () => {
+    expect(detectCompanyNames('Machine Learning at Scale\nWe build models with PyTorch.')).toEqual([]);
+    // A real title still works.
+    expect(detectCompanyNames('Senior Data Engineer at Scale AI\nWe build models.')).toContain('Scale AI');
+  });
+
+  it('does not read an unlisted function heading "About <Function>" as the employer', () => {
+    expect(detectCompanyNames('About Business Development\nExcel and HubSpot experience required.')).toEqual([]);
+    // A name the ad repeats, or that looks like a proper name, still counts.
+    expect(detectCompanyNames('About Appstock\nAppstock connects publishers and buyers.')).toContain('Appstock');
+    expect(detectCompanyNames('About HubSpot\nWe build CRM software.')).toContain('HubSpot');
   });
 });

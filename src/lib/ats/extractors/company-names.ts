@@ -33,7 +33,15 @@ const HIRING_SENTENCE =
   /(?:^|[.!?]\s+)([A-Z][\w&'.-]*(?:\s+[A-Z][\w&'.-]*){0,3})\s+(?:is|are)\s+(?:looking for|hiring|seeking)\s+(?:a|an)\s+([A-Z][^\n.,;:!?]*?)(?=\s+(?:to|who|that|for|in|at|on|with|and|based)\b|[\n.,;:!?]|$)/m;
 
 /** "Business Development Manager - Ad tech at Appstock", only as a heading line. */
-const TITLE_AT_COMPANY = new RegExp(`\\s(?:at|@)\\s+(${NAME})\\s*$`);
+const TITLE_AT_COMPANY = new RegExp(`^(.*?)\\s(?:at|@)\\s+(${NAME})\\s*$`);
+
+/**
+ * A word that names a job. The part before "at" in a heading must hold one, so
+ * "Account Executive at Appstock" names an employer and "Machine Learning at
+ * Scale" does not.
+ */
+const JOB_WORD =
+  /\b(?:engineer|developer|programmer|manager|analyst|designer|scientist|consultant|specialist|coordinator|director|lead|head|officer|associate|assistant|administrator|architect|representative|executive|accountant|recruiter|marketer|strategist|planner|writer|editor|researcher|intern|owner|founder|president|vp|partner|advisor|agent|technician|operator|controller|auditor|teacher|nurse|tester|trainer)s?\b/i;
 /** "About Appstock" as a heading line. */
 const ABOUT_HEADING = new RegExp(`^[ \\t]*About[ \\t]+(${NAME})[ \\t]*:?[ \\t]*$`, 'gm');
 /** "Company: Fiverr" / "Company name: Fiverr". */
@@ -83,18 +91,28 @@ function isKnownCompanyName(name: string): boolean {
   return name.trim().length >= 2 && !words.every((word) => PLACEHOLDER_WORDS.has(word));
 }
 
+/** A name written the way only names are: "Monday.com", "HubSpot", "3M", "AT&T". */
+const PROPER_NAME_MARK = /[.&\d]|\p{Ll}\p{Lu}/u;
+
 /**
- * Whether an "About <Name>" heading names the employer: never a department,
- * and never a word the ad also writes in lowercase, as a skill ("Software
- * engineering"). A domain ("fiverr.com") is not such a use.
+ * Whether an "About <Name>" heading names the employer. Ads title their
+ * sections the same way ("About Engineering", "About Business Development"),
+ * so the heading alone is not enough: the name must look like a proper name,
+ * or the ad must use it again with its capitals ("Appstock connects ...").
+ * A department, or a word the ad also writes in lowercase as a skill
+ * ("Software engineering"), never counts. A domain ("fiverr.com") is not
+ * such a lowercase use.
  */
-function isEmployerHeading(name: string, text: string): boolean {
+function isEmployerHeading(name: string, text: string, headingLine: string): boolean {
   if (name.toLowerCase().split(/\s+/).some((word) => FUNCTIONAL_HEADINGS.has(word))) return false;
   const lowercaseUse = new RegExp(
     `(?<![\\p{L}\\p{N}])${escapeRegExp(name.toLowerCase())}(?![\\p{L}\\p{N}]|\\.[a-z])`,
     'u',
   );
-  return !lowercaseUse.test(text);
+  if (lowercaseUse.test(text)) return false;
+  if (PROPER_NAME_MARK.test(name)) return true;
+  const repeated = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'u');
+  return repeated.test(text.replace(headingLine, ' '));
 }
 
 /**
@@ -140,7 +158,8 @@ export function detectCompanyNames(text: string, known: Array<string | null | un
 
   const firstLine = text.split('\n').find((line) => line.trim().length > 0)?.trim() ?? '';
   if (firstLine && firstLine.split(/\s+/).length <= 12 && !/[.!?]$/.test(firstLine)) {
-    add(firstLine.match(TITLE_AT_COMPANY)?.[1]);
+    const heading = firstLine.match(TITLE_AT_COMPANY);
+    if (heading && JOB_WORD.test(heading[1])) add(heading[2]);
   }
 
   add(extractHiringSentence(text).company);
@@ -151,7 +170,7 @@ export function detectCompanyNames(text: string, known: Array<string | null | un
   // is the weakest evidence: read only when nothing above names the employer.
   if (found.length === 0) {
     for (const match of text.matchAll(ABOUT_HEADING)) {
-      if (isEmployerHeading(match[1], text)) add(match[1]);
+      if (isEmployerHeading(match[1], text, match[0])) add(match[1]);
     }
   }
 
