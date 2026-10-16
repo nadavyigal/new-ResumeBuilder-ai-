@@ -1,8 +1,9 @@
 # Cycle 1 — `rb-li-20260910-trusted-workspace`
 
-Stage 2 run 2026-10-15: tracking verified, baseline not yet read. Pre-post check
-2026-10-16 on production: **passed**, score and missing items shown signed out, no 402, no
-sign-up popup (see "Pre-post check, 2026-10-16" in stage 2). Baseline still not read. Paste these into [`experiment-card.html`](./experiment-card.html)
+Stage 2 run 2026-10-15: tracking verified. Pre-post check 2026-10-16 on production:
+**passed**, score and missing items shown signed out, no 402, no sign-up popup (see
+"Pre-post check, 2026-10-16" in stage 2). Baseline read 2026-10-16: 1 external activation,
+immature (see "Pre-action baseline"). Paste these into [`experiment-card.html`](./experiment-card.html)
 and work the six stages. Nothing here has been published.
 
 ## 1. Frame
@@ -50,17 +51,25 @@ kept. Independent review (marketing contract section 5) still pending.
 
 | Check | Result |
 |---|---|
-| Baseline | **NOT YET READ.** `measurement_contract.py` stopped: `AGENTIC_OS_POSTHOG_API_KEY` is not set on this machine. No number was read or estimated. |
+| Baseline | **Read 2026-10-16: 1 external activation, IMMATURE** (n below 10, counts only). On 2026-10-15 the script stopped because the key was not set; it was not read or estimated that day. |
 | Tracking | **`verified`**, 2026-10-15 06:02 UTC. |
 | Signed-out score check | **Score and gaps shown, no 402. A sign-up prompt does appear.** Founder decision before posting. |
 
-**Pre-action baseline: NOT YET READ.** The script reads the key only from the
-environment and stopped with `STOPPED: AGENTIC_OS_POSTHOG_API_KEY is not set`. Run this in
-the Resumely iOS repo before publishing and paste the headline plus the read timestamp here:
+**Pre-action baseline: read 2026-10-16.** `scripts/measurement_contract.py` (Resumely iOS
+repo), run by the founder's session on 2026-10-16; all seven steps passed.
 
-```bash
-AGENTIC_OS_POSTHOG_API_KEY=… python3 scripts/measurement_contract.py
-```
+| Field | Value |
+|---|---|
+| Headline | **1 external activation.** IMMATURE: n below 10, counts only, no rate. |
+| Scope | Exact `app_version` 1.5.1, build 29, `$lib` `resumely-ios-urlsession` |
+| Window | 2026-09-16 to 2026-10-16; mature selection cutoff 2026-10-09; 0 immature selections |
+| Store release anchor | 2026-09-09T16:51:52Z (1.5.1) |
+| Cohort | 9 external people, 0 internal |
+| External funnel | `resume_file_selected` 5, `optimization_started` 1, `optimization_completed` 1 (primary), `export_success` 1 (diagnostic only) |
+
+**For the readout:** 4 of the 5 people who picked a résumé never started an optimization.
+That step is the biggest leak in this funnel. Flag it in the readout; it is not fixed in
+this cycle. With n this small the baseline says what happened, not a rate to beat.
 
 **Tracking: `verified`.** The destination link above was opened signed-out in a clean
 browser on 2026-10-15. Observed:
@@ -149,10 +158,8 @@ with the job context ..."), and the issue example "שיפרתי sql queries ב-[
 in the metric slot. #187 fixes that in `MainIssuesSummary`, which the free check shares
 with the dashboard banner; it is not merged yet.
 
-**Still open before posting:** the baseline. `measurement_contract.py` needs
-`AGENTIC_OS_POSTHOG_API_KEY`, which is not set on this machine; no number was read or
-estimated. The independent review of the post copy (marketing contract section 5) is also
-still pending.
+**Still open before posting:** the independent review of the post copy (marketing contract
+section 5). The baseline is read (above).
 
 ## 3–6
 
