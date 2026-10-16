@@ -24,6 +24,7 @@ import {
   type ResolvedAtsDisplay,
 } from "@/lib/ats/resolve-display-scores";
 import { useToast } from "@/hooks/useToast";
+import { useReadinessHighlights } from "@/hooks/useReadinessHighlights";
 import {
   Select,
   SelectContent,
@@ -90,10 +91,7 @@ export default function OptimizationPage() {
   const locale = useLocale();
   const designDescription = currentDesignAssignment?.template?.description || t("design.defaultDescription");
   const designSummaryLabel = locale === "he" ? t("design.changeDesign") : designDescription;
-  const readinessHighlights =
-    optimizedResume?.keyImprovements?.slice(0, 4) && optimizedResume.keyImprovements.length > 0
-      ? optimizedResume.keyImprovements.slice(0, 4)
-      : atsSuggestions.slice(0, 4).map((suggestion: any) => suggestion.text);
+  const readinessHighlights = useReadinessHighlights(optimizedResume?.keyImprovements, atsSuggestions);
   const readinessStats = [
     {
       label: t("readiness.stats.role"),
