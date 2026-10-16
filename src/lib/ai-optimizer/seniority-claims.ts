@@ -76,6 +76,10 @@ const BULLET = /^\s*(?:[-•*▪●–·]|\d+[.)])\s*/;
 const SECTION_WORDS =
   /^(?:(?:professional\s+|work\s+)?(?:summary|profile|experience|employment|education|skills|projects|certifications|languages|volunteering)|ניסיון(?:\s+\S+)?|השכלה|תקציר|כישורים|מיומנויות|שפות|פרויקטים|התנדבות)\s*:?$/i;
 
+/** Sections whose dated lines are not jobs: a degree's years are not years of experience. */
+const NON_EMPLOYMENT_SECTION =
+  /^(?:education|academic|projects?|personal projects|certifications?|licen[cs]es|courses?|training|volunteer(?:ing)?|awards|publications|השכלה|לימודים|פרויקטים|הסמכות|קורסים|התנדבות)\b/i;
+
 function isHeading(line: string): boolean {
   const t = line.trim();
   return (t === t.toUpperCase() && /[A-Z]/.test(t)) || SECTION_WORDS.test(t);
@@ -123,14 +127,26 @@ function sourceRoles(source: string, now: Date): SourceRole[] {
   const isDated = (l: string) => YEAR.test(l) && RANGE.test(l);
   const isHeader = (i: number) => i >= 0 && i < lines.length && i !== nameLine && titleLike(lines[i]) && !isHeading(lines[i]);
 
+  // Which section each line sits in. Before any heading, a dated line counts as a job.
+  let employment = true;
+  const inEmployment = lines.map((line) => {
+    if (isHeading(line)) employment = !NON_EMPLOYMENT_SECTION.test(line.trim());
+    return employment;
+  });
+
   const blocks = lines.flatMap((line, i) => {
-    if (!isDated(line)) return [];
+    if (!isDated(line) || !inEmployment[i]) return [];
+    // Up to three header lines above ("Software Engineer" / "Acme Corp" / "New York, NY"
+    // over the dates) and two below.
     const above: number[] = [];
-    for (let j = i - 1; j >= i - 2 && isHeader(j); j--) above.push(j);
+    for (let j = i - 1; j >= i - 3 && isHeader(j); j--) above.push(j);
     const below: number[] = [];
     for (let j = i + 1; j <= i + 2 && isHeader(j); j++) below.push(j);
-    // Nearest first: the line right below, the line right above, then the next pair out.
-    const header = [line, ...[below[0], above[0], below[1], above[1]].filter((j): j is number => j !== undefined).map((j) => lines[j])];
+    // Nearest first: the line right below, the line right above, then further out.
+    const header = [
+      line,
+      ...[below[0], above[0], below[1], above[1], above[2]].filter((j): j is number => j !== undefined).map((j) => lines[j]),
+    ];
     const years = (line.match(RANGE)?.[0].match(/(?:19|20)\d\d/g) ?? []).map(Number);
     return [{ dated: i, top: Math.min(i, ...above), bottom: Math.max(i, ...below), header, start: years[0], end: years[1] ?? now.getFullYear() }];
   });
@@ -186,8 +202,6 @@ const YEARS_OF_EXPERIENCE = new RegExp(
   `(?<![A-Za-z0-9])(${NUMBER})(\\s*\\+)?\\s*(years?|yrs)(?:['’]s?)?\\s+(?:of\\s+)?(?:[\\w&/.-]+\\s+){0,4}?experience\\b`,
   'gi'
 );
-/** Any years figure the résumé states about itself, for support. */
-const ANY_YEARS = new RegExp(`(?<![A-Za-z0-9])(${NUMBER})\\s*\\+?\\s*(?:years?|yrs)\\b`, 'gi');
 
 function toNumber(token: string): number {
   return /^\d+$/.test(token) ? Number(token) : NUMBER_WORDS[token.toLowerCase()] ?? NaN;
@@ -205,7 +219,9 @@ interface YearsSupport {
  * about nine years, not twenty-one. Overlapping or back-to-back roles merge.
  */
 function yearsSupport(source: string, roles: SourceRole[]): YearsSupport | null {
-  const stated = [...source.matchAll(ANY_YEARS)].map((m) => toNumber(m[1])).filter(Number.isFinite);
+  // Only a years figure stated as experience ("6 years of experience") supports a claim;
+  // "Analyzed 10 years of financial data" is a duration of data, not of a career.
+  const stated = [...source.matchAll(YEARS_OF_EXPERIENCE)].map((m) => toNumber(m[1])).filter(Number.isFinite);
   const spans = roles.filter((r) => Number.isFinite(r.start)).map((r) => [r.start, r.end]).sort((a, b) => a[0] - b[0]);
   if (spans.length === 0 && stated.length === 0) return null; // nothing to measure against
   const merged: number[][] = [];
@@ -341,6 +357,22 @@ function stripScope(text: string, evidence: Evidence): string | null {
   return null;
 }
 
+/** A goal the shared ASPIRATION marker misses: "Seeking a role leading teams". */
+const GOAL_ROLE = /\b(?:seeking|pursuing|targeting)\s+(?:a|an)\b|\blooking\s+for\s+(?:a|an)\b/i;
+
+/**
+ * Experience the candidate claims to have, inside a goal sentence: "Seeking to apply
+ * my experience managing teams" states a past fact, while "Aiming to grow into leading
+ * teams" does not.
+ */
+const CLAIMED_IN_GOAL =
+  /\b(?:my|our)\s+(?:[\w-]+\s+){0,2}(?:experience|background|expertise|track\s+record|skills)\b|\bexperience\s+(?:in|with|of|managing|leading)\b|\bhaving\s+(?:led|managed|mentored|supervised|headed)\b|ניסיוני|הניסיון\s+שלי/i;
+
+/** A goal sentence with no claim about the past is never policed. */
+function isPureGoal(sentence: string): boolean {
+  return (ASPIRATION.test(sentence) || GOAL_ROLE.test(sentence)) && !CLAIMED_IN_GOAL.test(sentence);
+}
+
 function sentences(text: string): string[] {
   return text.split(/(?<=[.!?])\s+|\n+/).filter((s) => s.trim().length > 0);
 }
@@ -392,12 +424,12 @@ export function enforceSeniorityTruth(
     return r.text;
   };
 
-  // Summary: goal sentences are never policed.
+  // Summary: a pure goal is never policed; a goal that also claims experience is.
   const summaryIn = typeof resume.summary === 'string' ? resume.summary : '';
   const summaryParts = sentences(summaryIn);
   const summaryOut: string[] = [];
   summaryParts.forEach((sentence) => {
-    if (ASPIRATION.test(sentence)) return summaryOut.push(sentence);
+    if (isPureGoal(sentence)) return summaryOut.push(sentence);
     const s = fixYears(sentence);
     if (unsupportedScope(s, career).length === 0) return summaryOut.push(s);
     const cut = stripScope(s, career);

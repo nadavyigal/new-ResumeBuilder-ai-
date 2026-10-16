@@ -479,3 +479,49 @@ describe('the optimizer prompt (from #161)', () => {
     expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('never as who the candidate already is');
   });
 });
+
+/** Codex review of cd8c33a (2026-10-16). Each case failed on that head. */
+describe('enforceSeniorityTruth: review of cd8c33a', () => {
+  it('reads a title three lines above the dates (title / company / city / dates)', () => {
+    const source = `Priya Raman\n\nEXPERIENCE\nSoftware Engineer\nAcme Corp\nNew York, NY\nJan 2020 – Dec 2022\n- Built the billing service.\n- Wrote its tests.`;
+    const resume = priya({}, { title: 'Engineering Manager', company: 'Acme Corp', startDate: 'Jan 2020', achievements: ['Built the billing service.', 'Wrote its tests.'] });
+    resume.experience = [resume.experience[0]];
+    const out = enforceSeniorityTruth(resume, source, NOW);
+    expect(out.resume.experience[0].title).toBe('Software Engineer');
+  });
+
+  it('does not count education dates as years of experience', () => {
+    const source = `Dana Levi\n\nEXPERIENCE\nAnalyst, Acme — Jan 2022 to Present\n- Built weekly reports.\n\nEDUCATION\nBA Economics, State University — 2010 to 2014`;
+    const resume = priya({ summary: 'Analyst with 8 years of experience in reporting.' }, { title: 'Analyst', company: 'Acme', startDate: 'Jan 2022', achievements: ['Built weekly reports.'] });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).resume.summary).toBe('Analyst with 4 years of experience in reporting.');
+  });
+
+  it('does not take an unrelated duration as stated experience', () => {
+    const source = `Tal Mor\n\nFinancial Analyst, Westgate — Aug 2023 to Present\n- Analyzed 10 years of financial data for the annual budget.`;
+    const resume = priya({ summary: 'Financial analyst with 10 years of experience in budgeting.' }, { title: 'Financial Analyst', company: 'Westgate', startDate: 'Aug 2023', achievements: ['Analyzed 10 years of financial data for the annual budget.'] });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).resume.summary).toBe('Financial analyst with 3 years of experience in budgeting.');
+  });
+
+  it('polices a factual claim inside a goal sentence, and still leaves a pure goal alone', () => {
+    const out = enforceSeniorityTruth(
+      priya({ summary: 'Software engineer who builds payment services in Java. Seeking to apply my experience managing teams.' }),
+      PRIYA,
+      NOW
+    );
+    expect(out.resume.summary).toBe('Software engineer who builds payment services in Java.');
+    const goal = priya({ summary: 'Software engineer who builds payment services in Java. Seeking a role leading engineering teams.' });
+    expect(enforceSeniorityTruth(goal, PRIYA, NOW).changed).toBe(false);
+  });
+
+  it.each([
+    ['Managed a five-person department.', 'Managed a team that kept supply orders on schedule.'],
+    ['Led a group of six analysts.', 'Managed a team through month-end close.'],
+  ])('keeps "managed a team" when the résumé says "%s"', (sourceBullet, rewritten) => {
+    const source = `Noa Mizrahi\n\nOperations Coordinator, Brightline — Jan 2020 to Present\n- ${sourceBullet}\n- Ran weekly supply orders.`;
+    const resume = priya({ summary: 'Operations coordinator.' }, { title: 'Operations Coordinator', company: 'Brightline', startDate: 'Jan 2020', achievements: [rewritten, 'Ran weekly supply orders.'] });
+    resume.experience = [resume.experience[0]];
+    expect(enforceSeniorityTruth(resume, source, NOW).changed).toBe(false);
+  });
+});
