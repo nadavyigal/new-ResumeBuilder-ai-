@@ -6,7 +6,7 @@
 
 **Root cause:** `/he` sets `dir="rtl"` on `<html>`. AI output, résumé text and server strings like `scoreNote` are usually English, and a block that inherits RTL puts trailing punctuation (a neutral character) on the left.
 
-**Fix:** add `dir="auto"` to the block that holds the text, not to its Hebrew label (`ATSScoreDisplay`, `IssueCard`, `QuickWinsSection`). Regression test: `tests/app/free-check-results-bidi.test.tsx`.
+**Fix:** add `dir="auto"` to the block that holds the text, not to its Hebrew label (`IssueCard`, `QuickWinsSection`; the fit verdict and note in `ATSScoreDisplay` became translated `t()` strings on 2026-10-15). Regression test: `tests/app/free-check-results-bidi.test.tsx`.
 
 **Rule:** any element that renders model output, user content or an untranslated server string gets `dir="auto"`. Translated `t()` strings do not need it.
 

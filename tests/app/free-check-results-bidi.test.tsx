@@ -37,11 +37,6 @@ jest.mock('@/components/landing/SocialShareButton', () => ({
   SocialShareButton: () => null,
 }));
 
-jest.mock('@/components/landing/ContextualSignupPopup', () => ({
-  __esModule: true,
-  ContextualSignupPopup: () => null,
-}));
-
 jest.mock('@/components/ats/MainIssuesSummary', () => ({
   __esModule: true,
   MainIssuesSummary: () => null,
@@ -123,8 +118,9 @@ describe('free check results keep English AI text LTR inside an RTL page', () =>
     container.remove();
   });
 
+  // The fit verdict and its note are translated t() strings on main (#152, #182), so
+  // they need no dir="auto"; the issue text can still fall back to the English text.
   it.each([
-    ['fit verdict', 'Stretch'],
     ['issue text', data.preview.topIssues[0].text],
     ['quick win before', quickWin.original_text],
     ['quick win after', quickWin.optimized_text],
@@ -145,7 +141,7 @@ describe('free check results keep English AI text LTR inside an RTL page', () =>
       root.render(<ATSScoreDisplay data={data} onSignup={() => {}} />);
     });
 
-    expect(container.textContent).toContain('landing.score.fit.scoreNote');
+    expect(container.textContent).toContain('landing.score.fit.note');
     expect(container.textContent).not.toContain(data.fit!.scoreNote);
   });
 });
