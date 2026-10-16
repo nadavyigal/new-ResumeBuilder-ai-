@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A rescore after a guard must never fall back to the score it replaced (2026-10-16)
+
+**Symptom:** when the truth guard changed the résumé and the rescore came back as the scorer's zero-confidence fallback, `runOptimizePipeline` returned `{ ...selected, optimizedResume: guarded.resume }`: the pass-1 score and lift, measured on the résumé before the guard, shipped beside a different document. Worse, the scorer has thrown instead of returning that fallback since WP-45 D8, so the usual failure was a 500 from `/api/optimize` and the user lost a correct, guarded résumé.
+
+**Fix:** both failures (a throw, or 0 with zero confidence) return the guarded résumé with its real baseline, no after-score and `lift.scoreUnavailable: true` (`unavailableLift` in `src/lib/ats/lift.ts`). `toWireFit` sends `potentialScore`, `delta` and `confidence` as null, `topGaps` empty and an additive `scoreUnavailable`; every `fit` field is optional on iOS, so installed builds decode it and, with `displayScores` false, show no pair.
+
+**Rules:**
+1. A cached measurement belongs to the document it measured. When the document changes, rescore or say "unavailable"; never carry the old number forward.
+2. When a callee changes from returning a sentinel to throwing, every caller that checked the sentinel needs a `catch` too.
+3. An unmeasured run is not a no-lift run: do not count it in `optimization_no_lift`.
 ## A rewrite prompt cannot stop promotion; check titles, years and leadership claims after it (2026-10-07, consolidated 2026-10-16)
 
 **Symptom:** the optimizer retitled an individual contributor "Engineering Manager", claimed "8+ years" on a three-year career, and wrote "leading teams" for someone who mentored 2 interns. The nightly judge passed every one.

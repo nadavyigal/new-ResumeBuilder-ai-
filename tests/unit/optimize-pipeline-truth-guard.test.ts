@@ -21,7 +21,7 @@ jest.mock('@/lib/ats/extractors/jd-extractor', () => {
   return { __esModule: true, extractJobData: jestGlobal.fn() };
 });
 
-import { runOptimizePipeline } from '@/lib/ai-optimizer/optimize-pipeline';
+import { runOptimizePipeline, toWireFit } from '@/lib/ai-optimizer/optimize-pipeline';
 import { RESUME_OPTIMIZATION_GAP_PROMPT, RESUME_OPTIMIZATION_SYSTEM_PROMPT } from '@/lib/prompts/resume-optimizer';
 import OpenAI from 'openai';
 import * as atsIntegration from '@/lib/ats/integration';
@@ -178,5 +178,71 @@ describe('runOptimizePipeline: job-post phrases are held only for clients that c
         proposed: 'Logged every opportunity in HubSpot for B2B SaaS accounts.',
       }),
     ]);
+  });
+});
+
+describe('runOptimizePipeline when the corrected résumé cannot be rescored (Phase 1 S4)', () => {
+  // The guard changes the résumé, so the pass-1 score (50 -> 80) describes a different
+  // document. A failed rescore must not hand that 80, or a 0, to the user.
+  const zeroConfidenceFallback = () => ({ ...score(0, 0), confidence: 0 });
+
+  it('keeps the baseline, drops the old after-score and lift, and marks the score unavailable', async () => {
+    openaiReturning(INVENTED, INVENTED);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockResolvedValueOnce(zeroConfidenceFallback());
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(result.optimizedResume.skills.technical).not.toContain('Salesforce');
+    expect(result.lift).toMatchObject({ scoreUnavailable: true, displayScores: false, meaningful: false, original: 50 });
+    expect(result.atsResult.ats_score_original).toBe(50);
+    expect(result.atsResult.ats_score_optimized).not.toBe(80);
+    expect(result.atsResult.suggestions).toEqual([]);
+  });
+
+  it('ships the corrected résumé instead of failing when the rescore throws', async () => {
+    openaiReturning(INVENTED, INVENTED);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockRejectedValueOnce(new Error('ATS scoring failed'));
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(result.optimizedResume.skills.technical).not.toContain('Salesforce');
+    expect(result.lift).toMatchObject({ scoreUnavailable: true, displayScores: false });
+    expect(result.atsResult.ats_score_original).toBe(50);
+  });
+
+  it('sends the baseline and no after-score, no delta and no gaps on the wire, never a 0', async () => {
+    openaiReturning(INVENTED, INVENTED);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockResolvedValueOnce(zeroConfidenceFallback());
+    const fit = toWireFit(await runOptimizePipeline(RESUME_TEXT, JD));
+
+    expect(fit).toEqual({
+      currentScore: 50,
+      potentialScore: null,
+      delta: null,
+      displayScores: false,
+      confidence: null,
+      scoreVersion: null,
+      topGaps: [],
+      scoreUnavailable: true,
+    });
+  });
+
+  it('keeps the seniority correction and marks the score unavailable together', async () => {
+    const promoted = { ...CLEAN, experience: [{ ...CLEAN.experience[0], title: 'Senior Account Manager' }] };
+    openaiReturning(promoted);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockRejectedValueOnce(new Error('ATS scoring failed'));
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(result.optimizedResume.experience[0].title).toBe('Account Executive');
+    expect(result.seniorityGuard).toMatchObject({ titlesRestored: 1 });
+    expect(result.lift).toMatchObject({ scoreUnavailable: true, displayScores: false, original: 50 });
+    expect(toWireFit(result)).toMatchObject({ currentScore: 50, potentialScore: null, scoreUnavailable: true });
+  });
+
+  it('keeps the measured wire shape when the rescore works', async () => {
+    openaiReturning(INVENTED, INVENTED);
+    mockScore.mockResolvedValueOnce(score(50, 80)).mockResolvedValueOnce(score(50, 76));
+    const result = await runOptimizePipeline(RESUME_TEXT, JD);
+
+    expect(result.lift.scoreUnavailable).toBeUndefined();
+    expect(toWireFit(result)).toMatchObject({ currentScore: 50, potentialScore: 76, delta: 26, displayScores: true, scoreUnavailable: false });
   });
 });
