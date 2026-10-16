@@ -1,7 +1,9 @@
 # Cycle 1 — `rb-li-20260910-trusted-workspace`
 
-Stage 2 run 2026-10-15: tracking verified, baseline not yet read, signed-out check needs a
-founder decision (see stage 2). Paste these into [`experiment-card.html`](./experiment-card.html)
+Stage 2 run 2026-10-15: tracking verified. Pre-post check 2026-10-16 on production:
+**passed**, score and missing items shown signed out, no 402, no sign-up popup (see
+"Pre-post check, 2026-10-16" in stage 2). Baseline read 2026-10-16: 1 external activation,
+immature (see "Pre-action baseline"). Paste these into [`experiment-card.html`](./experiment-card.html)
 and work the six stages. Nothing here has been published.
 
 ## 1. Frame
@@ -49,17 +51,25 @@ kept. Independent review (marketing contract section 5) still pending.
 
 | Check | Result |
 |---|---|
-| Baseline | **NOT YET READ.** `measurement_contract.py` stopped: `AGENTIC_OS_POSTHOG_API_KEY` is not set on this machine. No number was read or estimated. |
+| Baseline | **Read 2026-10-16: 1 external activation, IMMATURE** (n below 10, counts only). On 2026-10-15 the script stopped because the key was not set; it was not read or estimated that day. |
 | Tracking | **`verified`**, 2026-10-15 06:02 UTC. |
 | Signed-out score check | **Score and gaps shown, no 402. A sign-up prompt does appear.** Founder decision before posting. |
 
-**Pre-action baseline: NOT YET READ.** The script reads the key only from the
-environment and stopped with `STOPPED: AGENTIC_OS_POSTHOG_API_KEY is not set`. Run this in
-the Resumely iOS repo before publishing and paste the headline plus the read timestamp here:
+**Pre-action baseline: read 2026-10-16.** `scripts/measurement_contract.py` (Resumely iOS
+repo), run by the founder's session on 2026-10-16; all seven steps passed.
 
-```bash
-AGENTIC_OS_POSTHOG_API_KEY=… python3 scripts/measurement_contract.py
-```
+| Field | Value |
+|---|---|
+| Headline | **1 external activation.** IMMATURE: n below 10, counts only, no rate. |
+| Scope | Exact `app_version` 1.5.1, build 29, `$lib` `resumely-ios-urlsession` |
+| Window | 2026-09-16 to 2026-10-16; mature selection cutoff 2026-10-09; 0 immature selections |
+| Store release anchor | 2026-09-09T16:51:52Z (1.5.1) |
+| Cohort | 9 external people, 0 internal |
+| External funnel | `resume_file_selected` 5, `optimization_started` 1, `optimization_completed` 1 (primary), `export_success` 1 (diagnostic only) |
+
+**For the readout:** 4 of the 5 people who picked a résumé never started an optimization.
+That step is the biggest leak in this funnel. Flag it in the readout; it is not fixed in
+this cycle. With n this small the baseline says what happened, not a rate to beat.
 
 **Tracking: `verified`.** The destination link above was opened signed-out in a clean
 browser on 2026-10-15. Observed:
@@ -113,6 +123,43 @@ for G1c to remove it, is the founder's call.
   guarantee." and the issue texts ("Add the missing skill ...").
 - Gap 2 shows "+1.9000000000000001 נק׳" (unrounded float).
 - The App Store button reads "הורד Resumely — חינם" (a "free" claim and an em dash).
+
+### Pre-post check, 2026-10-16 (Claude Code)
+
+**Verdict: passed.** The post's claims (a match score and what is missing, no account
+needed) hold on production. Read only: nothing was posted.
+
+| Check | Result |
+|---|---|
+| Production build | Vercel production deployment of `9281cc4` (main, includes #185 G1c-1), created 2026-10-16 04:25 UTC |
+| Signed out | No Supabase session in storage (no `sb-` keys) |
+| Campaign context | `resumely_campaign_context` stored `campaign_id = rb-li-20260910-trusted-workspace`, `utm_content = he_li_trusted_01`; both App Store links carry `ct=rb-li-20260910-trusted-workspace&at=organic` |
+| `POST /api/public/ats-check` | **200**, about 13 s. No 402 anywhere |
+| Result | Score 62/100, top 3 gaps with missing keywords (`sql queries, tableau, regional performance, sales leadership`), all 10 issues listed (none locked), 3 quick wins |
+| Account prompt | **None blocking.** No dialog at any point (checked 20 s after the score). The only account mentions are the header "כבר יש לכם חשבון? התחברו" sign-in link and an optional "שמרו את הבדיקה" save box at the very end of the result |
+| PostHog 270848 | Project confirmed by `project-get`. Events at 04:36:54 to 04:37:58 UTC: `$pageview`, `ats_checker_file_uploaded`, `ats_checker_submitted`, `ats_checker_score_displayed`, each with `campaign_id = rb-li-20260910-trusted-workspace` and `utm_content = he_li_trusted_01`. No `signup_popup_viewed` (it fired in the 2026-10-15 run, before #185) |
+
+Run 2026-10-16 04:36 to 04:38 UTC, Playwright browser, the destination link above, the same
+fictional demo resume and job ad as stage 2 (`maya-levin-resume.txt` as a PDF,
+`job-data-analyst.txt`).
+
+**Test arrival to exclude.** The Playwright profile reused distinct id
+`01a13e26-3555-7afd-933c-82079b5b0dba`, already on the exclusion list above. No new test id
+was created. The readout window starts at the post time anyway.
+
+**Changed since 2026-10-15:** the sign-up modal is gone (#185); the fit label reads
+"מתאים" above 62/100 and no longer disagrees with a "needs improvement" label; gap 2 shows
+"+1.9 נק׳" (rounded); the App Store button reads "להורדת Resumely מ-App Store" (no "free"
+claim, no em dash).
+
+**Still seen (not blocking the post, not fixed here):** the quick wins' "why this improves
+your score" lines are English on the Hebrew page ("Specifying 'sales and operations' aligns
+with the job context ..."), and the issue example "שיפרתי sql queries ב-[X%]" puts a skill
+in the metric slot. #187 fixes that in `MainIssuesSummary`, which the free check shares
+with the dashboard banner; it is not merged yet.
+
+**Still open before posting:** the independent review of the post copy (marketing contract
+section 5). The baseline is read (above).
 
 ## 3–6
 
