@@ -262,7 +262,8 @@ export async function POST(req: NextRequest) {
     const optimizedResume = pipelineResult.optimizedResume;
 
     // See WP-45 S2 — count runs that failed to improve on the starting resume.
-    if (!pipelineResult.lift.meaningful) {
+    // An unmeasured run is not one.
+    if (!pipelineResult.lift.meaningful && !pipelineResult.lift.scoreUnavailable) {
       await captureServerEvent(user.id, 'optimization_no_lift', {
         ...pipelineResult.lift.analyticsProperties,
         platform: 'web',
@@ -304,7 +305,10 @@ export async function POST(req: NextRequest) {
       jobDescriptionId: jdData.id,
       reviewId,
       nextStep: "review",
-      matchScore: reviewRun.ats_preview_json?.after || pipelineResult.atsResult.ats_score_optimized || 0,
+      // Never the pre-guard score: when the corrected résumé was not measured, no score.
+      matchScore:
+        reviewRun.ats_preview_json?.after ||
+        (pipelineResult.lift.scoreUnavailable ? null : pipelineResult.atsResult.ats_score_optimized || 0),
       keyImprovements: optimizedResume.keyImprovements,
       missingKeywords: optimizedResume.missingKeywords,
     });
