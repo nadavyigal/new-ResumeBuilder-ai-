@@ -46,8 +46,8 @@ export function extractJobData(jobText: string, existingExtraction?: Partial<Job
   // The ad names its employer throughout, and the extractors above read that
   // name as a skill ("Appstock", "Represent Appstock").
   const companies = detectCompanyNames(jobText, [extraction.company]);
-  extraction.must_have = removeCompanyTerms(extraction.must_have, companies);
-  extraction.nice_to_have = removeCompanyTerms(extraction.nice_to_have, companies);
+  extraction.must_have = removeCompanyTerms(extraction.must_have, companies, jobText);
+  extraction.nice_to_have = removeCompanyTerms(extraction.nice_to_have, companies, jobText);
 
   return extraction;
 }

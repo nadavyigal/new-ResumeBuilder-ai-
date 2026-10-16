@@ -219,11 +219,12 @@ export function buildJobDataFromExtractedJson(
   }
 
   // Requirements name the employer ("Represent Appstock at industry events"),
-  // and the atomizer would emit "appstock" as a skill. The title goes first so
-  // a "<Title> at <Company>" heading is read as one.
-  const companies = detectCompanyNames([title, fallbackText].filter(Boolean).join('\n'), [company]);
-  must_have = removeCompanyTerms(must_have, companies);
-  nice_to_have = removeCompanyTerms(nice_to_have, companies);
+  // and the atomizer would emit "appstock" as a skill. The title and the ad are
+  // read apart, so each one's own first line is checked as a "<Title> at
+  // <Company>" heading.
+  const companies = detectCompanyNames(fallbackText, [company, ...detectCompanyNames(title)]);
+  must_have = removeCompanyTerms(must_have, companies, fallbackText);
+  nice_to_have = removeCompanyTerms(nice_to_have, companies, fallbackText);
 
   const atomizedMustHave = extractSkillPhrases(must_have);
   if (atomizedMustHave.length > 0) {

@@ -151,3 +151,66 @@ describe('removeCompanyTerms', () => {
     expect(removeCompanyTerms(terms, [])).toEqual(terms);
   });
 });
+
+/**
+ * Five failures the PR Steward reproduced on #187 (2026-10-16). Each one either
+ * deleted a real requirement or kept the employer as a skill.
+ */
+describe('company detection does not delete real requirements or miss real employers', () => {
+  it('(a) does not read a functional "About Engineering" heading as the employer', () => {
+    const text = 'About Engineering\nWe ship the platform.\n\nRequirements\nSoftware engineering experience\nEngineering leadership';
+    expect(detectCompanyNames(text)).toEqual([]);
+    expect(detectCompanyNames('About Design\nWe care about craft.', ['Acme'])).toEqual(['Acme']);
+
+    const job = buildJobDataFromExtractedJson(
+      {
+        job_title: 'Engineering Manager',
+        company_name: '',
+        qualifications: ['Software engineering experience', 'Engineering leadership'],
+      },
+      text,
+    );
+    expect(job.must_have.join(' ')).toMatch(/engineering/i);
+  });
+
+  it('(b) keeps a known company that starts with an article, and removes it from requirements', () => {
+    expect(detectCompanyNames('', ['The Trade Desk'])).toEqual(['The Trade Desk']);
+    expect(removeCompanyTerms(['trade desk', 'The Trade Desk', 'programmatic buying'], ['The Trade Desk'])).toEqual([
+      'programmatic buying',
+    ]);
+    // A known field holding only a generic word is still not a company.
+    expect(detectCompanyNames('', ['The Company'])).toEqual([]);
+  });
+
+  it('(c) reads the fallback heading when the parsed title is prepended', () => {
+    const fallback = 'Account Executive at Appstock\n\nRepresent Appstock at industry events.\nStrong knowledge of header bidding.';
+    const job = buildJobDataFromExtractedJson(
+      {
+        job_title: 'Account Executive',
+        company_name: '',
+        qualifications: ['Represent Appstock at industry events', 'Strong knowledge of header bidding'],
+      },
+      fallback,
+    );
+    expect(mentionsAppstock(job.must_have)).toEqual([]);
+  });
+
+  it('(d) reads a company name with a lowercase connector', () => {
+    expect(detectCompanyNames('Data Analyst at Bank of America\n\nWe move money.')).toContain('Bank of America');
+    expect(detectCompanyNames('About Bank of America\nWe move money.')).toContain('Bank of America');
+  });
+
+  it('(e) keeps a product requirement that shares the employer name', () => {
+    expect(removeCompanyTerms(['Salesforce administration', 'Salesforce'], ['Salesforce'])).toEqual([
+      'Salesforce administration',
+      'Salesforce',
+    ]);
+    expect(
+      removeCompanyTerms(['salesforce', 'sql'], ['Salesforce'], 'Must have 3+ years of experience with Salesforce.'),
+    ).toEqual(['salesforce', 'sql']);
+    // The employer alone, in duty phrasing, still goes.
+    expect(removeCompanyTerms(['Represent Appstock at industry events', 'appstock'], ['Appstock'])).toEqual([
+      'Represent at industry events',
+    ]);
+  });
+});

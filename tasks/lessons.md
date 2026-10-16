@@ -11,6 +11,7 @@
 **Rules:**
 1. Before an extracted term reaches the user as a "missing skill", ask whether any résumé could ever contain it. The employer's name, the job title and section headings cannot.
 2. Fill a template slot only with a value of the slot's kind. A skill in a metric slot reads as nonsense even when the skill is real.
+3. A filter that removes words from requirements must fail closed on doubt, because a false positive deletes a real skill. Review of #187 (2026-10-16) found five ways the first version got it wrong: "About Engineering" read as an employer (deleted "engineering"); "The Trade Desk" refused because it starts with "The"; a prepended title hid the ad's own first-line heading; "Bank of America" missed because of the lowercase "of"; and Salesforce hiring for "Salesforce administration" lost the product. Now: "About <Name>" is read only when nothing stronger names the employer, a company field is trusted as given, title and ad are scanned apart, connectors are allowed, and a name the ad uses as a product ("experience with X", "X administration") is never removed.
 
 ## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
 
