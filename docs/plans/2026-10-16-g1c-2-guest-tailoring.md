@@ -17,10 +17,12 @@ export (download), and the guest's work carries into that account.
 |---|---|---|
 | Free check | `/api/public/ats-check` | Open (G1c-1). No change. |
 | Dashboard pages | `src/middleware.ts:82`, `src/app/[locale]/dashboard/layout.tsx:19` | Redirect to sign-in without a session |
-| Upload résumé + job | `src/app/api/upload-resume/route.ts:29-32` | 401 without a session; no anonymous IP limit |
+| Upload résumé + job | `src/app/api/upload-resume/route.ts:29-32` | 401 without a session; no anonymous IP limit. **It runs the optimizer itself** (`route.ts:251`) unless the form sends `deferOptimization`, and the web résumé page does not (`src/app/[locale]/dashboard/resume/page.tsx:119`). So the web path never calls `/api/optimize`. |
 | Tailor | `src/app/api/optimize/route.ts:24-27` | 401 without a session; **already accepts an anonymous session** and holds it to 20 runs per IP per day (`src/lib/rate-limiting/anonymous-optimize-limit.ts`) |
 | Review and apply | `src/app/api/v1/optimization-reviews/[id]/apply/route.ts` | 401 without a session |
-| Export | `src/app/api/download/[id]/route.ts:26-29` | 401 without a session |
+| Export | `src/app/api/download/[id]/route.ts:26-29`, `src/app/api/apply-job/route.ts` (returns `resumePdfBase64`), `src/app/api/optimizations/export/route.ts` (a ZIP of PDFs) | 401 without a session; any session, anonymous included, can export through all three |
+| Other paid AI | `src/app/api/v1/chat/route.ts:179-190`, `src/app/api/v1/refine-section/route.ts:24-37`, `src/app/api/ats/score/route.ts:22-63` | Any session, anonymous included. Only the in-memory per-user limiter (`checkRateLimit`), which a new anonymous id or a new serverless instance resets |
+| iOS guests | `ResumeBuilder IOS APP/Core/API/Endpoints.swift:76-98` | Installed iOS guests call `download`, `optimizations/export`, `chat`, `refine-section` and `ats/score` with an anonymous session today. Any server rule that rejects every anonymous caller breaks them. |
 | Sign-up page | `src/middleware.ts:86` | Any session is redirected away from `/auth/*`. An anonymous guest could never reach sign-up. |
 | Analytics | `src/components/providers/auth-provider.tsx:41-60` | `posthog.identify` on any session, anonymous included |
 
@@ -30,6 +32,13 @@ The iOS app already does this for guests: a Supabase anonymous session (a real `
 `is_anonymous: true`), the same API routes, the same row-level security. Anonymous sign-ins are
 on in production: the iOS guest flow ran against production on 2026-10-12 (iOS PR #188).
 `@supabase/supabase-js` 2.57.2 is installed and has `signInAnonymously`. No new dependency.
+
+**Web guests are tagged.** The web starts the session with
+`signInAnonymously({ options: { data: { client: "web" } } })`, so `user_metadata.client` is
+`"web"`. The account-at-export rule applies only to anonymous users with that tag; iOS guests,
+which have no tag, keep today's behaviour. The tag is user-editable, so it only enforces the
+product prompt. Spend is protected separately, by persistent limits on every anonymous caller
+(S3), which does not depend on the tag.
 
 At export, the guest becomes a real account **without changing user id**: Supabase
 `updateUser({ email, password })` (email confirmation) or `linkIdentity` (Google). Résumé,
@@ -51,22 +60,38 @@ sign-up. The anonymous session gives the same result with the code that exists.
 - `auth-provider.tsx`: no `posthog.identify` for an anonymous user. Identifying an anonymous
   session splits one guest into two unlinked PostHog people (the rule iOS already follows in
   `AppState.bootstrap`). Identify at conversion.
-- `upload-resume`: the same per-IP ceiling for anonymous callers as optimize.
+- The session is started with the web tag (`user_metadata.client = "web"`).
+- `upload-resume`: the same per-IP ceiling for anonymous callers as optimize, since it runs
+  the optimizer itself.
+- The AI assistant and section refinement are hidden on the optimization page for a web guest
+  (S2 rejects them on the server too).
 - Tests first: middleware rules (guest allowed, guest blocked, no redirect loop), the upload IP
-  limit, identify not called for an anonymous user.
+  limit, identify not called for an anonymous user, the tag set at sign-in.
 
 **S2. The account is asked at export, and the guest's work stays.**
-- `download/[id]`: an anonymous caller gets 403 `{ code: "ACCOUNT_REQUIRED" }`, not 401.
+- One server helper, `requireAccountForWebGuest(user)`, returns 403 `{ code: "ACCOUNT_REQUIRED" }`
+  for an anonymous user with the web tag. Called from **every** server export path
+  (`download/[id]`, `apply-job`, `optimizations/export`) and from the paid AI routes a web guest
+  does not need (`v1/chat`, `v1/refine-section`, `ats/score`).
 - The optimization page catches that code and shows one prompt: "Create a free account to
   download. Your tailored résumé is kept." (en, he).
 - Sign-up page: with an anonymous session it converts (`updateUser` / `linkIdentity`) instead of
   `signUp`, then returns to the download. PostHog `identify` with the same id after conversion.
-- Tests first: anonymous download is 403 with the code; conversion keeps the user id and the
-  optimization stays readable; a signed-in user downloads as before.
+- Tests first: a web guest gets 403 with the code on each of the six routes; **an untagged
+  anonymous user (an iOS guest) still downloads, exports and chats as before**; conversion keeps
+  the user id and the optimization stays readable; a signed-in user downloads as before.
 
 **S3. Abuse ceiling and alert** (see the CAPTCHA decision).
-- A global daily cap on anonymous optimizations (a `rate_limits` row keyed `optimize-anonymous-global`),
-  default 200 a day, returning the existing 429 copy.
+- One helper charges the anonymous limits before **every** optimizer run: called from
+  `/api/optimize` and from `/api/upload-resume` (which runs the optimizer itself). It applies the
+  20-a-day IP ceiling and a global daily cap (a `rate_limits` row keyed
+  `optimize-anonymous-global`, default 200 a day), and returns the existing 429 copy.
+- The other paid AI routes (`v1/chat`, `v1/refine-section`, `ats/score`) get a persistent per-IP
+  ceiling for anonymous callers in the `rate_limits` table, sized above real use. This covers iOS
+  guests, who may still call them, without breaking them.
+- Tests first: both optimizer entry points charge the same global counter (the 201st anonymous
+  run in a day is refused whichever route it came through); the AI-route IP ceiling; a
+  signed-in user is never IP-limited.
 - A PostHog alert on anonymous optimize volume and on IP-ceiling hits.
 
 **S4. End to end.**
@@ -82,9 +107,10 @@ sign-up. The anonymous session gives the same result with the code that exists.
 | C. Vercel BotID on `/api/upload-resume` and `/api/optimize` for anonymous callers | Scripted callers, invisibly, no puzzle | A new npm dependency (`botid`), needs your OK | Nothing for iOS if applied to web callers only |
 
 Why A is enough to start: R1 measured $0.022 per tailoring run (mean, 12 runs) and about $0.81
-in the worst case with every call retried. A cap of 200 anonymous runs a day bounds typical
-spend near $4.40 a day and the theoretical worst near $162 a day, and the alert fires long before
-that. Traffic today is about 3 arrivals a week (EXD-029), so the cap will not touch a real user.
+in the worst case with every call retried. Once S3 charges both optimizer entry points, a cap of
+200 anonymous runs a day bounds typical tailoring spend near $4.40 a day and the theoretical worst
+near $162 a day, and the alert fires long before that. Chat, refinement and scoring are not in
+that bound: web guests cannot call them (S2), and iOS guests are held to the per-IP ceiling. Traffic today is about 3 arrivals a week (EXD-029), so the cap will not touch a real user.
 
 Move to C when either happens in a week: anonymous optimizations above 100 a day, or more than
 20 IP-ceiling hits a day. B only after an iOS build sends a captcha token.
@@ -97,7 +123,8 @@ Move to C when either happens in a week: anonymous optimizations above 100 a day
 - Anonymous `auth.users` rows accumulate. Supabase does not delete them. A cleanup job is a later
   story (PR #172 purges only anonymous free-check rows).
 - PostHog: a guest who converts must stay one person (no identify before conversion).
-- iOS: no change. No auth setting changes in this plan.
+- iOS: no change. The export gate keys on the web tag, never on `is_anonymous` alone, and the
+  new IP ceilings are sized above real use. No auth setting changes in this plan.
 
 ## Founder decisions needed
 
