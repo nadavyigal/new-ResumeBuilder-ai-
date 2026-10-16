@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { runOptimizePipeline } from "@/lib/ai-optimizer/optimize-pipeline";
+import { runOptimizePipeline, toWireFit } from "@/lib/ai-optimizer/optimize-pipeline";
 import { toWireTruthGuard } from "@/lib/ai-optimizer/job-ad-terms";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { resolveJobDescriptionText } from "@/lib/ats/job-data-resolver";
@@ -14,7 +14,6 @@ import {
 } from "@/lib/rate-limiting/anonymous-optimize-limit";
 import { logger } from "@/lib/agent/utils/logger";
 import { createOptimizationReviewRun } from "@/lib/optimization-review/service";
-import { toWireGain } from "@/lib/ats/wire-gain";
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -164,8 +163,8 @@ export async function POST(req: NextRequest) {
 
     // An optimization that did not meaningfully improve on the user's starting
     // resume is a failure worth counting, not a quiet +2 (WP-45 S2). Payload is
-    // bucketed and carries no resume or job content.
-    if (!pipelineResult.lift.meaningful) {
+    // bucketed and carries no resume or job content. An unmeasured run is not one.
+    if (!pipelineResult.lift.meaningful && !pipelineResult.lift.scoreUnavailable) {
       await captureServerEvent(user.id, 'optimization_no_lift', {
         ...pipelineResult.lift.analyticsProperties,
         platform: 'web',
@@ -196,29 +195,12 @@ export async function POST(req: NextRequest) {
     // `displayScores` carries the WP-45 S2 rule: when the run did not
     // meaningfully improve on the starting resume, the client shows the gaps
     // and the next step rather than a numeric pair that reads as a promise the
-    // run did not keep.
-    const ats = pipelineResult.atsResult;
+    // run did not keep. When the corrected résumé could not be rescored, `fit`
+    // carries the baseline only and `scoreUnavailable: true` (see `toWireFit`).
     return NextResponse.json({
       reviewId,
       nextStep: "review",
-      fit: {
-        currentScore: ats.ats_score_original,
-        potentialScore: ats.ats_score_optimized,
-        delta: pipelineResult.lift.delta,
-        displayScores: pipelineResult.lift.displayScores,
-        confidence: ats.confidence,
-        scoreVersion: ats.metadata?.score_version ?? null,
-        // Already filtered through the S4 credibility gate upstream, so page
-        // furniture like "about" or "key responsibilities" cannot appear here.
-        topGaps: (ats.suggestions ?? []).slice(0, 3).map(s => ({
-          title: s.text,
-          // Integer on the wire, always. A fractional gain fails the iOS
-          // decode of this entire response, not just this field. See
-          // `@/lib/ats/wire-gain`.
-          estimatedGain: toWireGain(s.estimated_gain),
-          category: s.category,
-        })),
-      },
+      fit: toWireFit(pipelineResult),
       // Additive (reliability upgrade Stage 2): job-ad tools the guard took out or put
       // back. Job-ad words only, never résumé text.
       truthGuard: toWireTruthGuard(pipelineResult.truthGuard),
