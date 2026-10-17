@@ -147,3 +147,48 @@ describe('ATSSuggestionsBanner main issues summary', () => {
     }
   });
 });
+
+// 2026-10-15, "Business Development Manager - Ad tech at Appstock": the metrics
+// example took the first missing skill as its metric and read "Improved
+// appstock by [X%]". A skill is never the thing a number improves.
+describe('ATSSuggestionsBanner metrics example', () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  const WITH_MISSING_SKILLS: Suggestion[] = [
+    {
+      ...suggestion('keyword_exact_a', 'keywords', true),
+      text: 'Prioritize these 2 must-have skills in Skills and experience bullets: programmatic advertising, header bidding',
+      action: { type: 'add_keyword', params: { keywords: ['programmatic advertising', 'header bidding'], source: 'must_have' } },
+    } as Suggestion,
+    suggestion('metrics_presence_b', 'metrics', true),
+    suggestion('summary_c', 'content', false),
+  ];
+
+  beforeEach(() => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => root.unmount());
+    container.remove();
+    currentLocale = 'en';
+  });
+
+  it.each([
+    ['en', 'Improved a core KPI by [X%]'],
+    ['he', 'שיפרתי KPI מרכזי ב-[X%]'],
+  ] as const)('names a KPI, not a missing skill, on %s', (locale, expected) => {
+    currentLocale = locale;
+    renderExpandedBanner(root, container, WITH_MISSING_SKILLS);
+
+    const summary = summaryText(container);
+    expect(summary).toContain(expected);
+    expect(summary).not.toMatch(/(?:Improved|שיפרתי) programmatic advertising/);
+    // The skills card still lists them.
+    expect(summary).toContain('programmatic advertising, header bidding');
+  });
+});
