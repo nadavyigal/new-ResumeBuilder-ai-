@@ -219,23 +219,30 @@ function companyPatterns(company: string): RegExp[] {
 /** Words right before a name that make it a tool the candidate uses: "experience with Salesforce". */
 const PRODUCT_USE_BEFORE =
   '(?:experience|proficiency|proficient|expertise|expert|knowledge|familiarity|familiar|skilled|skills|hands[ -]on|certified|certification|background|fluency|fluent|using|use|administer|administering|configure|configuring)(?:[ \\t]+(?:with|in|of|on|using))?(?:[ \\t]+the)?';
-/** Words right after a name that make it a product: "Salesforce administration", "HubSpot CRM". */
-const PRODUCT_USE_AFTER =
-  '(?:administration|admin|administrator|certification|certified|development|developer|platform|api|apis|crm|cloud|cpq|integration|integrations|configuration|experience|proficiency|skills|ecosystem|sdk|apex|reports|reporting|dashboards|implementation|suite|stack)';
-
 /**
- * Whether the ad asks for the company's name as a product ("Salesforce
- * administration", "experience with Salesforce"). Then the name is a skill a
- * résumé can hold. A possessive ("Appstock's network") is the employer.
+ * Words right after a name that make it a product: "Salesforce administration",
+ * "HubSpot CRM". Branding nouns ("platform", "cloud", "ecosystem", "suite",
+ * "stack") are left out on purpose: "the Appstock platform" is the employer
+ * talking about itself, not a tool the candidate is asked to know.
  */
-function isUsedAsProduct(company: string, sources: string[]): boolean {
-  const text = sources.join('\n');
+const PRODUCT_USE_AFTER =
+  '(?:administration|admin|administrator|certification|certified|development|developer|api|apis|crm|cpq|integration|integrations|configuration|experience|proficiency|skills|sdk|apex|reports|reporting|dashboards|implementation)';
+
+/** Whether `text` asks for the company as a product ("Salesforce administration", "experience with Salesforce"). */
+function usesAsProduct(company: string, text: string): boolean {
   return companyForms(company).some((words) => {
     const name = namePattern(words);
     const before = new RegExp(`(?<![\\p{L}\\p{N}])${PRODUCT_USE_BEFORE}[ \\t]+${name}(?![\\p{L}\\p{N}'’])`, 'iu');
     const after = new RegExp(`(?<![\\p{L}\\p{N}])${name}[ \\t]+${PRODUCT_USE_AFTER}(?![\\p{L}\\p{N}])`, 'iu');
     return before.test(text) || after.test(text);
   });
+}
+
+/** A term that is the company's name and nothing else ("salesforce", "Appstock's"). */
+function isOnlyName(company: string, term: string): boolean {
+  return companyForms(company).some((words) =>
+    new RegExp(`^[^\\p{L}\\p{N}]*${namePattern(words)}(?:['’]s|\\s+s)?[^\\p{L}\\p{N}]*$`, 'iu').test(term),
+  );
 }
 
 /**
@@ -245,20 +252,25 @@ function isUsedAsProduct(company: string, sources: string[]): boolean {
  * A multi-word company is matched as a whole: "Kesher Commerce" never removes
  * "commerce" from "e commerce platforms".
  *
- * A company the ad also asks for as a product, in `terms` or in `contextText`
- * (the ad itself), is left in every term: "Salesforce administration" is a
- * requirement at Salesforce too.
+ * Product use is decided per term, so one phrase never turns the filter off
+ * for the whole company. A term that asks for the name as a product
+ * ("Salesforce administration") is kept as it is. The name alone ("salesforce")
+ * is kept only when the ad itself (`terms` or `contextText`) asks for it as a
+ * product somewhere. Every other mention is the employer and is removed.
  */
 export function removeCompanyTerms(terms: string[], companies: string[], contextText = ''): string[] {
-  const patterns = companies
-    .filter((company) => !isUsedAsProduct(company, [...terms, contextText]))
-    .flatMap(companyPatterns);
-  if (patterns.length === 0) return terms;
+  if (companies.length === 0) return terms;
+  const adText = [...terms, contextText].join('\n');
+  const productInAd = new Set(companies.filter((company) => usesAsProduct(company, adText)));
 
   return terms
     .map((term) => {
       let out = term;
-      for (const pattern of patterns) out = out.replace(pattern, ' ');
+      for (const company of companies) {
+        if (usesAsProduct(company, term)) continue;
+        if (productInAd.has(company) && isOnlyName(company, term)) continue;
+        for (const pattern of companyPatterns(company)) out = out.replace(pattern, ' ');
+      }
       return out === term ? term : out.replace(/\s+/g, ' ').trim();
     })
     .filter((term) => /[\p{L}\p{N}]/u.test(term));

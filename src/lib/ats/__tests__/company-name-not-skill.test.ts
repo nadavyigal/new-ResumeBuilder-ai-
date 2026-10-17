@@ -230,3 +230,20 @@ describe('company headings need evidence that they name an employer', () => {
     expect(detectCompanyNames('About HubSpot\nWe build CRM software.')).toContain('HubSpot');
   });
 });
+
+/** Codex review of fab0d97 (2026-10-17): one product phrase must not turn employer filtering off. */
+describe('product evidence is decided per term, not for the whole company', () => {
+  it('still removes the employer when the ad only brands it ("Appstock platform", "ecosystem", "cloud")', () => {
+    const context = 'Grow the Appstock platform and the Appstock ecosystem with our Appstock cloud partners.';
+    expect(
+      removeCompanyTerms(['Represent Appstock at industry events', 'appstock', 'header bidding'], ['Appstock'], context),
+    ).toEqual(['Represent at industry events', 'header bidding']);
+  });
+
+  it('keeps a genuine product requirement and still strips the employer from the other terms', () => {
+    const context = 'Requirements: 3 years of Salesforce administration. Represent Salesforce at events.';
+    expect(
+      removeCompanyTerms(['Represent Salesforce at events', 'Salesforce administration', 'salesforce'], ['Salesforce'], context),
+    ).toEqual(['Represent at events', 'Salesforce administration', 'salesforce']);
+  });
+});
