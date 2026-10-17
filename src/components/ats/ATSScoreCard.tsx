@@ -105,7 +105,7 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
             </div>
             {scoreData.metadata.warnings && scoreData.metadata.warnings.length > 0 && (
               <div className="mt-2 text-amber-600 text-xs">
-                {t('warning', { message: scoreData.metadata.warnings[0] })}
+                {t('warning', { message: isolateBidi(scoreData.metadata.warnings[0]) })}
               </div>
             )}
           </div>
@@ -113,6 +113,13 @@ export function ATSScoreCard({ scoreData, showDetails = true }: ATSScoreCardProp
       </CardContent>
     </Card>
   );
+}
+
+// Warnings are English server strings placed inside a translated sentence
+// ("אזהרה: {message}"). FIRST STRONG ISOLATE / POP DIRECTIONAL ISOLATE keep
+// an English message's final punctuation at its end in RTL locales.
+function isolateBidi(text: string): string {
+  return `\u2068${text}\u2069`;
 }
 
 function getScoreColor(score: number): string {

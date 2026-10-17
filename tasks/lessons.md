@@ -1,5 +1,17 @@
 # Lessons Learned — ResumeBuilder
 
+## English AI text inside the Hebrew page needs `dir="auto"` (2026-10-11)
+
+**Symptom:** on `/he` the free-check cards showed ".sales by region" and ".Estimated fit vs this job, not a hiring guarantee". `C++` would render as `++C`.
+
+**Root cause:** `/he` sets `dir="rtl"` on `<html>`. AI output, résumé text and server strings like `scoreNote` are usually English, and a block that inherits RTL puts trailing punctuation (a neutral character) on the left.
+
+**Fix:** add `dir="auto"` to the block that holds the text, not to its Hebrew label (`IssueCard`, `QuickWinsSection`; the fit verdict and note in `ATSScoreDisplay` became translated `t()` strings on 2026-10-15). Regression test: `tests/app/free-check-results-bidi.test.tsx`.
+
+**Rule:** any element that renders model output, user content or an untranslated server string gets `dir="auto"`. Translated `t()` strings do not need it.
+
+**Inline case:** when English text shares a line with a Hebrew label, `dir="auto"` on the paragraph picks RTL from the label. Wrap the English part in `<span dir="auto">` (`ATSSuggestionsBanner`). When it is interpolated into a `t()` string, wrap the value in U+2068/U+2069 (`isolateBidi` in `ATSScoreCard`).
+
 ## A rescore after a guard must never fall back to the score it replaced (2026-10-16)
 
 **Symptom:** when the truth guard changed the résumé and the rescore came back as the scorer's zero-confidence fallback, `runOptimizePipeline` returned `{ ...selected, optimizedResume: guarded.resume }`: the pass-1 score and lift, measured on the résumé before the guard, shipped beside a different document. Worse, the scorer has thrown instead of returning that fallback since WP-45 D8, so the usual failure was a 500 from `/api/optimize` and the user lost a correct, guarded résumé.
