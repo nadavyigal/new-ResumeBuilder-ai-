@@ -13,6 +13,31 @@
 2. Fill a template slot only with a value of the slot's kind. A skill in a metric slot reads as nonsense even when the skill is real.
 3. A filter that removes words from requirements must fail closed on doubt, because a false positive deletes a real skill. Review of #187 (2026-10-16) found five ways the first version got it wrong: "About Engineering" read as an employer (deleted "engineering"); "The Trade Desk" refused because it starts with "The"; a prepended title hid the ad's own first-line heading; "Bank of America" missed because of the lowercase "of"; and Salesforce hiring for "Salesforce administration" lost the product. Now: "About <Name>" is read only when nothing stronger names the employer, a company field is trusted as given, title and ad are scanned apart, connectors are allowed, and a name the ad uses as a product ("experience with X", "X administration") is never removed. Round 2: a first-line "X at Y" counts only when X names a job, and "About Y" only when Y looks like a proper name or the ad repeats it.
 
+## A rescore after a guard must never fall back to the score it replaced (2026-10-16)
+
+**Symptom:** when the truth guard changed the résumé and the rescore came back as the scorer's zero-confidence fallback, `runOptimizePipeline` returned `{ ...selected, optimizedResume: guarded.resume }`: the pass-1 score and lift, measured on the résumé before the guard, shipped beside a different document. Worse, the scorer has thrown instead of returning that fallback since WP-45 D8, so the usual failure was a 500 from `/api/optimize` and the user lost a correct, guarded résumé.
+
+**Fix:** both failures (a throw, or 0 with zero confidence) return the guarded résumé with its real baseline, no after-score and `lift.scoreUnavailable: true` (`unavailableLift` in `src/lib/ats/lift.ts`). `toWireFit` sends `potentialScore`, `delta` and `confidence` as null, `topGaps` empty and an additive `scoreUnavailable`; every `fit` field is optional on iOS, so installed builds decode it and, with `displayScores` false, show no pair.
+
+**Rules:**
+1. A cached measurement belongs to the document it measured. When the document changes, rescore or say "unavailable"; never carry the old number forward.
+2. When a callee changes from returning a sentinel to throwing, every caller that checked the sentinel needs a `catch` too.
+3. An unmeasured run is not a no-lift run: do not count it in `optimization_no_lift`.
+## A rewrite prompt cannot stop promotion; check titles, years and leadership claims after it (2026-10-07, consolidated 2026-10-16)
+
+**Symptom:** the optimizer retitled an individual contributor "Engineering Manager", claimed "8+ years" on a three-year career, and wrote "leading teams" for someone who mentored 2 interns. The nightly judge passed every one.
+
+**Fix:** `src/lib/ai-optimizer/seniority-claims.ts` compares each claim with the original résumé after the rewrite and corrects it without a model call, the same posture as `job-ad-terms.ts` and `stripFabricatedMetrics`. #161 (a competing guard with a model repair) was folded in on 2026-10-16: its prompt rule ("Never raise seniority or scope"), its Hebrew title and management patterns, and its "management experience" claim. The same day a probe found #164 still missed both batch 3 failures #161 was opened for (a summary calling a logistics officer "מנהל תפעול", and "team of 3" grown to "org of 30"); those checks were ported too.
+
+**Rules:**
+1. Every new deterministic check runs against the calibration outputs before it ships: zero honest outputs may change.
+2. A leadership pattern must not match through a preposition, or "Led planning for the team" (true) reads as "led the team" (false).
+3. Evidence for a role comes from that role's own block (header lines and bullets). Career-wide evidence let a later manager job excuse a promoted earlier role (PR Steward, 2026-10-13).
+4. Read a role header as a block and accept a title only if it names a job. Reading only the adjacent line restored "New York, NY" as a title.
+5. Count years in roles, not from the first start date: a gap is not experience.
+6. Before closing one of two competing PRs, run the loser's own test inputs against the survivor. A commit message saying "folded in" is not proof.
+7. A Hebrew preposition is attached to the number it governs ("ב-35%"). Removing only the number leaves "ב-." in the shipped text; remove the preposition with it. The planted cases in `evals/resume-optimizer/planted.ts` check for anything left hanging.
+
 ## A truth guard that silently deletes claims takes points from people the claim is true for (2026-10-12)
 
 **Symptom:** the optimizer bullet guard (#169) cut job-post phrases such as "non-technical stakeholders" that the résumé did not state. Measured on the Maya fixture, each phrase was worth about 3 points, so every user lost them, including users who really had done the thing and simply had not written it down.

@@ -277,6 +277,24 @@ describe('stability report (offline)', () => {
     expect(report.totals.truthGuard).toEqual({ runsRetried: 4, repairsAccepted: 0, termsRemoved: 4, termsRestored: 0, termsUnresolved: 0 });
   });
 
+  it('records what the seniority guard did per run and totals it (from #161)', async () => {
+    const plan = planRuns(manifest.slice(0, 2), 2);
+    const none = { checked: true as const, titlesRestored: 0, yearsCorrected: 0, scopeRemoved: 0, summaryTitlesRemoved: 0, unresolved: 0 };
+    const promoted = { ...none, titlesRestored: 1, summaryTitlesRemoved: 1 };
+    const leftover = { ...none, scopeRemoved: 2, yearsCorrected: 1, unresolved: 1 };
+    const guards = [promoted, leftover, none, none];
+    let call = 0;
+    const results = await executePlan(plan, deps({ generate: async () => ({ ...outcome(), seniorityGuard: guards[call++] }) }));
+    expect(results.map((r) => r.seniorityGuard)).toEqual(guards);
+    const report = buildStabilityReport(manifest.slice(0, 2), plan, results, {
+      manifestVersion: MANIFEST_VERSION, evaluationDate: EVALUATION_DATE, repeats: 2, config: null,
+      wallTimeMs: null, ledgerRecords: [], blockedSideEffects: 0,
+    });
+    expect(report.totals.seniorityGuard).toEqual({
+      runsCorrected: 2, titlesRestored: 1, summaryTitlesRemoved: 1, yearsCorrected: 1, scopeRemoved: 2, unresolved: 1,
+    });
+  });
+
   it('flags a regression against a baseline, and refuses to compare a changed input', async () => {
     const plan = planRuns(manifest, 3);
     const meta = {

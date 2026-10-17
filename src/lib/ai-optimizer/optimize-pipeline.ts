@@ -10,8 +10,10 @@ import {
 import { optimizeResume, type OptimizedResume } from './index';
 import { normalizeExperienceBullets, countBullets } from './normalize-experience';
 import { enforceJobAdTruth, type HeldPhrase, type TruthGuardReport } from './job-ad-terms';
+import { enforceSeniorityTruth, type SeniorityGuardReport } from './seniority-claims';
 import { scoreOptimization, resumeJsonToText } from '@/lib/ats/integration';
-import { assessLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
+import { assessLift, unavailableLift, MIN_MEANINGFUL_LIFT, type LiftAssessment } from '@/lib/ats/lift';
+import { toWireGain } from '@/lib/ats/wire-gain';
 import { extractJobData } from '@/lib/ats/extractors/jd-extractor';
 import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import type { ATSScoreOutput } from '@/lib/ats/types';
@@ -35,6 +37,12 @@ export interface OptimizationPipelineResult {
    * outside runOptimizePipeline.
    */
   truthGuard?: TruthGuardReport;
+  /**
+   * What the seniority and scope guard corrected: promoted titles, inflated years,
+   * unearned leadership claims. Counts only. Absent only on results built outside
+   * runOptimizePipeline.
+   */
+  seniorityGuard?: SeniorityGuardReport;
   /** Job-post phrases held back for the user to confirm. Present only with `confirmJobPhrases`. */
   heldPhrases?: HeldPhrase[];
 }
@@ -143,6 +151,8 @@ export function stripFabricatedMetrics(resume: OptimizedResume, originalResumeTe
         cleaned = cleaned
           // "by 20%", "to 20%"
           .replace(new RegExp(`\\s*(?:by|to)\\s+${escaped}\\b`, 'gi'), '')
+          // Hebrew "ב-20%", "ל-20%", "מ-20%": the preposition is attached to the number
+          .replace(new RegExp(`\\s*[בלמ]-?${escaped}`, 'g'), '')
           // "20% improvement/increase/reduction/growth/gain (in/to)"
           .replace(new RegExp(`${escaped}\\s+(?:improvement|increase|reduction|growth|gain)\\s*(?:in|to)?`, 'gi'), '')
           // leftover bare percentage
@@ -251,12 +261,13 @@ function buildGapsFromAtsResult(
 }
 
 /**
- * Runs the optimizer, then the job-ad terms guard on the candidate it would return.
+ * Runs the optimizer, then the job-ad terms guard and the seniority guard on the
+ * candidate it would return.
  *
- * The guard runs once on the final candidate rather than on each pass, so it costs
- * nothing when the rewrite is clean and at most one repair call when it is not. If
- * the guard changes the résumé, the result is rescored, so the score the user sees
- * describes the résumé they get.
+ * The guards run once on the final candidate rather than on each pass, so they cost
+ * nothing when the rewrite is clean and at most one repair call when it is not (the
+ * seniority guard never calls the model). If either guard changes the résumé, the
+ * result is rescored, so the score the user sees describes the résumé they get.
  */
 export async function runOptimizePipeline(
   resumeText: string,
@@ -306,28 +317,48 @@ export async function runOptimizePipeline(
     jobPhrasesUnresolved: report.jobPhrasesUnresolved.length,
   });
 
-  const heldPhrases = guarded.held.length > 0 ? { heldPhrases: guarded.held } : {};
-  if (!guarded.changed) return { ...selected, truthGuard: report, ...heldPhrases };
+  // Never calls the model: it restores, lowers or cuts against the original résumé.
+  const seniority = enforceSeniorityTruth(guarded.resume, resumeText);
+  const seniorityGuard = seniority.report;
+  if (seniority.changed || seniorityGuard.unresolved > 0) {
+    console.warn('Pipeline seniority guard:', seniorityGuard);
+  }
+  const finalResume = seniority.resume;
 
+  const heldPhrases = guarded.held.length > 0 ? { heldPhrases: guarded.held } : {};
+  const guards = { truthGuard: report, seniorityGuard, ...heldPhrases };
+  if (!guarded.changed && !seniority.changed) return { ...selected, ...guards };
+
+  // The scorer throws when it cannot measure (WP-45 D8); a 0 with zero confidence
+  // is no measurement either. Both mean the same here.
   const rescored = await scoreOptimization({
     resumeOriginalText: resumeText,
-    resumeOptimizedJson: guarded.resume,
+    resumeOptimizedJson: finalResume,
     jobDescriptionText: jobDescription,
     jobExtractedJson: options?.jobExtractedJson,
+  }).catch((error: unknown) => {
+    console.warn('Pipeline guards: rescoring failed', error instanceof Error ? error.message : error);
+    return null;
   });
-  if (rescored.ats_score_optimized === 0 && rescored.confidence === 0) {
-    // The scorer's zero-confidence fallback. Ship the corrected résumé with the last
-    // real score rather than a 0 the user would read as a verdict.
-    console.warn('Pipeline truth guard: rescoring returned the zero-confidence fallback, keeping the prior score');
-    return { ...selected, optimizedResume: guarded.resume, truthGuard: report, ...heldPhrases };
+  if (!rescored || (rescored.ats_score_optimized === 0 && rescored.confidence === 0)) {
+    // The pass-1 score describes the résumé before the guards changed it, and a 0
+    // would read as a verdict. Ship the corrected résumé with its real baseline and
+    // no after-score, marked unavailable.
+    console.warn('Pipeline guards: corrected résumé could not be rescored, score unavailable');
+    return {
+      ...selected,
+      optimizedResume: finalResume,
+      atsResult: baselineOnly(selected.atsResult),
+      lift: unavailableLift(selected.atsResult.ats_score_original, selected.passesUsed),
+      ...guards,
+    };
   }
   return {
     ...selected,
-    optimizedResume: guarded.resume,
+    optimizedResume: finalResume,
     atsResult: rescored,
     lift: liftFor(rescored, selected.passesUsed),
-    truthGuard: report,
-    ...heldPhrases,
+    ...guards,
   };
 }
 
@@ -482,6 +513,54 @@ async function selectCandidate(
 
   console.log('Pipeline: pass 1 wins over pass 2');
   return { optimizedResume: candidate1, atsResult: score1, passesUsed: 2, lift: liftFor(score1, 2) };
+}
+
+/**
+ * The scorer output with only its measured baseline: the optimized side, gaps and
+ * quick wins described the résumé before the guard changed it. The optimized side
+ * mirrors the baseline so the type holds; `lift.scoreUnavailable` marks it.
+ */
+function baselineOnly(score: ATSScoreOutput): ATSScoreOutput {
+  return {
+    ...score,
+    ats_score_optimized: score.ats_score_original,
+    subscores: score.subscores_original,
+    suggestions: [],
+    quick_wins: undefined,
+    confidence: 0,
+  };
+}
+
+/**
+ * The `fit` block `/api/optimize` returns for the fit check (iOS decodes every field
+ * as optional). Unchanged for a measured run. For an unmeasured one: the baseline,
+ * then nulls and no gaps, never a 0 or the pre-guard numbers. `scoreUnavailable` is
+ * additive; installed builds ignore it and, with `displayScores` false, show no pair.
+ */
+export function toWireFit(result: Pick<OptimizationPipelineResult, 'atsResult' | 'lift'>) {
+  const ats = result.atsResult;
+  const unavailable = result.lift.scoreUnavailable === true;
+  return {
+    currentScore: ats.ats_score_original,
+    potentialScore: unavailable ? null : ats.ats_score_optimized,
+    delta: unavailable ? null : result.lift.delta,
+    displayScores: result.lift.displayScores,
+    confidence: unavailable ? null : ats.confidence,
+    scoreVersion: ats.metadata?.score_version ?? null,
+    // Already filtered through the S4 credibility gate upstream, so page
+    // furniture like "about" or "key responsibilities" cannot appear here.
+    topGaps: unavailable
+      ? []
+      : (ats.suggestions ?? []).slice(0, 3).map((s) => ({
+          title: s.text,
+          // Integer on the wire, always. A fractional gain fails the iOS
+          // decode of this entire response, not just this field. See
+          // `@/lib/ats/wire-gain`.
+          estimatedGain: toWireGain(s.estimated_gain),
+          category: s.category,
+        })),
+    scoreUnavailable: unavailable,
+  };
 }
 
 /**

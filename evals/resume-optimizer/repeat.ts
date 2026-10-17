@@ -1,5 +1,6 @@
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { TruthGuardReport } from '@/lib/ai-optimizer/job-ad-terms';
+import type { SeniorityGuardReport } from '@/lib/ai-optimizer/seniority-claims';
 import type { ManifestCase } from './manifest';
 import type { JudgeVerdict } from './judge';
 import { runChecks, criticalFailures } from './checks';
@@ -43,6 +44,8 @@ export interface PipelineOutcome {
   lift: { meaningful: boolean; displayScores: boolean; delta: number };
   /** What the production job-ad terms guard did on this run (Stage 2). */
   truthGuard?: TruthGuardReport;
+  /** What the production seniority and scope guard did on this run. Counts only. */
+  seniorityGuard?: SeniorityGuardReport;
 }
 
 export interface VerdictComponents {
@@ -76,6 +79,7 @@ export interface RunResult {
   /** What in the grounded verdict counts: verified quotes fail a run, unverified ones do not. */
   groundingJudgeFindings?: GroundingFindings;
   truthGuard?: TruthGuardReport;
+  seniorityGuard?: SeniorityGuardReport;
   calls?: RunCallSummary;
   /** Raw output. Written only to the gitignored output directory. */
   resume?: OptimizedResume;
@@ -231,6 +235,7 @@ async function executeRun(run: PlannedRun, deps: ExecuteDeps): Promise<RunResult
     groundingJudge: groundingVerdict,
     groundingJudgeFindings: findings,
     truthGuard: outcome.truthGuard,
+    seniorityGuard: outcome.seniorityGuard,
     calls,
     resume: outcome.resume,
   };
@@ -405,6 +410,14 @@ export interface StabilityReport {
     returnedModels: string[];
     sampleLatencyMs: { median: number | null; p95: number | null; n: number };
     truthGuard: { runsRetried: number; repairsAccepted: number; termsRemoved: number; termsRestored: number; termsUnresolved: number };
+    seniorityGuard: {
+      runsCorrected: number;
+      titlesRestored: number;
+      summaryTitlesRemoved: number;
+      yearsCorrected: number;
+      scopeRemoved: number;
+      unresolved: number;
+    };
   };
   cases: CaseStability[];
   regressions: RegressionFinding[];
@@ -534,6 +547,21 @@ export function buildStabilityReport(
         termsRestored: results.reduce((n, r) => n + (r.truthGuard?.restoredTerms.length ?? 0), 0),
         termsUnresolved: results.reduce((n, r) => n + (r.truthGuard?.unresolvedTerms.length ?? 0), 0),
       },
+      seniorityGuard: (() => {
+        const sum = (key: 'titlesRestored' | 'summaryTitlesRemoved' | 'yearsCorrected' | 'scopeRemoved' | 'unresolved') =>
+          results.reduce((n, r) => n + (r.seniorityGuard?.[key] ?? 0), 0);
+        return {
+          runsCorrected: results.filter((r) => {
+            const g = r.seniorityGuard;
+            return !!g && g.titlesRestored + g.summaryTitlesRemoved + g.yearsCorrected + g.scopeRemoved > 0;
+          }).length,
+          titlesRestored: sum('titlesRestored'),
+          summaryTitlesRemoved: sum('summaryTitlesRemoved'),
+          yearsCorrected: sum('yearsCorrected'),
+          scopeRemoved: sum('scopeRemoved'),
+          unresolved: sum('unresolved'),
+        };
+      })(),
     },
     cases: perCase,
     regressions: baseline ? compareToBaseline(perCase, baseline) : [],
