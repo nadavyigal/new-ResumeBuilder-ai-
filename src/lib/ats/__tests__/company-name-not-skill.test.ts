@@ -102,10 +102,10 @@ describe('detectCompanyNames', () => {
   it.each([
     ['a known company field', '', ['Appstock'], 'Appstock'],
     ['"<title> at <Company>" on the first line', 'Account Executive at Kesher Commerce\n\nWe sell software.', [], 'Kesher Commerce'],
-    ['"<Company> is looking for a <Title>"', 'Fresha is looking for a Data Analyst to join the team.', [], 'Fresha'],
-    ['an "About <Company>" heading', 'About Monday.com\nWe build work software.', [], 'Monday.com'],
+    ['"<Company> is looking for a <Title>", when the ad repeats it', 'Fresha is looking for a Data Analyst to join the team.\nRepresent Fresha at events.', [], 'Fresha'],
+    ['an "About <Company>" heading, when the ad repeats it', 'About Monday.com\nMonday.com builds work software.', [], 'Monday.com'],
     ['a "Company:" label', 'Job Title: Data Analyst\nCompany: Fiverr\nLocation: Tel Aviv', [], 'Fiverr'],
-    ['"At <Company>, we"', 'At Wix, we build websites for everyone.', [], 'Wix'],
+    ['"At <Company>, we", when the ad repeats it', 'At Wix, we build websites for everyone.\nGrow Wix in EMEA.', [], 'Wix'],
   ])('reads %s', (_label, text, known, expected) => {
     expect(detectCompanyNames(text, known)).toContain(expected);
   });
@@ -129,9 +129,9 @@ describe('removeCompanyTerms', () => {
   });
 
   it('keeps the rest of a phrase the company sits in', () => {
-    expect(removeCompanyTerms(['appstock industry events', 'Represent Appstock'], ['Appstock'])).toEqual([
+    expect(removeCompanyTerms(['appstock industry events', 'Represent Appstock at industry events'], ['Appstock'])).toEqual([
       'industry events',
-      'Represent',
+      'Represent at industry events',
     ]);
   });
 
@@ -225,9 +225,9 @@ describe('company headings need evidence that they name an employer', () => {
 
   it('does not read an unlisted function heading "About <Function>" as the employer', () => {
     expect(detectCompanyNames('About Business Development\nExcel and HubSpot experience required.')).toEqual([]);
-    // A name the ad repeats, or that looks like a proper name, still counts.
+    // A name the ad repeats still counts.
     expect(detectCompanyNames('About Appstock\nAppstock connects publishers and buyers.')).toContain('Appstock');
-    expect(detectCompanyNames('About HubSpot\nWe build CRM software.')).toContain('HubSpot');
+    expect(detectCompanyNames('About HubSpot\nHubSpot builds CRM software.')).toContain('HubSpot');
   });
 });
 
@@ -245,5 +245,74 @@ describe('product evidence is decided per term, not for the whole company', () =
     expect(
       removeCompanyTerms(['Represent Salesforce at events', 'Salesforce administration', 'salesforce'], ['Salesforce'], context),
     ).toEqual(['Represent at events', 'Salesforce administration', 'salesforce']);
+  });
+});
+
+/**
+ * Review round 4 of #187 (Codex, CodeRabbit and the PR Steward, 2026-10-18).
+ *
+ * Deleting a real skill is worse than leaving a company name in the list, so the
+ * employer is removed only on strong evidence: a known company field, a
+ * first-line "<Title> at <Company>", a "Company:" label, or a name the ad
+ * repeats. A department ("Customer Success", "Engineering") is never the
+ * employer, whichever phrasing names it.
+ */
+describe('employer names are removed only on strong evidence', () => {
+  it('keeps a real employer whose name holds a department word when the ad repeats it ("Product School")', () => {
+    const text = 'About Product School\nProduct School trains product managers.\n\nWhat you will do\nRepresent Product School at industry events';
+    const companies = detectCompanyNames(text);
+    expect(companies).toContain('Product School');
+    expect(removeCompanyTerms(['Represent Product School at industry events'], companies, text)).toEqual([
+      'Represent at industry events',
+    ]);
+  });
+
+  it.each([
+    ['Customer Success is looking for an Account Manager to join us.\n\nRequirements\nCustomer Success strategy', 'Customer Success strategy', /customer success/i],
+    ['Engineering is hiring a Senior Engineer to join us.\n\nRequirements\nEngineering leadership', 'Engineering leadership', /engineering/i],
+  ])('does not read a department in a hiring sentence as the employer: %s', (text, requirement, kept) => {
+    expect(detectCompanyNames(text)).toEqual([]);
+    const job = buildJobDataFromExtractedJson({ job_title: 'Account Manager', company_name: '', qualifications: [requirement] }, text);
+    expect(job.must_have.join(' ')).toMatch(kept);
+  });
+
+  it('applies the department check to every inferred source, not only "About"', () => {
+    expect(detectCompanyNames('Account Manager at Customer Success\n\nCustomer Success strategy.')).toEqual([]);
+    expect(detectCompanyNames('Company: Customer Success\nCustomer Success strategy.')).toEqual([]);
+    expect(detectCompanyNames('At Customer Success, we care.\nCustomer Success strategy.')).toEqual([]);
+  });
+
+  it('does not read a name the ad uses once, in a weak phrasing, as the employer', () => {
+    expect(detectCompanyNames('Fresha is looking for a Data Analyst to join the team.')).toEqual([]);
+    expect(detectCompanyNames('At Wix, we build websites for everyone.')).toEqual([]);
+    expect(detectCompanyNames('About HubSpot\nWe build CRM software.')).toEqual([]);
+  });
+
+  it('removes the employer from a brand phrase ("Deliver the Appstock experience")', () => {
+    const context = 'Deliver the Appstock experience to every publisher.';
+    expect(
+      removeCompanyTerms(['Deliver the Appstock experience', 'appstock', 'header bidding'], ['Appstock'], context),
+    ).toEqual(['header bidding']); // "Deliver the experience" holds no skill, so it goes too.
+
+    const job = buildJobDataFromExtractedJson(
+      { job_title: 'Account Manager', company_name: 'Appstock', qualifications: ['Deliver the Appstock experience', 'Strong knowledge of header bidding'] },
+      '',
+    );
+    expect(mentionsAppstock(job.must_have)).toEqual([]);
+  });
+
+  it('still keeps "<Product> experience" and "<Product> development" as product requirements', () => {
+    const terms = ['Salesforce experience', '3+ years of Salesforce development', 'salesforce'];
+    expect(removeCompanyTerms(terms, ['Salesforce'], terms.join('\n'))).toEqual(terms);
+  });
+
+  it('drops a duty verb left behind once the company is removed ("Represent", "Support", "Drive")', () => {
+    expect(removeCompanyTerms(['Represent Appstock', 'Support Appstock', 'Drive Appstock'], ['Appstock'])).toEqual([]);
+
+    const job = buildJobDataFromExtractedJson(
+      { job_title: 'Account Manager', company_name: 'Appstock', qualifications: ['Represent Appstock', 'Support Appstock', 'Drive Appstock'] },
+      '',
+    );
+    expect(job.must_have).toEqual([]);
   });
 });

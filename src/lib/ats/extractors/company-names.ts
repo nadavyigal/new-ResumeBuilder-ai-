@@ -17,6 +17,7 @@
  */
 
 import { normalizeText } from '../utils/text-utils';
+import { extractSkillPhrases } from './skill-phrase-extractor';
 
 /**
  * One capitalised name of up to four capitalised words: "Appstock", "Kesher
@@ -59,8 +60,9 @@ const NON_COMPANY_WORDS = new Set([
 const PLACEHOLDER_WORDS = new Set([...NON_COMPANY_WORDS, 'name', 'confidential', 'unknown', 'n/a', 'na', 'stealth']);
 
 /**
- * Departments and sections that follow "About" but name no employer ("About
- * Engineering", "About Design").
+ * Departments and sections that name no employer ("About Engineering",
+ * "Customer Success is looking for"). A name made only of these words is never
+ * the employer; a name that merely holds one ("Product School") can be.
  */
 const FUNCTIONAL_HEADINGS = new Set([
   'engineering', 'product', 'design', 'sales', 'marketing', 'data', 'finance', 'operations', 'people', 'hr',
@@ -68,7 +70,14 @@ const FUNCTIONAL_HEADINGS = new Set([
   'platform', 'brand', 'content', 'partnerships', 'benefits', 'perks', 'culture', 'compensation', 'requirements',
   'responsibilities', 'qualifications', 'location', 'office', 'hiring', 'process', 'interview', 'diversity',
   'inclusion', 'mission', 'values', 'opportunity', 'department', 'group', 'unit', 'division',
+  'business', 'development', 'revenue', 'science', 'technology', 'it', 'qa', 'devops', 'talent', 'recruiting',
+  'communications', 'strategy', 'enablement', 'management', 'leadership',
 ]);
+
+/** A department or section, not an employer: every word is a functional word. */
+function isFunctionalName(name: string): boolean {
+  return name.trim().toLowerCase().split(/\s+/).every((word) => FUNCTIONAL_HEADINGS.has(word));
+}
 
 const LEGAL_SUFFIX = /[\s,]+(?:inc|ltd|llc|plc|gmbh|corp|corporation|co|limited|group)\.?$/i;
 
@@ -91,28 +100,23 @@ function isKnownCompanyName(name: string): boolean {
   return name.trim().length >= 2 && !words.every((word) => PLACEHOLDER_WORDS.has(word));
 }
 
-/** A name written the way only names are: "Monday.com", "HubSpot", "3M", "AT&T". */
-const PROPER_NAME_MARK = /[.&\d]|\p{Ll}\p{Lu}/u;
-
 /**
- * Whether an "About <Name>" heading names the employer. Ads title their
- * sections the same way ("About Engineering", "About Business Development"),
- * so the heading alone is not enough: the name must look like a proper name,
- * or the ad must use it again with its capitals ("Appstock connects ...").
- * A department, or a word the ad also writes in lowercase as a skill
- * ("Software engineering"), never counts. A domain ("fiverr.com") is not
- * such a lowercase use.
+ * Whether a name from a weak phrasing ("<Company> is looking for", "At
+ * <Company>, we", "About <Company>") is the employer. Ads use the same shapes
+ * for teams and sections ("About Business Development", "Customer Success is
+ * hiring"), so the phrasing alone is not enough: the ad must use the name again
+ * with its capitals ("Appstock connects ..."). A word the ad also writes in
+ * lowercase as a skill ("Software engineering") never counts. A domain
+ * ("fiverr.com") is not such a lowercase use.
  */
-function isEmployerHeading(name: string, text: string, headingLine: string): boolean {
-  if (name.toLowerCase().split(/\s+/).some((word) => FUNCTIONAL_HEADINGS.has(word))) return false;
+function isRepeatedName(name: string, text: string): boolean {
   const lowercaseUse = new RegExp(
     `(?<![\\p{L}\\p{N}])${escapeRegExp(name.toLowerCase())}(?![\\p{L}\\p{N}]|\\.[a-z])`,
     'u',
   );
   if (lowercaseUse.test(text)) return false;
-  if (PROPER_NAME_MARK.test(name)) return true;
-  const repeated = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'u');
-  return repeated.test(text.replace(headingLine, ' '));
+  const uses = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, 'gu');
+  return (text.match(uses) ?? []).length >= 2;
 }
 
 /**
@@ -135,20 +139,28 @@ export function extractHiringSentence(text: string): { title: string; company: s
 }
 
 /**
- * The employer's name as a job ad gives it: from known fields (`known`), the
- * "<Title> at <Company>" heading on the first line, "<Company> is looking for",
- * a "Company:" label, "At <Company>, we", or, when none of those names one, an
- * "About <Company>" heading.
- * A mid-sentence "at" is never read, so "work at scale" names no company.
+ * The employer's name as a job ad gives it.
+ *
+ * Removing a name deletes it from every requirement, and deleting a real skill
+ * is worse than leaving a company name in the list. So only strong evidence
+ * counts: known fields (`known`), the "<Title> at <Company>" heading on the
+ * first line, a "Company:" label, or a name the ad repeats. "<Company> is
+ * looking for", "At <Company>, we" and, when none of those names one, an "About
+ * <Company>" heading count only when the ad uses the name again. A name made
+ * only of department words ("Customer Success") is never inferred as the
+ * employer. A mid-sentence "at" is never read, so "work at scale" names no
+ * company.
  */
 export function detectCompanyNames(text: string, known: Array<string | null | undefined> = []): string[] {
   const found: string[] = [];
-  const add = (name: string | null | undefined) => {
+  const add = (name: string | null | undefined, needsRepeat = false) => {
     // The hiring sentence's subject may run across a line break ("About You\nThe
     // Company is looking for"); only the line right before the verb names anyone.
     const lastLine = (name || '').split('\n').pop() ?? '';
     const trimmed = lastLine.trim().replace(/[.,;:]+$/, '');
-    if (trimmed && isCompanyName(trimmed)) found.push(trimmed);
+    if (!trimmed || !isCompanyName(trimmed) || isFunctionalName(trimmed)) return;
+    if (needsRepeat && !isRepeatedName(trimmed, text)) return;
+    found.push(trimmed);
   };
 
   for (const name of known) {
@@ -162,16 +174,14 @@ export function detectCompanyNames(text: string, known: Array<string | null | un
     if (heading && JOB_WORD.test(heading[1])) add(heading[2]);
   }
 
-  add(extractHiringSentence(text).company);
+  add(extractHiringSentence(text).company, true);
   for (const match of text.matchAll(COMPANY_LABEL)) add(match[1]);
-  for (const match of text.matchAll(AT_COMPANY_WE)) add(match[1]);
+  for (const match of text.matchAll(AT_COMPANY_WE)) add(match[1], true);
 
   // Ads also title their sections "About <Name>" ("About Engineering"), so this
   // is the weakest evidence: read only when nothing above names the employer.
   if (found.length === 0) {
-    for (const match of text.matchAll(ABOUT_HEADING)) {
-      if (isEmployerHeading(match[1], text, match[0])) add(match[1]);
-    }
+    for (const match of text.matchAll(ABOUT_HEADING)) add(match[1], true);
   }
 
   const seen = new Set<string>();
@@ -228,13 +238,24 @@ const PRODUCT_USE_BEFORE =
 const PRODUCT_USE_AFTER =
   '(?:administration|admin|administrator|certification|certified|development|developer|api|apis|crm|cpq|integration|integrations|configuration|experience|proficiency|skills|sdk|apex|reports|reporting|dashboards|implementation)';
 
+/**
+ * "the Appstock experience", "our Appstock experience": the employer's brand,
+ * not a tool. "Salesforce experience" and "3 years of Salesforce experience"
+ * have no article or possessive before the name and stay product use.
+ */
+const BRAND_EXPERIENCE_BEFORE = '(?:the|our|their|its|your)';
+
 /** Whether `text` asks for the company as a product ("Salesforce administration", "experience with Salesforce"). */
 function usesAsProduct(company: string, text: string): boolean {
   return companyForms(company).some((words) => {
     const name = namePattern(words);
     const before = new RegExp(`(?<![\\p{L}\\p{N}])${PRODUCT_USE_BEFORE}[ \\t]+${name}(?![\\p{L}\\p{N}'’])`, 'iu');
-    const after = new RegExp(`(?<![\\p{L}\\p{N}])${name}[ \\t]+${PRODUCT_USE_AFTER}(?![\\p{L}\\p{N}])`, 'iu');
-    return before.test(text) || after.test(text);
+    if (before.test(text)) return true;
+    const after = new RegExp(
+      `(?<![\\p{L}\\p{N}])(?:(${BRAND_EXPERIENCE_BEFORE})[ \\t]+)?${name}[ \\t]+(${PRODUCT_USE_AFTER})(?![\\p{L}\\p{N}])`,
+      'giu',
+    );
+    return [...text.matchAll(after)].some((match) => !(match[1] && match[2].toLowerCase() === 'experience'));
   });
 }
 
@@ -249,6 +270,8 @@ function isOnlyName(company: string, term: string): boolean {
  * Requirement terms with the company's name taken out. A term that was only the
  * name is dropped; the rest of a phrase the name sat in is kept, so "Represent
  * Appstock at industry events" still yields "industry events" once atomized.
+ * A rest the atomizer finds no skill in ("Represent", "Support", "Drive") is
+ * dropped too, because callers keep raw terms when atomizing yields nothing.
  * A multi-word company is matched as a whole: "Kesher Commerce" never removes
  * "commerce" from "e commerce platforms".
  *
@@ -271,7 +294,9 @@ export function removeCompanyTerms(terms: string[], companies: string[], context
         if (productInAd.has(company) && isOnlyName(company, term)) continue;
         for (const pattern of companyPatterns(company)) out = out.replace(pattern, ' ');
       }
-      return out === term ? term : out.replace(/\s+/g, ' ').trim();
+      if (out === term) return term;
+      const rest = out.replace(/\s+/g, ' ').trim();
+      return extractSkillPhrases([rest]).length > 0 ? rest : '';
     })
     .filter((term) => /[\p{L}\p{N}]/u.test(term));
 }
