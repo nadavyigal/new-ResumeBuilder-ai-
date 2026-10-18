@@ -46,13 +46,22 @@ which have no tag, keep today's behaviour. The tag is user-editable, so it is **
 decides which guests see the export prompt. Spend is protected separately, by persistent limits on
 every anonymous caller (S1), which never read the tag.
 
-At export, the guest becomes a real account **without changing user id**: Supabase
-`updateUser({ email, password })` (email confirmation) or `linkIdentity` (Google). Résumé,
-optimization and review rows already belong to that id, so nothing is copied or migrated.
+At export, the guest becomes a real account **without changing user id**. Résumé,
+optimization and review rows already belong to that id, so nothing is copied for a new account.
+Two Supabase facts make this a prerequisite, not a detail:
+- Linking needs `enable_manual_linking`, which is `false` in `supabase/config.toml:146`. Turning it
+  on (locally and in production) is an auth configuration change and needs founder approval.
+- Email conversion is two steps when confirmation is on: `updateUser({ email })`, the user verifies
+  the email, then `updateUser({ password })`. Google uses `linkIdentity`.
+
+If the email or Google identity already belongs to an existing account, linking is refused. The
+guest then signs in to that account, and the guest's rows must move to it: a server route, called
+with both sessions, reassigns the anonymous user's résumé, optimization and review rows to the
+signed-in user. This is the one ownership transfer in the plan.
 
 Rejected: a separate "guest optimization" table keyed by a browser id. It duplicates the
 résumé, optimization and review tables and their row-level security, and needs a merge at
-sign-up. The anonymous session gives the same result with the code that exists.
+every sign-up. The anonymous session needs a transfer only for the existing-account case.
 
 ## Stories (one at a time, each its own branch and PR)
 
@@ -69,7 +78,7 @@ to web guests before any limit existed.
   `optimize-anonymous-global`; the value is a founder decision, 200 a day is only the proposal),
   and returns the existing 429 copy. The same ceilings apply to both routes.
 - The limits key on `is_anonymous`, never on the web tag, so an edited tag cannot skip them.
-- The other paid AI routes (`v1/chat`, `v1/refine-section`, `ats/score`) get a persistent per-IP
+- The other paid AI routes (`v1/chat`, `v1/refine-section`, `ats/score`, `v1/expert-workflows/run`) get a persistent per-IP
   ceiling for anonymous callers in the `rate_limits` table, sized above real use. This covers iOS
   guests, who may still call them, without breaking them.
 - Tests first: both optimizer entry points charge the same global counter (the cap + 1st
@@ -82,16 +91,23 @@ to web guests before any limit existed.
 - One server helper, `requireAccountForWebGuest(user)`, returns 403 `{ code: "ACCOUNT_REQUIRED" }`
   for an anonymous user with the web tag. Called from **every** server export path
   (`download/[id]`, `apply-job`, `optimizations/export`) and from the paid AI routes a web guest
-  does not need (`v1/chat`, `v1/refine-section`, `ats/score`).
+  does not need (`v1/chat`, `v1/refine-section`, `ats/score`, `v1/expert-workflows/run`). The
+  expert workflows matter: the optimization page renders `ExpertModesPanel`, and while the
+  monetization gate is off `hasPremiumAccess` lets an anonymous user run them. The panel, the AI
+  assistant and section refinement are hidden for a web guest.
 - `src/middleware.ts`: an anonymous session is not redirected away from `/auth/*`, so a guest can
   reach sign-up to convert.
 - The optimization page catches that code and shows one prompt: "Create a free account to
   download. Your tailored résumé is kept." (en, he).
-- Sign-up page: with an anonymous session it converts (`updateUser` / `linkIdentity`) instead of
-  `signUp`, then returns to the download. PostHog `identify` with the same id after conversion.
+- Sign-up page: with an anonymous session it converts instead of `signUp` (email: link, verify,
+  then set the password; Google: `linkIdentity`), then returns to the download. PostHog
+  `identify` with the same id after conversion. Needs manual linking enabled (founder decision 6).
+- Existing account: when linking is refused because the identity exists, the guest signs in and
+  a server route moves the anonymous user's rows to that account.
 - Tests first: a web guest gets 403 with the code on each of the six routes; **an untagged
   anonymous user (an iOS guest) still downloads, exports and chats as before**; conversion keeps
-  the user id and the optimization stays readable; a signed-in user downloads as before. Web-guest
+  the user id and the optimization stays readable; an identity that already has an account signs
+  in and finds the guest's optimization there; a signed-in user downloads as before. Web-guest
   test users are created with the tag directly, so S2 is tested without S3.
 
 **S3. Guest entry opens.** Only after S1 and S2 are merged, tested and live, and only with a
@@ -155,7 +171,8 @@ Move to C when either happens in a week: anonymous optimizations above 100 a day
   story (PR #172 purges only anonymous free-check rows).
 - PostHog: a guest who converts must stay one person (no identify before conversion).
 - iOS: no change. The export gate keys on the web tag, never on `is_anonymous` alone, and the
-  new IP ceilings are sized above real use. No auth setting changes in this plan.
+  new IP ceilings are sized above real use. The only auth setting change is manual linking,
+  which needs founder approval (decision 6).
 - Shipping S3 before S1 and S2: guest entry with no limits and open export. The order rule above
   exists to prevent this.
 
@@ -170,5 +187,6 @@ Still needed, each separately:
 3. The global daily cap value (proposal: 200 anonymous runs a day).
 4. Should a guest see a history page before converting? Proposal: no.
 5. OK to implement each story (S1, S2, S3, S4), one at a time.
-6. Any Supabase auth configuration change (none is planned).
+6. Supabase auth configuration: enabling manual linking (`enable_manual_linking`), which conversion
+   at export needs. Not approved.
 7. OK to launch guest entry (S3 in production), only after S1 and S2 are live and tested.
