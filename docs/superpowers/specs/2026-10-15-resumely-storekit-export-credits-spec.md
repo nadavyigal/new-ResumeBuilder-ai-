@@ -27,7 +27,7 @@ Rules EXD-037 adds or keeps:
 - **Web stays closed until the Paddle checkout ships.** EXD-018 and the 2026-07-03 Gate A record in
   Agentic OS `DECISIONS.md` hold on the web until section 16 is live; a re-enable task then replaces them.
 - **Every build story needs its own yes.** So do the migration and every new npm package
-  (`@apple/app-store-server-library` under F3; anything for Paddle under W2 in section 16).
+  (`@apple/app-store-server-library` under F3). For Paddle, W2 in section 16 decided no new package on 2026-10-20.
 
 Section 13 ("Fail closed now") shipped on 2026-10-15 in #181.
 
@@ -395,7 +395,7 @@ verified transaction.
 - The Agentic OS work packet `executive-os/work-packets/WP-2-monetization-spec.md` points to this
   spec and states the pack shape (June spec section 10 asked for this).
 - Gate condition 2 is still the founder's; condition 3 was superseded by EXD-037. This spec does not move either.
-- The founder answers W1 to W3 in section 16.
+- W1 to W3 in section 16 are answered: decided by the founder on 2026-10-20.
 
 ## 16. Web checkout with Paddle (added 2026-10-20, EXD-037)
 
@@ -431,7 +431,7 @@ Same three packs, same prices, same credits as section 4 (EXD-035):
   bought on the web may be spent in the app because the same packs are also sold as in-app
   purchases (guideline 3.1.3(b), multiplatform services). A user with web credits simply sees the balance.
 - Fee note: the $0.50 fixed fee is about 17.5% of the $3.99 pack and about 7.5% of the $19.99 pack.
-  See W1.
+  See W1 (decided: the 5-pack is highlighted).
 
 ### 16.3 Checkout flow
 
@@ -572,15 +572,18 @@ No email, name or résumé text in any property.
 
 ### 16.10 Rollout
 
+Steps are L0 to L6 (L for launch). Renamed from W0 to W6 on 2026-10-20 so they do not clash
+with decisions W1 to W3 (16.12); R is taken by the research items (R1, R7, R8).
+
 | Step | What | Who |
 |---|---|---|
-| W0 | iOS purchase live (section 11, step 7). Web work starts after this. | Founder |
-| W1 | Paddle seller account approved; three one-time prices created in sandbox and live; webhook destination set to `/api/v1/paddle/webhook` | Founder |
-| W2 | Migration additions (16.6) applied, after a separate yes | Founder yes, Claude Code applies |
-| W3 | Checkout route, webhook, pack sheet and CSP change merged with live keys absent and `WEB_EXPORT_CREDITS_ENABLED` off. Nothing changes for users. | Claude Code |
-| W4 | Preview deployment with sandbox keys: buy each pack, refund one, replay one webhook | Founder tests, Claude Code reads the ledger |
-| W5 | Live keys in Vercel production and `WEB_EXPORT_CREDITS_ENABLED` on, together, on or after 2026-10-31 | Founder's yes in that message |
-| W6 | Day 1, day 7: `export_blocked` by platform, `web_checkout_opened`, `paddle_purchase_granted`, `paddle_webhook_rejected` | Claude Code |
+| L0 | iOS purchase live (section 11, step 7). Web work starts after this. | Founder |
+| L1 | Paddle seller account approved; three one-time prices created in sandbox and live; webhook destination set to `/api/v1/paddle/webhook` | Founder |
+| L2 | Migration additions (16.6) applied, after a separate yes | Founder yes, Claude Code applies |
+| L3 | Checkout route, webhook, pack sheet and CSP change merged with live keys absent and `WEB_EXPORT_CREDITS_ENABLED` off. Nothing changes for users. | Claude Code |
+| L4 | Preview deployment with sandbox keys: buy each pack, refund one, replay one webhook | Founder tests, Claude Code reads the ledger |
+| L5 | Live keys in Vercel production and `WEB_EXPORT_CREDITS_ENABLED` on, together, on or after 2026-10-31 | Founder's yes in that message |
+| L6 | Day 1, day 7: `export_blocked` by platform, `web_checkout_opened`, `paddle_purchase_granted`, `paddle_webhook_rejected` | Claude Code |
 
 ### 16.11 Tests (written first)
 
@@ -598,8 +601,8 @@ No email, name or résumé text in any property.
 
 ### 16.12 Founder decisions for this section
 
-| # | Question | Recommended | Why |
+| # | Question | Decided 2026-10-20 | Why |
 |---|---|---|---|
-| W1 | Which pack does the web sheet highlight? | **The 5-pack.** All three stay on sale. | The $0.50 fixed fee takes about 17.5% of a $3.99 sale and about 9% of a $12.99 sale. |
-| W2 | New npm packages for Paddle? | **None.** Load Paddle.js from Paddle's script URL, verify the signature with `node:crypto`, call the Paddle API with `fetch`. | The signature is a plain HMAC, unlike Apple's certificate chain (F3), so a library buys little. Alternative: `@paddle/paddle-node-sdk` and `@paddle/paddle-js`, each needing an explicit yes before install. |
-| W3 | Show prices in shekels on the web? | **Yes, in Israel:** set an ILS price on each Paddle price that matches the App Store's Israeli tier. | The Hebrew page is the growth-loop channel (G0); a shekel price matches what the same user sees on iOS. |
+| W1 | Which pack does the web sheet highlight? | **DECIDED: the 5-pack is highlighted.** All three stay on sale. | The $0.50 fixed fee takes about 17.5% of a $3.99 sale and about 9% of a $12.99 sale. |
+| W2 | New npm packages for Paddle? | **DECIDED: none.** Paddle.js loads from Paddle's script URL, the signature is verified with `node:crypto`, and the Paddle API is called with `fetch`. | The signature is a plain HMAC, unlike Apple's certificate chain (F3), so a library buys little. Adding `@paddle/paddle-node-sdk` or `@paddle/paddle-js` later needs a new explicit yes. |
+| W3 | Show prices in shekels on the web? | **DECIDED: yes, in Israel.** Each Paddle price gets an ILS price matching the App Store's Israeli tier. | The Hebrew page is the growth-loop channel (G0); a shekel price matches what the same user sees on iOS. |
