@@ -3,23 +3,33 @@
 - **Written:** 2026-10-15, market play Track 2, story P3a (`docs/plans/2026-10-14-market-play-implementation.md`).
 - **Decision it implements:** EXD-035 (Agentic OS): packs of 1 / 5 / 10 tailored exports at $3.99 / $12.99 / $19.99, credits never expire, no subscription at launch.
 - **Status:** F1 to F6 decided by the founder on 2026-10-15 (section 2). The whole spec waits for founder approval after the independent review. Approving it closes StoreKit gate condition 4 only.
+- **Updated 2026-10-20:** EXD-037 (Agentic OS, PR #129) opens payments before the traffic gate. Section 0 is rewritten for it, section 13 is marked shipped (#181), and section 16 adds the web checkout with Paddle.
 - **Replaces:** the skeleton tasks in `docs/superpowers/plans/2026-06-07-resumely-plan-3-storekit-paywall.md` (its four-tier products, the `storekit-verify` edge function and the `user_credits` / `iap_purchases` tables). Pricing context stays in `docs/superpowers/specs/2026-06-07-resumely-growth-pricing-design.md`, except its Tier 4.
 
-## 0. The gate (unchanged)
+## 0. The gate (changed by EXD-037, 2026-10-20)
 
-Nothing in this spec is built until all four conditions in
-`docs/superpowers/plans/2026-06-07-resumely-plan-3-storekit-paywall.md:16-22` hold **and** the
-founder says yes in that message. A feature flag does not satisfy any of them.
+EXD-037 (decided 2026-10-20) opens payments now: iOS first with Apple In-App Purchase, web second
+with Paddle (section 16). It supersedes EXD-009's timing clause and condition 3 below. Nothing in
+this spec is built until conditions 1, 2 and 4 hold **and** the founder says yes to that story in
+that message. A feature flag does not satisfy any of them.
 
-| # | Condition | State on 2026-10-15 |
+| # | Condition | State on 2026-10-20 |
 |---|---|---|
 | 1 | Prices validated against AI cost | Met: R1 plus EXD-035. |
-| 2 | Apple's rate confirmed (15% or 30%) | Open. Founder checks Small Business Program enrollment. |
-| 3 | First-cohort D7 readable (EXD-009, traffic gate EXD-029) | Open. About 3 arrivals a week against 50. |
-| 4 | This spec written and approved | Written. Waiting for founder approval. |
+| 2 | Apple's rate confirmed (15% or 30%) | Open. Founder checks Small Business Program enrollment (R8). |
+| 3 | First-cohort D7 readable (EXD-009, traffic gate EXD-029) | **Superseded by EXD-037.** No longer a condition. |
+| 4 | This spec written and approved | Written. Waiting for founder approval, now including section 16. |
 
-Proposed exception, for the founder to approve separately: section 13, "Fail closed now". It removes
-a live way to mint credits and creates no product, price, paywall or export decrement.
+Rules EXD-037 adds or keeps:
+
+- **No paid sale before 2026-10-31**, the day the founder's עוסק פטור file opens. A product may be
+  created and reviewed before then; no production flag goes on before then.
+- **Web stays closed until the Paddle checkout ships.** EXD-018 and the 2026-07-03 Gate A record in
+  Agentic OS `DECISIONS.md` hold on the web until section 16 is live; a re-enable task then replaces them.
+- **Every build story needs its own yes.** So do the migration and every new npm package
+  (`@apple/app-store-server-library` under F3). For Paddle, W2 in section 16 decided no new package on 2026-10-20.
+
+Section 13 ("Fail closed now") shipped on 2026-10-15 in #181.
 
 ## 1. What this spec covers, and what it does not
 
@@ -27,8 +37,10 @@ Covers: what one export credit buys, how an export spends it (atomic, idempotent
 one free export, purchase verification on the server, refunds, restore, the paywall sheet at
 export, PostHog events, the migration, the flags and the rollout, and the tests that prove it.
 
-Does not cover: a web checkout (Stripe stays closed, 2026-07-03 Gate A record in Agentic OS
-`DECISIONS.md`), subscriptions, price experiments, App Store Connect copy and screenshots, and the
+Also covers, since 2026-10-20: the web checkout with Paddle as Merchant of Record (section 16).
+Stripe stays out: it does not open merchant accounts for Israeli businesses (EXD-037).
+
+Does not cover: subscriptions, price experiments, App Store Connect copy and screenshots, and the
 paid home of features the June spec put in "Unlimited only" (see decision F5).
 
 ## 2. Founder decisions (decided 2026-10-15)
@@ -39,7 +51,7 @@ product IDs (F4).
 
 | # | Question | Decided 2026-10-15 | Why |
 |---|---|---|---|
-| F1 | Do web exports need a credit at launch? | **No.** Gate iOS only. Web exports stay free until a web checkout exists. | A web user at zero credits would hit a wall with nothing to buy behind it. That is the exact failure measured on 2026-08-12 (`src/lib/premium-access.ts:3-11`). Cost: an iOS user can export the same résumé from the web for free. Measure it with `export_unlocked` by platform (section 10). |
+| F1 | Do web exports need a credit at launch? | **No.** Gate iOS only. Web exports stay free until a web checkout exists. | A web user at zero credits would hit a wall with nothing to buy behind it. That is the exact failure measured on 2026-08-12 (`src/lib/premium-access.ts:3-11`). Cost: an iOS user can export the same résumé from the web for free. Measure it with `export_unlocked` by platform (section 10). **2026-10-20:** holds until the Paddle checkout ships; section 16.7 then gates web exports in the same release (EXD-037). |
 | F2 | What happens to the 3 credits every account holds today? | **Keep them** as export credits. New accounts start with 1 (the free export). | 80 external accounts hold 3 each (read 2026-10-15). At most 240 exports, about $5 of AI cost at R1 prices. Zeroing them takes something users were given. |
 | F3 | May the build add `@apple/app-store-server-library` (npm)? | **Yes.** Installed only when P3b starts, not before. | Apple's own library verifies the signed transaction against Apple's root certificate and checks bundle and environment. Writing that chain check by hand is the riskiest code in this feature. Global rule: no new dependency without the founder's yes. |
 | F4 | Product IDs | **New IDs:** `resumely.exports.1`, `resumely.exports.5`, `resumely.exports.10`. | A product ID can never be reused once created in App Store Connect. The iOS catalog today names `credits_basic` / `credits_saver` / `credits_super` at 100 / 500 / 2,500 units. **Open founder step:** check App Store Connect for those three IDs; if any exist, they are never sold and never mapped. |
@@ -55,7 +67,7 @@ product IDs (F4).
 | Grant idempotency | `credit_transactions.apple_transaction_id` is unique; `grant_apple_credits` inserts with `on conflict do nothing` and grants only if the row was new. | `20260503000000_credit_ledger.sql:10`, `:115-138` |
 | Function access | `consume_credit` and `grant_apple_credits` run only as `service_role` (R1). Client writes to `profiles` and `credit_transactions` are revoked. | `20260922000000_revoke_client_definer_exec.sql`; `20260811093000_lock_down_profiles_and_credit_ledger_writes.sql` |
 | Verification | `verifyAppleTransaction` treats any 2xx from a configured URL as verified and never reads the body. | `src/lib/iap.ts:11-40` |
-| Verify route | Amount comes from the client-sent `productId`. When `APPLE_VERIFY_TRANSACTIONS_URL` is unset the check is skipped and credits are granted anyway (`verification: 'not_configured'`). | `src/app/api/v1/iap/verify/route.ts:27`, `:33`, `:66` |
+| Verify route | Amount comes from the client-sent `productId`. When `APPLE_VERIFY_TRANSACTIONS_URL` is unset the check is skipped and credits are granted anyway (`verification: 'not_configured'`). **Fixed 2026-10-15 in #181:** unset now answers 503 `iap_verification_unavailable` and grants nothing; a failed check answers 400. The amount still comes from the client `productId` until section 7 ships. | `src/app/api/v1/iap/verify/route.ts:27`, `:33`, `:66` (line numbers before #181) |
 | Pack units | `credits_basic` 100, `credits_saver` 500, `credits_super` 2,500. | `src/lib/iap.ts:1-5` |
 | Apple grants so far | 0 ledger rows with an Apple transaction. | live read 2026-10-15 |
 | Export route | `/api/download/[id]` checks the user and row ownership, renders PDF or DOCX, no credit check. | `src/app/api/download/[id]/route.ts:26`, `:34-39`, `:178` |
@@ -181,7 +193,8 @@ The free export is the starting credit of 1 (section 5). No special case in the 
 `EXPORT_CREDITS_ENABLED=true` on the server **and** the request comes from the iOS app (F1). The
 iOS app sends `X-Resumely-Client: ios` (it already sends a bearer token). Because web is ungated,
 a client that lies about the header gains nothing it could not get from the web. If F1 changes,
-the platform check is removed and every request is gated.
+the platform check is removed and every request is gated. Section 16.7 is that change: once
+`WEB_EXPORT_CREDITS_ENABLED=true`, web requests are gated too.
 
 Off (the default), and on for web while F1 holds: `unlock_export` runs with `p_charge = false`.
 Nothing is spent, `/api/v1/exports/unlock` answers 200 `{status: 'ungated'}`, and an `ungated`
@@ -276,7 +289,7 @@ line. Unfinished transactions are recovered by 7.1 step 4, not by a restore butt
 
 ### 10.2 Web at launch
 
-Ungated (F1). No price, no paywall, no purchase link on the web.
+Ungated (F1). No price, no paywall, no purchase link on the web, until section 16 ships.
 
 ### 10.3 PostHog events (project 270848)
 
@@ -298,14 +311,14 @@ No email, name or résumé text in any property. Existing `export_started`, `exp
 
 | Step | What | Who |
 |---|---|---|
-| 0 | Section 13 ships (allowed before the gate). | Claude Code, founder merges |
-| 1 | Gate opens: all four conditions hold and the founder says yes. | Founder |
+| 0 | Section 13 ships (allowed before the gate). Done 2026-10-15, #181. | Claude Code, founder merges |
+| 1 | Gate opens: conditions 1, 2 and 4 hold (section 0, EXD-037) and the founder says yes. | Founder |
 | 2 | Migration (section 5) applied after a separate yes for the migration. | Founder yes, Claude Code applies |
 | 3 | Server code merged with `EXPORT_CREDITS_ENABLED` unset (off). Nothing changes for users. **Precondition:** in the same change, `ats_score` and `refine_section` no longer touch `credit_balance` at all (see below), proven by a test. | Claude Code |
 | 4 | Three consumables created in App Store Connect; notification URL set; Paid Applications agreement and banking active. | Founder |
 | 5 | iOS build with the sheet, tested in Sandbox and TestFlight against a preview deployment with the flag on. | Claude Code, founder tests on device |
 | 6 | Build submitted with the products attached. Production flag still off; review purchases are Sandbox (F6). | Founder |
-| 7 | Flag on in production. | Founder's yes in that message |
+| 7 | Flag on in production, on or after 2026-10-31 (EXD-037). | Founder's yes in that message |
 | 8 | Day 1, day 7: read `export_blocked`, `paywall_shown`, `purchase_completed`, `iap_verify_failed`. | Claude Code |
 
 Kill switch: `EXPORT_CREDITS_ENABLED` off. Exports become free again at once, purchased balances
@@ -342,7 +355,13 @@ iOS (unit tests plus a Sandbox run):
 - A 402 on export shows the sheet and never produces a local PDF (E6).
 - The sheet shows StoreKit prices and no hardcoded price.
 
-## 13. Fail closed now (allowed before the gate, recommended as the next story)
+## 13. Fail closed now (shipped 2026-10-15 in #181)
+
+Kept for history. #181 made the route answer 503 `iap_verification_unavailable` when the verifier
+is not configured and 400 `apple_verification_failed` when Apple does not verify, with route and
+library tests. Still open, and closed by section 7: `verifyAppleTransaction` trusts any 2xx without
+reading the body, and the amount comes from the client `productId`. Still to do before launch: the
+ledger audit in the last sentence below.
 
 `/api/v1/iap/verify` grants 100 to 2,500 credits for any made-up transaction ID whenever
 `APPLE_VERIFY_TRANSACTIONS_URL` is unset (`route.ts:33`). Whether it is set in Vercel production
@@ -375,4 +394,215 @@ verified transaction.
 - Founder approves this spec. F1 to F6 are answered (2026-10-15).
 - The Agentic OS work packet `executive-os/work-packets/WP-2-monetization-spec.md` points to this
   spec and states the pack shape (June spec section 10 asked for this).
-- Gate conditions 2 and 3 are still the founder's and the traffic's; this spec does not move them.
+- Gate condition 2 is still the founder's; condition 3 was superseded by EXD-037. This spec does not move either.
+- W1 to W3 in section 16 are answered: decided by the founder on 2026-10-20.
+
+## 16. Web checkout with Paddle (added 2026-10-20, EXD-037)
+
+Web comes second: it is built after the iOS purchase is live (EXD-037). This section is the spec
+for that build. It reuses the ledger, the unlock function and the pack shape above, so the only
+new parts are the checkout, the webhook and the web gate.
+
+### 16.1 Why Paddle
+
+Paddle is a Merchant of Record: it is the legal seller to the buyer, charges the card, collects
+and remits VAT and sales tax in every country, and pays the founder. That keeps the founder's
+עוסק פטור out of foreign VAT, the same reason Apple is the seller on iOS. Paddle's blocked-seller
+list does not include Israel (read 2026-10-19). Not verified until signup: Paddle's current fee
+(published as about 5% + $0.50) and whether it approves a solo עוסק פטור. Fallback if Paddle refuses:
+Lemon Squeezy, which lists Israel for bank payouts; the design below changes only in the webhook
+format.
+
+### 16.2 Products and prices
+
+Same three packs, same prices, same credits as section 4 (EXD-035):
+
+| Paddle product | Price (USD) | Credits | Server mapping key |
+|---|---|---|---|
+| 1 tailored export | $3.99 | 1 | its `pri_` price ID |
+| 5 tailored exports | $12.99 | 5 | its `pri_` price ID |
+| 10 tailored exports | $19.99 | 10 | its `pri_` price ID |
+
+- One-time prices, not subscriptions. Credits never expire.
+- The server maps **Paddle price IDs** to credits, in config (16.8), never from the request body.
+  Unknown price IDs grant nothing.
+- One credit ledger for both stores: credits bought on the web spend on iOS and the reverse.
+- The iOS app never mentions, links or prices the web checkout (App Store guideline 3.1.1). Credits
+  bought on the web may be spent in the app because the same packs are also sold as in-app
+  purchases (guideline 3.1.3(b), multiplatform services). A user with web credits simply sees the balance.
+- Fee note: the $0.50 fixed fee is about 17.5% of the $3.99 pack and about 7.5% of the $19.99 pack.
+  See W1 (decided: the 5-pack is highlighted).
+
+### 16.3 Checkout flow
+
+The server binds the buyer to the purchase. A client cannot choose whose account gets the credits.
+
+1. The user taps export, the server answers 402 `export_credits_required` (16.7), and the web
+   shows the pack sheet: three rows, the one-line "what a credit buys", "Credits never expire", a
+   close button. No "Premium" wording (EXD-018).
+2. On a pack tap the web calls new `POST /api/v1/web-checkout {priceId}`. The route resolves the
+   user with `getUser()`, rejects anonymous sessions (401 `account_required`), checks `priceId` is
+   in the mapping, and creates a Paddle transaction through the Paddle API (`POST /transactions`)
+   with that price, quantity 1, and `custom_data: {user_id}`. It inserts a row in
+   `paddle_checkouts (paddle_transaction_id, user_id, price_id, created_at)` and returns the `txn_` ID.
+3. The web opens the Paddle.js overlay checkout with that transaction ID. Paddle collects the card.
+4. The browser's `checkout.completed` event only closes the sheet and polls `GET /api/v1/credits`.
+   It grants nothing. The grant comes from the webhook (16.4). When the balance rises, the export
+   the user tapped runs without a second tap.
+
+**CSP change, required:** `next.config.ts` has `frame-src 'self'`, which blocks the overlay iframe.
+Add Paddle's checkout hosts (live and sandbox) to `frame-src`, and nothing broader. `script-src` and
+`connect-src` already allow any `https:` host.
+
+### 16.4 Webhook route
+
+New `POST /api/v1/paddle/webhook`. Paddle retries any non-2xx, so the route returns 2xx only when
+the event is fully handled or deliberately ignored.
+
+| # | Step | Failure |
+|---|---|---|
+| 1 | Config present: webhook secret, API key, price mapping, environment | 503, change nothing |
+| 2 | Read the **raw** body with `request.text()` before any parsing | n/a |
+| 3 | `Paddle-Signature` header `ts=...;h1=...`. Compute HMAC-SHA256 of `ts + ":" + rawBody` with the destination secret; timing-safe compare against each `h1` (rotation can send two) | 401, change nothing |
+| 4 | Reject `ts` older than 5 seconds (Paddle's own default tolerance) | 401, change nothing |
+| 5 | Parse. Store `event_id` in `paddle_events` (unique); a repeat returns 200 with no change | n/a |
+| 6 | Route by `event_type`: `transaction.completed` to 16.4.1; `adjustment.created` and `adjustment.updated` to 16.5; anything else is logged and returns 200 | n/a |
+
+#### 16.4.1 `transaction.completed`
+
+1. Look up the user in `paddle_checkouts` by `data.id`. **`custom_data` is never the source of the
+   user**; it is only cross-checked. No row, or `custom_data.user_id` disagrees: log
+   `paddle_unbound_transaction`, grant nothing, return 200. The founder refunds by hand.
+2. Credits = the sum over `data.items` of mapping[`price.id`] × `quantity`. An unknown price ID
+   grants nothing for that item and logs it.
+3. Grant with new `grant_paddle_credits(p_user_id, p_delta, p_paddle_transaction_id, p_price_id,
+   p_environment)`, `security definer`, service-role only, the same shape as `grant_apple_credits`:
+   take the `profiles ... for update` lock, insert the ledger row with `on conflict do nothing` on
+   `paddle_transaction_id`, change the balance only if the row was new. **Same idempotency rule as
+   Apple: one transaction ID, one grant, ever.**
+4. Return 200 with no body the client reads. A database failure returns 500 so Paddle retries.
+
+`transaction.paid` is not used: it fires before Paddle finishes processing, and
+`transaction.completed` follows it.
+
+### 16.5 Refunds and chargebacks
+
+Paddle represents both as adjustments on the original transaction.
+
+| Adjustment | Status | Action on credits |
+|---|---|---|
+| `refund` | `pending_approval` | Nothing. Logged. |
+| `refund` | `approved` | Deduct the credits of the refunded items, at most the current balance |
+| `refund` | `rejected` | Nothing |
+| `chargeback` | any final status | Same as an approved refund |
+| `chargeback_reverse` | any | Re-grant what the chargeback deducted |
+| `chargeback_warning`, `credit` | any | Nothing. Logged. |
+
+- One `security definer` function, `apply_paddle_adjustment(p_user_id, p_paddle_transaction_id,
+  p_paddle_adjustment_id, p_delta)`, the same pattern as `apply_iap_refund` (section 8): profile
+  lock first, ledger row keyed on `paddle_adjustment_id` with `on conflict do nothing`, balance
+  change only if new. The balance never goes below 0. Exports already unlocked stay unlocked.
+- A partial-amount refund (money back on part of an item, not the whole item) deducts nothing and
+  is logged. Whole refunded items deduct their credits.
+- The refund rate stop rule from the market play holds: above 5% in the first paid month, review
+  the paywall copy.
+
+### 16.6 Data model (added to the section 5 migration, same separate yes)
+
+```sql
+alter table public.credit_transactions
+  add column if not exists paddle_transaction_id text unique,
+  add column if not exists paddle_adjustment_id text unique;
+  -- product_id, environment and related_apple_transaction_id from section 5 are reused:
+  -- product_id holds the pri_ ID; environment is 'Production' or 'Sandbox'.
+
+create table public.paddle_checkouts (
+  paddle_transaction_id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  price_id text not null,
+  environment text not null check (environment in ('Production', 'Sandbox')),
+  created_at timestamptz not null default now()
+);
+
+create table public.paddle_events (
+  event_id text primary key,
+  event_type text not null,
+  received_at timestamptz not null default now()
+);
+
+alter table public.paddle_checkouts enable row level security;
+alter table public.paddle_events enable row level security;
+revoke all on public.paddle_checkouts, public.paddle_events from anon, authenticated;
+```
+
+Ledger rows use `source 'paddle'`. `grant_paddle_credits` and `apply_paddle_adjustment` are
+revoked from `public`, `anon` and `authenticated` in the same migration (the R1 pattern).
+
+### 16.7 Gating web exports (F1 flips with the checkout)
+
+- New server flag `WEB_EXPORT_CREDITS_ENABLED`, default off. When on, section 6.5's platform check
+  no longer exempts web: `/api/download/[id]` and `/api/v1/exports/unlock` call `unlock_export`
+  with `p_charge = true` for web requests too.
+- When on, web E3 (Print) and E4 (Copy text) call `/api/v1/exports/unlock` first and run only on 200.
+- **The flag ships with the checkout.** It goes on in the same production change as live Paddle
+  keys, never before: a web user at zero credits with nothing to buy is the 2026-08-12 failure (F1).
+  A test pins that the flag is ignored while the Paddle config is incomplete.
+- Kill switch: flag off. Web exports are free again at once; balances are kept.
+- When it ships, a re-enable task replaces EXD-018 and the 2026-07-03 Gate A record (EXD-037).
+
+### 16.8 Configuration (names only; values only in Vercel env, never in code)
+
+`PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET` (the destination's `pdl_ntfset_` secret, **not** the API
+key; see the Stripe secret lesson in `tasks/lessons.md`), `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN`,
+`PADDLE_ENVIRONMENT` (`sandbox` in preview, `production` in production), and
+`PADDLE_PRICE_MAP` (`pri_...:1,pri_...:5,pri_...:10`). Preview deployments use only sandbox keys.
+
+### 16.9 Analytics (PostHog project 270848)
+
+Section 10.3's events, with `platform: 'web'` and `store: 'paddle'` where they apply, plus:
+
+| Event | Fired by | Properties |
+|---|---|---|
+| `web_checkout_opened` | server, 16.3 step 2 | `price_id` |
+| `paddle_purchase_granted` | server, 16.4.1 | `price_id`, `credits_granted`, `environment`, `status` (`granted`, `already_granted`) |
+| `paddle_webhook_rejected` | server | `reason` (`signature`, `stale`, `config`, `unbound_transaction`) |
+| `paddle_adjustment_processed` | server | `action`, `credits_deducted`, `environment` |
+
+No email, name or résumé text in any property.
+
+### 16.10 Rollout
+
+Steps are L0 to L6 (L for launch). Renamed from W0 to W6 on 2026-10-20 so they do not clash
+with decisions W1 to W3 (16.12); R is taken by the research items (R1, R7, R8).
+
+| Step | What | Who |
+|---|---|---|
+| L0 | iOS purchase live (section 11, step 7). Web work starts after this. | Founder |
+| L1 | Paddle seller account approved; three one-time prices created in sandbox and live; webhook destination set to `/api/v1/paddle/webhook` | Founder |
+| L2 | Migration additions (16.6) applied, after a separate yes | Founder yes, Claude Code applies |
+| L3 | Checkout route, webhook, pack sheet and CSP change merged with live keys absent and `WEB_EXPORT_CREDITS_ENABLED` off. Nothing changes for users. | Claude Code |
+| L4 | Preview deployment with sandbox keys: buy each pack, refund one, replay one webhook | Founder tests, Claude Code reads the ledger |
+| L5 | Live keys in Vercel production and `WEB_EXPORT_CREDITS_ENABLED` on, together, on or after 2026-10-31 | Founder's yes in that message |
+| L6 | Day 1, day 7: `export_blocked` by platform, `web_checkout_opened`, `paddle_purchase_granted`, `paddle_webhook_rejected` | Claude Code |
+
+### 16.11 Tests (written first)
+
+- Webhook: a bad signature, a missing header, and a `ts` older than 5 seconds change nothing; a
+  repeated `event_id` changes nothing; the same transaction ID twice grants once; a transaction with
+  no `paddle_checkouts` row grants nothing; `custom_data.user_id` for another user grants nothing;
+  quantity 2 grants twice; an unknown price ID grants nothing.
+- Adjustments: `pending_approval` changes nothing; `approved` refund deducts at most the balance;
+  the same adjustment twice deducts once; `chargeback_reverse` re-grants.
+- Checkout route: anonymous gets 401; unknown `priceId` gets 400; the `paddle_checkouts` row is
+  written with the caller's user ID.
+- Web gate: flag off, web export never spends; flag on with complete config, web export without
+  credits gets 402 and never renders; flag on with incomplete Paddle config behaves as off.
+- Database: `anon` and `authenticated` cannot execute the two new functions or read the two new tables.
+
+### 16.12 Founder decisions for this section
+
+| # | Question | Decided 2026-10-20 | Why |
+|---|---|---|---|
+| W1 | Which pack does the web sheet highlight? | **DECIDED: the 5-pack is highlighted.** All three stay on sale. | The $0.50 fixed fee takes about 17.5% of a $3.99 sale and about 9% of a $12.99 sale. |
+| W2 | New npm packages for Paddle? | **DECIDED: none.** Paddle.js loads from Paddle's script URL, the signature is verified with `node:crypto`, and the Paddle API is called with `fetch`. | The signature is a plain HMAC, unlike Apple's certificate chain (F3), so a library buys little. Adding `@paddle/paddle-node-sdk` or `@paddle/paddle-js` later needs a new explicit yes. |
+| W3 | Show prices in shekels on the web? | **DECIDED: yes, in Israel.** Each Paddle price gets an ILS price matching the App Store's Israeli tier. | The Hebrew page is the growth-loop channel (G0); a shekel price matches what the same user sees on iOS. |

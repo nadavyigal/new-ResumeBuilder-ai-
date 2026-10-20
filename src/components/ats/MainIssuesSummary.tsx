@@ -259,7 +259,8 @@ export function MainIssuesSummary({
           const skill2 = keywordSource[1] || fallbackSkill2;
           const skill3 = keywordSource[2] || fallbackSkill3;
           const title = roleContext.title || exampleTerm;
-          const metric = keywordSource[0] || exampleTerm;
+          // A missing skill is not a metric: "Improved appstock by [X%]" (2026-10-15).
+          const metric = t('categories.metrics.fallbackTerm');
 
           const example1 = t(`categories.${category}.examples.example1`, {
             term: exampleTerm,

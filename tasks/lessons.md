@@ -1,5 +1,19 @@
 # Lessons Learned — ResumeBuilder
 
+## The hiring company's name is not a skill (2026-10-15)
+
+**Symptom:** on a real optimization for "Business Development Manager - Ad tech at Appstock", the dashboard Quick fixes banner said "Skills/Tools: appstock" and "Improved appstock by [X%] by [action]" (Hebrew too: "שיפרתי appstock ב-[X%]").
+
+**Root cause:** two defects. (1) Job ads name their employer in their duties ("Drive revenue growth for Appstock", "Represent Appstock at industry events"). The requirement atomizer and the capitalised-word fallback both read the name as a skill, even when the scraper had stored `company_name: "Appstock"`. It was also a must-have no résumé can hold, so it held the keyword score down. (2) `MainIssuesSummary` filled the metrics example's `{metric}` with the first missing skill, so any skill read as a number to improve.
+
+**Fix:** `src/lib/ats/extractors/company-names.ts` finds the employer (company fields, "<Title> at <Company>" heading, "<Company> is looking for", "About <Company>", "Company:", "At <Company>, we") and removes it from requirement terms in `extractJobData` and `buildJobDataFromExtractedJson`. The metrics example now uses its own fallback term ("a core KPI").
+
+**Rules:**
+1. Before an extracted term reaches the user as a "missing skill", ask whether any résumé could ever contain it. The employer's name, the job title and section headings cannot.
+2. Fill a template slot only with a value of the slot's kind. A skill in a metric slot reads as nonsense even when the skill is real.
+3. A filter that removes words from requirements must fail closed on doubt, because a false positive deletes a real skill. Review of #187 (2026-10-16) found five ways the first version got it wrong: "About Engineering" read as an employer (deleted "engineering"); "The Trade Desk" refused because it starts with "The"; a prepended title hid the ad's own first-line heading; "Bank of America" missed because of the lowercase "of"; and Salesforce hiring for "Salesforce administration" lost the product. Now: "About <Name>" is read only when nothing stronger names the employer, a company field is trusted as given, title and ad are scanned apart, connectors are allowed, and a name the ad uses as a product ("experience with X", "X administration") is never removed. Round 2: a first-line "X at Y" counts only when X names a job, and "About Y" only when Y looks like a proper name or the ad repeats it.
+4. After four review rounds of edge cases (2026-10-18), the rule is evidence strength, not more patterns: remove the employer only on a known company field, a first-line "<Title> at <Company>", a "Company:" label, or a name the ad repeats. A name made only of department words ("Customer Success") is never the employer. When the evidence is weak, keep the requirement: a company name left in the list costs a little score, a deleted skill is a false gap.
+
 ## English AI text inside the Hebrew page needs `dir="auto"` (2026-10-11)
 
 **Symptom:** on `/he` the free-check cards showed ".sales by region" and ".Estimated fit vs this job, not a hiring guarantee". `C++` would render as `++C`.

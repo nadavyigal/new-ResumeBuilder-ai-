@@ -5,6 +5,7 @@
 import type { JobExtraction } from './types';
 import { extractJobData } from './extractors/jd-extractor';
 import { extractSkillPhrases } from './extractors/skill-phrase-extractor';
+import { detectCompanyNames, removeCompanyTerms } from './extractors/company-names';
 import type { ExtractedJobData } from '@/lib/scraper/jobExtractor';
 import { isCredibleRequirement } from './extraction-quality';
 
@@ -216,6 +217,14 @@ export function buildJobDataFromExtractedJson(
       nice_to_have = fromText.nice_to_have;
     }
   }
+
+  // Requirements name the employer ("Represent Appstock at industry events"),
+  // and the atomizer would emit "appstock" as a skill. The title and the ad are
+  // read apart, so each one's own first line is checked as a "<Title> at
+  // <Company>" heading.
+  const companies = detectCompanyNames(fallbackText, [company, ...detectCompanyNames(title)]);
+  must_have = removeCompanyTerms(must_have, companies, fallbackText);
+  nice_to_have = removeCompanyTerms(nice_to_have, companies, fallbackText);
 
   const atomizedMustHave = extractSkillPhrases(must_have);
   if (atomizedMustHave.length > 0) {
