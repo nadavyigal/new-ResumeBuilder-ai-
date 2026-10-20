@@ -1,13 +1,28 @@
 # Project Progress
 
-- Status: Active. Market play since 2026-10-14 (`docs/plans/2026-10-14-market-play-implementation.md`), three tracks. Traffic is the bottleneck: arrivals 3 a week (week of 2026-10-05), 1 the week of 2026-10-12, against 50 (EXD-029). Pricing is decided (credit packs, EXD-035); StoreKit P3b stays gated on conditions 2 to 4: the Apple rate (R8), a readable first-cohort D7 (EXD-009, traffic gate EXD-029), and an approved StoreKit engineering spec (P3a).
+- Status: Active. Market play since 2026-10-14 (`docs/plans/2026-10-14-market-play-implementation.md`), three tracks. Traffic is the bottleneck: arrivals 3 a week (week of 2026-10-05), 1 the week of 2026-10-12, against 50 (EXD-029). Pricing is decided (credit packs, EXD-035). **EXD-037 (2026-10-20, Agentic OS PR #129) opens payments before the traffic gate:** iOS In-App Purchase first, Paddle web checkout second, no paid sale before 2026-10-31. StoreKit P3b still waits for gate conditions 2 (Apple rate, R8) and 4 (the founder approves the StoreKit spec, now with section 16); condition 3 is superseded.
 - Current Phase: Market play (go-to-market, pricing, research), `docs/plans/2026-10-14-market-play-implementation.md`
-- Active Story: Resumely iOS 1.5.2 (30) is live on the App Store since 2026-10-19 (released 2026-10-19T01:22:38Z; App Store lookup for id 6776752349, 3 of 3 cache-busted polls on 2026-10-19). Version bump iOS #192 merged 2026-10-18. Cycle 1 Hebrew LinkedIn post planned for 2026-10-18.
+- Active Story: Payments story 1 (docs): the StoreKit spec gains section 16, the Paddle web checkout, and its gate section now follows EXD-037. Branch `docs/paddle-web-checkout-spec`, PR open, not merged. Story 2 as briefed (S1, fail closed on `/api/v1/iap/verify`) was already merged on 2026-10-15 in #181; nothing to build.
 - Last Completed Story: 2026-10-18 merged: web #187 (hiring company is never a missing skill; known limits in issue #192), web #190 (G1c-2 plan; founder approved the anonymous-session direction only, decision 6 manual linking not approved), iOS #190 (job input: 50 words for tailoring, links from share text; known limit iOS issue #191), iOS #189 (G2b "Add only if true", with the applied-without-result recovery). 2026-10-17: iOS #188 placeholders, RunSmart iOS #157 1.1.9 (34) submitted, Agentic-OS #113.
-- Next Recommended Story: Founder: device check of the live 1.5.2 (30), then G1b screenshots. Founder: signed-in Hebrew check on web #166, then merge; close web #165. Track 1: the independent review of the cycle 1 post copy, then the post (planned Sunday 2026-10-18, not checked), then the cycle 1 readout 7 days after the post (about 2026-10-25). G1c-2 S1 (abuse limits) only after the founder picks a decision-6 option and approves the cap, the CAPTCHA option and S1 itself; no cap, CAPTCHA, auth configuration, implementation or launch is approved yet (2026-10-17 approval covers the anonymous-session direction only).
-- Blockers: Founder steps: R8 Small Business Program, R2 App Store Connect export, old `credits_*` products check, EXD-036 account deletion confirmation, D4 questions. Decision 6 (Supabase manual linking) open. Green CI alone is not approval.
-- Last Validation: 2026-10-18: iOS #189 merged with main, full xcodebuild test 471 tests, 1 skipped, 0 failures (iPhone 17 Pro simulator); web #187 jest src/lib/ats and the banner suite 24 suites, 316 passed, 6 skipped; eslint 0 errors on the touched files.
-- Last Updated: 2026-10-19
+- Next Recommended Story: Founder: review and approve the StoreKit spec including section 16 (closes gate condition 4), answer W1 to W3, enroll in the Small Business Program (R8, condition 2), and start the Paddle seller signup. Then P3b story 1 (section 11 step 3 precondition: `ats_score` and `refine_section` stop touching `credit_balance`), with its own yes. Earlier items still open: device check of the live 1.5.2 (30), then G1b screenshots; signed-in Hebrew check on web #166, then merge; close web #165; cycle 1 readout about 2026-10-25; G1c-2 S1 only after decision 6 and its approvals.
+- Blockers: Founder steps: StoreKit spec approval (with section 16 and W1 to W3), R8 Small Business Program, Paddle seller signup, עוסק פטור approval (file opens 2026-10-31), R2 App Store Connect export, old `credits_*` products check, EXD-036 account deletion confirmation, D4 questions. Decision 6 (Supabase manual linking) open. Green CI alone is not approval.
+- Last Validation: 2026-10-20: docs-only change (spec and this file); no code, so lint and tests not applicable. Paddle webhook signature, refund adjustments and `transaction.completed` checked against developer.paddle.com on 2026-10-20. 2026-10-18: iOS #189 full xcodebuild test 471 tests, 1 skipped, 0 failures; web #187 jest 24 suites, 316 passed, 6 skipped.
+- Last Updated: 2026-10-20
+
+## 2026-10-20: Payments open (EXD-037), web checkout specified
+
+**What changed.** The founder opened payments before the traffic gate (EXD-037, 2026-10-20).
+The StoreKit spec (`docs/superpowers/specs/2026-10-15-resumely-storekit-export-credits-spec.md`)
+now follows it: section 0 drops condition 3 and adds "no paid sale before 2026-10-31", and new
+section 16 specifies the web checkout with Paddle as Merchant of Record: server-created Paddle
+transactions bound to the user, a signed webhook that grants credits once per transaction into
+the same ledger, refunds and chargebacks as adjustments, the web export gate that ships only with
+the checkout, Vercel-only keys, and three founder decisions (W1 to W3). W2 recommends no new npm
+package.
+
+**Found on the way.** The brief's story 2 (fail closed on `/api/v1/iap/verify`) was already merged
+in #181 on 2026-10-15. The 2026-10-19 payments plan page and the EXD-037 row (PR #129) both still
+say the hole is open; the spec now records #181.
 
 ## 2026-10-15: Track 3 research, batch 1
 
