@@ -107,10 +107,10 @@ function linkProject() {
 function runMigrations() {
   log('\n🗄️  Running database migrations...', 'cyan');
 
+  // Since 2026-10-13 one production baseline replaces the old history
+  // (supabase/migrations_archive/README.md).
   const migrationFiles = [
-    '20250915000000_complete_schema_setup.sql',
-    '20250915000001_setup_storage.sql',
-    '20250915000002_advanced_functions.sql'
+    '20261012000000_production_baseline.sql'
   ];
 
   // Check if migration files exist
