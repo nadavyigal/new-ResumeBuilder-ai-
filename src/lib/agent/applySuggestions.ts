@@ -529,12 +529,6 @@ const NON_SKILL_WORDS = new Set([
   'from', 'as', 'on', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
   // Action words (these should be in achievements, not skills)
   'add', 'include', 'use', 'apply', 'implement', 'create', 'develop',
-  // Instruction verbs that open tip text ("Consider adding GraphQL APIs...")
-  'consider', 'adding', 'including', 'highlight', 'mention', 'emphasize', 'showcase',
-  'incorporate', 'ensure', 'expand', 'update', 'remove', 'move', 'switch', 'prioritize',
-  'quantify', 'if',
-  // Pronouns and determiners that border a phrase ("Add API to your skills")
-  'your', 'our', 'my', 'their', 'this', 'that', 'these', 'those',
   // Generic terms
   'job', 'title', 'position', 'role', 'work', 'company', 'skills', 'skill',
   'section', 'resume', 'more', 'other', 'also', 'plus',
@@ -545,6 +539,24 @@ const NON_SKILL_WORDS = new Set([
   // Numbers
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
+
+/**
+ * Words that only mark tip prose, never a skill there: instruction verbs that
+ * open a tip ("Consider adding GraphQL APIs...") and pronouns or determiners
+ * that border a phrase ("Add API to your skills"). Checked only for phrases
+ * taken from prose, so a structured keyword list keeps a skill like "Switch".
+ */
+const PROSE_ONLY_WORDS = new Set([
+  'consider', 'adding', 'including', 'highlight', 'mention', 'emphasize', 'showcase',
+  'incorporate', 'ensure', 'expand', 'update', 'remove', 'move', 'switch', 'prioritize',
+  'quantify', 'if',
+  'your', 'our', 'my', 'their', 'this', 'that', 'these', 'those',
+]);
+
+function isProseNonSkillWord(word: string): boolean {
+  const lower = word.toLowerCase();
+  return NON_SKILL_WORDS.has(lower) || PROSE_ONLY_WORDS.has(lower);
+}
 
 const GENERIC_ACRONYMS = new Set(['api', 'apis', 'qa', 'sql']);
 
@@ -562,8 +574,8 @@ const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
  */
 function trimBoundaryWords(term: string): string {
   const words = term.trim().split(/\s+/).filter(Boolean);
-  while (words.length > 0 && NON_SKILL_WORDS.has(words[0].toLowerCase())) words.shift();
-  while (words.length > 0 && NON_SKILL_WORDS.has(words[words.length - 1].toLowerCase())) words.pop();
+  while (words.length > 0 && isProseNonSkillWord(words[0])) words.shift();
+  while (words.length > 0 && isProseNonSkillWord(words[words.length - 1])) words.pop();
   return words.join(' ');
 }
 
@@ -575,8 +587,9 @@ function trimBoundaryWords(term: string): string {
  * words are real skills there ("Requirements Analysis", "Remote Work").
  */
 function isValidProseSkill(term: string): boolean {
-  const words = term.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (words.length > 1 && (NON_SKILL_WORDS.has(words[0]) || NON_SKILL_WORDS.has(words[words.length - 1]))) {
+  const words = term.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 1 && PROSE_ONLY_WORDS.has(words[0].toLowerCase())) return false;
+  if (words.length > 1 && (isProseNonSkillWord(words[0]) || isProseNonSkillWord(words[words.length - 1]))) {
     return false;
   }
   return isValidSkill(term);
@@ -584,7 +597,7 @@ function isValidProseSkill(term: string): boolean {
 
 function startsWithNonSkillWord(term: string): boolean {
   const first = term.trim().split(/\s+/)[0] || '';
-  return NON_SKILL_WORDS.has(first.toLowerCase());
+  return isProseNonSkillWord(first);
 }
 
 /**

@@ -96,6 +96,23 @@ describe('applySuggestions keeps complete skills from structured actions', () =>
     );
   });
 
+  it('keeps a structured single-word skill that is a tip verb in prose', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '6',
+        text: 'Add the missing skills from the job post.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+        action: { type: 'add_keyword', params: { keywords: ['Switch'] } },
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    expect(result.skills.technical).toContain('Switch');
+  });
+
   it('still rejects a fragment captured from tip prose', async () => {
     const suggestions: Suggestion[] = [
       {
