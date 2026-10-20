@@ -11,14 +11,15 @@
  */
 
 import { it, expect, beforeAll, describe } from '@jest/globals';
-import { describeLiveBackend } from '../helpers/live-gates';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 const TEST_TIMEOUT = 25000; // 25 seconds to account for network + processing
 
-// Needs a running app server. authToken below is still a placeholder, so this suite
-// cannot pass until it signs in a real test user.
-describeLiveBackend('POST /api/upload-resume - Epic 3: AI Optimization', () => {
+// Skipped even with RUN_LIVE_BACKEND_TESTS=1: authToken below is a placeholder and the
+// uploads are fake PDF blobs, so a live run could only fail. Re-enable it with
+// describeLiveBackend (../helpers/live-gates) once it signs in a real test user and
+// uploads a real fixture.
+describe.skip('POST /api/upload-resume - Epic 3: AI Optimization', () => {
   let authToken: string;
 
   beforeAll(async () => {

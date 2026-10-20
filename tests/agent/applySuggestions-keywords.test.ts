@@ -72,3 +72,45 @@ describe('applySuggestions keyword extraction for acronyms', () => {
     });
   });
 });
+
+describe('applySuggestions keeps complete skills from structured actions', () => {
+  it('adds a structured keyword whose edge word is a generic term', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '4',
+        text: 'Add the missing skills from the job post.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+        action: {
+          type: 'add_keyword',
+          params: { keywords: ['Requirements Analysis', 'Requirements Gathering', 'Remote Work'] },
+        },
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    expect(result.skills.technical).toEqual(
+      expect.arrayContaining(['Requirements Analysis', 'Requirements Gathering', 'Remote Work'])
+    );
+  });
+
+  it('still rejects a fragment captured from tip prose', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '5',
+        text: 'Consider adding SQL to your resume.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    for (const skill of result.skills.technical) {
+      expect(skill).not.toMatch(/^(consider|adding|to|your)\b|\b(to|your|resume)$/i);
+    }
+  });
+});

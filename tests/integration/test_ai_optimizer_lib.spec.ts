@@ -240,6 +240,19 @@ describe('AI Optimizer Library - Epic 3', () => {
         expect.arrayContaining(['AWS', 'Docker', 'Kubernetes'])
       );
     });
+
+    it('extractKeywords gives the same CamelCase skills with spaces or commas', () => {
+      const spaced = extractKeywords('Stack: React TypeScript GraphQL');
+      const listed = extractKeywords('Stack: React, TypeScript, GraphQL');
+
+      expect(spaced).toEqual(expect.arrayContaining(['React', 'TypeScript', 'GraphQL']));
+      expect(spaced).not.toContain('React TypeScript');
+      expect(new Set(spaced)).toEqual(new Set(listed));
+    });
+
+    it('extractKeywords still joins plain multi-word phrases', () => {
+      expect(extractKeywords('Strong Project Management required')).toContain('Strong Project Management');
+    });
   });
 
   describe('Error Handling', () => {
