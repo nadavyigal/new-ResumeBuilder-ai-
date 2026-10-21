@@ -63,5 +63,71 @@ describe('applySuggestions keyword extraction for acronyms', () => {
     expect(result.skills.technical).toEqual(
       expect.arrayContaining(['GraphQL APIs', 'SQL query optimization'])
     );
+    // Sentence fragments must never be written into the resume as skills.
+    expect(result.skills.technical).not.toEqual(
+      expect.arrayContaining(['Consider'])
+    );
+    result.skills.technical.forEach((skill) => {
+      expect(skill).not.toMatch(/^(and|or|to|add|consider|adding)\b|\b(and|or|to|your)$/i);
+    });
+  });
+});
+
+describe('applySuggestions keeps complete skills from structured actions', () => {
+  it('adds a structured keyword whose edge word is a generic term', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '4',
+        text: 'Add the missing skills from the job post.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+        action: {
+          type: 'add_keyword',
+          params: { keywords: ['Requirements Analysis', 'Requirements Gathering', 'Remote Work'] },
+        },
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    expect(result.skills.technical).toEqual(
+      expect.arrayContaining(['Requirements Analysis', 'Requirements Gathering', 'Remote Work'])
+    );
+  });
+
+  it('keeps a structured single-word skill that is a tip verb in prose', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '6',
+        text: 'Add the missing skills from the job post.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+        action: { type: 'add_keyword', params: { keywords: ['Switch'] } },
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    expect(result.skills.technical).toContain('Switch');
+  });
+
+  it('still rejects a fragment captured from tip prose', async () => {
+    const suggestions: Suggestion[] = [
+      {
+        id: '5',
+        text: 'Consider adding SQL to your resume.',
+        estimated_gain: 1,
+        quick_win: true,
+        targets: [],
+        category: 'keywords',
+      },
+    ];
+
+    const result = await applySuggestions(baseResume, suggestions);
+    for (const skill of result.skills.technical) {
+      expect(skill).not.toMatch(/^(consider|adding|to|your)\b|\b(to|your|resume)$/i);
+    }
   });
 });

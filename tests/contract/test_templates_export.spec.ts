@@ -328,7 +328,7 @@ describe('Epic 4: Templates and Export - FR-015 to FR-019', () => {
       });
 
       // Check for bullet list structure
-      expect(html).toMatch(/<ul>[\s\S]*<li>/);
+      expect(html).toMatch(/<ul class="achievements">[\s\S]*<li>/);
     });
 
     it('should maintain proper date formatting', () => {

@@ -72,7 +72,8 @@ describe('ats job-data resolver', () => {
 
     expect(jobData.must_have.length).toBeGreaterThan(0);
     expect(jobData.must_have).toEqual(
-      expect.arrayContaining(['b2b sales experience', 'crm proficiency salesforce']),
+      // Filler words ("experience", "proficiency") are stripped since WP-59 (#147); the skills survive.
+      expect.arrayContaining(['b2b sales', 'crm salesforce hubspot']),
     );
     expect(jobData.must_have.every((keyword) => keyword.split(' ').length <= 3)).toBe(true);
   });
