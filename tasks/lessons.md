@@ -14,6 +14,18 @@
 3. A filter that removes words from requirements must fail closed on doubt, because a false positive deletes a real skill. Review of #187 (2026-10-16) found five ways the first version got it wrong: "About Engineering" read as an employer (deleted "engineering"); "The Trade Desk" refused because it starts with "The"; a prepended title hid the ad's own first-line heading; "Bank of America" missed because of the lowercase "of"; and Salesforce hiring for "Salesforce administration" lost the product. Now: "About <Name>" is read only when nothing stronger names the employer, a company field is trusted as given, title and ad are scanned apart, connectors are allowed, and a name the ad uses as a product ("experience with X", "X administration") is never removed. Round 2: a first-line "X at Y" counts only when X names a job, and "About Y" only when Y looks like a proper name or the ad repeats it.
 4. After four review rounds of edge cases (2026-10-18), the rule is evidence strength, not more patterns: remove the employer only on a known company field, a first-line "<Title> at <Company>", a "Company:" label, or a name the ad repeats. A name made only of department words ("Customer Success") is never the employer. When the evidence is weak, keep the requirement: a company name left in the list costs a little score, a deleted skill is a false gap.
 
+## English AI text inside the Hebrew page needs `dir="auto"` (2026-10-11)
+
+**Symptom:** on `/he` the free-check cards showed ".sales by region" and ".Estimated fit vs this job, not a hiring guarantee". `C++` would render as `++C`.
+
+**Root cause:** `/he` sets `dir="rtl"` on `<html>`. AI output, résumé text and server strings like `scoreNote` are usually English, and a block that inherits RTL puts trailing punctuation (a neutral character) on the left.
+
+**Fix:** add `dir="auto"` to the block that holds the text, not to its Hebrew label (`IssueCard`, `QuickWinsSection`; the fit verdict and note in `ATSScoreDisplay` became translated `t()` strings on 2026-10-15). Regression test: `tests/app/free-check-results-bidi.test.tsx`.
+
+**Rule:** any element that renders model output, user content or an untranslated server string gets `dir="auto"`. Translated `t()` strings do not need it.
+
+**Inline case:** when English text shares a line with a Hebrew label, `dir="auto"` on the paragraph picks RTL from the label. Wrap the English part in `<span dir="auto">` (`ATSSuggestionsBanner`). When it is interpolated into a `t()` string, wrap the value in U+2068/U+2069 (`isolateBidi` in `ATSScoreCard`).
+
 ## A rescore after a guard must never fall back to the score it replaced (2026-10-16)
 
 **Symptom:** when the truth guard changed the résumé and the rescore came back as the scorer's zero-confidence fallback, `runOptimizePipeline` returned `{ ...selected, optimizedResume: guarded.resume }`: the pass-1 score and lift, measured on the résumé before the guard, shipped beside a different document. Worse, the scorer has thrown instead of returning that fallback since WP-45 D8, so the usual failure was a 500 from `/api/optimize` and the user lost a correct, guarded résumé.

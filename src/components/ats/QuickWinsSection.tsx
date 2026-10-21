@@ -108,10 +108,10 @@ function QuickWinCard({
         <div className="text-xs text-gray-500 mb-3">
           {quickWin.location.subsection
             ? t('card.locationWithSubsection', {
-                section: quickWin.location.section,
-                subsection: quickWin.location.subsection,
+                section: isolateBidi(quickWin.location.section),
+                subsection: isolateBidi(quickWin.location.subsection),
               })
-            : t('card.location', { section: quickWin.location.section })}
+            : t('card.location', { section: isolateBidi(quickWin.location.section) })}
         </div>
 
         {/* Before/After Comparison */}
@@ -139,7 +139,7 @@ function QuickWinCard({
                 )}
               </Button>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm min-h-[80px]">
+            <div dir="auto" className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm min-h-[80px]">
               {quickWin.original_text}
             </div>
           </div>
@@ -167,7 +167,7 @@ function QuickWinCard({
                 )}
               </Button>
             </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm min-h-[80px]">
+            <div dir="auto" className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm min-h-[80px]">
               {quickWin.optimized_text}
             </div>
           </div>
@@ -176,13 +176,13 @@ function QuickWinCard({
         {/* Rationale */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="text-xs font-medium text-blue-900 mb-1">{t('card.rationaleTitle')}</div>
-          <p className="text-sm text-blue-800">{quickWin.rationale}</p>
+          <p dir="auto" className="text-sm text-blue-800">{quickWin.rationale}</p>
 
           {quickWin.keywords_added.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1 items-center">
               <span className="text-xs text-blue-700">{t('card.keywords')}</span>
               {quickWin.keywords_added.map((keyword) => (
-                <Badge key={keyword} variant="secondary" className="text-xs bg-blue-100">
+                <Badge key={keyword} dir="auto" variant="secondary" className="text-xs bg-blue-100">
                   {keyword}
                 </Badge>
               ))}
@@ -192,4 +192,9 @@ function QuickWinCard({
       </CardContent>
     </Card>
   );
+}
+
+// Isolate generated values interpolated into a translated location label.
+function isolateBidi(text: string): string {
+  return `\u2068${text}\u2069`;
 }

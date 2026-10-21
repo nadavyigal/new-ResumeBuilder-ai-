@@ -90,7 +90,7 @@ export function ATSSuggestionsBanner({ suggestions }: ATSSuggestionsBannerProps)
                         {t('tipLabel', { number: suggestion.number })}
                       </span>{' '}
                       {/* The API sends English text (iOS reads it as-is); other locales re-render it here. */}
-                      {locale === 'en' ? suggestion.text : localizeIssueText(suggestion, tIssueText)}
+                      <span dir="auto">{locale === 'en' ? suggestion.text : localizeIssueText(suggestion, tIssueText)}</span>
                     </p>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] px-1.5 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-400 rounded font-medium">
