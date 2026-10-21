@@ -229,6 +229,29 @@ describe('GET /api/download/[id] export gate', () => {
     expect(generateDocxWithDesign).not.toHaveBeenCalled();
   });
 
+  // Spec 11 step 3 preserves today's guest exports while billing is off.
+  // F1 also keeps web exports ungated. Do not expand spec 6.3's account
+  // requirement into a blanket 401 for installed guest clients.
+  it.each([
+    { flag: undefined, client: 'ios' },
+    { flag: undefined, client: 'web' },
+    { flag: 'true', client: 'web' },
+  ])('preserves anonymous owned downloads when ungated: %j', async ({ flag, client }) => {
+    if (flag === undefined) delete process.env.EXPORT_CREDITS_ENABLED;
+    else process.env.EXPORT_CREDITS_ENABLED = flag;
+    const { GET, serviceRpc, generateDocxWithDesign } = loadRoute({
+      user: { id: 'anon-1', is_anonymous: true },
+    });
+
+    const response = await GET(buildRequest('docx', client), params);
+
+    expect(response.status).toBe(200);
+    expect(serviceRpc).toHaveBeenCalledWith('unlock_export', {
+      p_user_id: 'anon-1', p_optimization_id: 'opt-1', p_charge: false,
+    });
+    expect(generateDocxWithDesign).toHaveBeenCalledTimes(1);
+  });
+
   it('asks an anonymous iOS session for an account once the gate applies', async () => {
     process.env.EXPORT_CREDITS_ENABLED = 'true';
     const { GET, serviceRpc, generateDocxWithDesign } = loadRoute({
