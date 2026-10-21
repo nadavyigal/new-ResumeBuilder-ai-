@@ -11,13 +11,15 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describeLiveBackend } from '../helpers/live-gates';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-describe('Epic 5: User Management and Monetization - FR-020 to FR-024', () => {
+// Signs up real users in the Supabase project.
+describeLiveBackend('Epic 5: User Management and Monetization - FR-020 to FR-024', () => {
   let supabase: SupabaseClient<Database>;
   let testUserId: string;
   let testUserEmail: string;
