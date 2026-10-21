@@ -1128,7 +1128,7 @@
         }
       },
       "readiness": {
-        "eyebrow": "Interview-ready draft",
+        "eyebrow": "Tailored draft",
         "structureBadge": "ATS-safe structure",
         "title": "Your resume is now positioned for a stronger first screen",
         "subtitle": "This version is tuned for {title} with clearer positioning, stronger evidence, and cleaner recruiter readability.",
@@ -1152,7 +1152,7 @@
           "eyebrow": "Review before saving",
           "structureBadge": "ATS-safe structure",
           "title": "See the strongest changes before you save anything",
-          "subtitle": "Approve the updates that make you look more interview-ready for {title}.",
+          "subtitle": "Approve the updates that best fit {title}.",
           "emptySelection": "Select at least one change to build your final draft.",
           "stats": {
             "selected": "Selected changes",

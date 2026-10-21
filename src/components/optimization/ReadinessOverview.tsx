@@ -29,7 +29,7 @@ export function ReadinessOverview({
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
                 <Sparkles className="mr-1 h-3.5 w-3.5" />
-                {eyebrow || "Interview-ready draft"}
+                {eyebrow || "Tailored draft"}
               </Badge>
               <Badge variant="outline" className="border-emerald-300 bg-white/70 text-emerald-900">
                 <ShieldCheck className="mr-1 h-3.5 w-3.5" />
