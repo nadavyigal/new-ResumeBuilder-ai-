@@ -8,12 +8,17 @@ const unlocked: Result = { data: { status: 'unlocked', balance: 0 }, error: null
 function load({ user = { id: 'user-1', is_anonymous: false } as { id: string; is_anonymous?: boolean } | null,
   rows = ['opt-1', 'opt-2'], results = [unlocked, unlocked], client = 'ios' } = {}) {
   jest.resetModules();
-  const eq = jest.fn(async () => ({ data: rows.map(id => ({ id, created_at: '2026-10-21', match_score: 0.8,
-    rewrite_data: { name: id }, template_key: 'test' })), error: null }));
+  const eq = jest.fn(async (column: string, value: string) => {
+    void column; void value;
+    return { data: rows.map(id => ({ id, created_at: '2026-10-21', match_score: 0.8,
+      rewrite_data: { name: id }, template_key: 'test' })), error: null };
+  });
   const query = { select: jest.fn(() => query), in: jest.fn(() => query), eq };
   const routeClient = { auth: { getUser: jest.fn(async () => ({ data: { user } })) }, from: jest.fn(() => query) };
   let calls = 0;
-  const rpc = jest.fn(async () => results[calls++] ?? unlocked);
+  const rpc = jest.fn<(name: string, params: Record<string, unknown>) => Promise<Result>>(
+    async () => results[calls++] ?? unlocked
+  );
   const generateResumePDF = jest.fn(async () => Buffer.from('test-pdf'));
   jest.doMock('@/lib/supabase-server', () => ({ createRouteHandlerClient: async () => routeClient,
     createServiceRoleClient: () => ({ rpc }) }));
