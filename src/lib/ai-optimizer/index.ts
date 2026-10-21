@@ -208,7 +208,12 @@ export function calculateMatchScore(
 export function extractKeywords(jobDescription: string): string[] {
   const keywords: string[] = [];
 
-  const capitalizedPattern = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g;
+  // A CamelCase word (TypeScript, GraphQL, MobX) is one keyword on its own; the
+  // old `[A-Z][a-z]+\b` needed a boundary after the first lowercase run and
+  // dropped every such term. Only plain capitalized words join into a phrase
+  // ("Project Management"), on spaces, never across a line break, so
+  // "React TypeScript" and "React, TypeScript" give the same keywords.
+  const capitalizedPattern = /\b[A-Z][a-z]+(?:[A-Z][a-z]*)+\b|\b[A-Z][a-z]+(?:[ \t]+[A-Z][a-z]+\b)*/g;
   const capitalized = jobDescription.match(capitalizedPattern) || [];
 
   const acronymPattern = /\b[A-Z]{2,}\b/g;

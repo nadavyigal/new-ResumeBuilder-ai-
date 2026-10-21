@@ -9,20 +9,6 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    env:
-      # Single source of truth for the quarantine. Fixed a suite? Delete it from
-      # this one line. Listing it twice is how a suite gets fixed in one place and
-      # silently stays excluded in the other.
-      #
-      # Unquoted $KNOWN_RED below relies on shell word-splitting, which is correct
-      # under bash (the default shell for `run:` on ubuntu runners) and gives
-      # 15 gating / 4 quarantined. It does NOT split under zsh, so reproducing
-      # these steps on a Mac needs `bash -c` or the list spelled out.
-      KNOWN_RED: >-
-        tests/contracts/expert-workflow-report-store.test.ts
-        tests/contracts/seo-routing.test.ts
-        tests/contracts/diff-safety.test.ts
-        tests/contracts/agent-result-schema.test.ts
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,28 +20,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # WHY THIS IS SPLIT (2026-08-28):
-      # Both steps here used to end in `|| true`, so neither could fail the build
-      # and a green check on this repo meant nothing. Removing `|| true` outright
-      # is not possible yet: 4 contract suites are red on `main` itself, verified
-      # by running them at origin/main with no local changes. Gating on them today
-      # would red-line every PR for reasons no PR caused.
-      #
-      # So the suite is split. Everything that passes today is now GATING, and the
-      # 4 known-red suites are quarantined by name where they stay visible instead
-      # of being swallowed. Shrink the ignore list; do not grow it.
-      - name: Contract tests (gating)
-        run: npx jest tests/contracts --testPathIgnorePatterns $KNOWN_RED
-
-      # Known red on main. Tracked, not gating. Two distinct causes:
-      #   - seo-routing / diff-safety / agent-result-schema: "Cannot use import
-      #     statement outside a module" from src/lib/export.ts:35. A jest ESM
-      #     transform config gap, not a product defect.
-      #   - expert-workflow-report-store: 5 genuinely failing assertions.
-      # continue-on-error, not `|| true`: the step still reports red in the UI.
-      - name: Contract tests (known red, not gating)
-        continue-on-error: true
-        run: npx jest $KNOWN_RED
+      # The whole jest suite gates (2026-10-06). It used to run only tests/contracts
+      # with 4 suites quarantined, while 18 suites / 77 tests were red on main.
+      # Suites that need paid or shared systems (OpenAI, the real Supabase project,
+      # a running server) are skipped unless RUN_LIVE_AI_TESTS / RUN_LIVE_BACKEND_TESTS
+      # is set (tests/helpers/live-gates.ts), so this step needs no secrets.
+      - name: Jest (gating)
+        run: npx jest --ci
 
       # Has never once run: it imports src/lib/agent/index.js, which does not
       # exist (the source is TypeScript), so it dies with ERR_MODULE_NOT_FOUND

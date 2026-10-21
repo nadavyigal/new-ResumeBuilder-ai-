@@ -540,6 +540,24 @@ const NON_SKILL_WORDS = new Set([
   '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
 ]);
 
+/**
+ * Words that only mark tip prose, never a skill there: instruction verbs that
+ * open a tip ("Consider adding GraphQL APIs...") and pronouns or determiners
+ * that border a phrase ("Add API to your skills"). Checked only for phrases
+ * taken from prose, so a structured keyword list keeps a skill like "Switch".
+ */
+const PROSE_ONLY_WORDS = new Set([
+  'consider', 'adding', 'including', 'highlight', 'mention', 'emphasize', 'showcase',
+  'incorporate', 'ensure', 'expand', 'update', 'remove', 'move', 'switch', 'prioritize',
+  'quantify', 'if',
+  'your', 'our', 'my', 'their', 'this', 'that', 'these', 'those',
+]);
+
+function isProseNonSkillWord(word: string): boolean {
+  const lower = word.toLowerCase();
+  return NON_SKILL_WORDS.has(lower) || PROSE_ONLY_WORDS.has(lower);
+}
+
 const GENERIC_ACRONYMS = new Set(['api', 'apis', 'qa', 'sql']);
 
 const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
@@ -548,6 +566,39 @@ const ACRONYM_ENRICHMENT_MAP: Record<string, string[]> = {
   sql: ['SQL databases', 'SQL queries', 'SQL reporting'],
   qa: ['Quality Assurance', 'QA automation', 'QA testing'],
 };
+
+/**
+ * Drop structural words from the edges of a captured phrase.
+ * The context regexes take one neighbouring word on each side, so they return
+ * "GraphQL APIs and" or "Add API to"; only the inside is the skill.
+ */
+function trimBoundaryWords(term: string): string {
+  const words = term.trim().split(/\s+/).filter(Boolean);
+  while (words.length > 0 && isProseNonSkillWord(words[0])) words.shift();
+  while (words.length > 0 && isProseNonSkillWord(words[words.length - 1])) words.pop();
+  return words.join(' ');
+}
+
+/**
+ * A phrase captured from tip prose that starts or ends on a non-skill word is a
+ * sentence fragment, not a skill: "Add API to", "and SQL query" were written
+ * into resumes. Only prose-derived candidates get this check. A structured
+ * keyword list or a quoted term is a complete phrase already, and generic edge
+ * words are real skills there ("Requirements Analysis", "Remote Work").
+ */
+function isValidProseSkill(term: string): boolean {
+  const words = term.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 1 && PROSE_ONLY_WORDS.has(words[0].toLowerCase())) return false;
+  if (words.length > 1 && (isProseNonSkillWord(words[0]) || isProseNonSkillWord(words[words.length - 1]))) {
+    return false;
+  }
+  return isValidSkill(term);
+}
+
+function startsWithNonSkillWord(term: string): boolean {
+  const first = term.trim().split(/\s+/)[0] || '';
+  return isProseNonSkillWord(first);
+}
 
 /**
  * Check if a term is likely a valid skill
@@ -598,14 +649,22 @@ function findAcronymContext(acronym: string, text: string): string | null {
   const beforePattern = new RegExp(`\\b([A-Za-z][\\w+#.]+\\s+${escapedAcronym}s?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
   const afterPattern = new RegExp(`\\b(${escapedAcronym}s?\\s+[A-Za-z][\\w+#.]*?(?:\\s+[A-Za-z][\\w+#.]*)?)\\b`, 'gi');
 
+  // A leading structural word means there is no real context before the
+  // acronym ("and SQL query"), so fall through to the phrase after it.
   const beforeMatch = beforePattern.exec(text);
-  if (beforeMatch && isValidSkill(beforeMatch[1])) {
-    return beforeMatch[1];
+  if (beforeMatch && !startsWithNonSkillWord(beforeMatch[1])) {
+    const candidate = trimBoundaryWords(beforeMatch[1]);
+    if (isValidProseSkill(candidate)) {
+      return candidate;
+    }
   }
 
   const afterMatch = afterPattern.exec(text);
-  if (afterMatch && isValidSkill(afterMatch[1])) {
-    return afterMatch[1];
+  if (afterMatch) {
+    const candidate = trimBoundaryWords(afterMatch[1]);
+    if (isValidProseSkill(candidate)) {
+      return candidate;
+    }
   }
 
   const enrichmentOptions = ACRONYM_ENRICHMENT_MAP[acronym.toLowerCase()] || [];
@@ -702,7 +761,7 @@ function extractKeywordsFromText(text: string): string[] {
   let match;
   while ((match = addPattern.exec(text)) !== null) {
     const term = match[1].trim();
-    if (isValidSkill(term)) {
+    if (isValidProseSkill(term)) {
       keywords.push(term);
     }
   }
@@ -710,8 +769,8 @@ function extractKeywordsFromText(text: string): string[] {
   // 5. Prefer contextual, multi-word phrases around generic acronyms before falling back
   const contextualAcronymPattern = /\b([A-Za-z][\w+#.]*\s+(?:API|APIs|SQL|QA)(?:\s+[A-Za-z][\w+#.]*)?)\b/gi;
   while ((match = contextualAcronymPattern.exec(text)) !== null) {
-    const term = match[1].trim();
-    if (isValidSkill(term)) {
+    const term = trimBoundaryWords(match[1]);
+    if (isValidProseSkill(term)) {
       keywords.push(term);
     }
   }
@@ -723,13 +782,13 @@ function extractKeywordsFromText(text: string): string[] {
       const lowerTerm = term.toLowerCase();
       if (GENERIC_ACRONYMS.has(lowerTerm)) {
         const enriched = findAcronymContext(term, text);
-        if (enriched && isValidSkill(enriched)) {
+        if (enriched && isValidProseSkill(enriched)) {
           keywords.push(enriched);
         }
         continue;
       }
 
-      if (isValidSkill(term)) {
+      if (isValidProseSkill(term)) {
         keywords.push(term);
       }
     }

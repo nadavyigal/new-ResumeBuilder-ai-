@@ -231,14 +231,14 @@ describe('Template Engine Library - Epic 4', () => {
     it('should render professional summary', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('PROFESSIONAL SUMMARY');
+      expect(html).toContain('<h2>Professional Summary</h2>');
       expect(html).toContain(COMPLETE_RESUME.summary);
     });
 
     it('should render all technical skills', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('SKILLS');
+      expect(html).toContain('<h2>Skills</h2>');
       COMPLETE_RESUME.skills.technical.forEach(skill => {
         expect(html).toContain(skill);
       });
@@ -255,7 +255,7 @@ describe('Template Engine Library - Epic 4', () => {
     it('should render all experience entries', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('PROFESSIONAL EXPERIENCE');
+      expect(html).toContain('<h2>Professional Experience</h2>');
 
       COMPLETE_RESUME.experience.forEach(exp => {
         expect(html).toContain(exp.title);
@@ -273,7 +273,7 @@ describe('Template Engine Library - Epic 4', () => {
     it('should render education section', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('EDUCATION');
+      expect(html).toContain('<h2>Education</h2>');
 
       COMPLETE_RESUME.education.forEach(edu => {
         expect(html).toContain(edu.degree);
@@ -289,7 +289,7 @@ describe('Template Engine Library - Epic 4', () => {
     it('should render certifications if present', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('CERTIFICATIONS');
+      expect(html).toContain('<h2>Certifications</h2>');
 
       COMPLETE_RESUME.certifications?.forEach(cert => {
         expect(html).toContain(cert);
@@ -299,7 +299,7 @@ describe('Template Engine Library - Epic 4', () => {
     it('should render projects if present', () => {
       const html = generateATSSafeHTML(COMPLETE_RESUME);
 
-      expect(html).toContain('PROJECTS');
+      expect(html).toContain('<h2>Projects</h2>');
 
       COMPLETE_RESUME.projects?.forEach(project => {
         expect(html).toContain(project.name);
@@ -571,7 +571,7 @@ describe('Template Engine Library - Epic 4', () => {
       const html = generateATSSafeHTML(resumeNoCerts);
 
       expect(html).toBeDefined();
-      expect(html).not.toContain('CERTIFICATIONS');
+      expect(html).not.toContain('<h2>Certifications</h2>');
     });
 
     it('should handle undefined certifications', () => {
@@ -594,7 +594,7 @@ describe('Template Engine Library - Epic 4', () => {
       const html = generateATSSafeHTML(resumeNoProjects);
 
       expect(html).toBeDefined();
-      expect(html).not.toContain('PROJECTS');
+      expect(html).not.toContain('<h2>Projects</h2>');
     });
 
     it('should handle undefined projects', () => {
@@ -654,7 +654,8 @@ describe('Template Engine Library - Epic 4', () => {
 
       expect(html).toContain('José');
       expect(html).toContain('García');
-      expect(html).toContain('O\'Brien');
+      // Names are HTML-escaped (escapeHtml in src/lib/template-engine.ts); the browser shows O'Brien.
+      expect(html).toContain('O&#39;Brien');
       expect(html).toContain('C++');
       expect(html).toContain('&amp;');
     });
