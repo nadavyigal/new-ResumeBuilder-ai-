@@ -108,10 +108,10 @@ function QuickWinCard({
         <div className="text-xs text-gray-500 mb-3">
           {quickWin.location.subsection
             ? t('card.locationWithSubsection', {
-                section: quickWin.location.section,
-                subsection: quickWin.location.subsection,
+                section: isolateBidi(quickWin.location.section),
+                subsection: isolateBidi(quickWin.location.subsection),
               })
-            : t('card.location', { section: quickWin.location.section })}
+            : t('card.location', { section: isolateBidi(quickWin.location.section) })}
         </div>
 
         {/* Before/After Comparison */}
@@ -192,4 +192,9 @@ function QuickWinCard({
       </CardContent>
     </Card>
   );
+}
+
+// Isolate generated values interpolated into a translated location label.
+function isolateBidi(text: string): string {
+  return `\u2068${text}\u2069`;
 }

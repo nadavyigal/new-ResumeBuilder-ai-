@@ -163,6 +163,25 @@ describe('dashboard ATS surfaces keep English AI text LTR inside an RTL page', (
     container.remove();
   });
 
+  it.each([
+    { section: 'experience' },
+    { section: 'experience', subsection: 'Software Engineer (2024-2026).' },
+    { section: 'ניסיון', subsection: 'מהנדס תוכנה (2024-2026).' },
+  ])('QuickWinsSection: isolates location values %j', (location) => {
+    const { QuickWinsSection } = require('@/components/ats/QuickWinsSection');
+    act(() => {
+      root.render(<QuickWinsSection quickWins={[{ ...quickWin, location }]} />);
+    });
+
+    expect(container.textContent).toContain(`\u2068${location.section}\u2069`);
+    if (location.subsection) {
+      expect(container.textContent).toContain(`\u2068${location.subsection}\u2069`);
+    } else {
+      expect(container.textContent).toContain('card.location(');
+      expect(container.textContent).not.toContain('card.locationWithSubsection');
+    }
+  });
+
   it('SuggestionsList: suggestion text has dir="auto"', () => {
     const { SuggestionsList } = require('@/components/ats/SuggestionsList');
     act(() => {
