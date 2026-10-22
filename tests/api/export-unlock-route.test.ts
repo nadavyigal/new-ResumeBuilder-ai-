@@ -75,11 +75,33 @@ describe('POST /api/v1/exports/unlock', () => {
   });
 
   afterEach(() => {
+    delete process.env.EXPORT_CREDITS_USER_IDS;
     if (previous === undefined) {
       delete process.env.EXPORT_CREDITS_ENABLED;
     } else {
       process.env.EXPORT_CREDITS_ENABLED = previous;
     }
+  });
+
+  it('charges a listed test account on iOS with the switch off', async () => {
+    process.env.EXPORT_CREDITS_USER_IDS = 'user-1';
+    const { POST, serviceRpc } = loadRoute({ rpcResult: { data: { status: 'insufficient', balance: 0 }, error: null } });
+
+    const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
+
+    expect(response.status).toBe(402);
+    expect(serviceRpc).toHaveBeenCalledWith('unlock_export', expect.objectContaining({ p_charge: true }));
+  });
+
+  it('asks a listed anonymous session for an account, like the global switch', async () => {
+    process.env.EXPORT_CREDITS_USER_IDS = 'user-1';
+    const { POST, serviceRpc } = loadRoute({ user: { id: 'user-1', is_anonymous: true } });
+
+    const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'account_required' });
+    expect(serviceRpc).not.toHaveBeenCalled();
   });
 
   it('returns 401 without a user', async () => {

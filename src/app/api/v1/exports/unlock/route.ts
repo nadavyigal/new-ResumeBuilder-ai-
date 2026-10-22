@@ -7,7 +7,8 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/ra
  * POST /api/v1/exports/unlock { optimizationId }
  *
  * Unlocks one optimization for export (StoreKit spec 6.4). Spends a credit only
- * when the gate applies (EXPORT_CREDITS_ENABLED and the iOS app, spec 6.5);
+ * when the gate applies (the iOS app, with EXPORT_CREDITS_ENABLED or a test
+ * account listed in EXPORT_CREDITS_USER_IDS, spec 6.5);
  * otherwise it records an ungated unlock and answers 200 { status: 'ungated' }.
  */
 export async function POST(request: NextRequest) {

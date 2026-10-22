@@ -114,6 +114,7 @@ describe('GET /api/download/[id] export gate', () => {
   });
 
   afterEach(() => {
+    delete process.env.EXPORT_CREDITS_USER_IDS;
     if (previous === undefined) {
       delete process.env.EXPORT_CREDITS_ENABLED;
     } else {
