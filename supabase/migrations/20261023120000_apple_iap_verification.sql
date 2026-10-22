@@ -166,6 +166,9 @@ declare
   v_change integer;
   v_rows integer;
   v_has_grant boolean;
+  v_refunds integer;
+  v_reversals integer;
+  v_was_refunded boolean;
 begin
   if length(v_transaction_id) = 0 or length(v_notification_uuid) = 0 then
     raise exception 'p_apple_transaction_id and p_notification_uuid are required';
@@ -213,10 +216,32 @@ begin
   from public.credit_transactions
   where related_apple_transaction_id = v_transaction_id;
 
+  -- Refunded or not is decided by counting every notification for this
+  -- transaction, the ones recorded before the grant included: refunded while
+  -- REFUND outnumbers REFUND_REVERSED. Credits move only when that state flips,
+  -- so a late REFUND after an earlier reversal, or a second REFUND, deducts
+  -- nothing (Codex P2 on #197), whatever order Apple delivers them in.
+  select
+    (select count(*) from public.apple_pre_grant_refunds where apple_transaction_id = v_transaction_id and not reversed)
+      + (select count(*) from public.credit_transactions where related_apple_transaction_id = v_transaction_id and reason = 'iap_refund'),
+    (select count(*) from public.apple_pre_grant_refunds where apple_transaction_id = v_transaction_id and reversed)
+      + (select count(*) from public.credit_transactions where related_apple_transaction_id = v_transaction_id and reason = 'iap_refund_reversed')
+    into v_refunds, v_reversals;
+  v_was_refunded := v_refunds > v_reversals;
   if coalesce(p_reversed, false) then
-    v_change := greatest(v_net_refunded, 0);
+    v_reversals := v_reversals + 1;
   else
-    v_change := -least(greatest(v_granted - v_net_refunded, 0), greatest(coalesce(v_balance, 0), 0));
+    v_refunds := v_refunds + 1;
+  end if;
+
+  if coalesce(p_reversed, false) then
+    -- Gives back what refunds took, only when this reversal ends the refund.
+    v_change := case when v_was_refunded and v_refunds <= v_reversals then greatest(v_net_refunded, 0) else 0 end;
+  else
+    -- Deducts what is outstanding, only when this refund starts one.
+    v_change := case when not v_was_refunded and v_refunds > v_reversals
+      then -least(greatest(v_granted - v_net_refunded, 0), greatest(coalesce(v_balance, 0), 0))
+      else 0 end;
   end if;
 
   -- A zero-delta row still records the notification, so a repeat is a no-op.
