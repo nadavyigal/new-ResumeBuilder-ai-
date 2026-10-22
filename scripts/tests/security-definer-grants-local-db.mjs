@@ -21,12 +21,6 @@ import pg from 'pg';
 // auth.uid() itself, because it bypasses RLS. Empty on purpose.
 const ALLOWLIST = [];
 const CLIENT_ROLES = ['PUBLIC', 'anon', 'authenticated'];
-// Called by the app on a service-role client (see the migration header).
-const SERVICE_ROLE_RPCS = [
-  'public.consume_credit(uuid, text)',
-  'public.grant_apple_credits(uuid, integer, text, text, text)',
-  'public.increment_rate_limit(text, text, bigint)',
-];
 const BASELINE = '20261012000000_production_baseline.sql';
 const HARDENING = '20261022120000_harden_security_definer_grants.sql';
 
@@ -106,11 +100,25 @@ try {
   assert.deepEqual(openAfterAll, [], `client roles can execute SECURITY DEFINER functions:\n${openAfterAll.join('\n')}`);
   check('no PUBLIC/anon/authenticated EXECUTE on any public SECURITY DEFINER function (allowlist empty)');
 
-  for (const signature of SERVICE_ROLE_RPCS) {
-    const ok = (await admin.query("select has_function_privilege('service_role', $1, 'EXECUTE') ok", [signature])).rows[0].ok;
-    assert.equal(ok, true, `service_role cannot execute ${signature}`);
-  }
-  check('service_role keeps EXECUTE on the RPCs the app calls');
+  // RPC functions: service_role must keep EXECUTE (the app's only caller path).
+  // Trigger functions: nobody but the owner needs it.
+  const secdef = (await admin.query(`
+    select n.nspname || '.' || p.proname || '(' || oidvectortypes(p.proargtypes) || ')' as signature,
+           p.prorettype = 'trigger'::regtype as is_trigger,
+           has_function_privilege('service_role', p.oid, 'EXECUTE') as service_role_ok,
+           array(select coalesce(r.rolname::text, 'PUBLIC')
+                 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+                 left join pg_roles r on r.oid = a.grantee
+                 where a.privilege_type = 'EXECUTE' and a.grantee <> p.proowner) as non_owner_grantees
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.prosecdef`)).rows;
+  const rpcs = secdef.filter(f => !f.is_trigger), triggers = secdef.filter(f => f.is_trigger);
+  // At least the baseline's 10 + 5; later migrations may add more.
+  assert.ok(rpcs.length >= 10, `expected at least 10 RPC SECURITY DEFINER functions, got ${rpcs.map(f => f.signature)}`);
+  assert.ok(triggers.length >= 5, `expected at least 5 trigger SECURITY DEFINER functions, got ${triggers.map(f => f.signature)}`);
+  for (const f of rpcs) assert.equal(f.service_role_ok, true, `service_role cannot execute ${f.signature}`);
+  for (const f of triggers) assert.deepEqual(f.non_owner_grantees, [], `${f.signature} granted to ${f.non_owner_grantees}`);
+  check(`service_role keeps EXECUTE on all ${rpcs.length} RPC functions; ${triggers.length} trigger functions are owner-only`);
 
   async function asRole(role, sql, params = [], uid) {
     const client = await pool.connect();

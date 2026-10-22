@@ -21,9 +21,9 @@ the baseline left all 15 callable by any client, because Supabase default privil
 functions to anon and authenticated and the baseline only revokes PUBLIC.
 
 **Proof.** `node scripts/tests/security-definer-grants-local-db.mjs` replays baseline plus every
-migration in a disposable local Postgres: 10 checks pass, including signups, optimizations,
-applications and chat messages still firing their triggers as real roles, and 42501 for anon and
-authenticated on every RPC. Also passes with PR #195's export-credits migration added.
+migration in a disposable local Postgres: 10 checks pass, including service_role EXECUTE on all 10
+RPC functions, owner-only trigger functions, signups, optimizations, applications and chat messages
+still firing their triggers as real roles, and 42501 for anon and authenticated on every RPC. Also passes with PR #195's export-credits migration added.
 
 **Not done.** Not applied anywhere; production ACLs were not read (the baseline dump suggests
 production already matches for the RPC functions). Applying it needs the founder's yes.
