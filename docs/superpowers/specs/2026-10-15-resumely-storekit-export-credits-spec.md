@@ -227,7 +227,7 @@ cannot be backfilled; at today's volume (4 exports in 30 days) that is accepted.
 | 5 | `type` is `Consumable`; `productId` is in the section 4 mapping; it equals the `productId` the client sent | 400 `unknown_product` or `product_mismatch` |
 | 6 | `appAccountToken` equals the caller's user ID | 403 `account_mismatch` |
 | 7 | `revocationDate` is absent | 409 `transaction_revoked` |
-| 8 | Grant: `grant_apple_credits(user, credits × quantity, ..., transactionId)` extended to write `product_id` and `environment` | 500 `failed_to_grant_credits` |
+| 8 | Grant: `grant_apple_purchase(user, transactionId, productId, credits × quantity, environment)` (built in S3, 2026-10-22, as a new function so the pre-spec `grant_apple_credits` and its tests stay valid; it writes `product_id` and `environment`) | 500 `failed_to_grant_credits` |
 
 Response: `{ success: true, status: 'granted' | 'already_granted', creditsGranted, balance }`.
 `already_granted` when the transaction ID is already on the ledger **for this user**. If it is on
@@ -251,8 +251,10 @@ and the Apple root certificates bundled in the repo (public files, not secrets).
   `SignedDataVerifier`; unverified payloads get 400 and change nothing.
 - Idempotency: the notification's `notificationUUID` is stored in
   `credit_transactions.apple_notification_uuid` (unique). A repeat changes nothing and returns 200.
-- Both balance changes below run in one `SECURITY DEFINER` function, `apply_iap_refund(p_user_id,
-  p_transaction_id, p_notification_uuid, p_reversed boolean)`, service-role only (same revoke as
+- Both balance changes below run in one `SECURITY DEFINER` function, `apply_iap_refund(
+  p_transaction_id, p_notification_uuid, p_reversed boolean)`, service-role only. Built in S3
+  (2026-10-22) without a `p_user_id` argument: the function reads the user from the grant row, so a
+  refund can only touch the account that was credited (same revoke as
   `unlock_export`). One call is one transaction: it takes the same `profiles ... for update` lock
   first, then inserts the ledger row keyed on `apple_notification_uuid` with `on conflict do
   nothing` and changes the balance only if that row was new. So a refund cannot race an unlock or
