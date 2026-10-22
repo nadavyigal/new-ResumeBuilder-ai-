@@ -153,15 +153,15 @@ describe('Security Fixes Verification', () => {
       supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
     });
 
-    it('should have increment_optimizations_used function defined', async () => {
-      // Query to check if function exists
+    it('should deny increment_optimizations_used to the anon key', async () => {
+      // SECURITY DEFINER and trusts user_id_param, so only service_role may
+      // call it (20261022120000_harden_security_definer_grants.sql).
       const { error } = await supabase.rpc('increment_optimizations_used', {
-        user_id_param: '00000000-0000-0000-0000-000000000000', // Invalid UUID for test
+        user_id_param: '00000000-0000-0000-0000-000000000000',
         max_allowed: 1
       });
 
-      // Should not error on function not found (might error on invalid user)
-      expect(error?.message).not.toContain('function');
+      expect(error?.message).toContain('permission denied');
     });
 
     // Note: Full race condition testing requires integration tests with concurrent requests

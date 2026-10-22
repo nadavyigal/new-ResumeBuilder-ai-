@@ -9,7 +9,24 @@
 - Last Validation: 2026-10-20 (#172 cleanup): production read-only: job `purge-expired-anonymous-ats-scores` ran 7 times, 7 succeeded (DELETE 97, then 15, then 0), last 2026-10-20 03:17 UTC, 0 expired never-converted rows left; the recorded SQL matches `20261013105018_purge_expired_anonymous_ats_scores.sql` except the header comment. Rebased on main; migration-only diff, no app code. 2026-10-20: docs-only change (spec and this file); no code, so lint and tests not applicable. Paddle webhook signature, refund adjustments and `transaction.completed` checked against developer.paddle.com on 2026-10-20. 2026-10-18: iOS #189 full xcodebuild test 471 tests, 1 skipped, 0 failures; web #187 jest 24 suites, 316 passed, 6 skipped. 2026-10-20 (#174 cleanup): rebased on main; the #172 purge file is now in `supabase/migrations/` beside the baseline (Codex P1); README states the founder yes for the repair, the 45 files as repo history, and an undo that moves files and history together (CodeRabbit). Production read-only check: history unchanged since the baseline dump (43 versions + `20261013105018`); public tables 35, policies 126, views 1, triggers 18, storage policies 9, buckets 3, same as the baseline inventory. 2026-10-20: docs-only change (spec and this file); no code, so lint and tests not applicable. Paddle webhook signature, refund adjustments and `transaction.completed` checked against developer.paddle.com on 2026-10-20. 2026-10-18: iOS #189 full xcodebuild test 471 tests, 1 skipped, 0 failures; web #187 jest 24 suites, 316 passed, 6 skipped.
 - PR merge gates remain: founder approval of this product change; the existing StoreKit/payment gates remain unchanged.
 - PR #163 author validation before integration: 2026-10-20 (#163 cleanup): rebased on main; fixed Codex P2s: fragment rejection now applies only to phrases taken from tip prose, so structured keywords like "Requirements Analysis" and "Remote Work" are kept; `extractKeywords` keeps CamelCase words separate, so "React TypeScript" and "React, TypeScript" give the same keywords. The placeholder `test_optimize` contract suite is skipped even under RUN_LIVE_BACKEND_TESTS=1 (CodeRabbit). Full `npx jest --ci`: 104 suites passed, 6 skipped, 0 failed (998 tests passed, 84 skipped; tip verbs such as "Switch" stay valid in structured keyword lists); `npm run lint` 0 errors (11 warnings); tsc 22.
-- Last Updated: 2026-10-20
+- Last Updated: 2026-10-22
+
+## 2026-10-22: SECURITY DEFINER grants hardened (migration not applied)
+
+**What changed.** New migration `supabase/migrations/20261022120000_harden_security_definer_grants.sql`
+revokes EXECUTE from PUBLIC, anon and authenticated on all 15 SECURITY DEFINER functions in
+the baseline. RPC functions keep service_role only; the 5 trigger functions keep no client role
+(Postgres checks EXECUTE on a trigger function only when the trigger is created). On a fresh replay
+the baseline left all 15 callable by any client, because Supabase default privileges grant new
+functions to anon and authenticated and the baseline only revokes PUBLIC.
+
+**Proof.** `node scripts/tests/security-definer-grants-local-db.mjs` replays baseline plus every
+migration in a disposable local Postgres: 10 checks pass, including signups, optimizations,
+applications and chat messages still firing their triggers as real roles, and 42501 for anon and
+authenticated on every RPC. Also passes with PR #195's export-credits migration added.
+
+**Not done.** Not applied anywhere; production ACLs were not read (the baseline dump suggests
+production already matches for the RPC functions). Applying it needs the founder's yes.
 
 ## 2026-10-20: Payments open (EXD-037), web checkout specified
 
