@@ -63,6 +63,32 @@ describe('export credits', () => {
       expect(mod.isExportCharged(headers({ 'x-resumely-client': ' iOS ' }))).toBe(true);
     });
 
+    it('gates only the listed test accounts while the switch is off', () => {
+      process.env.EXPORT_CREDITS_USER_IDS = ' 11111111-1111-4111-8111-111111111111 ,22222222-2222-4222-8222-222222222222';
+      try {
+        const { mod } = loadModule();
+        const ios = headers({ 'x-resumely-client': 'ios' });
+        expect(mod.isExportCharged(ios, '11111111-1111-4111-8111-111111111111')).toBe(true);
+        expect(mod.isExportCharged(ios, '22222222-2222-4222-8222-222222222222'.toUpperCase())).toBe(true);
+        expect(mod.isExportCharged(ios, '33333333-3333-4333-8333-333333333333')).toBe(false);
+        expect(mod.isExportCharged(ios)).toBe(false);
+        // A listed account on the web stays ungated (F1).
+        expect(mod.isExportCharged(headers({}), '11111111-1111-4111-8111-111111111111')).toBe(false);
+      } finally {
+        delete process.env.EXPORT_CREDITS_USER_IDS;
+      }
+    });
+
+    it('gates nobody with an empty test-account list', () => {
+      process.env.EXPORT_CREDITS_USER_IDS = ' , ';
+      try {
+        const { mod } = loadModule();
+        expect(mod.isExportCharged(headers({ 'x-resumely-client': 'ios' }), '')).toBe(false);
+      } finally {
+        delete process.env.EXPORT_CREDITS_USER_IDS;
+      }
+    });
+
     it('keeps the web ungated with the flag on (F1)', () => {
       process.env.EXPORT_CREDITS_ENABLED = 'true';
       const { mod } = loadModule();

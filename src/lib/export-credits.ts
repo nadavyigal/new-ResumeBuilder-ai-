@@ -31,13 +31,30 @@ export function exportCreditsEnabled(): boolean {
   return process.env.EXPORT_CREDITS_ENABLED === 'true';
 }
 
+/**
+ * Accounts gated while the global switch is off: the App Review demo account
+ * and the founder's own test account (`EXPORT_CREDITS_USER_IDS`, comma-separated
+ * Supabase user ids). App Review and TestFlight buy in Sandbox (F6), so these
+ * accounts can reach the paywall and complete a purchase in production before
+ * anyone is charged, while every other account stays ungated.
+ */
+export function exportCreditsTestAccount(userId: string | undefined): boolean {
+  if (!userId) return false;
+  const ids = (process.env.EXPORT_CREDITS_USER_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim().toLowerCase())
+    .filter(Boolean);
+  return ids.includes(userId.trim().toLowerCase());
+}
+
 export function exportPlatform(headers: HeaderReader): 'ios' | 'web' {
   return headers.get(EXPORT_CLIENT_HEADER)?.trim().toLowerCase() === 'ios' ? 'ios' : 'web';
 }
 
 /** True when this request must spend a credit to export. */
-export function isExportCharged(headers: HeaderReader): boolean {
-  return exportCreditsEnabled() && exportPlatform(headers) === 'ios';
+export function isExportCharged(headers: HeaderReader, userId?: string): boolean {
+  if (exportPlatform(headers) !== 'ios') return false;
+  return exportCreditsEnabled() || exportCreditsTestAccount(userId);
 }
 
 function numberOrNull(value: unknown): number | null {
@@ -116,7 +133,7 @@ export async function authorizeExport({
   optimizationId: string;
   headers: HeaderReader;
 }): Promise<ExportAuthorization> {
-  const charged = isExportCharged(headers);
+  const charged = isExportCharged(headers, user.id);
   const platform = exportPlatform(headers);
 
   if (charged && user.is_anonymous) {
