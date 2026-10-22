@@ -166,6 +166,28 @@ try {
   assert.equal(await balance(userS), 6);
   check('a chargeback reversal gives back only what chargebacks deducted, never a refund, and only once');
 
+  // Codex P1 on #199: a reversal delivered before its chargeback waits for it.
+  const userV = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userV]);
+  await checkout(userV, 'txn_ooo');
+  await grant(userV, 'txn_ooo', 5);                        // balance 6
+  assert.deepEqual(await adjust('txn_ooo', 'adj_v2', 5, 'chargeback_reverse'), { status: 'deferred' });
+  assert.deepEqual(await adjust('txn_ooo', 'adj_v2', 5, 'chargeback_reverse'), { status: 'duplicate' });
+  assert.equal(await balance(userV), 6);
+  const chargeback = await adjust('txn_ooo', 'adj_v1', 5, 'chargeback');
+  assert.equal(chargeback.credits_changed, -5);
+  assert.equal(await balance(userV), 6, 'the waiting reversal ran right after its chargeback');
+  assert.equal((await admin.query("select count(*)::int n from paddle_pending_adjustments where paddle_transaction_id='txn_ooo'")).rows[0].n, 0);
+  // Both before the grant, reversal first: the grant applies them and nets to zero.
+  const userW = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userW]);
+  await checkout(userW, 'txn_ooo2');
+  assert.deepEqual(await adjust('txn_ooo2', 'adj_w2', 5, 'chargeback_reverse'), { status: 'recorded_before_grant' });
+  assert.deepEqual(await adjust('txn_ooo2', 'adj_w1', 5, 'chargeback'), { status: 'recorded_before_grant' });
+  assert.equal((await grant(userW, 'txn_ooo2', 5)).status, 'granted');
+  assert.equal(await balance(userW), 6);
+  check('a chargeback reversal delivered before its chargeback waits for it and runs after it, before or after the grant');
+
   const partial = await adjust('txn_par', 'adj_p', 3);
   assert.equal(partial.credits_changed, -3, 'a refund of some items deducts only their credits');
   check('a partial refund (3 of 10 credits) deducts only those credits');
