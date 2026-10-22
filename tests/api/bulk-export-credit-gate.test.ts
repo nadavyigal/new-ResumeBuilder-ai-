@@ -6,12 +6,12 @@ import { join } from 'node:path';
 type Result = { data: { status: string; balance?: number } | null; error: { message: string } | null };
 const unlocked: Result = { data: { status: 'unlocked', balance: 0 }, error: null };
 function load({ user = { id: 'user-1', is_anonymous: false } as { id: string; is_anonymous?: boolean } | null,
-  rows = ['opt-1', 'opt-2'], results = [unlocked, unlocked], client = 'ios' } = {}) {
+  rows = ['opt-1', 'opt-2'], results = [unlocked, unlocked], client = 'ios', noData = [] as string[] } = {}) {
   jest.resetModules();
   const eq = jest.fn(async (column: string, value: string) => {
     void column; void value;
     return { data: rows.map(id => ({ id, created_at: '2026-10-21', match_score: 0.8,
-      rewrite_data: { name: id }, template_key: 'test' })), error: null };
+      rewrite_data: noData.includes(id) ? null : { name: id }, template_key: 'test' })), error: null };
   });
   const query = { select: jest.fn(() => query), in: jest.fn(() => query), eq };
   const routeClient = { auth: { getUser: jest.fn(async () => ({ data: { user } })) }, from: jest.fn(() => query) };
@@ -86,6 +86,22 @@ describe('bulk exports enforce the same credit gate as individual downloads', ()
     process.env.EXPORT_CREDITS_ENABLED = 'true';
     const h = load({ user:{ id:'guest', is_anonymous:true } });
     expect((await h.POST(h.request)).status).toBe(401);
+    expect(h.rpc).not.toHaveBeenCalled(); expect(h.generateResumePDF).not.toHaveBeenCalled();
+  });
+
+  it('never charges an owned row that has no resume data to export', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const h = load({ noData: ['opt-2'] });
+    expect((await h.POST(h.request)).status).toBe(200);
+    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc).toHaveBeenCalledWith('unlock_export', { p_user_id: 'user-1', p_optimization_id: 'opt-1', p_charge: true });
+    expect(h.generateResumePDF).toHaveBeenCalledTimes(1);
+  });
+
+  it('charges nothing when no owned row has resume data', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const h = load({ noData: ['opt-1', 'opt-2'] });
+    expect((await h.POST(h.request)).status).toBe(200);
     expect(h.rpc).not.toHaveBeenCalled(); expect(h.generateResumePDF).not.toHaveBeenCalled();
   });
 

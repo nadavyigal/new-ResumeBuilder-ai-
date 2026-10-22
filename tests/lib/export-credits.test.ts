@@ -74,7 +74,7 @@ describe('export credits', () => {
   describe('unlockExport', () => {
     it('calls unlock_export on the service-role client with the charge flag', async () => {
       const { mod, serviceRpc, createServiceRoleClient } = loadModule({
-        data: { status: 'unlocked', balance: 4 },
+        data: { status: 'unlocked', balance: 4, paid_user: true },
         error: null,
       });
 
@@ -86,12 +86,12 @@ describe('export credits', () => {
         p_optimization_id: 'opt-1',
         p_charge: true,
       });
-      expect(result).toEqual({ ok: true, status: 'unlocked', balance: 4, source: 'credit' });
+      expect(result).toEqual({ ok: true, status: 'unlocked', balance: 4, source: 'credit', paidUser: true });
     });
 
     it('maps already_unlocked with its source and balance', async () => {
       const { mod } = loadModule({
-        data: { status: 'already_unlocked', source: 'ungated', balance: 1 },
+        data: { status: 'already_unlocked', source: 'ungated', balance: 1, paid_user: false },
         error: null,
       });
 
@@ -100,6 +100,7 @@ describe('export credits', () => {
         status: 'already_unlocked',
         balance: 1,
         source: 'ungated',
+        paidUser: false,
       });
     });
 
@@ -111,6 +112,7 @@ describe('export credits', () => {
         status: 'ungated',
         balance: null,
         source: 'ungated',
+        paidUser: null,
       });
     });
 

@@ -138,7 +138,7 @@ describe('POST /api/v1/exports/unlock', () => {
   it('spends one credit for the iOS app once the gate applies', async () => {
     process.env.EXPORT_CREDITS_ENABLED = 'true';
     const { POST, serviceRpc, captureServerEvent } = loadRoute({
-      rpcResult: { data: { status: 'unlocked', balance: 2 }, error: null },
+      rpcResult: { data: { status: 'unlocked', balance: 2, paid_user: true }, error: null },
     });
 
     const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
@@ -153,7 +153,23 @@ describe('POST /api/v1/exports/unlock', () => {
     expect(captureServerEvent).toHaveBeenCalledWith(
       'user-1',
       'export_unlocked',
-      expect.objectContaining({ optimization_id: 'opt-1', status: 'unlocked', balance_after: 2, platform: 'ios' })
+      expect.objectContaining({
+        optimization_id: 'opt-1', status: 'unlocked', paid_user: true, balance_after: 2, platform: 'ios',
+      })
+    );
+  });
+
+  it('reports paid_user as null when the database result omits it', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const { POST, captureServerEvent } = loadRoute({
+      rpcResult: { data: { status: 'unlocked', balance: 2 }, error: null },
+    });
+
+    expect((await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'))).status).toBe(200);
+    expect(captureServerEvent).toHaveBeenCalledWith(
+      'user-1',
+      'export_unlocked',
+      expect.objectContaining({ paid_user: null })
     );
   });
 

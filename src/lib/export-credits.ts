@@ -20,6 +20,8 @@ export type UnlockExportResult =
       status: 'unlocked' | 'already_unlocked' | 'ungated';
       balance: number | null;
       source: 'credit' | 'ungated';
+      /** Has any `apple_iap` ledger row. Null when the database did not say. */
+      paidUser: boolean | null;
     }
   | { ok: false; status: 'insufficient'; balance: 0 }
   | { ok: false; status: 'not_found' }
@@ -40,6 +42,10 @@ export function isExportCharged(headers: HeaderReader): boolean {
 
 function numberOrNull(value: unknown): number | null {
   return typeof value === 'number' ? value : null;
+}
+
+function booleanOrNull(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
 }
 
 /**
@@ -65,19 +71,21 @@ export async function unlockExport(
     return { ok: false, status: 'error', details: error.message };
   }
 
-  const result = (data ?? {}) as { status?: unknown; balance?: unknown; source?: unknown };
+  const result = (data ?? {}) as { status?: unknown; balance?: unknown; source?: unknown; paid_user?: unknown };
+  const paidUser = booleanOrNull(result.paid_user);
   switch (result.status) {
     case 'unlocked':
-      return { ok: true, status: 'unlocked', balance: numberOrNull(result.balance), source: 'credit' };
+      return { ok: true, status: 'unlocked', balance: numberOrNull(result.balance), source: 'credit', paidUser };
     case 'already_unlocked':
       return {
         ok: true,
         status: 'already_unlocked',
         balance: numberOrNull(result.balance),
         source: result.source === 'ungated' ? 'ungated' : 'credit',
+        paidUser,
       };
     case 'ungated':
-      return { ok: true, status: 'ungated', balance: null, source: 'ungated' };
+      return { ok: true, status: 'ungated', balance: null, source: 'ungated', paidUser };
     case 'insufficient':
       return { ok: false, status: 'insufficient', balance: 0 };
     case 'not_found':
@@ -128,6 +136,7 @@ export async function authorizeExport({
     await captureServerEvent(user.id, 'export_unlocked', {
       optimization_id: optimizationId,
       status: result.status,
+      paid_user: result.paidUser,
       balance_after: result.balance,
       platform,
     });
