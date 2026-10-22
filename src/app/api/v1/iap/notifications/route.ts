@@ -3,6 +3,9 @@ import { createServiceRoleClient } from '@/lib/supabase-server';
 import { getAppleIapConfig, verifySignedNotification, verifySignedTransaction } from '@/lib/iap';
 import { captureServerEvent } from '@/lib/posthog-server';
 
+// Apple's revocation checks (OCSP) can take a few seconds on a cold start.
+export const maxDuration = 60;
+
 /**
  * App Store Server Notifications V2 (StoreKit spec section 8). The URL is set
  * in App Store Connect by the founder.
@@ -79,9 +82,10 @@ export async function POST(request: NextRequest) {
     product_id?: unknown;
     environment?: unknown;
   };
-  if (result.status === 'no_grant') {
-    // A purchase this server never granted (for example made before S3). Nothing to take back.
-    console.warn('Refund notification for a transaction with no grant', { type });
+  if (result.status === 'recorded_before_grant') {
+    // No grant yet. The refund is remembered, so a later /verify of the same
+    // transaction is refused (a REFUND_REVERSED clears it).
+    console.warn('Refund notification before any grant; recorded', { type });
     return NextResponse.json({ received: true });
   }
 

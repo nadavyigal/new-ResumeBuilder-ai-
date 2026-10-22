@@ -246,6 +246,19 @@ describe('POST /api/v1/iap/verify', () => {
     await expect(response.json()).resolves.toEqual({ error: 'transaction_owned_by_another_account' });
   });
 
+  it('check 8: 409 when Apple refunded the transaction before it was granted', async () => {
+    const harness = loadRouteHarness({ rpcResult: { data: { status: 'revoked' }, error: null } });
+    const response = await harness.POST(buildRequest(validBody));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: 'transaction_revoked' });
+  });
+
+  it('never sends a client-typed product ID to analytics', async () => {
+    const harness = loadRouteHarness({ verification: { ok: false, reason: 'invalid_transaction' } });
+    await harness.POST(buildRequest({ ...validBody, productId: 'jane.doe@example.com' }));
+    expect(harness.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'iap_verify_failed', { reason: 'invalid_transaction' });
+  });
+
   it('check 8: 500 when the grant fails at the database', async () => {
     const harness = loadRouteHarness({ rpcResult: { data: null, error: { message: 'permission denied' } } });
     const response = await harness.POST(buildRequest(validBody));

@@ -118,8 +118,8 @@ describe('POST /api/v1/iap/notifications', () => {
     expect(harness.captureServerEvent).not.toHaveBeenCalled();
   });
 
-  it('answers 200 for a refund of a purchase this server never granted', async () => {
-    const harness = loadRouteHarness({ rpcResult: { data: { status: 'no_grant' }, error: null } });
+  it('answers 200 when a refund arrives before the grant (recorded so the grant is refused later)', async () => {
+    const harness = loadRouteHarness({ rpcResult: { data: { status: 'recorded_before_grant', refunded: true }, error: null } });
     const response = await harness.POST(buildRequest(body));
     expect(response.status).toBe(200);
     expect(harness.captureServerEvent).not.toHaveBeenCalled();

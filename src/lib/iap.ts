@@ -98,7 +98,10 @@ function claimedEnvironment(jws: string, kind: 'transaction' | 'notification'): 
   if (parts.length !== 3) return null;
   try {
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    const value = kind === 'transaction' ? payload?.environment : payload?.data?.environment;
+    // Notifications carry it in data, or in summary for summary-type notifications.
+    const value = kind === 'transaction'
+      ? payload?.environment
+      : payload?.data?.environment ?? payload?.summary?.environment;
     return typeof value === 'string' ? value : null;
   } catch {
     return null;

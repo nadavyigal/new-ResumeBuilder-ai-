@@ -161,8 +161,34 @@ try {
   assert.deepEqual(ledger.map(r => r.reason).sort(), ['iap_refund', 'iap_refund', 'iap_refund_reversed', 'iap_refund_reversed']);
   check('refund rows point at the grant, keep apple_transaction_id unique to the grant, carry its environment');
 
-  assert.deepEqual(await refund('txn-unknown', 'notif-9', false), { status: 'no_grant' });
-  check('a refund for a transaction with no grant changes nothing');
+  // Refund before grant (review P1): the saved pre-refund transaction must not grant later.
+  const userD = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userD]);
+  assert.deepEqual(await refund('txn-early', 'notif-e1', false), { status: 'recorded_before_grant', refunded: true });
+  assert.deepEqual(await refund('txn-early', 'notif-e1', false), { status: 'duplicate' });
+  assert.deepEqual(await grant(userD, 'txn-early', 'resumely.exports.10', 10), { status: 'revoked' });
+  assert.equal(await balance(userD), 1);
+  assert.equal((await admin.query("select count(*)::int n from credit_transactions where apple_transaction_id='txn-early'")).rows[0].n, 0);
+  check('a refund that arrives before the grant is recorded; the later grant is refused; a repeat notification is a no-op');
+
+  assert.deepEqual(await refund('txn-early', 'notif-e2', true), { status: 'recorded_before_grant', refunded: false });
+  assert.equal((await grant(userD, 'txn-early', 'resumely.exports.10', 10)).status, 'granted');
+  assert.equal(await balance(userD), 11);
+  check('REFUND_REVERSED before the grant clears the record; the grant then goes through');
+
+  // Refund and grant racing for the same transaction: either order nets zero.
+  const userE = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userE]);
+  const outcomes = new Set();
+  for (let i = 0; i < 15; i++) {
+    const [g] = await Promise.all([
+      grant(userE, `txn-race-${i}`, 'resumely.exports.5', 5),
+      refund(`txn-race-${i}`, `notif-race-${i}`, false),
+    ]);
+    outcomes.add(g.status);
+    assert.equal(await balance(userE), 1, `iteration ${i}: grant ${g.status} left balance ${await balance(userE)}`);
+  }
+  check(`15 refund/grant races: the credits never survive a refund (grant outcomes: ${[...outcomes].sort().join(', ')})`);
 
   // A refund racing unlocks never drives the balance below zero.
   const userC = randomUUID();

@@ -3,6 +3,9 @@ import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabas
 import { creditsForProduct, getAppleIapConfig, verifySignedTransaction } from '@/lib/iap';
 import { captureServerEvent } from '@/lib/posthog-server';
 
+// Apple's revocation checks (OCSP) can take a few seconds on a cold start.
+export const maxDuration = 60;
+
 /**
  * Grants export credits for a verified StoreKit 2 purchase (StoreKit spec 7.2).
  * Every check runs, in order; any failure grants nothing. The amount comes
@@ -30,9 +33,11 @@ async function fail(
   distinctId: string,
   productId?: string
 ) {
+  // Only a product from the section 4 mapping reaches analytics; anything the
+  // client typed before the signature check stays out.
   await captureServerEvent(distinctId, 'iap_verify_failed', {
     reason,
-    ...(productId ? { product_id: productId } : {}),
+    ...(productId && creditsForProduct(productId) ? { product_id: productId } : {}),
   });
   return NextResponse.json({ error: reason }, { status });
 }
@@ -121,6 +126,11 @@ export async function POST(request: NextRequest) {
   }
 
   const result = (data ?? {}) as { status?: unknown; balance?: unknown; credits_granted?: unknown };
+  if (result.status === 'revoked') {
+    // Apple refunded this purchase before it was ever granted (a replay of the
+    // pre-refund signed transaction). apply_iap_refund recorded it.
+    return fail('transaction_revoked', 409, user.id, productId);
+  }
   if (result.status === 'owned_by_other_account') {
     // Unreachable for purchases under this spec (check 6); guards pre-spec ledger rows.
     return fail('transaction_owned_by_another_account', 409, user.id, productId);
