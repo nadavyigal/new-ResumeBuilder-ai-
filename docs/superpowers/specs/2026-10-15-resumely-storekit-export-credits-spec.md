@@ -547,6 +547,20 @@ revoke all on public.paddle_checkouts, public.paddle_events from anon, authentic
 Ledger rows use `source 'paddle'`. `grant_paddle_credits` and `apply_paddle_adjustment` are
 revoked from `public`, `anon` and `authenticated` in the same migration (the R1 pattern).
 
+**Built 2026-10-22 (Phase 3 story 1, `20261024120000_paddle_web_checkout.sql`, not applied).**
+Differences from the sketch above, for the same reasons as the Apple functions (S3):
+- `apply_paddle_adjustment(p_paddle_transaction_id, p_paddle_adjustment_id, p_credits, p_reversed)`
+  takes no `p_user_id`; it reads the user from the grant row.
+- Adjustment rows point at the grant through a new `related_paddle_transaction_id`, so
+  `paddle_transaction_id` stays unique to the grant row.
+- Both functions take a per-transaction advisory lock before the profile lock.
+- An adjustment that arrives before its `transaction.completed` returns `no_grant` and writes
+  nothing. The webhook answers non-2xx, so Paddle retries it after the grant.
+- `paddle_events` is written after an event is handled, not before (16.4 step 5), so an event
+  that failed half way runs again on retry.
+- Not changed yet: `unlock_export`'s `paid_user` counts only `apple_iap` rows. Counting `paddle`
+  rows is a follow-up for the webhook story.
+
 ### 16.7 Gating web exports (F1 flips with the checkout)
 
 - New server flag `WEB_EXPORT_CREDITS_ENABLED`, default off. When on, section 6.5's platform check
