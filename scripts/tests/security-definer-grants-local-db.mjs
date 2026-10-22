@@ -197,6 +197,28 @@ try {
   assert.equal(limited.requests_count, 1);
   check('service_role calls still work');
 
+  // Future functions: a SECURITY DEFINER function created after the migration,
+  // the way a later migration would create it, is not callable by clients.
+  await admin.query(`create function public.probe_future_secdef() returns int
+    language sql security definer set search_path = public as $$ select 1 $$`);
+  await admin.query(`create function public.probe_future_invoker() returns int
+    language sql as $$ select 2 $$`);
+  try {
+    assert.deepEqual(await openToClients(), [], 'a new SECURITY DEFINER function is open to clients');
+    for (const role of ['anon', 'authenticated']) {
+      await assert.rejects(asRole(role, 'select public.probe_future_secdef()', [], user), { code: '42501' }, `${role}: new secdef function`);
+      await assert.rejects(asRole(role, 'select public.probe_future_invoker()', [], user), { code: '42501' }, `${role}: new invoker function`);
+    }
+    assert.equal((await asRole('service_role', 'select public.probe_future_secdef() n')).rows[0].n, 1);
+    assert.equal((await asRole('service_role', 'select public.probe_future_invoker() n')).rows[0].n, 2);
+    // An explicit grant, as the migration comment tells later authors, still works.
+    await admin.query('grant execute on function public.probe_future_invoker() to authenticated');
+    assert.equal((await asRole('authenticated', 'select public.probe_future_invoker() n', [], user)).rows[0].n, 2);
+  } finally {
+    await admin.query('drop function public.probe_future_secdef(); drop function public.probe_future_invoker()');
+  }
+  check('functions created after the migration: no client EXECUTE by default, service_role kept, explicit grant works');
+
   await admin.query(read(HARDENING));
   assert.deepEqual(await openToClients(), []);
   check('hardening migration replays without error');

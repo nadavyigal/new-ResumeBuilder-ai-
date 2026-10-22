@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A new Supabase function is callable by every client unless you revoke it (2026-10-22)
+
+**Symptom:** A SECURITY DEFINER function written for the server only was callable through `/rpc` by `anon` and `authenticated` on a fresh replay, so any client could run it and bypass RLS.
+
+**Cause:** Postgres grants EXECUTE on every new function to PUBLIC, and the baseline's default privileges also grant new `public` functions to `anon` and `authenticated`. `revoke ... from public` alone leaves the role grants.
+
+**Fix:** `20261022120000_harden_security_definer_grants.sql` revokes both defaults for functions postgres creates. From that migration on, a new function has no client EXECUTE.
+
+**Rule:** A new function a client must call (a browser or app `rpc()`, or a helper used inside an RLS policy) needs an explicit `grant execute ... to authenticated`. A server-only function needs nothing. Prove grants with real roles (`set local role anon`), not by reading the migration.
+
 ## The hiring company's name is not a skill (2026-10-15)
 
 **Symptom:** on a real optimization for "Business Development Manager - Ad tech at Appstock", the dashboard Quick fixes banner said "Skills/Tools: appstock" and "Improved appstock by [X%] by [action]" (Hebrew too: "שיפרתי appstock ב-[X%]").

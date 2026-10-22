@@ -25,8 +25,19 @@ migration in a disposable local Postgres: 10 checks pass, including service_role
 RPC functions, owner-only trigger functions, signups, optimizations, applications and chat messages
 still firing their triggers as real roles, and 42501 for anon and authenticated on every RPC. Also passes with PR #195's export-credits migration added.
 
-**Not done.** Not applied anywhere; production ACLs were not read (the baseline dump suggests
-production already matches for the RPC functions). Applying it needs the founder's yes.
+**Codex P2 fix (same day).** The migration also changes default privileges, so the *next*
+function postgres creates gets no client EXECUTE: `alter default privileges for role postgres
+revoke execute on functions from public` (global, because a schema-level revoke cannot remove the
+built-in PUBLIC grant) and the same `in schema public` from anon and authenticated (undoes baseline
+lines 4631-4632). service_role keeps its schema default. New check 11 creates a SECURITY DEFINER
+and an invoker function after the replay: anon and authenticated get 42501, service_role works, an
+explicit grant works. Without the two statements the check fails. 11 checks pass, also with #195's
+migration added. Production read-only on 2026-10-22: postgres's default ACL in public is
+`postgres, anon, authenticated, service_role`, no global entry, so production has the same gap.
+
+**Not done.** Not applied anywhere. Production ACLs read by the coordinating session on
+2026-10-22: the money functions are already revoked; the 5 trigger functions are still callable by
+anon and authenticated. Applying it needs the founder's yes.
 
 ## 2026-10-20: Payments open (EXD-037), web checkout specified
 

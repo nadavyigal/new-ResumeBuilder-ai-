@@ -69,3 +69,24 @@ revoke all on function public.assign_default_template() from public, anon, authe
 revoke all on function public.handle_new_user() from public, anon, authenticated, service_role;
 revoke all on function public.update_applications_updated_at() from public, anon, authenticated, service_role;
 revoke all on function public.update_session_activity() from public, anon, authenticated, service_role;
+
+-- Future functions. The statements above fix only the functions that exist
+-- today. Without the two below, the next function postgres creates in public
+-- is again callable by every client: the baseline sets schema defaults that
+-- grant new public functions to anon and authenticated (baseline lines
+-- 4631-4632), and Postgres's built-in default grants every new function to
+-- PUBLIC.
+--
+-- A schema-level REVOKE cannot remove the built-in PUBLIC grant: Postgres
+-- adds schema defaults on top of global ones and never subtracts from them
+-- (ALTER DEFAULT PRIVILEGES docs). So PUBLIC is revoked globally for
+-- functions postgres creates, and anon/authenticated are revoked at the
+-- schema level where the baseline granted them. service_role keeps its
+-- schema default, so a new RPC stays callable by the server.
+--
+-- Consequence for later migrations: a new function that a client must call
+-- (an rpc() from the browser or app, or a helper used inside an RLS policy)
+-- needs an explicit `grant execute ... to authenticated` (and anon if
+-- needed). Trigger functions need nothing. Existing functions are unchanged.
+alter default privileges for role postgres revoke execute on functions from public;
+alter default privileges for role postgres in schema public revoke execute on functions from anon, authenticated;
