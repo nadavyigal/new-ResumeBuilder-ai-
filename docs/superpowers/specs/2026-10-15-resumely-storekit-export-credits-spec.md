@@ -549,13 +549,19 @@ revoked from `public`, `anon` and `authenticated` in the same migration (the R1 
 
 **Built 2026-10-22 (Phase 3 story 1, `20261024120000_paddle_web_checkout.sql`, not applied).**
 Differences from the sketch above, for the same reasons as the Apple functions (S3):
-- `apply_paddle_adjustment(p_paddle_transaction_id, p_paddle_adjustment_id, p_credits, p_reversed)`
-  takes no `p_user_id`; it reads the user from the grant row.
+- `apply_paddle_adjustment(p_paddle_transaction_id, p_paddle_adjustment_id, p_action, p_credits)`
+  takes no `p_user_id` (it reads the user from the grant row). `p_action` is `refund`,
+  `chargeback` or `chargeback_reverse`. A reversal gives back only what chargebacks deducted,
+  never what a refund took.
+- `grant_paddle_credits` checks `paddle_checkouts` itself: no row for that account answers
+  `unbound` and grants nothing.
 - Adjustment rows point at the grant through a new `related_paddle_transaction_id`, so
   `paddle_transaction_id` stays unique to the grant row.
 - Both functions take a per-transaction advisory lock before the profile lock.
-- An adjustment that arrives before its `transaction.completed` returns `no_grant` and writes
-  nothing. The webhook answers non-2xx, so Paddle retries it after the grant.
+- An adjustment that arrives before its `transaction.completed` is kept in
+  `paddle_pending_adjustments` and applied by the grant, in arrival order. One for a transaction
+  this server never opened answers `unbound` and writes nothing, so the webhook can answer 200 and
+  the founder refunds by hand (16.4.1 step 1).
 - `paddle_events` is written after an event is handled, not before (16.4 step 5), so an event
   that failed half way runs again on retry.
 - Not changed yet: `unlock_export`'s `paid_user` counts only `apple_iap` rows. Counting `paddle`

@@ -70,8 +70,11 @@ try {
   }
   const grant = (user, txn, credits, price = 'pri_5', env = 'Sandbox') => asRole('service_role',
     'select public.grant_paddle_credits($1,$2,$3,$4,$5) r', [user, credits, txn, price, env]).then(r => r.rows[0].r);
-  const adjust = (txn, adj, credits, reversed = false) => asRole('service_role',
-    'select public.apply_paddle_adjustment($1,$2,$3,$4) r', [txn, adj, credits, reversed]).then(r => r.rows[0].r);
+  const adjust = (txn, adj, credits, action = 'refund') => asRole('service_role',
+    'select public.apply_paddle_adjustment($1,$2,$3,$4) r', [txn, adj, action, credits]).then(r => r.rows[0].r);
+  // The checkout route writes this row before Paddle ever sees the transaction (16.3 step 2).
+  const checkout = (user, txn, price = 'pri_5', env = 'Sandbox') => admin.query(
+    'insert into paddle_checkouts(paddle_transaction_id, user_id, price_id, environment) values ($1,$2,$3,$4)', [txn, user, price, env]);
   const balance = async (user) => (await admin.query('select credit_balance b from profiles where user_id=$1', [user])).rows[0].b;
   const setBalance = (user, b) => admin.query('update profiles set credit_balance=$2 where user_id=$1', [user, b]);
 
@@ -79,43 +82,48 @@ try {
   await admin.query('insert into auth.users(id) values ($1), ($2)', [userA, userB]);
   assert.equal(await balance(userA), 1, 'signup starts with the free export');
 
-  // Privileges: both functions trust their arguments; both tables are server-only.
+  // Privileges: both functions trust their arguments; the three tables are server-only.
   for (const role of ['anon', 'authenticated']) {
     await assert.rejects(asRole(role, "select public.grant_paddle_credits($1, 10, 'txn_x', 'pri_10', 'Sandbox')", [userA]), { code: '42501' });
-    await assert.rejects(asRole(role, "select public.apply_paddle_adjustment('txn_x', 'adj_x', 1, false)"), { code: '42501' });
-    await assert.rejects(asRole(role, 'select * from public.paddle_checkouts'), { code: '42501' });
-    await assert.rejects(asRole(role, 'select * from public.paddle_events'), { code: '42501' });
+    await assert.rejects(asRole(role, "select public.apply_paddle_adjustment('txn_x', 'adj_x', 'refund', 1)"), { code: '42501' });
+    for (const table of ['paddle_checkouts', 'paddle_events', 'paddle_pending_adjustments']) {
+      await assert.rejects(asRole(role, `select * from public.${table}`), { code: '42501' });
+    }
     await assert.rejects(asRole(role, "insert into public.paddle_checkouts values ('txn_y', $1, 'pri_1', 'Sandbox')", [userA]), { code: '42501' });
   }
-  for (const fn of ['public.grant_paddle_credits(uuid,integer,text,text,text)', 'public.apply_paddle_adjustment(text,text,integer,boolean)']) {
+  for (const fn of ['public.grant_paddle_credits(uuid,integer,text,text,text)', 'public.apply_paddle_adjustment(text,text,text,integer)']) {
     const grantees = (await admin.query(`select coalesce(r.rolname,'PUBLIC') g from pg_proc p,
       lateral aclexplode(coalesce(p.proacl, acldefault('f',p.proowner))) a left join pg_roles r on r.oid=a.grantee
       where p.oid=$1::regprocedure and a.privilege_type='EXECUTE'`, [fn])).rows.map(r => r.g);
     for (const role of ['PUBLIC', 'anon', 'authenticated']) assert.ok(!grantees.includes(role), `${role} can execute ${fn}`);
     assert.ok(grantees.includes('service_role'), `service_role cannot execute ${fn}`);
   }
-  check('anon/authenticated cannot execute the two functions or read/write the two tables (42501); service_role can execute');
+  assert.equal((await asRole('service_role', 'select count(*)::int n from public.paddle_checkouts')).rows[0].n, 0);
+  check('anon/authenticated cannot execute the functions or touch the three tables (42501); service_role can');
 
-  // Grant: once per transaction; price and environment on the ledger row.
+  // Grant: only to the account that opened the checkout; once per transaction.
+  assert.deepEqual(await grant(userA, 'txn_nocheckout', 5), { status: 'unbound' });
+  assert.equal(await balance(userA), 1);
+  await checkout(userA, 'txn_1');
+  assert.deepEqual(await grant(userB, 'txn_1', 5), { status: 'unbound' }, 'another account cannot claim this checkout');
   assert.deepEqual(await grant(userA, 'txn_1', 5), { status: 'granted', credits_granted: 5, balance: 6 });
   assert.deepEqual(await grant(userA, 'txn_1', 5), { status: 'already_granted', credits_granted: 5, balance: 6 });
+  assert.equal(await balance(userB), 1);
   const row = (await admin.query("select delta, reason, source, product_id, environment from credit_transactions where paddle_transaction_id='txn_1'")).rows;
   assert.deepEqual(row, [{ delta: 5, reason: 'paddle_purchase', source: 'paddle', product_id: 'pri_5', environment: 'Sandbox' }]);
-  check('the same transaction twice grants once; the ledger row stores the price ID, source paddle and environment');
+  check('a grant needs the checkout row for that account; the same transaction twice grants once; ledger row has price, source, environment');
 
-  assert.deepEqual(await grant(userB, 'txn_1', 5), { status: 'owned_by_other_account' });
-  assert.equal(await balance(userB), 1);
-  check('the same transaction for a second user is refused and changes nothing');
-
+  await checkout(userB, 'txn_par', 'pri_10', 'Production');
   const parallel = await Promise.all(Array.from({ length: 20 }, () => grant(userB, 'txn_par', 10, 'pri_10', 'Production')));
   assert.equal(parallel.filter(r => r.status === 'granted').length, 1);
   assert.equal(await balance(userB), 11);
   check('20 parallel grants of one transaction grant exactly once');
 
-  await assert.rejects(grant(userA, 'txn_bad', 1, 'pri_1', 'Live'), /p_environment/);
-  await assert.rejects(grant(userA, 'txn_bad', 0), /p_delta/);
+  await assert.rejects(grant(userA, 'txn_1', 1, 'pri_1', 'Live'), /p_environment/);
+  await assert.rejects(grant(userA, 'txn_1', 0), /p_delta/);
   await assert.rejects(grant(userA, ' ', 1), /p_paddle_transaction_id/);
-  check('a bad environment, zero credits and a blank transaction ID raise and write nothing');
+  await assert.rejects(adjust('txn_1', 'adj_bad', 1, 'credit'), /p_action/);
+  check('bad environment, zero credits, blank transaction ID and unknown action raise and write nothing');
 
   // Credits from Paddle spend through unlock_export like Apple credits (one ledger).
   const opt = randomUUID();
@@ -124,7 +132,7 @@ try {
   assert.equal(await balance(userA), 5);
   check('a charged unlock spends a Paddle credit (one ledger for both stores)');
 
-  // Adjustments: approved refund deducts at most the balance; idempotent.
+  // Refunds: capped at the balance and at what is outstanding; idempotent.
   await setBalance(userA, 3);
   const refunded = await adjust('txn_1', 'adj_1', 5);
   assert.equal(refunded.status, 'deducted');
@@ -132,34 +140,74 @@ try {
   assert.equal(refunded.user_id, userA);
   assert.equal(await balance(userA), 0);
   assert.equal((await adjust('txn_1', 'adj_1', 5)).status, 'duplicate');
-  assert.equal(await balance(userA), 0);
-  check('an approved refund deducts at most the balance (floor 0); the same adjustment twice deducts once');
-
   await setBalance(userA, 10);
   assert.equal((await adjust('txn_1', 'adj_2', 5)).credits_changed, -2, 'only the 2 credits not yet taken back remain');
-  check('a second deduction for the same transaction takes only what is still outstanding');
+  assert.equal(await balance(userA), 8);
+  check('a refund deducts at most the balance (floor 0) and only what is outstanding; the same adjustment twice deducts once');
 
-  const reversed = await adjust('txn_1', 'adj_3', 5, true);
-  assert.equal(reversed.status, 'reversed');
-  assert.equal(reversed.credits_changed, 5);
-  assert.equal((await adjust('txn_1', 'adj_4', 5, true)).credits_changed, 0);
-  check('a chargeback reversal gives back exactly what deductions took; a second one gives nothing');
+  // Review P2: a chargeback reversal gives back only what chargebacks took.
+  const userR = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userR]);
+  await checkout(userR, 'txn_rev');
+  await grant(userR, 'txn_rev', 5);                        // balance 6
+  assert.equal((await adjust('txn_rev', 'adj_r1', 3)).credits_changed, -3);          // refund 3 -> 3
+  await setBalance(userR, 0);
+  assert.equal((await adjust('txn_rev', 'adj_r2', 2, 'chargeback')).credits_changed, 0); // chargeback at balance 0
+  assert.equal((await adjust('txn_rev', 'adj_r3', 2, 'chargeback_reverse')).credits_changed, 0, 'nothing to give back: the chargeback took 0');
+  assert.equal(await balance(userR), 0);
+  await setBalance(userR, 5);
+  const userS = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userS]);
+  await checkout(userS, 'txn_cb');
+  await grant(userS, 'txn_cb', 5);                         // balance 6
+  assert.equal((await adjust('txn_cb', 'adj_s1', 5, 'chargeback')).credits_changed, -5);
+  assert.equal((await adjust('txn_cb', 'adj_s2', 5, 'chargeback_reverse')).credits_changed, 5);
+  assert.equal((await adjust('txn_cb', 'adj_s3', 5, 'chargeback_reverse')).credits_changed, 0);
+  assert.equal(await balance(userS), 6);
+  check('a chargeback reversal gives back only what chargebacks deducted, never a refund, and only once');
 
   const partial = await adjust('txn_par', 'adj_p', 3);
   assert.equal(partial.credits_changed, -3, 'a refund of some items deducts only their credits');
   check('a partial refund (3 of 10 credits) deducts only those credits');
 
-  assert.deepEqual(await adjust('txn_unknown', 'adj_9', 5), { status: 'no_grant' });
-  assert.equal((await admin.query("select count(*)::int n from credit_transactions where paddle_adjustment_id='adj_9'")).rows[0].n, 0);
-  check('an adjustment before its grant changes nothing and is not recorded (the webhook retries it)');
+  // Review P2: an adjustment before its grant is kept and applied by the grant.
+  const userD = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userD]);
+  await checkout(userD, 'txn_early', 'pri_10');
+  assert.deepEqual(await adjust('txn_early', 'adj_e1', 10), { status: 'recorded_before_grant' });
+  assert.deepEqual(await adjust('txn_early', 'adj_e1', 10), { status: 'duplicate' });
+  const early = await grant(userD, 'txn_early', 10, 'pri_10');
+  assert.equal(early.status, 'granted');
+  assert.equal(early.balance, 1, 'the grant applied the refund that came first');
+  assert.equal(await balance(userD), 1);
+  assert.equal((await admin.query("select count(*)::int n from paddle_pending_adjustments where paddle_transaction_id='txn_early'")).rows[0].n, 0);
+  assert.deepEqual(await adjust('txn_early', 'adj_e1', 10), { status: 'duplicate' });
+  check('a refund before its grant is kept, applied by the grant, then gone; its retry is a no-op');
 
-  const ledger = (await admin.query("select reason, paddle_transaction_id, related_paddle_transaction_id, environment from credit_transactions where related_paddle_transaction_id='txn_1'")).rows;
-  assert.ok(ledger.length === 4 && ledger.every(r => r.paddle_transaction_id === null && r.environment === 'Sandbox'));
+  assert.deepEqual(await adjust('txn_unknown', 'adj_9', 5), { status: 'unbound' });
+  assert.equal((await admin.query("select count(*)::int n from paddle_pending_adjustments where paddle_adjustment_id='adj_9'")).rows[0].n, 0);
+  check('an adjustment for a transaction this server never opened is unbound and writes nothing (the webhook answers 200)');
+
+  // A refund racing its own grant: the credits never survive the refund.
+  const userE = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [userE]);
+  const outcomes = new Set();
+  for (let i = 0; i < 15; i++) {
+    await checkout(userE, `txn_rg_${i}`);
+    const [, refundResult] = await Promise.all([grant(userE, `txn_rg_${i}`, 5), adjust(`txn_rg_${i}`, `adj_rg_${i}`, 5)]);
+    outcomes.add(refundResult.status);
+    assert.equal(await balance(userE), 1, `iteration ${i}: balance ${await balance(userE)}`);
+  }
+  check(`15 refund/grant races net to zero (refund outcomes: ${[...outcomes].sort().join(', ')})`);
+
+  const ledger = (await admin.query("select reason, paddle_transaction_id, environment from credit_transactions where related_paddle_transaction_id='txn_1'")).rows;
+  assert.ok(ledger.length === 2 && ledger.every(r => r.paddle_transaction_id === null && r.environment === 'Sandbox'));
   check('adjustment rows point at the grant, keep paddle_transaction_id unique to it, carry its environment');
 
   // A refund racing unlocks never drives the balance below zero.
   const userC = randomUUID();
   await admin.query('insert into auth.users(id) values ($1)', [userC]);
+  await checkout(userC, 'txn_race', 'pri_5', 'Production');
   await grant(userC, 'txn_race', 5, 'pri_5', 'Production');
   const opts = Array.from({ length: 6 }, () => randomUUID());
   for (const id of opts) {

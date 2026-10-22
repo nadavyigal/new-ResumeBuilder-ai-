@@ -41,14 +41,175 @@ create table if not exists public.paddle_events (
   received_at timestamptz not null default now()
 );
 
+-- Adjustments that arrive before their transaction.completed (Paddle does not
+-- promise event order). Kept until the grant, which applies them in order.
+create table if not exists public.paddle_pending_adjustments (
+  paddle_adjustment_id text primary key,
+  paddle_transaction_id text not null,
+  action text not null check (action in ('refund', 'chargeback', 'chargeback_reverse')),
+  credits integer not null check (credits >= 0),
+  received_at timestamptz not null default now()
+);
+
+create index if not exists paddle_pending_adjustments_transaction_idx
+  on public.paddle_pending_adjustments (paddle_transaction_id);
+
 alter table public.paddle_checkouts enable row level security;
 alter table public.paddle_events enable row level security;
-revoke all on public.paddle_checkouts, public.paddle_events from anon, authenticated;
+alter table public.paddle_pending_adjustments enable row level security;
+revoke all on public.paddle_checkouts, public.paddle_events, public.paddle_pending_adjustments
+  from anon, authenticated;
 
--- 4. grant_paddle_credits (16.4.1 step 3). One Paddle transaction ID grants
---    once, ever, and only to the account that first claimed it. Same shape and
---    locks as grant_apple_purchase: a per-transaction advisory lock, then the
---    profile row lock that unlock_export also takes.
+-- 4. apply_paddle_adjustment (16.5). The user comes from the grant row; the
+--    adjustment ID is the idempotency key; exports already unlocked stay unlocked.
+--      refund, chargeback: deduct the credits of the refunded items, at most
+--        what is still outstanding on the grant and at most the balance (floor 0).
+--      chargeback_reverse: give back what chargebacks deducted and earlier
+--        reversals have not returned, never what a refund took.
+--    Before the grant: recorded in paddle_pending_adjustments when this server
+--    opened the checkout (the grant applies it), 'unbound' when it did not (the
+--    founder refunds by hand, 16.4.1 step 1), so the webhook can answer 200.
+create or replace function public.apply_paddle_adjustment(
+  p_paddle_transaction_id text,
+  p_paddle_adjustment_id text,
+  p_action text,
+  p_credits integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_transaction_id text := trim(coalesce(p_paddle_transaction_id, ''));
+  v_adjustment_id text := trim(coalesce(p_paddle_adjustment_id, ''));
+  v_user_id uuid;
+  v_granted integer;
+  v_price_id text;
+  v_environment text;
+  v_has_grant boolean;
+  v_balance integer;
+  v_net_deducted integer;
+  v_chargeback_outstanding integer;
+  v_change integer;
+  v_rows integer;
+begin
+  if length(v_transaction_id) = 0 or length(v_adjustment_id) = 0 then
+    raise exception 'p_paddle_transaction_id and p_paddle_adjustment_id are required';
+  end if;
+  if p_action is null or p_action not in ('refund', 'chargeback', 'chargeback_reverse') then
+    raise exception 'p_action must be refund, chargeback or chargeback_reverse';
+  end if;
+  if p_credits is null or p_credits < 0 then
+    raise exception 'p_credits must be zero or positive';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('paddle_txn:' || v_transaction_id, 0));
+
+  if exists (select 1 from public.credit_transactions where paddle_adjustment_id = v_adjustment_id)
+     or exists (select 1 from public.paddle_pending_adjustments where paddle_adjustment_id = v_adjustment_id) then
+    return jsonb_build_object('status', 'duplicate');
+  end if;
+
+  select user_id, delta, product_id, environment
+    into v_user_id, v_granted, v_price_id, v_environment
+  from public.credit_transactions
+  where paddle_transaction_id = v_transaction_id;
+  v_has_grant := found;
+
+  if not v_has_grant then
+    if not exists (select 1 from public.paddle_checkouts where paddle_transaction_id = v_transaction_id) then
+      return jsonb_build_object('status', 'unbound');
+    end if;
+    insert into public.paddle_pending_adjustments (paddle_adjustment_id, paddle_transaction_id, action, credits)
+    values (v_adjustment_id, v_transaction_id, p_action, p_credits);
+    return jsonb_build_object('status', 'recorded_before_grant');
+  end if;
+
+  select credit_balance
+    into v_balance
+  from public.profiles
+  where user_id = v_user_id
+  for update;
+
+  -- Positive: credits all deductions took and reversals have not given back.
+  select coalesce(-sum(delta), 0)
+    into v_net_deducted
+  from public.credit_transactions
+  where related_paddle_transaction_id = v_transaction_id;
+
+  -- Positive: credits chargebacks took and reversals have not given back.
+  select coalesce(-sum(delta), 0)
+    into v_chargeback_outstanding
+  from public.credit_transactions
+  where related_paddle_transaction_id = v_transaction_id
+    and reason in ('paddle_chargeback', 'paddle_chargeback_reversed');
+
+  if p_action = 'chargeback_reverse' then
+    v_change := least(p_credits, greatest(v_chargeback_outstanding, 0));
+  else
+    v_change := -least(
+      p_credits,
+      greatest(v_granted - v_net_deducted, 0),
+      greatest(coalesce(v_balance, 0), 0)
+    );
+  end if;
+
+  -- A zero-delta row still records the adjustment, so a repeat is a no-op.
+  insert into public.credit_transactions (
+    user_id, delta, reason, source, product_id, environment,
+    paddle_adjustment_id, related_paddle_transaction_id
+  )
+  values (
+    v_user_id,
+    v_change,
+    case p_action
+      when 'refund' then 'paddle_refund'
+      when 'chargeback' then 'paddle_chargeback'
+      else 'paddle_chargeback_reversed'
+    end,
+    'paddle',
+    v_price_id,
+    v_environment,
+    v_adjustment_id,
+    v_transaction_id
+  )
+  on conflict (paddle_adjustment_id) do nothing;
+
+  get diagnostics v_rows = row_count;
+
+  if v_rows = 0 then
+    return jsonb_build_object('status', 'duplicate', 'user_id', v_user_id, 'balance', v_balance);
+  end if;
+
+  if v_change <> 0 then
+    update public.profiles
+    set credit_balance = credit_balance + v_change,
+        updated_at = now()
+    where user_id = v_user_id
+    returning credit_balance into v_balance;
+  end if;
+
+  return jsonb_build_object(
+    'status', case when p_action = 'chargeback_reverse' then 'reversed' else 'deducted' end,
+    'user_id', v_user_id,
+    'credits_changed', v_change,
+    'balance', v_balance,
+    'price_id', v_price_id,
+    'environment', v_environment
+  );
+end;
+$$;
+
+revoke all on function public.apply_paddle_adjustment(text, text, text, integer) from public, anon, authenticated;
+grant execute on function public.apply_paddle_adjustment(text, text, text, integer) to service_role;
+
+-- 5. grant_paddle_credits (16.4.1 step 3). One Paddle transaction ID grants
+--    once, ever, and only to the account that opened the checkout: the
+--    function checks paddle_checkouts itself instead of trusting the caller.
+--    Same locks as grant_apple_purchase: a per-transaction advisory lock, then
+--    the profile row lock that unlock_export also takes. Adjustments that
+--    arrived first are applied right after the grant, in arrival order.
 create or replace function public.grant_paddle_credits(
   p_user_id uuid,
   p_delta integer,
@@ -67,6 +228,7 @@ declare
   v_rows integer;
   v_owner uuid;
   v_existing_delta integer;
+  v_pending record;
 begin
   if p_delta is null or p_delta <= 0 then
     raise exception 'p_delta must be positive';
@@ -79,6 +241,13 @@ begin
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended('paddle_txn:' || v_transaction_id, 0));
+
+  if not exists (
+    select 1 from public.paddle_checkouts
+    where paddle_transaction_id = v_transaction_id and user_id = p_user_id
+  ) then
+    return jsonb_build_object('status', 'unbound');
+  end if;
 
   insert into public.profiles (id, user_id, plan_type, optimizations_used, credit_balance)
   values (gen_random_uuid(), p_user_id, 'free', 0, 1)
@@ -107,6 +276,20 @@ begin
     where user_id = p_user_id
     returning credit_balance into v_balance;
 
+    -- Refunds or chargebacks that arrived before this grant.
+    for v_pending in
+      select paddle_adjustment_id, action, credits
+      from public.paddle_pending_adjustments
+      where paddle_transaction_id = v_transaction_id
+      order by received_at, paddle_adjustment_id
+    loop
+      delete from public.paddle_pending_adjustments where paddle_adjustment_id = v_pending.paddle_adjustment_id;
+      perform public.apply_paddle_adjustment(
+        v_transaction_id, v_pending.paddle_adjustment_id, v_pending.action, v_pending.credits
+      );
+    end loop;
+
+    select credit_balance into v_balance from public.profiles where user_id = p_user_id;
     return jsonb_build_object('status', 'granted', 'credits_granted', p_delta, 'balance', v_balance);
   end if;
 
@@ -125,125 +308,3 @@ $$;
 
 revoke all on function public.grant_paddle_credits(uuid, integer, text, text, text) from public, anon, authenticated;
 grant execute on function public.grant_paddle_credits(uuid, integer, text, text, text) to service_role;
-
--- 5. apply_paddle_adjustment (16.5). An approved refund or a chargeback deducts
---    the credits of the refunded items, at most what is still outstanding on
---    the grant and at most the current balance; a chargeback reversal gives back
---    what earlier deductions took and no more. The user comes from the grant
---    row. The adjustment ID is the idempotency key. Exports already unlocked
---    stay unlocked.
---
---    With no grant yet (Paddle does not promise event order), the function
---    returns 'no_grant' and changes nothing; the webhook answers non-2xx so
---    Paddle retries it after transaction.completed has been handled.
-create or replace function public.apply_paddle_adjustment(
-  p_paddle_transaction_id text,
-  p_paddle_adjustment_id text,
-  p_credits integer,
-  p_reversed boolean
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path to 'public'
-as $$
-declare
-  v_transaction_id text := trim(coalesce(p_paddle_transaction_id, ''));
-  v_adjustment_id text := trim(coalesce(p_paddle_adjustment_id, ''));
-  v_user_id uuid;
-  v_granted integer;
-  v_price_id text;
-  v_environment text;
-  v_balance integer;
-  v_net_deducted integer;
-  v_change integer;
-  v_rows integer;
-begin
-  if length(v_transaction_id) = 0 or length(v_adjustment_id) = 0 then
-    raise exception 'p_paddle_transaction_id and p_paddle_adjustment_id are required';
-  end if;
-  if p_credits is null or p_credits < 0 then
-    raise exception 'p_credits must be zero or positive';
-  end if;
-
-  perform pg_advisory_xact_lock(hashtextextended('paddle_txn:' || v_transaction_id, 0));
-
-  if exists (select 1 from public.credit_transactions where paddle_adjustment_id = v_adjustment_id) then
-    return jsonb_build_object('status', 'duplicate');
-  end if;
-
-  select user_id, delta, product_id, environment
-    into v_user_id, v_granted, v_price_id, v_environment
-  from public.credit_transactions
-  where paddle_transaction_id = v_transaction_id;
-
-  if not found then
-    return jsonb_build_object('status', 'no_grant');
-  end if;
-
-  select credit_balance
-    into v_balance
-  from public.profiles
-  where user_id = v_user_id
-  for update;
-
-  -- Positive: credits deductions took and reversals have not given back.
-  select coalesce(-sum(delta), 0)
-    into v_net_deducted
-  from public.credit_transactions
-  where related_paddle_transaction_id = v_transaction_id;
-
-  if coalesce(p_reversed, false) then
-    v_change := least(p_credits, greatest(v_net_deducted, 0));
-  else
-    v_change := -least(
-      p_credits,
-      greatest(v_granted - v_net_deducted, 0),
-      greatest(coalesce(v_balance, 0), 0)
-    );
-  end if;
-
-  -- A zero-delta row still records the adjustment, so a repeat is a no-op.
-  insert into public.credit_transactions (
-    user_id, delta, reason, source, product_id, environment,
-    paddle_adjustment_id, related_paddle_transaction_id
-  )
-  values (
-    v_user_id,
-    v_change,
-    case when coalesce(p_reversed, false) then 'paddle_chargeback_reversed' else 'paddle_refund' end,
-    'paddle',
-    v_price_id,
-    v_environment,
-    v_adjustment_id,
-    v_transaction_id
-  )
-  on conflict (paddle_adjustment_id) do nothing;
-
-  get diagnostics v_rows = row_count;
-
-  if v_rows = 0 then
-    return jsonb_build_object('status', 'duplicate', 'user_id', v_user_id, 'balance', v_balance);
-  end if;
-
-  if v_change <> 0 then
-    update public.profiles
-    set credit_balance = credit_balance + v_change,
-        updated_at = now()
-    where user_id = v_user_id
-    returning credit_balance into v_balance;
-  end if;
-
-  return jsonb_build_object(
-    'status', case when coalesce(p_reversed, false) then 'reversed' else 'deducted' end,
-    'user_id', v_user_id,
-    'credits_changed', v_change,
-    'balance', v_balance,
-    'price_id', v_price_id,
-    'environment', v_environment
-  );
-end;
-$$;
-
-revoke all on function public.apply_paddle_adjustment(text, text, integer, boolean) from public, anon, authenticated;
-grant execute on function public.apply_paddle_adjustment(text, text, integer, boolean) to service_role;
