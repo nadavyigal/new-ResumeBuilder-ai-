@@ -26,21 +26,22 @@ type PaddleEvent = {
 const ok = () => NextResponse.json({ received: true });
 
 /**
- * Analytics never decides the response: a PostHog failure after a committed
- * grant must not turn into a 500 that Paddle retries forever.
+ * Analytics never decides or delays the response. It is dispatched, not
+ * awaited: PostHog's flush can take up to its 10 s timeout, and Paddle wants an
+ * answer within 5 s (Codex P2). A failure is logged and never becomes a 500.
  */
-async function track(distinctId: string, event: string, properties: Record<string, unknown>) {
-  try {
-    await captureServerEvent(distinctId, event, properties);
-  } catch (error) {
-    console.warn('PostHog capture failed', { event, details: error instanceof Error ? error.message : String(error) });
-  }
+function track(distinctId: string, event: string, properties: Record<string, unknown>) {
+  void Promise.resolve()
+    .then(() => captureServerEvent(distinctId, event, properties))
+    .catch((error) => {
+      console.warn('PostHog capture failed', { event, details: error instanceof Error ? error.message : String(error) });
+    });
 }
 
 function reject(reason: 'signature' | 'stale' | 'config', status: number) {
   // Not awaited: unauthenticated callers must not be able to slow this route
   // or hold it on an analytics flush.
-  void track('server', 'paddle_webhook_rejected', { reason });
+  track('server', 'paddle_webhook_rejected', { reason });
   return NextResponse.json({ error: reason === 'config' ? 'paddle_unavailable' : 'invalid_signature' }, { status });
 }
 
@@ -93,13 +94,14 @@ export async function POST(request: NextRequest) {
   }
 
   // Written after handling, so an event that failed half way runs again on retry.
-  // The ledger keys keep the handling itself idempotent, so a failed write here
-  // only means a harmless repeat later.
+  // A failed write answers 500 so Paddle retries (Codex P2): the ledger keys make
+  // the repeat harmless, and the event lands in the audit table.
   const recorded = await supabase
     .from('paddle_events')
     .upsert({ event_id: eventId, event_type: eventType }, { onConflict: 'event_id', ignoreDuplicates: true });
   if (recorded.error) {
-    console.warn('paddle_events write failed after handling', { eventType, details: recorded.error.message });
+    console.error('paddle_events write failed after handling', { eventType, details: recorded.error.message });
+    return NextResponse.json({ error: 'database_unavailable' }, { status: 500 });
   }
   return ok();
 }
@@ -129,7 +131,7 @@ async function handleTransactionCompleted(
     // Not opened by this server, or custom_data disagrees: grant nothing.
     // The founder refunds by hand.
     console.warn('paddle_unbound_transaction', { hasCheckout: Boolean(checkout.data), customDataMismatch: Boolean(claimedUser) });
-    await track('server', 'paddle_webhook_rejected', { reason: 'unbound_transaction' });
+    track('server', 'paddle_webhook_rejected', { reason: 'unbound_transaction' });
     return true;
   }
   const userId: string = checkout.data.user_id;
@@ -137,7 +139,7 @@ async function handleTransactionCompleted(
     // A checkout opened in the other Paddle environment (for example a sandbox
     // preview that shares this database): never let one credit the other.
     console.warn('Paddle event environment does not match its checkout; ignored', { environment });
-    await track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
+    track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
     return true;
   }
 
@@ -162,7 +164,7 @@ async function handleTransactionCompleted(
   }
   const status = (result as { status?: unknown } | null)?.status;
   if (status === 'granted' || status === 'already_granted') {
-    await track(userId, 'paddle_purchase_granted', {
+    track(userId, 'paddle_purchase_granted', {
       price_id: firstPriceId,
       credits_granted: credits,
       environment,
@@ -206,7 +208,7 @@ async function handleAdjustment(
   }
   if (checkout.data && checkout.data.environment !== environment) {
     console.warn('Paddle adjustment environment does not match its checkout; ignored', { environment });
-    await track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
+    track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
     return true;
   }
   const grantRow = await supabase
@@ -237,7 +239,7 @@ async function handleAdjustment(
   const outcome = (result ?? {}) as { status?: unknown; user_id?: unknown; credits_changed?: unknown };
   if ((outcome.status === 'deducted' || outcome.status === 'reversed') && typeof outcome.user_id === 'string') {
     const changed = typeof outcome.credits_changed === 'number' ? outcome.credits_changed : 0;
-    await track(outcome.user_id, 'paddle_adjustment_processed', {
+    track(outcome.user_id, 'paddle_adjustment_processed', {
       action: decision.action,
       credits_deducted: -changed,
       environment,

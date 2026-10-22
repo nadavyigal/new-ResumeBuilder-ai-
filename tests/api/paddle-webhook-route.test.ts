@@ -211,6 +211,18 @@ describe('POST /api/v1/paddle/webhook', () => {
     expect(upsert).not.toHaveBeenCalled();
   });
 
+  it('a failed paddle_events write answers 500 so Paddle retries (the grant is idempotent)', async () => {
+    const { POST, rpc, upsert } = load();
+    upsert.mockImplementation(async () => ({ error: { message: 'timeout' } }) as any);
+    expect((await POST(signed(completed()))).status).toBe(500);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not wait on analytics after a grant', async () => {
+    const { POST } = load({ capture: () => new Promise<undefined>(() => {}) });
+    expect((await POST(signed(completed()))).status).toBe(200);
+  });
+
   it('a read failure answers 500', async () => {
     const { POST, rpc } = load({ readError: { message: 'timeout' } });
     const response = await POST(signed(completed()));
