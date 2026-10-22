@@ -4,6 +4,9 @@ import { captureServerEvent } from '@/lib/posthog-server';
 import { createPaddleTransaction, getPaddleCheckoutConfig } from '@/lib/paddle';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
 
+// The Paddle API call can take up to its 15 s timeout.
+export const maxDuration = 30;
+
 /**
  * POST /api/v1/web-checkout { priceId } (StoreKit spec 16.3 step 2).
  *
@@ -58,7 +61,8 @@ export async function POST(request: NextRequest) {
     environment: config.environment,
   });
   if (error) {
-    // The draft transaction in Paddle stays unpaid and expires; nothing to undo.
+    // The transaction ID is never returned, so nobody can open or pay it; it
+    // stays an unpaid draft in Paddle, and the webhook would answer `unbound`.
     console.error('paddle_checkouts insert failed', { details: error.message });
     return NextResponse.json({ error: 'checkout_unavailable' }, { status: 500 });
   }

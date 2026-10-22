@@ -73,6 +73,19 @@ describe('POST /api/v1/web-checkout', () => {
     expect(captureServerEvent).toHaveBeenCalledWith(USER, 'web_checkout_opened', expect.objectContaining({ price_id: 'pri_five' }));
   });
 
+  it('ignores a userId in the body: the checkout is bound to the session user', async () => {
+    const { POST, insert, createPaddleTransaction } = load();
+    await POST(request({ priceId: 'pri_five', userId: '22222222-2222-4222-8222-222222222222' }));
+    expect(createPaddleTransaction).toHaveBeenCalledWith(expect.anything(), 'pri_five', USER);
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ user_id: USER }));
+  });
+
+  it('never returns the API key', async () => {
+    const { POST } = load();
+    const response = await POST(request({ priceId: 'pri_five' }));
+    expect(JSON.stringify(await response.json())).not.toContain('pdl_sdbx_apikey_test');
+  });
+
   it('503 without the Paddle config', async () => {
     delete process.env.PADDLE_API_KEY;
     const { POST, createPaddleTransaction } = load();
@@ -83,6 +96,7 @@ describe('POST /api/v1/web-checkout', () => {
   it('401 for no user, and account_required for an anonymous session', async () => {
     const none = load({ user: null });
     expect((await none.POST(request({ priceId: 'pri_five' }))).status).toBe(401);
+    expect(none.createPaddleTransaction).not.toHaveBeenCalled();
     const anonymous = load({ user: { id: USER, is_anonymous: true } });
     const response = await anonymous.POST(request({ priceId: 'pri_five' }));
     expect(response.status).toBe(401);
