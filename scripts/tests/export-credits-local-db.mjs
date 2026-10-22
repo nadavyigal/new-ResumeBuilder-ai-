@@ -61,6 +61,15 @@ try {
   const acl = (await admin.query(`select exists(select 1 from pg_proc p, lateral aclexplode(coalesce(p.proacl, acldefault('f',p.proowner))) a where p.oid=$1::regprocedure and a.grantee=0 and a.privilege_type='EXECUTE') allowed`, [signature])).rows[0].allowed;
   assert.equal(acl, false);
   check('PUBLIC/anon/authenticated cannot execute; service_role can');
+  // Every SECURITY DEFINER function this migration creates or replaces trusts p_user_id.
+  for (const fn of ['public.consume_credit(uuid,text)', 'public.grant_apple_credits(uuid,integer,text,text,text)', signature]) {
+    const grantees = (await admin.query(`select coalesce(r.rolname,'PUBLIC') grantee from pg_proc p,
+      lateral aclexplode(coalesce(p.proacl, acldefault('f',p.proowner))) a left join pg_roles r on r.oid=a.grantee
+      where p.oid=$1::regprocedure and a.privilege_type='EXECUTE'`, [fn])).rows.map(r => r.grantee);
+    for (const role of ['PUBLIC', 'anon', 'authenticated']) assert.ok(!grantees.includes(role), `${role} can execute ${fn}`);
+    assert.ok(grantees.includes('service_role'), `service_role cannot execute ${fn}`);
+  }
+  check('credit-writing SECURITY DEFINER functions: no PUBLIC/anon/authenticated EXECUTE');
   async function asRole(role, sql, params = [], uid) {
     const client = await pool.connect();
     try {
@@ -89,6 +98,8 @@ try {
   const f = await fixture();
   for (const role of ['anon', 'authenticated']) {
     await assert.rejects(asRole(role, 'select public.unlock_export($1,$2,true)', [f.user,f.opt]), { code: '42501' });
+    await assert.rejects(asRole(role, "select public.grant_apple_credits($1,10,'x','apple_iap',$2)", [f.user, randomUUID()], f.user), { code: '42501' });
+    await assert.rejects(asRole(role, "select public.consume_credit($1,'x')", [f.user], f.user), { code: '42501' });
     for (const sql of [
       "insert into export_unlocks(user_id,optimization_id,source) values ($1,$2,'credit')",
       "update export_unlocks set source='credit' where user_id=$1 and optimization_id=$2",
@@ -96,7 +107,7 @@ try {
     ]) await assert.rejects(asRole(role, sql, [f.user,f.opt], f.user), { code: '42501' });
     await assert.rejects(asRole(role, 'truncate export_unlocks'), { code: '42501' });
   }
-  check('real role calls deny RPC and INSERT/UPDATE/DELETE/TRUNCATE');
+  check('real role calls deny unlock/grant/consume RPCs and INSERT/UPDATE/DELETE/TRUNCATE');
   const concurrent = await Promise.all(Array.from({ length:20 }, () => call(f)));
   assert.equal(concurrent.filter(r=>r.status==='unlocked').length,1);
   assert.equal(concurrent.filter(r=>r.status==='already_unlocked').length,19);
@@ -148,6 +159,12 @@ try {
   assert.equal(await grant(purchase.user),5); assert.equal(await grant(purchase.user),5);
   assert.deepEqual(await state(purchase), { balance:5, unlocks:0, ledger:1, delta:5 });
   check('duplicate Apple transaction grants only once');
+  assert.equal(concurrent.find(r=>r.status==='unlocked').paid_user,false);
+  assert.equal((await call(free,false)).paid_user,false);
+  const paid = await call(purchase);
+  assert.equal(paid.status,'unlocked'); assert.equal(paid.paid_user,true); assert.equal(paid.balance,4);
+  assert.equal((await call(purchase,false)).paid_user,true);
+  check('paid_user is false without an apple_iap row and true after a purchase');
   const foreignBalance = await grant(userB);
   assert.equal(foreignBalance,3);
   assert.equal((await admin.query('select count(*)::int n from credit_transactions where user_id=$1',[userB])).rows[0].n,0);

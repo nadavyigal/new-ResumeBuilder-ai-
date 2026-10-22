@@ -105,6 +105,15 @@ begin
 end;
 $$;
 
+-- Both functions trust p_user_id. The baseline only revokes PUBLIC, and
+-- Supabase default privileges grant new public functions to anon and
+-- authenticated, so a fresh replay (branch, local) left them callable by any
+-- client: anyone could grant themselves Apple credits. Service role only.
+revoke all on function public.consume_credit(uuid, text) from public, anon, authenticated;
+grant execute on function public.consume_credit(uuid, text) to service_role;
+revoke all on function public.grant_apple_credits(uuid, integer, text, text, text) from public, anon, authenticated;
+grant execute on function public.grant_apple_credits(uuid, integer, text, text, text) to service_role;
+
 -- 2. Ledger columns for purchases and refunds (spec 5). Refund rows point at
 --    the grant through related_apple_transaction_id; apple_transaction_id stays
 --    unique to the grant row.
@@ -149,6 +158,7 @@ declare
   v_balance integer;
   v_source text;
   v_rows integer;
+  v_paid boolean;
 begin
   -- Step 1: the optimization must belong to this user.
   if not exists (
@@ -171,6 +181,14 @@ begin
   where user_id = p_user_id
   for update;
 
+  -- Analytics only (spec 10.3): a paid user has any Apple purchase row.
+  v_paid := exists (
+    select 1
+    from public.credit_transactions
+    where user_id = p_user_id
+      and source = 'apple_iap'
+  );
+
   -- Step 3: already unlocked, whatever p_charge is. No spend.
   select source
     into v_source
@@ -179,7 +197,7 @@ begin
     and optimization_id = p_optimization_id;
 
   if found then
-    return jsonb_build_object('status', 'already_unlocked', 'source', v_source, 'balance', v_balance);
+    return jsonb_build_object('status', 'already_unlocked', 'source', v_source, 'balance', v_balance, 'paid_user', v_paid);
   end if;
 
   -- Step 4: ungated. Record it so the export stays free after the gate opens.
@@ -188,7 +206,7 @@ begin
     values (p_user_id, p_optimization_id, 'ungated')
     on conflict (user_id, optimization_id) do nothing;
 
-    return jsonb_build_object('status', 'ungated');
+    return jsonb_build_object('status', 'ungated', 'paid_user', v_paid);
   end if;
 
   -- Step 5: no credit, no unlock. Nothing is written.
@@ -210,7 +228,7 @@ begin
     where user_id = p_user_id
       and optimization_id = p_optimization_id;
 
-    return jsonb_build_object('status', 'already_unlocked', 'source', v_source, 'balance', v_balance);
+    return jsonb_build_object('status', 'already_unlocked', 'source', v_source, 'balance', v_balance, 'paid_user', v_paid);
   end if;
 
   update public.profiles
@@ -222,7 +240,7 @@ begin
   insert into public.credit_transactions (user_id, delta, reason, source, optimization_id)
   values (p_user_id, -1, 'export_unlock', 'usage', p_optimization_id);
 
-  return jsonb_build_object('status', 'unlocked', 'balance', v_balance);
+  return jsonb_build_object('status', 'unlocked', 'balance', v_balance, 'paid_user', v_paid);
 end;
 $$;
 
