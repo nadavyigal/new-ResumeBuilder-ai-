@@ -112,11 +112,15 @@ export function WebExportPaywall({
           setPhase('waiting');
           setMessage(t('waiting'));
           const granted = await waitForBalanceAbove(balanceBefore.current, readBalance);
+          setPaddleEventListener(null);
           if (granted) {
             posthog.capture('purchase_completed', { product_id: pack.priceId, credits_granted: pack.credits, platform: 'web', store: 'paddle' });
-            setPaddleEventListener(null);
             onUnlocked();
           } else {
+            // Paid, grant not visible yet: let the user close and export again
+            // later (the credits arrive with the webhook). No new purchase is
+            // offered from this state.
+            setPhase('unavailable');
             setMessage(t('delayed'));
           }
         });
@@ -139,7 +143,10 @@ export function WebExportPaywall({
   const label = (credits: number) => (credits === 1 ? t('pack1') : credits === 5 ? t('pack5') : t('pack10'));
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (next ? undefined : close())}>
+    // Hidden while Paddle's overlay is up: a modal dialog would trap focus and
+    // block pointer events on Paddle's iframe, and a click there would count as
+    // "outside" and close this sheet mid-payment.
+    <Dialog open={open && phase !== 'opening'} onOpenChange={(next) => (next ? undefined : close())}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t('title')}</DialogTitle>
@@ -170,7 +177,7 @@ export function WebExportPaywall({
                     <span className="font-medium">{label(pack.credits)}</span>
                     {highlighted && <span className="text-xs text-muted-foreground">{t('recommended')}</span>}
                   </span>
-                  <span className="font-semibold tabular-nums">{prices[pack.priceId] ?? ''}</span>
+                  <span className="font-semibold tabular-nums" dir="ltr">{prices[pack.priceId] ?? ''}</span>
                 </button>
               );
             })}

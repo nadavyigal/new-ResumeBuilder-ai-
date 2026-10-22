@@ -52,13 +52,15 @@ export function loadPaddle(environment: PaddleEnvironmentName): Promise<PaddleGl
   loading = new Promise<PaddleGlobal>((resolve, reject) => {
     const initialize = () => {
       const paddle = window.Paddle;
-      if (!paddle) {
-        reject(new Error('paddle_unavailable'));
-        return;
+      try {
+        if (!paddle) throw new Error('paddle_unavailable');
+        if (environment === 'sandbox') paddle.Environment.set('sandbox');
+        paddle.Initialize({ token, eventCallback: (event) => eventListener?.(event) });
+        resolve(paddle);
+      } catch (error) {
+        loading = null; // the next sheet tries again instead of failing forever
+        reject(error instanceof Error ? error : new Error('paddle_initialize_failed'));
       }
-      if (environment === 'sandbox') paddle.Environment.set('sandbox');
-      paddle.Initialize({ token, eventCallback: (event) => eventListener?.(event) });
-      resolve(paddle);
     };
     if (window.Paddle) {
       initialize();

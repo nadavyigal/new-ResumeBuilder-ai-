@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Link } from "@/navigation";
+import { Link, useRouter as useLocaleRouter } from "@/navigation";
+import { ROUTES } from '@/lib/constants';
 import { ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft, Search as SearchIcon, SlidersHorizontal, Briefcase } from '@/lib/icons';
 import { useOptimizations } from '@/hooks/useOptimizations';
 import { HistoryCard } from '@/components/mobile/history-card';
@@ -32,6 +33,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { readWebExportGate, unlockWebExport } from '@/lib/web-export-gate';
 import HistoryTableSkeleton from './HistoryTableSkeleton';
 import EmptyState from './EmptyState';
 import OptimizationRow from './OptimizationRow';
@@ -67,6 +69,7 @@ import { useLocale, useTranslations } from 'next-intl';
  */
 export default function HistoryTable() {
   const router = useRouter();
+  const localeRouter = useLocaleRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const t = useTranslations('dashboard.history');
@@ -198,6 +201,22 @@ export default function HistoryTable() {
     setApplyingIds(prev => new Set(prev).add(optimization.id));
 
     try {
+      // Web export credits on (spec 16.7): the export must be unlocked first.
+      // Without a credit, stop here (no job link, no application record) and
+      // go to the optimization page, where the pack sheet is.
+      if (await readWebExportGate()) {
+        const unlock = await unlockWebExport(optimization.id);
+        if (unlock !== 'ok') {
+          setApplyingIds(prev => {
+            const next = new Set(prev);
+            next.delete(optimization.id);
+            return next;
+          });
+          localeRouter.push(`${ROUTES.optimizations}/${optimization.id}`);
+          return;
+        }
+      }
+
       // Step 1: Download PDF
       window.open(`/api/download/${optimization.id}?fmt=pdf`, '_blank');
 
