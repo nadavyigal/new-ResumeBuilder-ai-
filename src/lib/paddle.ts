@@ -167,3 +167,62 @@ export function decideAdjustment(data: AdjustmentData): AdjustmentDecision {
       return { act: false, why: action || 'unknown_action' };
   }
 }
+
+export interface PaddleCheckoutConfig {
+  apiKey: string;
+  apiBase: string;
+  priceCredits: ReadonlyMap<string, number>;
+  environment: PaddleEnvironment;
+}
+
+/**
+ * Config for opening a checkout (16.3 step 2, 16.8). Null means 503. Preview
+ * deployments use sandbox keys only; the API host follows the environment.
+ */
+export function getPaddleCheckoutConfig(
+  env: Record<string, string | undefined> = process.env
+): PaddleCheckoutConfig | null {
+  const apiKey = env.PADDLE_API_KEY?.trim();
+  const priceCredits = parsePriceMap(env.PADDLE_PRICE_MAP);
+  const environment = paddleEnvironment(env.PADDLE_ENVIRONMENT);
+  if (!apiKey || !priceCredits || !environment) return null;
+  const apiBase = environment === 'Production' ? 'https://api.paddle.com' : 'https://sandbox-api.paddle.com';
+  return { apiKey, apiBase, priceCredits, environment };
+}
+
+export type CreateTransactionResult = { ok: true; transactionId: string } | { ok: false; status: number };
+
+/**
+ * `POST /transactions` with `fetch` (W2: no Paddle package). One price,
+ * quantity 1, and the user id in `custom_data` only as a cross-check: the
+ * webhook takes the user from `paddle_checkouts`, never from `custom_data`.
+ */
+export async function createPaddleTransaction(
+  config: PaddleCheckoutConfig,
+  priceId: string,
+  userId: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<CreateTransactionResult> {
+  try {
+    const response = await fetchImpl(`${config.apiBase}/transactions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        items: [{ price_id: priceId, quantity: 1 }],
+        custom_data: { user_id: userId },
+      }),
+      signal: AbortSignal.timeout(15_000),
+      cache: 'no-store',
+    });
+    if (!response.ok) return { ok: false, status: response.status };
+    const json = (await response.json().catch(() => null)) as { data?: { id?: unknown } } | null;
+    const transactionId = typeof json?.data?.id === 'string' ? json.data.id : '';
+    if (!/^txn_[a-z0-9]+$/i.test(transactionId)) return { ok: false, status: 502 };
+    return { ok: true, transactionId };
+  } catch {
+    return { ok: false, status: 504 };
+  }
+}
