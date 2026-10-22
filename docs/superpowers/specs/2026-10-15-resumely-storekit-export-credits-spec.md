@@ -577,6 +577,11 @@ Differences from the sketch above, for the same reasons as the Apple functions (
   keys, never before: a web user at zero credits with nothing to buy is the 2026-08-12 failure (F1).
   A test pins that the flag is ignored while the Paddle config is incomplete.
 - Kill switch: flag off. Web exports are free again at once; balances are kept.
+- **Built 2026-10-22 (Phase 3 story 4):** the page reads `GET /api/v1/web-checkout`
+  (`gated`, packs by credits, environment) once, so with the flag off every export button behaves
+  exactly as before. Prices come from Paddle.js `PricePreview`, never from the server. After a
+  purchase the sheet re-runs the handler the user clicked, which asks the server again and
+  spends the new credit.
 - When it ships, a re-enable task replaces EXD-018 and the 2026-07-03 Gate A record (EXD-037).
 
 ### 16.8 Configuration (names only; values only in Vercel env, never in code)

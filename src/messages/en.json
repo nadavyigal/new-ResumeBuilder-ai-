@@ -1827,5 +1827,23 @@
       "button": "Get Resumely on the App Store",
       "orText": "or"
     }
+  },
+  "exportCredits": {
+    "title": "Export your tailored résumé",
+    "whatACreditBuys": "One credit exports one tailored résumé, in any format, as often as you need.",
+    "neverExpire": "Credits never expire.",
+    "sharedAccount": "Credits stay on your account and work in the Resumely app too.",
+    "pack1": "1 tailored export",
+    "pack5": "5 tailored exports",
+    "pack10": "10 tailored exports",
+    "recommended": "Recommended",
+    "loading": "Loading prices…",
+    "close": "Close",
+    "waiting": "Payment received. Adding your credits…",
+    "delayed": "Your payment went through. Your credits will appear in a minute; try the export again then.",
+    "checkoutError": "The checkout could not open. Try again.",
+    "unavailable": "Export credits are not available right now. Try again later.",
+    "accountRequired": "Create a free account to export your résumé.",
+    "exportFailed": "The export could not start. Try again."
   }
 }

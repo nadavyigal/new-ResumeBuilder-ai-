@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
 import { createPaddleTransaction, getPaddleCheckoutConfig } from '@/lib/paddle';
+import { webExportCreditsEnabled } from '@/lib/export-credits';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
 
 // The Paddle API call can take up to its 15 s timeout.
@@ -74,4 +75,27 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({ transactionId: created.transactionId });
+}
+
+/**
+ * GET /api/v1/web-checkout: what the web export page needs to know. `gated`
+ * says whether web exports spend credits now (16.7), so Print and Copy ask the
+ * server first only then. `packs` lists the three prices in display order with
+ * their credits; amounts and currency come from Paddle.js (`PricePreview`), so
+ * Israel sees shekels (W3) and the server never types a price.
+ */
+export async function GET() {
+  const gated = webExportCreditsEnabled();
+  const config = getPaddleCheckoutConfig();
+  if (!gated || !config) {
+    return NextResponse.json({ gated: false });
+  }
+  const packs = [...config.priceCredits.entries()]
+    .map(([priceId, credits]) => ({ priceId, credits }))
+    .sort((a, b) => a.credits - b.credits);
+  return NextResponse.json({
+    gated: true,
+    environment: config.environment === 'Production' ? 'production' : 'sandbox',
+    packs,
+  });
 }

@@ -1,13 +1,15 @@
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
+import { getPaddleCheckoutConfig, getPaddleWebhookConfig } from '@/lib/paddle';
 
 /**
  * Export credits (StoreKit spec, docs/superpowers/specs/2026-10-15-resumely-storekit-export-credits-spec.md).
  *
  * One credit unlocks one optimization for export, forever: every format, every
- * re-download (spec 6.1). The gate applies only when `EXPORT_CREDITS_ENABLED`
- * is "true" **and** the request comes from the iOS app (spec 6.5, F1). The web
- * stays ungated until the Paddle checkout ships (spec 16.7).
+ * re-download (spec 6.1). The iOS gate applies when `EXPORT_CREDITS_ENABLED`
+ * is "true" (or for a listed test account) and the request comes from the iOS
+ * app (spec 6.5). The web gate is `WEB_EXPORT_CREDITS_ENABLED`, and only with a
+ * complete Paddle config (spec 16.7).
  */
 
 export const EXPORT_CLIENT_HEADER = 'x-resumely-client';
@@ -51,9 +53,22 @@ export function exportPlatform(headers: HeaderReader): 'ios' | 'web' {
   return headers.get(EXPORT_CLIENT_HEADER)?.trim().toLowerCase() === 'ios' ? 'ios' : 'web';
 }
 
+/**
+ * The web gate (spec 16.7, F1 flipped with the Paddle checkout). Ignored while
+ * the Paddle config is incomplete: a web user at zero credits with nothing to
+ * buy is the 2026-08-12 failure. Ships with live keys, in one change.
+ */
+export function webExportCreditsEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return (
+    env.WEB_EXPORT_CREDITS_ENABLED === 'true' &&
+    getPaddleCheckoutConfig(env) !== null &&
+    getPaddleWebhookConfig(env) !== null
+  );
+}
+
 /** True when this request must spend a credit to export. */
 export function isExportCharged(headers: HeaderReader, userId?: string): boolean {
-  if (exportPlatform(headers) !== 'ios') return false;
+  if (exportPlatform(headers) !== 'ios') return webExportCreditsEnabled();
   return exportCreditsEnabled() || exportCreditsTestAccount(userId);
 }
 

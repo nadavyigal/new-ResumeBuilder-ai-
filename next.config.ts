@@ -12,7 +12,7 @@ const contentSecurityPolicy = `
   font-src 'self' data: https:;
   connect-src 'self' https:;
   frame-ancestors 'self';
-  frame-src 'self';
+  frame-src 'self' https://buy.paddle.com https://sandbox-buy.paddle.com;
   object-src 'none';
   base-uri 'self';
   form-action 'self';

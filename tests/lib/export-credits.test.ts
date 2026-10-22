@@ -89,6 +89,38 @@ describe('export credits', () => {
       }
     });
 
+    describe('web gate (16.7)', () => {
+      const paddle = {
+        PADDLE_API_KEY: 'pdl_sdbx_apikey',
+        PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_secret',
+        PADDLE_PRICE_MAP: 'pri_one:1,pri_five:5,pri_ten:10',
+        PADDLE_ENVIRONMENT: 'sandbox',
+      };
+      afterEach(() => {
+        for (const key of [...Object.keys(paddle), 'WEB_EXPORT_CREDITS_ENABLED']) delete process.env[key];
+      });
+
+      it('charges the web once WEB_EXPORT_CREDITS_ENABLED is on with a complete Paddle config', () => {
+        Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
+        const { mod } = loadModule();
+        expect(mod.isExportCharged(headers({}))).toBe(true);
+        expect(mod.isExportCharged(headers({ 'x-resumely-client': 'web' }))).toBe(true);
+      });
+
+      it('ignores the web flag while the Paddle config is incomplete', () => {
+        Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
+        delete process.env.PADDLE_WEBHOOK_SECRET;
+        const { mod } = loadModule();
+        expect(mod.isExportCharged(headers({}))).toBe(false);
+      });
+
+      it('leaves the iOS gate to its own switch', () => {
+        Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
+        const { mod } = loadModule();
+        expect(mod.isExportCharged(headers({ 'x-resumely-client': 'ios' }))).toBe(false);
+      });
+    });
+
     it('keeps the web ungated with the flag on (F1)', () => {
       process.env.EXPORT_CREDITS_ENABLED = 'true';
       const { mod } = loadModule();
