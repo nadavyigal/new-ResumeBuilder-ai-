@@ -23,16 +23,25 @@
 --    notification found no grant, so without this record the credits would be
 --    granted for a refunded purchase. grant_apple_purchase refuses any
 --    transaction refunded here; a later REFUND_REVERSED clears it.
-create table if not exists public.apple_transaction_refunds (
-  apple_transaction_id text primary key,
-  refunded boolean not null,
-  last_notification_uuid text not null,
-  updated_at timestamptz not null default now()
+--    (Codex on #197: every notification is recorded, not only the latest.)
+create table if not exists public.apple_pre_grant_refunds (
+  -- Every notification is kept, keyed by its UUID, so a retried old
+  -- notification is a no-op instead of overwriting newer state.
+  notification_uuid text primary key,
+  apple_transaction_id text not null,
+  reversed boolean not null,
+  received_at timestamptz not null default now()
 );
 
-alter table public.apple_transaction_refunds enable row level security;
-revoke all on public.apple_transaction_refunds from anon, authenticated;
+create index if not exists apple_pre_grant_refunds_transaction_idx
+  on public.apple_pre_grant_refunds (apple_transaction_id);
 
+alter table public.apple_pre_grant_refunds enable row level security;
+revoke all on public.apple_pre_grant_refunds from anon, authenticated;
+
+-- A transaction counts as refunded while it has more REFUND than
+-- REFUND_REVERSED notifications. Counting, not "the latest one", gives the
+-- same answer whatever order Apple delivers or retries them in.
 -- Both functions below take pg_advisory_xact_lock on the transaction ID first,
 -- then the profile row lock, so a refund and a grant for the same transaction
 -- run one after the other and never deadlock with unlock_export (profile only).
@@ -84,9 +93,10 @@ begin
 
   -- Refunded before it was ever granted: never grant it.
   if not exists (select 1 from public.credit_transactions where apple_transaction_id = v_transaction_id)
-     and exists (
-       select 1 from public.apple_transaction_refunds
-       where apple_transaction_id = v_transaction_id and refunded
+     and (
+       select count(*) filter (where not reversed) > count(*) filter (where reversed)
+       from public.apple_pre_grant_refunds
+       where apple_transaction_id = v_transaction_id
      ) then
     return jsonb_build_object('status', 'revoked');
   end if;
@@ -130,7 +140,7 @@ grant execute on function public.grant_apple_purchase(uuid, text, text, integer,
 -- 2. apply_iap_refund (spec 8). REFUND deducts what is still outstanding on the
 --    grant, at most the current balance; REFUND_REVERSED gives back what refunds
 --    deducted and earlier reversals have not returned. With no grant yet, the
---    refund is recorded in apple_transaction_refunds (step 0). The user comes from the
+--    refund is recorded in apple_pre_grant_refunds (step 0). The user comes from the
 --    grant row, never from the notification, so a refund can only touch the
 --    account that was credited. The notification UUID is the idempotency key.
 --    Exports already unlocked stay unlocked.
@@ -155,6 +165,7 @@ declare
   v_net_refunded integer;
   v_change integer;
   v_rows integer;
+  v_has_grant boolean;
 begin
   if length(v_transaction_id) = 0 or length(v_notification_uuid) = 0 then
     raise exception 'p_apple_transaction_id and p_notification_uuid are required';
@@ -166,26 +177,28 @@ begin
     into v_user_id, v_granted, v_product_id, v_environment
   from public.credit_transactions
   where apple_transaction_id = v_transaction_id;
+  v_has_grant := found;
 
-  if not found then
+  -- A notification already handled before the grant existed is a no-op now
+  -- too, so a late retry cannot deduct from the grant that followed.
+  if exists (select 1 from public.apple_pre_grant_refunds where notification_uuid = v_notification_uuid) then
+    return jsonb_build_object('status', 'duplicate');
+  end if;
+
+  if not v_has_grant then
     -- No grant yet: remember the refund (or its reversal) so a later grant
     -- of this transaction is refused (or allowed again).
-    if exists (
-      select 1 from public.apple_transaction_refunds
-      where apple_transaction_id = v_transaction_id
-        and last_notification_uuid = v_notification_uuid
-    ) then
-      return jsonb_build_object('status', 'duplicate');
-    end if;
+    insert into public.apple_pre_grant_refunds (notification_uuid, apple_transaction_id, reversed)
+    values (v_notification_uuid, v_transaction_id, coalesce(p_reversed, false));
 
-    insert into public.apple_transaction_refunds (apple_transaction_id, refunded, last_notification_uuid)
-    values (v_transaction_id, not coalesce(p_reversed, false), v_notification_uuid)
-    on conflict (apple_transaction_id) do update
-      set refunded = excluded.refunded,
-          last_notification_uuid = excluded.last_notification_uuid,
-          updated_at = now();
-
-    return jsonb_build_object('status', 'recorded_before_grant', 'refunded', not coalesce(p_reversed, false));
+    return jsonb_build_object(
+      'status', 'recorded_before_grant',
+      'refunded', (
+        select count(*) filter (where not reversed) > count(*) filter (where reversed)
+        from public.apple_pre_grant_refunds
+        where apple_transaction_id = v_transaction_id
+      )
+    );
   end if;
 
   select credit_balance
