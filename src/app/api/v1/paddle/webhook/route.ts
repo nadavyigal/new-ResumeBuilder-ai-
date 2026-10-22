@@ -25,8 +25,22 @@ type PaddleEvent = {
 
 const ok = () => NextResponse.json({ received: true });
 
-async function reject(reason: 'signature' | 'stale' | 'config', status: number) {
-  await captureServerEvent('server', 'paddle_webhook_rejected', { reason });
+/**
+ * Analytics never decides the response: a PostHog failure after a committed
+ * grant must not turn into a 500 that Paddle retries forever.
+ */
+async function track(distinctId: string, event: string, properties: Record<string, unknown>) {
+  try {
+    await captureServerEvent(distinctId, event, properties);
+  } catch (error) {
+    console.warn('PostHog capture failed', { event, details: error instanceof Error ? error.message : String(error) });
+  }
+}
+
+function reject(reason: 'signature' | 'stale' | 'config', status: number) {
+  // Not awaited: unauthenticated callers must not be able to slow this route
+  // or hold it on an analytics flush.
+  void track('server', 'paddle_webhook_rejected', { reason });
   return NextResponse.json({ error: reason === 'config' ? 'paddle_unavailable' : 'invalid_signature' }, { status });
 }
 
@@ -102,7 +116,7 @@ async function handleTransactionCompleted(
   // 16.4.1 step 1: the user comes from the checkout this server opened.
   const checkout = await supabase
     .from('paddle_checkouts')
-    .select('user_id')
+    .select('user_id, environment')
     .eq('paddle_transaction_id', transactionId)
     .maybeSingle();
   if (checkout.error) {
@@ -115,10 +129,17 @@ async function handleTransactionCompleted(
     // Not opened by this server, or custom_data disagrees: grant nothing.
     // The founder refunds by hand.
     console.warn('paddle_unbound_transaction', { hasCheckout: Boolean(checkout.data), customDataMismatch: Boolean(claimedUser) });
-    await captureServerEvent('server', 'paddle_webhook_rejected', { reason: 'unbound_transaction' });
+    await track('server', 'paddle_webhook_rejected', { reason: 'unbound_transaction' });
     return true;
   }
   const userId: string = checkout.data.user_id;
+  if (checkout.data.environment !== environment) {
+    // A checkout opened in the other Paddle environment (for example a sandbox
+    // preview that shares this database): never let one credit the other.
+    console.warn('Paddle event environment does not match its checkout; ignored', { environment });
+    await track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
+    return true;
+  }
 
   // 16.4.1 step 2: credits from the price map, never from the body's amounts.
   const { credits, firstPriceId, unknownPriceIds } = creditsForTransactionItems(data.items, priceCredits);
@@ -141,7 +162,7 @@ async function handleTransactionCompleted(
   }
   const status = (result as { status?: unknown } | null)?.status;
   if (status === 'granted' || status === 'already_granted') {
-    await captureServerEvent(userId, 'paddle_purchase_granted', {
+    await track(userId, 'paddle_purchase_granted', {
       price_id: firstPriceId,
       credits_granted: credits,
       environment,
@@ -176,12 +197,17 @@ async function handleAdjustment(
   // the grant still has outstanding and at the balance.
   const checkout = await supabase
     .from('paddle_checkouts')
-    .select('price_id')
+    .select('price_id, environment')
     .eq('paddle_transaction_id', transactionId)
     .maybeSingle();
   if (checkout.error) {
     console.error('paddle_checkouts read failed', { details: checkout.error.message });
     return false;
+  }
+  if (checkout.data && checkout.data.environment !== environment) {
+    console.warn('Paddle adjustment environment does not match its checkout; ignored', { environment });
+    await track('server', 'paddle_webhook_rejected', { reason: 'environment_mismatch' });
+    return true;
   }
   const grantRow = await supabase
     .from('credit_transactions')
@@ -211,7 +237,7 @@ async function handleAdjustment(
   const outcome = (result ?? {}) as { status?: unknown; user_id?: unknown; credits_changed?: unknown };
   if ((outcome.status === 'deducted' || outcome.status === 'reversed') && typeof outcome.user_id === 'string') {
     const changed = typeof outcome.credits_changed === 'number' ? outcome.credits_changed : 0;
-    await captureServerEvent(outcome.user_id, 'paddle_adjustment_processed', {
+    await track(outcome.user_id, 'paddle_adjustment_processed', {
       action: decision.action,
       credits_deducted: -changed,
       environment,
