@@ -142,23 +142,25 @@ try {
   check('exports unlocked before the refund stay unlocked');
 
   await setBalance(userA, 10);
-  const secondRefund = await refund('txn-1', 'notif-2', false);
-  assert.equal(secondRefund.credits_changed, -2, 'only the 2 credits not yet taken back remain refundable');
-  assert.equal(await balance(userA), 8);
-  check('a second REFUND for the same transaction takes only what is still outstanding');
-
   const reversed = await refund('txn-1', 'notif-3', true);
   assert.equal(reversed.status, 'reversed');
-  assert.equal(reversed.credits_changed, 5);
+  assert.equal(reversed.credits_changed, 3, 'gives back exactly the 3 the refund took');
   assert.equal(await balance(userA), 13);
   assert.equal((await refund('txn-1', 'notif-3', true)).status, 'duplicate');
-  assert.equal((await refund('txn-1', 'notif-4', true)).credits_changed, 0);
   assert.equal(await balance(userA), 13);
-  check('REFUND_REVERSED gives back exactly what refunds took; repeats give nothing more');
+  check('REFUND_REVERSED gives back exactly what the refund took; a repeat gives nothing more');
+
+  // A second REFUND after the reversal starts a new refund and takes what is outstanding.
+  const again = await refund('txn-1', 'notif-5', false);
+  assert.equal(again.credits_changed, -5);
+  assert.equal(await balance(userA), 8);
+  // A second REFUND while already refunded deducts nothing.
+  assert.equal((await refund('txn-1', 'notif-6', false)).credits_changed, 0);
+  check('credits move only when the refund state flips; a second REFUND while refunded deducts nothing');
 
   const ledger = (await admin.query("select reason, delta, apple_transaction_id, related_apple_transaction_id, environment from credit_transactions where related_apple_transaction_id='txn-1' order by created_at, delta")).rows;
   assert.ok(ledger.every(r => r.apple_transaction_id === null && r.environment === 'Sandbox'));
-  assert.deepEqual(ledger.map(r => r.reason).sort(), ['iap_refund', 'iap_refund', 'iap_refund_reversed', 'iap_refund_reversed']);
+  assert.deepEqual(ledger.map(r => r.reason).sort(), ['iap_refund', 'iap_refund', 'iap_refund', 'iap_refund_reversed']);
   check('refund rows point at the grant, keep apple_transaction_id unique to the grant, carry its environment');
 
   // Refund before grant (review P1): the saved pre-refund transaction must not grant later.
@@ -188,6 +190,15 @@ try {
   assert.deepEqual(await refund('txn-order', 'notif-o1', false), { status: 'recorded_before_grant', refunded: false });
   assert.equal((await grant(userD, 'txn-order', 'resumely.exports.1', 1)).status, 'granted');
   check('a reversal delivered before its refund still nets to not refunded');
+
+  // Codex P2 on 3756b82: the reversal arrives before the grant, the refund only after it.
+  const balanceBefore = await balance(userD);
+  assert.deepEqual(await refund('txn-late', 'notif-l2', true), { status: 'recorded_before_grant', refunded: false });
+  assert.equal((await grant(userD, 'txn-late', 'resumely.exports.5', 5)).status, 'granted');
+  const late = await refund('txn-late', 'notif-l1', false);
+  assert.equal(late.credits_changed, 0, 'the earlier reversal cancels the late refund');
+  assert.equal(await balance(userD), balanceBefore + 5);
+  check('a REFUND arriving after the grant, whose REFUND_REVERSED came before it, nets to not refunded');
 
   // Refund and grant racing for the same transaction: either order nets zero.
   const userE = randomUUID();
