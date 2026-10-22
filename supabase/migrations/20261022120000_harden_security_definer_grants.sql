@@ -10,8 +10,10 @@
 -- increment_optimizations_used spends any user's quota, consume_credit and
 -- grant_apple_credits move any user's credits.
 --
--- The baseline dump suggests production already grants the RPC functions
--- to service_role only, but production ACLs were not read for this change.
+-- Production, read-only on 2026-10-22: the money functions are already
+-- service_role only; the 5 trigger functions are still granted to anon and
+-- authenticated; postgres's default ACL in public grants new functions to
+-- anon and authenticated, with no global entry.
 -- Every statement here is idempotent, so running it where the grants are
 -- already correct changes nothing.
 --
@@ -88,5 +90,8 @@ revoke all on function public.update_session_activity() from public, anon, authe
 -- (an rpc() from the browser or app, or a helper used inside an RLS policy)
 -- needs an explicit `grant execute ... to authenticated` (and anon if
 -- needed). Trigger functions need nothing. Existing functions are unchanged.
+-- The PUBLIC revoke is global, so it also covers functions postgres creates
+-- in other schemas, including a later `create extension` run as postgres
+-- (pg_trgm, unaccent): grant its functions explicitly if clients use them.
 alter default privileges for role postgres revoke execute on functions from public;
 alter default privileges for role postgres in schema public revoke execute on functions from anon, authenticated;

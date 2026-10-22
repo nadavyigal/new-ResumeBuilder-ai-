@@ -6,9 +6,9 @@
 
 **Cause:** Postgres grants EXECUTE on every new function to PUBLIC, and the baseline's default privileges also grant new `public` functions to `anon` and `authenticated`. `revoke ... from public` alone leaves the role grants.
 
-**Fix:** `20261022120000_harden_security_definer_grants.sql` revokes both defaults for functions postgres creates. From that migration on, a new function has no client EXECUTE.
+**Fix:** `20261022120000_harden_security_definer_grants.sql` revokes both defaults for functions postgres creates. From that migration on, a function created by role postgres (what migrations and the SQL editor use) has no client EXECUTE, in any schema.
 
-**Rule:** A new function a client must call (a browser or app `rpc()`, or a helper used inside an RLS policy) needs an explicit `grant execute ... to authenticated`. A server-only function needs nothing. Prove grants with real roles (`set local role anon`), not by reading the migration.
+**Rule:** A new function a client must call (a browser or app `rpc()`, a helper used inside an RLS policy, or a function from a later `create extension`) needs an explicit `grant execute ... to authenticated`. A server-only function needs nothing. Prove grants with real roles (`set local role anon`), not by reading the migration.
 
 ## The hiring company's name is not a skill (2026-10-15)
 

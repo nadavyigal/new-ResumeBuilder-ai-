@@ -29,7 +29,7 @@ still firing their triggers as real roles, and 42501 for anon and authenticated 
 function postgres creates gets no client EXECUTE: `alter default privileges for role postgres
 revoke execute on functions from public` (global, because a schema-level revoke cannot remove the
 built-in PUBLIC grant) and the same `in schema public` from anon and authenticated (undoes baseline
-lines 4631-4632). service_role keeps its schema default. New check 11 creates a SECURITY DEFINER
+lines 4631-4632). service_role keeps its schema default. A new check creates a SECURITY DEFINER
 and an invoker function after the replay: anon and authenticated get 42501, service_role works, an
 explicit grant works. Without the two statements the check fails. 11 checks pass, also with #195's
 migration added. Production read-only on 2026-10-22: postgres's default ACL in public is
