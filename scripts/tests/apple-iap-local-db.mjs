@@ -172,9 +172,22 @@ try {
   check('a refund that arrives before the grant is recorded; the later grant is refused; a repeat notification is a no-op');
 
   assert.deepEqual(await refund('txn-early', 'notif-e2', true), { status: 'recorded_before_grant', refunded: false });
+  // Codex on #197: Apple retries the old REFUND after the reversal. It must not
+  // mark the transaction refunded again.
+  assert.deepEqual(await refund('txn-early', 'notif-e1', false), { status: 'duplicate' });
   assert.equal((await grant(userD, 'txn-early', 'resumely.exports.10', 10)).status, 'granted');
   assert.equal(await balance(userD), 11);
-  check('REFUND_REVERSED before the grant clears the record; the grant then goes through');
+  // And once granted, a late retry of either pre-grant notification changes nothing.
+  assert.deepEqual(await refund('txn-early', 'notif-e1', false), { status: 'duplicate' });
+  assert.deepEqual(await refund('txn-early', 'notif-e2', true), { status: 'duplicate' });
+  assert.equal(await balance(userD), 11);
+  check('REFUND_REVERSED before the grant clears it; retries of either notification, before or after the grant, change nothing');
+
+  // Delivery order does not matter: the reversal first, then the refund, nets to not refunded.
+  assert.deepEqual(await refund('txn-order', 'notif-o2', true), { status: 'recorded_before_grant', refunded: false });
+  assert.deepEqual(await refund('txn-order', 'notif-o1', false), { status: 'recorded_before_grant', refunded: false });
+  assert.equal((await grant(userD, 'txn-order', 'resumely.exports.1', 1)).status, 'granted');
+  check('a reversal delivered before its refund still nets to not refunded');
 
   // Refund and grant racing for the same transaction: either order nets zero.
   const userE = randomUUID();
