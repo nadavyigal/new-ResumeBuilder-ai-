@@ -93,6 +93,7 @@ declare
   v_chargeback_outstanding integer;
   v_change integer;
   v_rows integer;
+  v_pending record;
 begin
   if length(v_transaction_id) = 0 or length(v_adjustment_id) = 0 then
     raise exception 'p_paddle_transaction_id and p_paddle_adjustment_id are required';
@@ -124,6 +125,18 @@ begin
     insert into public.paddle_pending_adjustments (paddle_adjustment_id, paddle_transaction_id, action, credits)
     values (v_adjustment_id, v_transaction_id, p_action, p_credits);
     return jsonb_build_object('status', 'recorded_before_grant');
+  end if;
+
+  -- A chargeback reversal that arrives before its chargeback waits for it
+  -- (Codex P1 on #199): recording it now would give back 0 and spend its ID,
+  -- and the chargeback would then deduct for good.
+  if p_action = 'chargeback_reverse' and not exists (
+    select 1 from public.credit_transactions
+    where related_paddle_transaction_id = v_transaction_id and reason = 'paddle_chargeback'
+  ) then
+    insert into public.paddle_pending_adjustments (paddle_adjustment_id, paddle_transaction_id, action, credits)
+    values (v_adjustment_id, v_transaction_id, p_action, p_credits);
+    return jsonb_build_object('status', 'deferred');
   end if;
 
   select credit_balance
@@ -188,6 +201,22 @@ begin
         updated_at = now()
     where user_id = v_user_id
     returning credit_balance into v_balance;
+  end if;
+
+  -- A chargeback lets the reversals that were waiting for it run now.
+  if p_action = 'chargeback' then
+    for v_pending in
+      select paddle_adjustment_id, credits
+      from public.paddle_pending_adjustments
+      where paddle_transaction_id = v_transaction_id and action = 'chargeback_reverse'
+      order by received_at, paddle_adjustment_id
+    loop
+      delete from public.paddle_pending_adjustments where paddle_adjustment_id = v_pending.paddle_adjustment_id;
+      perform public.apply_paddle_adjustment(
+        v_transaction_id, v_pending.paddle_adjustment_id, 'chargeback_reverse', v_pending.credits
+      );
+    end loop;
+    select credit_balance into v_balance from public.profiles where user_id = v_user_id;
   end if;
 
   return jsonb_build_object(
