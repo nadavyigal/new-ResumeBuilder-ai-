@@ -86,6 +86,13 @@ describe('POST /api/v1/web-checkout', () => {
     expect(JSON.stringify(await response.json())).not.toContain('pdl_sdbx_apikey_test');
   });
 
+  it('does not wait on analytics before returning the transaction ID', async () => {
+    const { POST, captureServerEvent } = load();
+    captureServerEvent.mockImplementation(() => new Promise<undefined>(() => {}));
+    const response = await POST(request({ priceId: 'pri_five' }));
+    expect(response.status).toBe(200);
+  });
+
   it('503 without the Paddle config', async () => {
     delete process.env.PADDLE_API_KEY;
     const { POST, createPaddleTransaction } = load();

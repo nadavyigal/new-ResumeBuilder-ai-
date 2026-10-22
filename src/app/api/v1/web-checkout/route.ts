@@ -67,11 +67,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'checkout_unavailable' }, { status: 500 });
   }
 
-  try {
-    await captureServerEvent(user.id, 'web_checkout_opened', { price_id: priceId, platform: 'web', store: 'paddle' });
-  } catch {
-    // Analytics never blocks a checkout.
-  }
+  // Dispatched, not awaited: a slow PostHog flush must not hold the transaction
+  // ID the browser needs to open the checkout (Codex P2).
+  void Promise.resolve()
+    .then(() => captureServerEvent(user.id, 'web_checkout_opened', { price_id: priceId, platform: 'web', store: 'paddle' }))
+    .catch(() => {});
 
   return NextResponse.json({ transactionId: created.transactionId });
 }
