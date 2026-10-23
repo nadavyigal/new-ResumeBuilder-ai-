@@ -138,6 +138,16 @@ describe('verifySignedNotification with the real verifier', () => {
     });
   });
 
+  it.each([
+    ['summary', { notificationType: 'RENEWAL_EXTENSION', summary: { environment: 'Production' } }],
+    ['appData', { notificationType: 'RESCIND_CONSENT', appData: { environment: 'Production' } }],
+  ])('reads the environment from %s', async (_label, payload) => {
+    await expect(verifySignedNotification(forgedJws(payload), sandboxOnly)).resolves.toEqual({
+      ok: false,
+      reason: 'environment_not_allowed',
+    });
+  });
+
   it('reads the environment from data.environment', async () => {
     const payload = { notificationType: 'REFUND', notificationUUID: 'n-1', data: { environment: 'Production' } };
     await expect(verifySignedNotification(forgedJws(payload), sandboxOnly)).resolves.toEqual({
