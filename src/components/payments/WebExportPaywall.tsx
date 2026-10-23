@@ -124,7 +124,13 @@ export function WebExportPaywall({
             setMessage(t('delayed'));
           }
         });
-        paddle.Checkout.open({ transactionId: json.transactionId, settings: { displayMode: 'overlay', locale } });
+        // Paddle's checkout has no Hebrew; pass only a locale it supports and
+        // let it choose otherwise (Codex P1).
+        const paddleLocale = locale === 'en' ? 'en' : undefined;
+        paddle.Checkout.open({
+          transactionId: json.transactionId,
+          settings: paddleLocale ? { displayMode: 'overlay', locale: paddleLocale } : { displayMode: 'overlay' },
+        });
       } catch {
         setPhase('ready');
         setMessage(t('checkoutError'));

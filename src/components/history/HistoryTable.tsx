@@ -204,7 +204,7 @@ export default function HistoryTable() {
       // Web export credits on (spec 16.7): the export must be unlocked first.
       // Without a credit, stop here (no job link, no application record) and
       // go to the optimization page, where the pack sheet is.
-      if (await readWebExportGate()) {
+      if ((await readWebExportGate()) !== false) {
         const unlock = await unlockWebExport(optimization.id);
         if (unlock !== 'ok') {
           setApplyingIds(prev => {

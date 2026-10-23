@@ -62,7 +62,10 @@ export function webExportCreditsEnabled(env: Record<string, string | undefined> 
   return (
     env.WEB_EXPORT_CREDITS_ENABLED === 'true' &&
     getPaddleCheckoutConfig(env) !== null &&
-    getPaddleWebhookConfig(env) !== null
+    getPaddleWebhookConfig(env) !== null &&
+    // The browser needs it to open Paddle's checkout; without it the sheet has
+    // nothing to sell (Codex P1).
+    Boolean(env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim())
   );
 }
 

@@ -95,6 +95,7 @@ describe('export credits', () => {
         PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_secret',
         PADDLE_PRICE_MAP: 'pri_one:1,pri_five:5,pri_ten:10',
         PADDLE_ENVIRONMENT: 'sandbox',
+        NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: 'test_client_token',
       };
       afterEach(() => {
         for (const key of [...Object.keys(paddle), 'WEB_EXPORT_CREDITS_ENABLED']) delete process.env[key];
@@ -110,6 +111,13 @@ describe('export credits', () => {
       it('ignores the web flag while the Paddle config is incomplete', () => {
         Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
         delete process.env.PADDLE_WEBHOOK_SECRET;
+        const { mod } = loadModule();
+        expect(mod.isExportCharged(headers({}))).toBe(false);
+      });
+
+      it('ignores the web flag without the browser client token', () => {
+        Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
+        delete process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
         const { mod } = loadModule();
         expect(mod.isExportCharged(headers({}))).toBe(false);
       });

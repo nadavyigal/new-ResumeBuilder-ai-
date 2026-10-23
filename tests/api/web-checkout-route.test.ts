@@ -162,7 +162,7 @@ describe('createPaddleTransaction', () => {
 });
 
 describe('GET /api/v1/web-checkout', () => {
-  const paddle = { ...ENV, PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_secret' };
+  const paddle = { ...ENV, PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_secret', NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: 'test_client_token' };
   afterEach(() => {
     for (const key of [...Object.keys(paddle), 'WEB_EXPORT_CREDITS_ENABLED']) delete process.env[key];
   });

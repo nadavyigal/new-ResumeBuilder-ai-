@@ -35,6 +35,7 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { posthog } from "@/lib/posthog";
 import { WebExportPaywall } from "@/components/payments/WebExportPaywall";
+import { useWebExportGate } from "@/lib/web-export-gate";
 
 
 // Disable static generation for this dynamic page
@@ -93,21 +94,11 @@ export default function OptimizationPage() {
   const locale = useLocale();
   // Web export credits (StoreKit spec 16.7). While the server's web gate is
   // off, every export button behaves exactly as before.
-  const [webExportGated, setWebExportGated] = useState(false);
+  // false only once the server said the gate is off; null (loading or failed)
+  // asks the server, so no click can skip it (Codex P1).
+  const webExportGated = useWebExportGate();
   const [paywallOpen, setPaywallOpen] = useState(false);
   const pendingExportAction = useRef<null | (() => void)>(null);
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/v1/web-checkout", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((json) => {
-        if (!cancelled) setWebExportGated(Boolean(json?.gated));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
   const designDescription = currentDesignAssignment?.template?.description || t("design.defaultDescription");
   const designSummaryLabel = locale === "he" ? t("design.changeDesign") : designDescription;
   const readinessHighlights = useReadinessHighlights(optimizedResume?.keyImprovements, atsSuggestions);
@@ -653,7 +644,7 @@ export default function OptimizationPage() {
    * runs again (and spends the new credit) without a second click.
    */
   const authorizeWebExport = async (retry: () => void): Promise<boolean> => {
-    if (!webExportGated) return true;
+    if (webExportGated === false) return true;
     const optimizationId = String(params.id || "");
     try {
       const response = await fetch("/api/v1/exports/unlock", {

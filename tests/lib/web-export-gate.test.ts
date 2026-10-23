@@ -44,12 +44,18 @@ describe('unlockWebExport', () => {
 });
 
 describe('readWebExportGate', () => {
-  it('is false when the server says not gated or cannot be reached', async () => {
+  it('is false only when the server says not gated', async () => {
     mockFetch(() => ({ status: 200, json: { gated: false } }));
     expect(await require('@/lib/web-export-gate').readWebExportGate()).toBe(false);
-    jest.resetModules();
-    global.fetch = (async () => { throw new Error('offline'); }) as unknown as typeof fetch;
-    expect(await require('@/lib/web-export-gate').readWebExportGate()).toBe(false);
+  });
+
+  it('is null (callers ask the server) when the gate cannot be read, and retries next time', async () => {
+    let calls = 0;
+    global.fetch = (async () => { calls++; throw new Error('offline'); }) as unknown as typeof fetch;
+    const gate = require('@/lib/web-export-gate');
+    expect(await gate.readWebExportGate()).toBeNull();
+    expect(await gate.readWebExportGate()).toBeNull();
+    expect(calls).toBe(2);
   });
 
   it('is true when gated', async () => {
