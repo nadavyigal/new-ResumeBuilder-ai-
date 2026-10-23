@@ -10,6 +10,16 @@
 
 **Rule:** every SECURITY DEFINER function gets `revoke all on function ... from public, anon, authenticated;` then an explicit grant, in the same migration that creates it. Test it by calling it as `anon` and `authenticated`, not by reading the dump.
 
+## A new Supabase function is callable by every client unless you revoke it (2026-10-22)
+
+**Symptom:** A SECURITY DEFINER function written for the server only was callable through `/rpc` by `anon` and `authenticated` on a fresh replay, so any client could run it and bypass RLS.
+
+**Cause:** Postgres grants EXECUTE on every new function to PUBLIC, and the baseline's default privileges also grant new `public` functions to `anon` and `authenticated`. `revoke ... from public` alone leaves the role grants.
+
+**Fix:** `20261022120000_harden_security_definer_grants.sql` revokes both defaults for functions postgres creates. From that migration on, a function created by role postgres (what migrations and the SQL editor use) has no client EXECUTE, in any schema.
+
+**Rule:** A new function a client must call (a browser or app `rpc()`, a helper used inside an RLS policy, or a function from a later `create extension`) needs an explicit `grant execute ... to authenticated`. A server-only function needs nothing. Prove grants with real roles (`set local role anon`), not by reading the migration.
+
 ## The hiring company's name is not a skill (2026-10-15)
 
 **Symptom:** on a real optimization for "Business Development Manager - Ad tech at Appstock", the dashboard Quick fixes banner said "Skills/Tools: appstock" and "Improved appstock by [X%] by [action]" (Hebrew too: "שיפרתי appstock ב-[X%]").

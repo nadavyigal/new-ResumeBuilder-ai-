@@ -13,7 +13,7 @@
 - PR #195 hosted-review follow-up, 2026-10-21: fixed P1 server-export bypass by deleting unused `/api/apply-job` (no web/iOS source caller found; spec 6.4) and authorizing every owned optimization before any bulk ZIP rendering. Added 10 focused cases (8 failed before the fix); all 5 export-credit suites now pass 50 tests. Typed RPC/query test mocks corrected; the 10 new cases pass again, lint has 0 errors (11 existing warnings), tsc returns to 22 untouched-test errors, and the production build exits 0. Independent fresh Codex review: no actionable findings. P2 `paid_user` analytics remains an explicit follow-up for purchase integration under the existing later-P2/P3 policy. SQL and the 11-group local database harness are unchanged and were not rerun. No production writes or activation.
 - PR #195 anonymous-account review adjudication, 2026-10-21: reject unconditional anonymous refusal for flag-off/F1 rollout. Spec 6.3/6.4 account wording conflicts with section 11 step 3 (off means no user change); current main and installed iOS allow anonymous-session exports, and iOS treats 401 as terminal. G1c-2 documents guest compatibility but is direction-only, not permission to implement tagged-web/auth stories. Preserve charged-anonymous 401 and ungated guest downloads. Three compatibility cases added; 5 export-credit suites pass 53 tests; anonymous-focused tests pass 6; touched-test lint exits 0; tsc has 22 untouched-test errors, none in changed files. Independent adjudication and test review agree. Earlier server-route bypass repair preserved; no application/SQL behavior change, no DB rerun or production action. Analytics P2 remains a permitted documented follow-up.
 - PR #195 fix round, 2026-10-22: (1) P1 found by the local DB test: on a fresh replay (Supabase branch, local), `anon` and `authenticated` could execute `consume_credit` and `grant_apple_credits`, because the baseline only revokes PUBLIC and Supabase default privileges grant new functions to both roles. Anyone could have granted themselves Apple credits on such a database. The migration now revokes both explicitly and grants service_role only; the test checks the ACL and real `anon`/`authenticated` calls (42501). Production's dump shows no such grants, so production was likely safe, but this is unverified there. (2) Codex P2: bulk ZIP export no longer charges an owned row with no `rewrite_data` (it only produced a failure line). (3) Codex P2: `export_unlocked` now carries `paid_user`, computed inside `unlock_export` under the profile lock. Two bulk regressions fail without the fix and pass with it. (4) CodeRabbit: Last Validation above now separates local DB checks from the unapplied hosted migration. No merge, migration, deploy or flag change.
-- Last Updated: 2026-10-22
+- Last Updated: 2026-10-23
 
 ## 2026-10-21: P3b story 1, export credits on the server (switch off)
 
@@ -29,6 +29,40 @@ The migration (new accounts start at 1 credit, ledger columns, `export_unlocks`,
 **Found on the way.** The old download contract test sent a request with no headers; the new
 gate read them and crashed. Fixed the fixture, and the gate now treats a thrown unlock as an
 error: free exports still render, charged exports are refused.
+
+- Last Updated: 2026-10-22
+
+## 2026-10-23: #196 brought up to date with main (#195 and #197 merged)
+
+Merged `main` (9a37e0a #195, 213dad3 #197) into `fix/security-definer-grants`; the only conflicts were the notes in `tasks/progress.md` and `tasks/lessons.md` (both sides kept). Migration order is unchanged: `20261021120000_export_credits` < `20261022120000_harden_security_definer_grants` < `20261023120000_apple_iap_verification`. On the full five-migration chain, local Postgres 17.6 (no hosted resources): `security-definer-grants-local-db.mjs` 11/11, `apple-iap-local-db.mjs` 18/18, `export-credits-local-db.mjs` 13/13; Jest security-fixes, iap and export-credits suites 48 passed. Not applied anywhere.
+
+## 2026-10-22: SECURITY DEFINER grants hardened (migration not applied)
+
+**What changed.** New migration `supabase/migrations/20261022120000_harden_security_definer_grants.sql`
+revokes EXECUTE from PUBLIC, anon and authenticated on all 15 SECURITY DEFINER functions in
+the baseline. RPC functions keep service_role only; the 5 trigger functions keep no client role
+(Postgres checks EXECUTE on a trigger function only when the trigger is created). On a fresh replay
+the baseline left all 15 callable by any client, because Supabase default privileges grant new
+functions to anon and authenticated and the baseline only revokes PUBLIC.
+
+**Proof.** `node scripts/tests/security-definer-grants-local-db.mjs` replays baseline plus every
+migration in a disposable local Postgres: 10 checks pass, including service_role EXECUTE on all 10
+RPC functions, owner-only trigger functions, signups, optimizations, applications and chat messages
+still firing their triggers as real roles, and 42501 for anon and authenticated on every RPC. Also passes with PR #195's export-credits migration added.
+
+**Codex P2 fix (same day).** The migration also changes default privileges, so the *next*
+function postgres creates gets no client EXECUTE: `alter default privileges for role postgres
+revoke execute on functions from public` (global, because a schema-level revoke cannot remove the
+built-in PUBLIC grant) and the same `in schema public` from anon and authenticated (undoes baseline
+lines 4631-4632). service_role keeps its schema default. A new check creates a SECURITY DEFINER
+and an invoker function after the replay: anon and authenticated get 42501, service_role works, an
+explicit grant works. Without the two statements the check fails. 11 checks pass, also with #195's
+migration added. Production read-only on 2026-10-22: postgres's default ACL in public is
+`postgres, anon, authenticated, service_role`, no global entry, so production has the same gap.
+
+**Not done.** Not applied anywhere. Production ACLs read by the coordinating session on
+2026-10-22: the money functions are already revoked; the 5 trigger functions are still callable by
+anon and authenticated. Applying it needs the founder's yes.
 
 ## 2026-10-20: Payments open (EXD-037), web checkout specified
 
