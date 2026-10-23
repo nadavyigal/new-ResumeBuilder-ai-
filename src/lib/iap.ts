@@ -98,10 +98,17 @@ function claimedEnvironment(jws: string, kind: 'transaction' | 'notification'): 
   if (parts.length !== 3) return null;
   try {
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    // Notifications carry it in data, or in summary for summary-type notifications.
+    // Notifications carry it in data, in summary for summary-type notifications,
+    // or in appData (for example RESCIND_CONSENT). External-purchase
+    // notifications carry none: the library derives it from the ID's SANDBOX
+    // prefix, and so does this (mirrors SignedDataVerifier.verifyNotification).
+    const externalPurchaseId = payload?.externalPurchaseToken?.externalPurchaseId;
+    const externalEnvironment = payload?.externalPurchaseToken
+      ? (typeof externalPurchaseId === 'string' && externalPurchaseId.startsWith('SANDBOX') ? 'Sandbox' : 'Production')
+      : undefined;
     const value = kind === 'transaction'
       ? payload?.environment
-      : payload?.data?.environment ?? payload?.summary?.environment;
+      : payload?.data?.environment ?? payload?.summary?.environment ?? externalEnvironment ?? payload?.appData?.environment;
     return typeof value === 'string' ? value : null;
   } catch {
     return null;

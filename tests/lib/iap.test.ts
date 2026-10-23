@@ -138,6 +138,25 @@ describe('verifySignedNotification with the real verifier', () => {
     });
   });
 
+  it.each([
+    ['summary', { notificationType: 'RENEWAL_EXTENSION', summary: { environment: 'Production' } }],
+    ['appData', { notificationType: 'RESCIND_CONSENT', appData: { environment: 'Production' } }],
+    ['an external purchase ID', { notificationType: 'EXTERNAL_PURCHASE_TOKEN', externalPurchaseToken: { externalPurchaseId: 'abc-123' } }],
+  ])('reads the environment from %s', async (_label, payload) => {
+    await expect(verifySignedNotification(forgedJws(payload), sandboxOnly)).resolves.toEqual({
+      ok: false,
+      reason: 'environment_not_allowed',
+    });
+  });
+
+  it('treats a SANDBOX-prefixed external purchase ID as Sandbox (then the real verifier runs)', async () => {
+    const payload = { notificationType: 'EXTERNAL_PURCHASE_TOKEN', externalPurchaseToken: { externalPurchaseId: 'SANDBOX_abc-123' } };
+    await expect(verifySignedNotification(forgedJws(payload), sandboxOnly)).resolves.toEqual({
+      ok: false,
+      reason: 'invalid_transaction',
+    });
+  });
+
   it('reads the environment from data.environment', async () => {
     const payload = { notificationType: 'REFUND', notificationUUID: 'n-1', data: { environment: 'Production' } };
     await expect(verifySignedNotification(forgedJws(payload), sandboxOnly)).resolves.toEqual({
