@@ -196,6 +196,13 @@ a client that lies about the header gains nothing it could not get from the web.
 the platform check is removed and every request is gated. Section 16.7 is that change: once
 `WEB_EXPORT_CREDITS_ENABLED=true`, web requests are gated too.
 
+**Test accounts (added 2026-10-22, S6a).** `EXPORT_CREDITS_USER_IDS` (comma-separated Supabase
+user ids) gates the iOS app for those accounts only, while `EXPORT_CREDITS_ENABLED` stays off.
+It holds the App Review demo account and the founder's test account, so App Review can find and
+buy the in-app purchases in the production build, and the founder can run the Sandbox test (S7)
+against production. Both buy in Sandbox (F6), so no money moves; every other account stays ungated.
+Empty after launch, when the global switch is on.
+
 Off (the default), and on for web while F1 holds: `unlock_export` runs with `p_charge = false`.
 Nothing is spent, `/api/v1/exports/unlock` answers 200 `{status: 'ungated'}`, and an `ungated`
 row is recorded. So a résumé exported before the flag turns on stays free to re-download after it.

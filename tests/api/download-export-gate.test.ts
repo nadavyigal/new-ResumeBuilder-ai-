@@ -114,6 +114,7 @@ describe('GET /api/download/[id] export gate', () => {
   });
 
   afterEach(() => {
+    delete process.env.EXPORT_CREDITS_USER_IDS;
     if (previous === undefined) {
       delete process.env.EXPORT_CREDITS_ENABLED;
     } else {
@@ -133,6 +134,33 @@ describe('GET /api/download/[id] export gate', () => {
       p_charge: false,
     });
     expect(generateDocxWithDesign).toHaveBeenCalledTimes(1);
+  });
+
+  it('gates a listed test account on iOS with the switch off (App Review, TestFlight)', async () => {
+    process.env.EXPORT_CREDITS_USER_IDS = 'user-1';
+    try {
+      const { GET, serviceRpc, generatePdfWithDesign } = loadRoute({
+        rpcResult: { data: { status: 'insufficient', balance: 0 }, error: null },
+      });
+      const response = await GET(buildRequest('pdf', 'ios'), params);
+      expect(response.status).toBe(402);
+      expect(serviceRpc).toHaveBeenCalledWith('unlock_export', expect.objectContaining({ p_charge: true }));
+      expect(generatePdfWithDesign).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.EXPORT_CREDITS_USER_IDS;
+    }
+  });
+
+  it('keeps every other account ungated while a test account is listed', async () => {
+    process.env.EXPORT_CREDITS_USER_IDS = 'someone-else';
+    try {
+      const { GET, serviceRpc } = loadRoute();
+      const response = await GET(buildRequest('pdf', 'ios'), params);
+      expect(response.status).toBe(200);
+      expect(serviceRpc).toHaveBeenCalledWith('unlock_export', expect.objectContaining({ p_charge: false }));
+    } finally {
+      delete process.env.EXPORT_CREDITS_USER_IDS;
+    }
   });
 
   it('still renders while ungated when the unlock cannot be recorded', async () => {
