@@ -47,8 +47,8 @@ function load({
     return { __esModule: true, ...actual, createPaddleTransaction };
   });
   jest.doMock('@/lib/posthog-server', () => ({ __esModule: true, captureServerEvent }));
-  const { POST } = require('@/app/api/v1/web-checkout/route');
-  return { POST, insert, createPaddleTransaction, captureServerEvent };
+  const { POST, GET } = require('@/app/api/v1/web-checkout/route');
+  return { POST, GET, insert, createPaddleTransaction, captureServerEvent };
 }
 
 const request = (body: unknown) => ({ json: async () => body, headers: { get: () => null } }) as any;
@@ -158,5 +158,35 @@ describe('createPaddleTransaction', () => {
     await expect(createPaddleTransaction(config, 'pri_five', USER, refused)).resolves.toEqual({ ok: false, status: 403 });
     const offline = (async () => { throw new Error('ENOTFOUND'); }) as unknown as typeof fetch;
     await expect(createPaddleTransaction(config, 'pri_five', USER, offline)).resolves.toEqual({ ok: false, status: 504 });
+  });
+});
+
+describe('GET /api/v1/web-checkout', () => {
+  const paddle = { ...ENV, PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_secret', NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: 'test_client_token' };
+  afterEach(() => {
+    for (const key of [...Object.keys(paddle), 'WEB_EXPORT_CREDITS_ENABLED']) delete process.env[key];
+  });
+
+  it('says not gated while WEB_EXPORT_CREDITS_ENABLED is off, and lists nothing', async () => {
+    Object.assign(process.env, paddle);
+    const { GET } = load();
+    await expect((await GET()).json()).resolves.toEqual({ gated: false });
+  });
+
+  it('says not gated while the Paddle config is incomplete, even with the flag on', async () => {
+    Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true' });
+    delete process.env.PADDLE_WEBHOOK_SECRET;
+    const { GET } = load();
+    await expect((await GET()).json()).resolves.toEqual({ gated: false });
+  });
+
+  it('lists the packs by credits with the environment once gated, and no amounts', async () => {
+    Object.assign(process.env, paddle, { WEB_EXPORT_CREDITS_ENABLED: 'true', PADDLE_PRICE_MAP: 'pri_ten:10,pri_one:1,pri_five:5' });
+    const { GET } = load();
+    await expect((await GET()).json()).resolves.toEqual({
+      gated: true,
+      environment: 'sandbox',
+      packs: [{ priceId: 'pri_one', credits: 1 }, { priceId: 'pri_five', credits: 5 }, { priceId: 'pri_ten', credits: 10 }],
+    });
   });
 });

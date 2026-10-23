@@ -1,7 +1,9 @@
 'use client';
 
 import { memo } from 'react';
-import { Link } from "@/navigation";
+import { Link, useRouter } from "@/navigation";
+import { ROUTES } from '@/lib/constants';
+import { unlockWebExport, useWebExportGate } from '@/lib/web-export-gate';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +39,8 @@ function OptimizationRow({
   onSelectionChange
 }: OptimizationRowProps) {
   const t = useTranslations('dashboard.history.row');
+  const router = useRouter();
+  const webExportGated = useWebExportGate();
   const locale = useLocale();
   const dateLocale = locale === 'he' ? 'he-IL' : 'en-US';
 
@@ -82,9 +86,21 @@ function OptimizationRow({
   };
 
   // Handle PDF download
-  const handleDownloadPDF = () => {
-    // Open download endpoint in new window to trigger download
-    window.open(`/api/download/${optimization.id}?fmt=pdf`, '_blank');
+  const handleDownloadPDF = async () => {
+    if (webExportGated === false) {
+      // Open download endpoint in new window to trigger download
+      window.open(`/api/download/${optimization.id}?fmt=pdf`, '_blank');
+      return;
+    }
+    // Web export credits on (spec 16.7): ask the server first. Without a credit,
+    // go to the optimization page, where the pack sheet is, instead of a tab
+    // showing a raw 402.
+    const result = await unlockWebExport(optimization.id);
+    if (result === 'ok') {
+      window.location.assign(`/api/download/${optimization.id}?fmt=pdf`);
+    } else {
+      router.push(`${ROUTES.optimizations}/${optimization.id}`);
+    }
   };
 
   return (

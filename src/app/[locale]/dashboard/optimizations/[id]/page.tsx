@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/select";
 import { useLocale, useTranslations } from "next-intl";
 import { posthog } from "@/lib/posthog";
+import { WebExportPaywall } from "@/components/payments/WebExportPaywall";
+import { useWebExportGate } from "@/lib/web-export-gate";
 
 
 // Disable static generation for this dynamic page
@@ -88,7 +90,15 @@ export default function OptimizationPage() {
   const supabase = createClientComponentClient();
   const { toast } = useToast();
   const t = useTranslations("dashboard.optimization");
+  const tCredits = useTranslations("exportCredits");
   const locale = useLocale();
+  // Web export credits (StoreKit spec 16.7). While the server's web gate is
+  // off, every export button behaves exactly as before.
+  // false only once the server said the gate is off; null (loading or failed)
+  // asks the server, so no click can skip it (Codex P1).
+  const webExportGated = useWebExportGate();
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const pendingExportAction = useRef<null | (() => void)>(null);
   const designDescription = currentDesignAssignment?.template?.description || t("design.defaultDescription");
   const designSummaryLabel = locale === "he" ? t("design.changeDesign") : designDescription;
   const readinessHighlights = useReadinessHighlights(optimizedResume?.keyImprovements, atsSuggestions);
@@ -628,11 +638,43 @@ export default function OptimizationPage() {
     );
   }
 
-  const handlePrint = () => {
+  /**
+   * With the web gate on, every export asks the server first (spec 16.7): 402
+   * opens the pack sheet and remembers the handler, so after the purchase it
+   * runs again (and spends the new credit) without a second click.
+   */
+  const authorizeWebExport = async (retry: () => void): Promise<boolean> => {
+    if (webExportGated === false) return true;
+    const optimizationId = String(params.id || "");
+    try {
+      const response = await fetch("/api/v1/exports/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ optimizationId }),
+      });
+      if (response.ok) return true;
+      const json = await response.json().catch(() => ({}));
+      if (response.status === 402) {
+        pendingExportAction.current = retry;
+        setPaywallOpen(true);
+        return false;
+      }
+      toast({
+        title: json?.error === "account_required" ? tCredits("accountRequired") : tCredits("exportFailed"),
+        variant: "destructive",
+      });
+    } catch {
+      toast({ title: tCredits("exportFailed"), variant: "destructive" });
+    }
+    return false;
+  };
+
+  const handlePrint = async () => {
+    if (!(await authorizeWebExport(handlePrint))) return;
     window.print();
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     const optimizationId = String(params.id || "");
     if (!optimizationId) return;
 
@@ -642,12 +684,14 @@ export default function OptimizationPage() {
       platform: 'web',
       source: 'web_optimization_page',
     });
+    if (!(await authorizeWebExport(handleDownloadPDF))) return;
     window.location.href = `/api/download/${optimizationId}?fmt=pdf`;
   };
 
 
   const handleCopyText = async () => {
     if (!optimizedResume) return;
+    if (!(await authorizeWebExport(handleCopyText))) return;
 
     // Generate plain text version of resume
     const plainText = generatePlainTextResume(optimizedResume);
@@ -1337,6 +1381,20 @@ export default function OptimizationPage() {
         applyingTemplateId={pendingTemplateId}
       />
         </div>
+      <WebExportPaywall
+        open={paywallOpen}
+        optimizationId={String(params.id || "")}
+        onClose={() => {
+          setPaywallOpen(false);
+          pendingExportAction.current = null;
+        }}
+        onUnlocked={() => {
+          setPaywallOpen(false);
+          const retry = pendingExportAction.current;
+          pendingExportAction.current = null;
+          retry?.();
+        }}
+      />
       </SectionSelectionProvider>
     </CacheBustingErrorBoundary>
   );
