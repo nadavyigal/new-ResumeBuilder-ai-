@@ -346,7 +346,7 @@ Database (against a local Supabase, or a Supabase branch after the founder appro
 Routes (Jest, mocked Supabase and verifier, the `tests/api/` harness):
 - `/api/ats/score` and `/api/v1/refine-section` never call `consumeCredit`, whatever any flag says (before step 3).
 - `unlock_export` paths: a charged unlock of a row already written by an ungated call returns `already_unlocked` and spends nothing; a credit-unlocked row returns `already_unlocked` with `source 'credit'` when called ungated.
-- `/api/download/[id]`: gated with credits renders and spends once; gated without credits returns 402 and never calls a renderer; ungated never calls `unlock_export`; web client ungated even with the flag on (F1).
+- `/api/download/[id]`: gated with credits renders and spends once; gated without credits returns 402 and never calls a renderer; ungated calls `unlock_export` with `p_charge = false` (6.5) and still renders if that call fails; web client ungated even with the flag on (F1). Corrected 2026-10-21: this line said ungated never calls `unlock_export`, which contradicted 6.5.
 - `/api/v1/iap/verify`: every row of 7.2 has a test that fails on today's route first, including missing config (no grant), client `productId` different from the signed one, foreign `appAccountToken`, revoked transaction, quantity 2 grants twice the credits.
 - `/api/v1/iap/notifications`: unverified payload changes nothing; `REFUND` and `REFUND_REVERSED` move the balance and are idempotent.
 

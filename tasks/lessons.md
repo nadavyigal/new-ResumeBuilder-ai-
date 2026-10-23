@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## `REVOKE ... FROM PUBLIC` does not lock a Supabase function (2026-10-22)
+
+**Symptom:** the local database test for PR #195 replayed the production baseline and found `anon` could execute `consume_credit` and `grant_apple_credits`. Both are SECURITY DEFINER and trust `p_user_id`, so any client could have granted itself Apple credits.
+
+**Root cause:** Supabase sets default privileges that grant every new `public` function to `anon` and `authenticated` directly. The baseline only says `REVOKE ALL ... FROM PUBLIC`, which removes the PUBLIC grant and leaves the two role grants. The R1 migration `20260922000000_revoke_client_definer_exec.sql` revoked those grants in production, but the baseline dump that replaced the history keeps only `FROM PUBLIC`, so every fresh replay (Supabase branch, local, staging) reopens the hole. The same replay leaves 12 other baseline SECURITY DEFINER functions callable by `anon` (for example `increment_rate_limit`, `cleanup_old_files`); that is a separate follow-up migration.
+
+**Fix:** `supabase/migrations/20261021120000_export_credits.sql` revokes from `public, anon, authenticated` and grants `service_role` only, for every credit-writing function. `scripts/tests/export-credits-local-db.mjs` checks the ACL and makes real `anon` and `authenticated` calls that must fail with 42501.
+
+**Rule:** every SECURITY DEFINER function gets `revoke all on function ... from public, anon, authenticated;` then an explicit grant, in the same migration that creates it. Test it by calling it as `anon` and `authenticated`, not by reading the dump.
+
 ## The hiring company's name is not a skill (2026-10-15)
 
 **Symptom:** on a real optimization for "Business Development Manager - Ad tech at Appstock", the dashboard Quick fixes banner said "Skills/Tools: appstock" and "Improved appstock by [X%] by [action]" (Hebrew too: "שיפרתי appstock ב-[X%]").

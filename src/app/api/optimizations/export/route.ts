@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@/lib/supabase-server';
 import JSZip from 'jszip';
 import type { BulkExportRequest } from '@/types/history';
 import { generateResumePDF } from '@/lib/pdf-generator';
+import { authorizeExport } from '@/lib/export-credits';
 
 /**
  * POST /api/optimizations/export
@@ -129,6 +130,19 @@ export async function POST(req: NextRequest) {
         },
         { status: 404 }
       );
+    }
+
+    // Authorize every exportable owned optimization before rendering any part
+    // of the ZIP. A row without rewrite_data yields only a manifest failure
+    // line, so it is never charged. Earlier successful unlocks remain valid if
+    // a later item is refused, so a retry never spends twice. The batch itself
+    // is not one atomic purchase.
+    for (const opt of optimizations) {
+      if (!opt.rewrite_data) continue;
+      const authorization = await authorizeExport({ user, optimizationId: opt.id, headers: req.headers });
+      if (!authorization.allowed) {
+        return NextResponse.json(authorization.body, { status: authorization.httpStatus });
+      }
     }
 
     // Create ZIP file
