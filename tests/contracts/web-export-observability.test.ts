@@ -144,7 +144,7 @@ describe('web export observability', () => {
     const { GET, captureServerEvent } = loadDownloadRoute();
 
     const response = await GET(
-      { url: 'https://www.resumelybuilderai.com/api/download/opt-1?fmt=pdf' } as any,
+      { url: 'https://www.resumelybuilderai.com/api/download/opt-1?fmt=pdf', headers: new Headers() } as any,
       { params: Promise.resolve({ id: 'opt-1' }) }
     );
 
@@ -177,7 +177,7 @@ describe('web export observability', () => {
 
     await expect(
       GET(
-        { url: 'https://www.resumelybuilderai.com/api/download/opt-2?fmt=pdf' } as any,
+        { url: 'https://www.resumelybuilderai.com/api/download/opt-2?fmt=pdf', headers: new Headers() } as any,
         { params: Promise.resolve({ id: 'opt-2' }) }
       )
     ).rejects.toThrow('local renderer failed');

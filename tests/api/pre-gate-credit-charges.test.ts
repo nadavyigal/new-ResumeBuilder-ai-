@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-// P2 of the market play: no route may charge a credit before the StoreKit gate
-// opens. With MONETIZATION_ENABLED off (the default) the two pre-gate charges,
-// `ats_score` and `refine_section`, are skipped: no credit is consumed and no
-// `insufficient_credits` 402 is returned. With it on, today's charge stays.
+// Credits are export credits only (StoreKit spec section 11, step 3). P2 put the
+// `ats_score` and `refine_section` charges behind MONETIZATION_ENABLED; P3b
+// story 1 deletes them, so neither route consumes a credit or answers
+// `insufficient_credits`, whatever MONETIZATION_ENABLED says. Otherwise a chat
+// refinement could eat a purchased export credit.
 
 type CreditResult =
   | { ok: true; remaining: number | null }
@@ -140,14 +141,14 @@ describe('pre-gate credit charges', () => {
       expect(consumeCredit).not.toHaveBeenCalled();
     });
 
-    it('charges one ats_score credit once monetization is on', async () => {
+    it('never consumes a credit, even with monetization on', async () => {
       process.env.MONETIZATION_ENABLED = 'true';
-      const { POST, consumeCredit, scoreResume } = loadAtsScoreRoute({ ok: true, remaining: 2 });
+      const { POST, consumeCredit, scoreResume } = loadAtsScoreRoute(EMPTY_BALANCE);
 
       const response = await POST(jsonRequest(atsScoreBody));
 
       expect(response.status).toBe(200);
-      expect(consumeCredit).toHaveBeenCalledWith('user-1', 'ats_score');
+      expect(consumeCredit).not.toHaveBeenCalled();
       expect(scoreResume).toHaveBeenCalled();
     });
 
@@ -163,16 +164,6 @@ describe('pre-gate credit charges', () => {
       expect(scoreResume).toHaveBeenCalledTimes(20);
     });
 
-    it('returns 402 insufficient_credits on an empty balance once monetization is on', async () => {
-      process.env.MONETIZATION_ENABLED = 'true';
-      const { POST, scoreResume } = loadAtsScoreRoute(EMPTY_BALANCE);
-
-      const response = await POST(jsonRequest(atsScoreBody));
-
-      expect(response.status).toBe(402);
-      expect(await response.json()).toEqual({ error: 'insufficient_credits' });
-      expect(scoreResume).not.toHaveBeenCalled();
-    });
   });
 
   describe('POST /api/v1/refine-section', () => {
@@ -198,29 +189,15 @@ describe('pre-gate credit charges', () => {
       expect(trackedChatCompletion).toHaveBeenCalledTimes(20);
     });
 
-    it('charges one refine_section credit once monetization is on', async () => {
+    it('never consumes a credit, even with monetization on', async () => {
       process.env.MONETIZATION_ENABLED = 'true';
-      const { POST, consumeCredit, trackedChatCompletion } = loadRefineSectionRoute({
-        ok: true,
-        remaining: 2,
-      });
+      const { POST, consumeCredit, trackedChatCompletion } = loadRefineSectionRoute(EMPTY_BALANCE);
 
       const response = await POST(jsonRequest(refineSectionBody));
 
       expect(response.status).toBe(200);
-      expect(consumeCredit).toHaveBeenCalledWith('user-1', 'refine_section');
+      expect(consumeCredit).not.toHaveBeenCalled();
       expect(trackedChatCompletion).toHaveBeenCalled();
-    });
-
-    it('returns 402 insufficient_credits on an empty balance once monetization is on', async () => {
-      process.env.MONETIZATION_ENABLED = 'true';
-      const { POST, trackedChatCompletion } = loadRefineSectionRoute(EMPTY_BALANCE);
-
-      const response = await POST(jsonRequest(refineSectionBody));
-
-      expect(response.status).toBe(402);
-      expect(await response.json()).toEqual({ error: 'insufficient_credits' });
-      expect(trackedChatCompletion).not.toHaveBeenCalled();
     });
   });
 });

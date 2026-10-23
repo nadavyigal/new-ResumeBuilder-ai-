@@ -6,6 +6,7 @@ import { callPDFService } from "@/lib/pdf-service-client";
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { logger } from "@/lib/agent/utils/logger";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { authorizeExport } from "@/lib/export-credits";
 
 export const runtime = "nodejs";
 
@@ -49,6 +50,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   logger.info('Optimization data fetched successfully for download', { optimizationId: id, userId: user.id });
+
+  // Spend or refuse before any renderer runs (StoreKit spec 6.4, E1), so a
+  // direct call to this route cannot skip the export credit.
+  const authorization = await authorizeExport({ user, optimizationId: id, headers: req.headers });
+  if (!authorization.allowed) {
+    logger.warn('Download refused by the export gate', {
+      optimizationId: id,
+      userId: user.id,
+      httpStatus: authorization.httpStatus,
+    });
+    return NextResponse.json(authorization.body, { status: authorization.httpStatus });
+  }
 
   const analyticsProperties = {
     optimization_id: id,

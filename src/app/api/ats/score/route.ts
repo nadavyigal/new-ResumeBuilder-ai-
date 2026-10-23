@@ -8,8 +8,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scoreResume } from '@/lib/ats';
 import type { ATSScoreInput } from '@/lib/ats/types';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
-import { consumeCredit } from '@/lib/credits';
-import { MONETIZATION_ENABLED } from '@/lib/premium-access';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
 import { generateQuickWins } from '@/lib/ats/quick-wins/generator';
 
@@ -59,7 +57,8 @@ export async function POST(request: NextRequest) {
       resume_optimized_json: typeof resume_optimized === 'object' ? resume_optimized : undefined,
     };
 
-    // With the credit charge off, this is the only cap on OpenAI spend here.
+    // Credits are export credits only (StoreKit spec section 11, step 3), so
+    // this route never spends one. This is the only cap on OpenAI spend here.
     const rateResult = checkRateLimit(`ats-score:${user.id}`, RATE_LIMITS.ai);
     if (!rateResult.allowed) {
       const retryAfter = Math.max(1, Math.ceil((rateResult.resetTime - Date.now()) / 1000));
@@ -74,21 +73,6 @@ export async function POST(request: NextRequest) {
           },
         }
       );
-    }
-
-    // No credit is charged before the StoreKit gate opens. With monetization
-    // off (the default) nothing is consumed and nothing answers 402.
-    if (MONETIZATION_ENABLED) {
-      const creditResult = await consumeCredit(user.id, 'ats_score');
-      if (!creditResult.ok) {
-        if (creditResult.status === 402) {
-          return NextResponse.json({ error: 'insufficient_credits' }, { status: 402 });
-        }
-        return NextResponse.json(
-          { error: 'credit_consume_failed', details: creditResult.details },
-          { status: 500 }
-        );
-      }
     }
 
     // Score the resume with optional quick wins. The generator is injected
