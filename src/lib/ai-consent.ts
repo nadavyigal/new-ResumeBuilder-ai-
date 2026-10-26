@@ -11,13 +11,17 @@ export function parseAIConsentBody(body: unknown): {
   const record = body as Record<string, unknown>;
   const version = record.version;
   const action = record.action;
-  if (typeof version !== 'string' || !AI_CONSENT_VERSIONS.includes(version as AIConsentVersion)) return null;
+  if (typeof version !== 'string' || !isConsentVersion(version)) return null;
   if (action !== 'grant' && action !== 'withdraw') return null;
   return {
     version,
     action,
     clientRecordedAt: parseClientRecordedAt(record.clientRecordedAt),
   };
+}
+
+function isConsentVersion(value: string): value is AIConsentVersion {
+  return (AI_CONSENT_VERSIONS as readonly string[]).includes(value);
 }
 
 /** The phone's clock is evidence, not the legal timestamp. Drop anything unusable. */
