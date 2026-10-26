@@ -889,6 +889,32 @@ export interface Database {
           updated_at?: string;
         }
       >;
+      ai_consent_records: Table<
+        {
+          id: string;
+          user_id: string;
+          consent_version: string;
+          action: 'grant' | 'withdraw';
+          recorded_at: string;
+          client_recorded_at: string | null;
+        },
+        {
+          id?: string;
+          user_id: string;
+          consent_version: string;
+          action: 'grant' | 'withdraw';
+          recorded_at?: string;
+          client_recorded_at?: string | null;
+        },
+        {
+          id?: string;
+          user_id?: string;
+          consent_version?: string;
+          action?: 'grant' | 'withdraw';
+          recorded_at?: string;
+          client_recorded_at?: string | null;
+        }
+      >;
     };
     Views: {
       [_ in never]: never;
