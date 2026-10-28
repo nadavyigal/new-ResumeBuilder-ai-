@@ -1,6 +1,7 @@
 # 2026-10-26: AI consent record
 
 Status: draft PR, not merged, migration not applied.
+2026-10-28: Codex P1 fixed in 803a52d. The table and index use IF NOT EXISTS, so a rerun reaches RLS and grants. Last Validation: applied twice in a rolled-back local Postgres transaction (rerun ok, RLS on, anon/authenticated have no grants); 5 tests pass. Next: exact-head review, then a named yes before applying. Last Updated: 2026-10-28.
 `POST /api/v1/ai-consent` appends a grant or withdrawal for the authenticated user. Other AI routes do not read it yet. Tests: `tests/api/ai-consent.test.ts`, 5 pass.
 
 # Project Progress
