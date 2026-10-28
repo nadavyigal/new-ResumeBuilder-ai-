@@ -1,9 +1,9 @@
 -- Durable record of the iOS "résumé and job text go to OpenAI" consent.
 --
--- NOT APPLIED. Applying it to production needs the founder's separate, explicit
--- yes. Apply it on its own through the Supabase dashboard or MCP, then archive
--- it the same way as the export-credits migration. Never `db push` before the
--- migration-history repair described in supabase/migrations_archive/README.md.
+-- Applied to production 2026-10-28 through the Supabase MCP with the
+-- founder's explicit yes, recorded as version 20261028125956 (this file's
+-- name). Never `db push` before the migration-history repair described in
+-- supabase/migrations_archive/README.md.
 --
 -- The API writes this with the service role, and only for the user id taken
 -- from the bearer token. Clients cannot read or write the table. AI routes do
