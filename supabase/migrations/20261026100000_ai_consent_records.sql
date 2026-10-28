@@ -10,7 +10,7 @@
 -- not read it yet, so an installed app that has not called the new endpoint
 -- keeps working.
 
-create table public.ai_consent_records (
+create table if not exists public.ai_consent_records (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   consent_version text not null,
@@ -19,7 +19,7 @@ create table public.ai_consent_records (
   client_recorded_at timestamptz
 );
 
-create index ai_consent_records_user_recorded_idx
+create index if not exists ai_consent_records_user_recorded_idx
   on public.ai_consent_records (user_id, recorded_at desc);
 
 alter table public.ai_consent_records enable row level security;
