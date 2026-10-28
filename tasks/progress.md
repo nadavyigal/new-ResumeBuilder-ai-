@@ -1,3 +1,9 @@
+# 2026-10-26: AI consent record
+
+Status: migration applied to production 2026-10-28 (founder yes), recorded as 20261028125956; file renamed to match. RLS on, no policies, anon/authenticated have no grants, 0 rows. PR merging 2026-10-28.
+2026-10-28: Codex P1 fixed in 803a52d. The table and index use IF NOT EXISTS, so a rerun reaches RLS and grants. Last Validation: applied twice in a rolled-back local Postgres transaction (rerun ok, RLS on, anon/authenticated have no grants); 5 tests pass. Next: exact-head review, then a named yes before applying. Last Updated: 2026-10-28.
+`POST /api/v1/ai-consent` appends a grant or withdrawal for the authenticated user. Other AI routes do not read it yet. Tests: `tests/api/ai-consent.test.ts`, 5 pass.
+
 # Project Progress
 
 - Status: Active. Market play since 2026-10-14 (`docs/plans/2026-10-14-market-play-implementation.md`), three tracks. Traffic is the bottleneck: arrivals 3 a week (week of 2026-10-05), 1 the week of 2026-10-12, against 50 (EXD-029). Pricing is decided (credit packs, EXD-035). **EXD-037 (2026-10-20, Agentic OS PR #129) opens payments before the traffic gate:** iOS In-App Purchase first, Paddle web checkout second, no paid sale before 2026-10-31. StoreKit P3b still waits for gate conditions 2 (Apple rate, R8) and 4 (the founder approves the StoreKit spec, now with section 16); condition 3 is superseded.
