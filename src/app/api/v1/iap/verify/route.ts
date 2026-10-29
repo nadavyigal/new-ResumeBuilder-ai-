@@ -245,6 +245,11 @@ async function recordSubscription({
   if (result.status === 'created') {
     await captureServerEvent(user.id, 'subscription_started', { product_id: productId, environment, source: 'verify' });
   }
+  if (result.status === 'renewed') {
+    // The app delivered the renewal before Apple's DID_RENEW: the event is sent
+    // here, and the notification then finds the row unchanged (Codex P2 on #204).
+    await captureServerEvent(user.id, 'subscription_renewed', { product_id: productId, environment, source: 'verify' });
+  }
 
   return NextResponse.json({
     success: true,

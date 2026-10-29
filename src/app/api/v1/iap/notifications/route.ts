@@ -200,6 +200,26 @@ async function handleSubscriptionNotification({
     return NextResponse.json({ received: true });
   }
   const userId = typeof result.user_id === 'string' ? result.user_id : null;
+  const base = { product_id: productId, environment };
+
+  // Events that follow from the transaction go out now, before the renewal
+  // info step can fail: a retry finds the row unchanged and would never send
+  // them (Codex P2 on #204). Whichever request records a renewal first, this
+  // one or /verify, gets 'renewed' and sends subscription_renewed, once.
+  if (userId) {
+    if (result.status === 'created') {
+      await captureServerEvent(userId, 'subscription_started', { ...base, source: 'notification' });
+    }
+    if (result.status === 'renewed') {
+      await captureServerEvent(userId, 'subscription_renewed', { ...base, source: 'notification' });
+    }
+    if (result.status === 'revoked') {
+      await captureServerEvent(userId, 'subscription_cancelled', {
+        ...base,
+        reason: type === 'REVOKE' ? 'revoked' : 'refunded',
+      });
+    }
+  }
 
   let autoRenewTurnedOff = false;
   const signedRenewalInfo = notification.data?.signedRenewalInfo ?? '';
@@ -211,10 +231,15 @@ async function handleSubscriptionNotification({
     }
     const autoRenewStatus = renewal.value.autoRenewStatus;
     const grace = renewal.value.gracePeriodExpiresDate;
+    const signedDate = renewal.value.signedDate;
+    if (!signedDate) {
+      return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
+    }
     const { data: renewalData, error: renewalError } = await (serviceClient as any).rpc('update_subscription_renewal', {
       p_original_transaction_id: originalTransactionId,
       p_auto_renew: autoRenewStatus === 1 ? true : autoRenewStatus === 0 ? false : null,
       p_grace_until: grace ? new Date(grace).toISOString() : null,
+      p_signed_at: new Date(signedDate).toISOString(),
     });
     if (renewalError) {
       console.error('update_subscription_renewal failed', { type, details: renewalError.message });
@@ -224,25 +249,15 @@ async function handleSubscriptionNotification({
   }
 
   if (userId) {
-    const base = { product_id: productId, environment };
-    if (result.status === 'created') {
-      await captureServerEvent(userId, 'subscription_started', { ...base, source: 'notification' });
-    }
-    if (type === 'DID_RENEW' && result.status === 'renewed') {
-      await captureServerEvent(userId, 'subscription_renewed', base);
-    }
     if (autoRenewTurnedOff) {
       await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: 'auto_renew_off' });
+    }
+    if (type === 'GRACE_PERIOD_EXPIRED') {
+      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: 'grace_period_expired' });
     }
     if (type === 'EXPIRED') {
       const subtype = typeof notification.subtype === 'string' ? notification.subtype.toLowerCase() : 'unknown';
       await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: `expired_${subtype}` });
-    }
-    if ((type === 'REFUND' || type === 'REVOKE') && result.status === 'revoked') {
-      await captureServerEvent(userId, 'subscription_cancelled', {
-        ...base,
-        reason: type === 'REFUND' ? 'refunded' : 'revoked',
-      });
     }
   }
 

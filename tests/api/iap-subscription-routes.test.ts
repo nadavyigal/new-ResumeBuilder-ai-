@@ -8,6 +8,7 @@ const USER_ID = '11111111-1111-4111-8111-111111111111';
 const config = { bundleId: 'b', appAppleId: 1, allowedEnvironments: ['Production', 'Sandbox'] };
 const PURCHASE = Date.UTC(2026, 9, 29, 10, 0, 0);
 const EXPIRES = Date.UTC(2026, 10, 29, 10, 0, 0);
+const SIGNED = Date.UTC(2026, 10, 1, 9, 0, 0);
 
 const subscriptionTransaction = {
   transactionId: '3000000000000002',
@@ -50,7 +51,7 @@ function loadHarness({
   user = { id: USER_ID, is_anonymous: false } as { id: string; is_anonymous?: boolean } | null,
   transaction = subscriptionTransaction as Record<string, unknown>,
   notification = null as Record<string, unknown> | null,
-  renewal = { ok: true, value: { autoRenewStatus: 1 }, environment: 'Sandbox' } as Record<string, unknown>,
+  renewal = { ok: true, value: { autoRenewStatus: 1, signedDate: SIGNED }, environment: 'Sandbox' } as Record<string, unknown>,
   rpc = {} as Record<string, RpcResult>,
 } = {}) {
   jest.resetModules();
@@ -139,6 +140,21 @@ describe('POST /api/v1/iap/verify with the Pro subscription', () => {
     });
     expect(h.serviceRpc).not.toHaveBeenCalledWith('grant_apple_purchase', expect.anything());
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_started', {
+      product_id: 'resumely.pro.monthly',
+      environment: 'Sandbox',
+      source: 'verify',
+    });
+  });
+
+  it('sends subscription_renewed when the app delivers a renewal before DID_RENEW', async () => {
+    const h = loadHarness({
+      rpc: { upsert_subscription: { data: { status: 'renewed', active: true, expires_at: '2026-12-29T10:00:00+00:00' }, error: null } },
+    });
+    const response = await h.verify(buildRequest(verifyBody));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual(expect.objectContaining({ status: 'already_granted' }));
+    expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_renewed', {
       product_id: 'resumely.pro.monthly',
       environment: 'Sandbox',
       source: 'verify',
@@ -272,10 +288,12 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
       p_original_transaction_id: '3000000000000001',
       p_auto_renew: true,
       p_grace_until: null,
+      p_signed_at: new Date(SIGNED).toISOString(),
     });
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_renewed', {
       product_id: 'resumely.pro.monthly',
       environment: 'Sandbox',
+      source: 'notification',
     });
     expect(h.serviceRpc).not.toHaveBeenCalledWith('apply_iap_refund', expect.anything());
   });
@@ -305,7 +323,7 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
   it('auto-renew turned off sends subscription_cancelled once', async () => {
     const h = loadHarness({
       notification: subscriptionNotification('DID_CHANGE_RENEWAL_STATUS', 'AUTO_RENEW_DISABLED'),
-      renewal: { ok: true, value: { autoRenewStatus: 0 }, environment: 'Sandbox' },
+      renewal: { ok: true, value: { autoRenewStatus: 0, signedDate: SIGNED }, environment: 'Sandbox' },
       rpc: {
         upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
         update_subscription_renewal: { data: { status: 'updated', user_id: USER_ID, auto_renew_turned_off: true }, error: null },
@@ -324,7 +342,7 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
     const grace = Date.UTC(2026, 11, 15);
     const h = loadHarness({
       notification: subscriptionNotification('DID_FAIL_TO_RENEW', 'GRACE_PERIOD'),
-      renewal: { ok: true, value: { autoRenewStatus: 1, gracePeriodExpiresDate: grace }, environment: 'Sandbox' },
+      renewal: { ok: true, value: { autoRenewStatus: 1, gracePeriodExpiresDate: grace, signedDate: SIGNED }, environment: 'Sandbox' },
       rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
@@ -332,6 +350,7 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
       p_original_transaction_id: '3000000000000001',
       p_auto_renew: true,
       p_grace_until: new Date(grace).toISOString(),
+      p_signed_at: new Date(SIGNED).toISOString(),
     });
     expect(h.captureServerEvent).not.toHaveBeenCalled();
   });
@@ -339,11 +358,20 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
   it('EXPIRED sends subscription_cancelled with the expiry reason', async () => {
     const h = loadHarness({
       notification: subscriptionNotification('EXPIRED', 'VOLUNTARY'),
-      renewal: { ok: true, value: { autoRenewStatus: 0 }, environment: 'Sandbox' },
+      renewal: { ok: true, value: { autoRenewStatus: 0, signedDate: SIGNED }, environment: 'Sandbox' },
       rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'expired_voluntary' }));
+  });
+
+  it('GRACE_PERIOD_EXPIRED sends subscription_cancelled', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('GRACE_PERIOD_EXPIRED'),
+      rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+    expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'grace_period_expired' }));
   });
 
   it('REFUND of a subscription revokes it through upsert_subscription, not the credit refund', async () => {
@@ -381,14 +409,40 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(500);
   });
 
-  it('503 when the renewal info cannot be verified right now, so Apple retries', async () => {
+  it('503 when the renewal info cannot be verified right now, after sending the renewal event once', async () => {
     const h = loadHarness({
       notification: subscriptionNotification('DID_RENEW'),
       renewal: { ok: false, reason: 'verification_unavailable' },
       rpc: { upsert_subscription: { data: { status: 'renewed', user_id: USER_ID }, error: null } },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(503);
+    // The retry will find the row unchanged, so the event cannot wait for it.
+    expect(h.captureServerEvent).toHaveBeenCalledTimes(1);
+    expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_renewed', expect.anything());
+    expect(h.serviceRpc).not.toHaveBeenCalledWith('update_subscription_renewal', expect.anything());
+  });
+
+  it('a late, older renewal info (stale) sends no cancellation', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('DID_CHANGE_RENEWAL_STATUS', 'AUTO_RENEW_DISABLED'),
+      renewal: { ok: true, value: { autoRenewStatus: 0, signedDate: SIGNED }, environment: 'Sandbox' },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        update_subscription_renewal: { data: { status: 'stale', user_id: USER_ID, auto_renew_turned_off: false }, error: null },
+      },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
     expect(h.captureServerEvent).not.toHaveBeenCalled();
+  });
+
+  it('400 when the renewal info has no signedDate to order it by', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('DID_CHANGE_RENEWAL_STATUS', 'AUTO_RENEW_DISABLED'),
+      renewal: { ok: true, value: { autoRenewStatus: 0 }, environment: 'Sandbox' },
+      rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null } },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(400);
+    expect(h.serviceRpc).not.toHaveBeenCalledWith('update_subscription_renewal', expect.anything());
   });
 
   it('still ignores notification types it does not handle', async () => {

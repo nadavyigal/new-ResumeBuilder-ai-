@@ -87,6 +87,8 @@ try {
   const unlock = (user, opt, charge = true) => svc('public.unlock_export($1,$2,$3)', [user, opt, charge]);
   const upsert = (user, orig, txn, purchase, expires, revoked = null, product = 'resumely.pro.monthly') =>
     svc('public.upsert_subscription($1,$2,$3,$4,$5,$6,$7,$8)', [user, orig, txn, product, purchase, expires, revoked, 'Sandbox']);
+  const renewalUpdate = (orig, autoRenew, graceUntil, signedAt) =>
+    svc('public.update_subscription_renewal($1,$2,$3,$4)', [orig, autoRenew, graceUntil, signedAt]);
   const balance = async (user) => (await admin.query('select credit_balance b from profiles where user_id=$1', [user])).rows[0]?.b;
   const newOpt = async (user) => {
     const id = randomUUID();
@@ -99,7 +101,7 @@ try {
   const fns = [
     'public.ensure_welcome_grant(uuid)', 'public.subscription_state(uuid)', 'public.get_credit_state(uuid)',
     'public.upsert_subscription(uuid,text,text,text,timestamptz,timestamptz,timestamptz,text)',
-    'public.update_subscription_renewal(text,boolean,timestamptz)', 'public.grant_apple_purchase(uuid,text,text,integer,text)',
+    'public.update_subscription_renewal(text,boolean,timestamptz,timestamptz)', 'public.grant_apple_purchase(uuid,text,text,integer,text)',
     'public.unlock_export(uuid,uuid,boolean)', 'public.welcome_export_grant()', 'public.subscription_export_cap()',
   ];
   for (const fn of fns) {
@@ -113,7 +115,7 @@ try {
     await assert.rejects(asRole(role, 'select public.ensure_welcome_grant($1)', [oldFree]), { code: '42501' });
     await assert.rejects(asRole(role, 'select public.get_credit_state($1)', [oldFree]), { code: '42501' });
     await assert.rejects(asRole(role, "select public.upsert_subscription($1,'o','t','p',now(),now(),null,'Sandbox')", [oldFree]), { code: '42501' });
-    await assert.rejects(asRole(role, "select public.update_subscription_renewal('o',false,null)"), { code: '42501' });
+    await assert.rejects(asRole(role, "select public.update_subscription_renewal('o',false,null,now())"), { code: '42501' });
     for (const table of ['welcome_grants', 'subscriptions']) {
       await assert.rejects(asRole(role, `insert into public.${table}(user_id) values ($1)`, [oldFree]), { code: '42501' });
     }
@@ -233,13 +235,23 @@ try {
   check('renewal moves the period forward and resets the count; an older transaction is ignored');
 
   // Auto-renew off is reported once; the plan stays active until it expires.
-  const off = await svc('public.update_subscription_renewal($1,$2,$3)', ['orig-1', false, null]);
+  const off = await renewalUpdate('orig-1', false, null, hours(-3));
   assert.equal(off.status, 'updated'); assert.equal(off.auto_renew_turned_off, true); assert.equal(off.user_id, subUser);
-  assert.equal((await svc('public.update_subscription_renewal($1,$2,$3)', ['orig-1', false, null])).auto_renew_turned_off, false);
+  assert.equal((await renewalUpdate('orig-1', false, null, hours(-2))).auto_renew_turned_off, false);
   assert.equal((await state(subUser)).subscription.active, true);
   assert.equal((await state(subUser)).subscription.auto_renew, false);
-  assert.equal((await svc('public.update_subscription_renewal($1,$2,$3)', ['orig-none', false, null])).status, 'not_found');
+  assert.equal((await renewalUpdate('orig-none', false, null, hours(0))).status, 'not_found');
   check('auto-renew off: reported once, still active until expiry; unknown subscription is not_found');
+
+  // Out-of-order renewal info (Codex P2 on #204): re-enable, then a late copy
+  // of the older "disabled" info changes nothing and reports nothing.
+  const reenabledAt = hours(-1);
+  assert.equal((await renewalUpdate('orig-1', true, null, reenabledAt)).status, 'updated');
+  const late = await renewalUpdate('orig-1', false, null, hours(-3));
+  assert.equal(late.status, 'stale'); assert.equal(late.auto_renew_turned_off, false);
+  assert.equal((await renewalUpdate('orig-1', false, null, reenabledAt)).status, 'stale', 'same signedDate is not newer');
+  assert.equal((await state(subUser)).subscription.auto_renew, true);
+  check('renewal info is applied only when newer: a late older notification cannot turn auto-renew off again');
 
   // Expiry, grace period and refund.
   const lapsed = randomUUID();
@@ -247,20 +259,43 @@ try {
   await upsert(lapsed, 'orig-2', 'txn-c', hours(-24 * 31), hours(-1));
   assert.equal((await state(lapsed)).subscription.active, false);
   assert.equal((await unlock(lapsed, await newOpt(lapsed))).source, 'credit', 'expired: credits are used');
-  await svc('public.update_subscription_renewal($1,$2,$3)', ['orig-2', null, hours(24 * 16)]);
+  await renewalUpdate('orig-2', null, hours(24 * 16), hours(-0.5));
   assert.equal((await state(lapsed)).subscription.active, true, 'billing grace period keeps it active');
   assert.equal((await unlock(lapsed, await newOpt(lapsed))).source, 'subscription');
-  await svc('public.update_subscription_renewal($1,$2,$3)', ['orig-2', null, hours(-1)]);
-  assert.equal((await state(lapsed)).subscription.active, false, 'grace period over');
-  const refunded = await upsert(subUser, 'orig-1', 'txn-b', startB, endB, hours(0));
+  await renewalUpdate('orig-2', null, hours(24 * 16), hours(-0.7));
+  assert.equal((await state(lapsed)).subscription.active, true, 'an older copy cannot end the grace period early or late');
+  await renewalUpdate('orig-2', null, null, hours(-0.1));
+  assert.equal((await state(lapsed)).subscription.active, false, 'newer renewal info with no grace period ends it');
+  // A refund of an older billing period leaves the current, paid one active.
+  const olderRefund = await upsert(subUser, 'orig-1', 'txn-a', startA, endA, hours(0));
+  assert.equal(olderRefund.status, 'unchanged'); assert.equal(olderRefund.active, true);
+  const refundedAt = hours(0);
+  const refunded = await upsert(subUser, 'orig-1', 'txn-b', startB, endB, refundedAt);
   assert.equal(refunded.status, 'revoked'); assert.equal(refunded.active, false);
+  assert.equal((await state(subUser)).subscription.active, false);
+  // Codex P1 on #204: replaying the still-valid pre-refund signed copy (no
+  // revocationDate) must not switch the plan back on.
+  const replayed = await upsert(subUser, 'orig-1', 'txn-b', startB, endB, null);
+  assert.equal(replayed.status, 'unchanged'); assert.equal(replayed.active, false);
+  assert.equal((await upsert(subUser, 'orig-1', 'txn-b', startB, endB, refundedAt)).status, 'unchanged', 'a repeated refund changes nothing');
   assert.equal((await state(subUser)).subscription.active, false);
   await admin.query('update profiles set credit_balance=0 where user_id=$1', [subUser]);
   assert.deepEqual(await unlock(subUser, await newOpt(subUser)), { status: 'insufficient', balance: 0 });
-  check('expired: credits; grace period: active; grace over: inactive; refunded (revoked) latest transaction: inactive, plain 402');
+  check('expired: credits; grace: active; grace over: inactive; refund revokes and a pre-refund replay cannot undo it; plain 402');
 
   // Packs and refunds still work after v2; a pack bought by a brand-new
   // profile starts it at 0, not 1.
+  // The pre-spec credit functions also start a missing profile at 0.
+  const legacy = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [legacy]);
+  await admin.query('delete from profiles where user_id=$1', [legacy]);
+  assert.equal(await svc("public.grant_apple_credits($1,2,'test','apple_iap','txn-legacy')", [legacy]), 2);
+  const legacy2 = randomUUID();
+  await admin.query('insert into auth.users(id) values ($1)', [legacy2]);
+  await admin.query('delete from profiles where user_id=$1', [legacy2]);
+  assert.equal(await svc("public.consume_credit($1,'test')", [legacy2]), null, 'a new profile has nothing to spend');
+  check('consume_credit and grant_apple_credits create a missing profile at 0, not 1');
+
   const buyer = randomUUID();
   await admin.query('insert into auth.users(id) values ($1)', [buyer]);
   await admin.query('delete from profiles where user_id=$1', [buyer]);

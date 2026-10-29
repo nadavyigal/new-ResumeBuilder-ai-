@@ -67,6 +67,9 @@ create table if not exists public.subscriptions (
   grace_until timestamptz,
   revoked_at timestamptz,
   auto_renew boolean not null default true,
+  -- signedDate of the newest renewal info applied, so an older notification
+  -- delivered late cannot overwrite auto_renew or grace_until.
+  renewal_signed_at timestamptz,
   environment text not null check (environment in ('Production', 'Sandbox')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -232,8 +235,12 @@ grant execute on function public.get_credit_state(uuid) to service_role;
 --    transaction's appAccountToken, or null when Apple sent none).
 --
 --    A transaction with a later expiry moves the row forward (a renewal); the
---    same latest transaction updates its revocation (a refund); an older one
---    changes nothing, so Apple's retries and out-of-order delivery are safe.
+--    same latest transaction can only add a revocation (a refund), never clear
+--    one, because a still-valid signed copy from before the refund can be
+--    replayed at any time (Codex P1 on #204); an older one changes nothing, so
+--    Apple's retries and out-of-order delivery are safe. That includes the
+--    refund of an older billing period: the current period was paid for
+--    separately, so it stays active (deliberate; second-model review on #204).
 create or replace function public.upsert_subscription(
   p_user_id uuid,
   p_original_transaction_id text,
@@ -302,12 +309,13 @@ begin
     where original_transaction_id = v_original;
     v_status := 'renewed';
   elsif v_transaction = v_sub.latest_transaction_id
-        and p_revoked_at is distinct from v_sub.revoked_at then
+        and p_revoked_at is not null
+        and v_sub.revoked_at is null then
     update public.subscriptions
     set revoked_at = p_revoked_at,
         updated_at = now()
     where original_transaction_id = v_original;
-    v_status := case when p_revoked_at is null then 'restored' else 'revoked' end;
+    v_status := 'revoked';
   else
     v_status := 'unchanged';
   end if;
@@ -334,12 +342,14 @@ grant execute on function public.upsert_subscription(uuid, text, text, text, tim
   to service_role;
 
 -- 9. update_subscription_renewal: auto-renew status and the billing grace
---    period, from the signed renewal info of a verified notification. A null
---    argument leaves that column as it is.
+--    period, from the signed renewal info of a verified notification. Applied
+--    only when its signedDate is newer than the last one applied (Codex P2 on
+--    #204); a null p_auto_renew leaves auto_renew as it is.
 create or replace function public.update_subscription_renewal(
   p_original_transaction_id text,
   p_auto_renew boolean,
-  p_grace_until timestamptz
+  p_grace_until timestamptz,
+  p_signed_at timestamptz
 )
 returns jsonb
 language plpgsql
@@ -350,15 +360,19 @@ declare
   v_original text := trim(coalesce(p_original_transaction_id, ''));
   v_user uuid;
   v_was_auto_renew boolean;
+  v_last_signed timestamptz;
 begin
   if length(v_original) = 0 then
     raise exception 'p_original_transaction_id is required';
   end if;
+  if p_signed_at is null then
+    raise exception 'p_signed_at is required';
+  end if;
 
   perform pg_advisory_xact_lock(hashtextextended('apple_sub:' || v_original, 0));
 
-  select user_id, auto_renew
-    into v_user, v_was_auto_renew
+  select user_id, auto_renew, renewal_signed_at
+    into v_user, v_was_auto_renew, v_last_signed
   from public.subscriptions
   where original_transaction_id = v_original
   for update;
@@ -367,9 +381,16 @@ begin
     return jsonb_build_object('status', 'not_found');
   end if;
 
+  if v_last_signed is not null and p_signed_at <= v_last_signed then
+    return jsonb_build_object('status', 'stale', 'user_id', v_user, 'auto_renew_turned_off', false);
+  end if;
+
+  -- The newest renewal info is the whole truth for the grace period: no
+  -- gracePeriodExpiresDate means no grace period.
   update public.subscriptions
   set auto_renew = coalesce(p_auto_renew, auto_renew),
-      grace_until = coalesce(p_grace_until, grace_until),
+      grace_until = p_grace_until,
+      renewal_signed_at = p_signed_at,
       updated_at = now()
   where original_transaction_id = v_original;
 
@@ -381,8 +402,8 @@ begin
 end;
 $$;
 
-revoke all on function public.update_subscription_renewal(text, boolean, timestamptz) from public, anon, authenticated;
-grant execute on function public.update_subscription_renewal(text, boolean, timestamptz) to service_role;
+revoke all on function public.update_subscription_renewal(text, boolean, timestamptz, timestamptz) from public, anon, authenticated;
+grant execute on function public.update_subscription_renewal(text, boolean, timestamptz, timestamptz) to service_role;
 
 -- 10. grant_apple_purchase: unchanged except that a profile it creates starts
 --     at 0 like every new profile. Same signature, so the verify route needs
@@ -645,6 +666,110 @@ $$;
 
 revoke all on function public.unlock_export(uuid, uuid, boolean) from public, anon, authenticated;
 grant execute on function public.unlock_export(uuid, uuid, boolean) to service_role;
+
+-- 12. The two pre-spec credit functions (no route calls them today) also
+--     create a missing profile at 0, so no path can start an account at 1
+--     (second-model review on #204). Bodies otherwise unchanged from
+--     20261021120000_export_credits.sql.
+create or replace function public.consume_credit(p_user_id uuid, p_reason text default 'usage'::text)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_remaining integer;
+begin
+  insert into public.profiles (id, user_id, plan_type, optimizations_used, credit_balance)
+  values (gen_random_uuid(), p_user_id, 'free', 0, 0)
+  on conflict (user_id) do nothing;
+
+  update public.profiles
+  set credit_balance = credit_balance - 1,
+      updated_at = now()
+  where user_id = p_user_id
+    and credit_balance > 0
+  returning credit_balance into v_remaining;
+
+  if not found then
+    return null;
+  end if;
+
+  insert into public.credit_transactions (user_id, delta, reason, source)
+  values (p_user_id, -1, coalesce(nullif(trim(p_reason), ''), 'usage'), 'usage');
+
+  return v_remaining;
+end;
+$$;
+
+revoke all on function public.consume_credit(uuid, text) from public, anon, authenticated;
+grant execute on function public.consume_credit(uuid, text) to service_role;
+
+create or replace function public.grant_apple_credits(
+  p_user_id uuid,
+  p_delta integer,
+  p_reason text,
+  p_source text,
+  p_apple_transaction_id text
+)
+returns integer
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_remaining integer;
+  v_rows integer;
+begin
+  if p_delta <= 0 then
+    raise exception 'p_delta must be positive';
+  end if;
+
+  if p_apple_transaction_id is null or length(trim(p_apple_transaction_id)) = 0 then
+    raise exception 'p_apple_transaction_id is required';
+  end if;
+
+  insert into public.profiles (id, user_id, plan_type, optimizations_used, credit_balance)
+  values (gen_random_uuid(), p_user_id, 'free', 0, 0)
+  on conflict (user_id) do nothing;
+
+  insert into public.credit_transactions (
+    user_id,
+    delta,
+    reason,
+    source,
+    apple_transaction_id
+  )
+  values (
+    p_user_id,
+    p_delta,
+    coalesce(nullif(trim(p_reason), ''), 'iap_purchase'),
+    coalesce(nullif(trim(p_source), ''), 'apple_iap'),
+    trim(p_apple_transaction_id)
+  )
+  on conflict (apple_transaction_id) do nothing;
+
+  get diagnostics v_rows = row_count;
+
+  if v_rows > 0 then
+    update public.profiles
+    set credit_balance = credit_balance + p_delta,
+        updated_at = now()
+    where user_id = p_user_id
+    returning credit_balance into v_remaining;
+  else
+    select credit_balance
+      into v_remaining
+    from public.profiles
+    where user_id = p_user_id;
+  end if;
+
+  return coalesce(v_remaining, 0);
+end;
+$$;
+
+revoke all on function public.grant_apple_credits(uuid, integer, text, text, text) from public, anon, authenticated;
+grant execute on function public.grant_apple_credits(uuid, integer, text, text, text) to service_role;
 
 -- The two constants are harmless to read, but nothing outside the server needs them.
 revoke all on function public.welcome_export_grant() from public, anon, authenticated;
