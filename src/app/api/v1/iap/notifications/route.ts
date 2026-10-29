@@ -213,7 +213,32 @@ async function handleSubscriptionNotification({
     if (result.status === 'renewed') {
       await captureServerEvent(userId, 'subscription_renewed', { ...base, source: 'notification' });
     }
-    if (result.status === 'revoked') {
+  }
+
+  // Refunds and their reversals: only here, from a verified notification,
+  // ordered by its signedDate (Codex P1 and P2 on #204).
+  if (type === 'REFUND' || type === 'REVOKE' || type === 'REFUND_REVERSED') {
+    const signedAt = notification.signedDate;
+    if (!signedAt) {
+      return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
+    }
+    const reversed = type === 'REFUND_REVERSED';
+    const revokedAt = transaction.revocationDate ?? signedAt;
+    const { data: revocationData, error: revocationError } = await (serviceClient as any).rpc(
+      'set_subscription_revocation',
+      {
+        p_original_transaction_id: originalTransactionId,
+        p_transaction_id: transactionId,
+        p_revoked_at: reversed ? null : new Date(revokedAt).toISOString(),
+        p_signed_at: new Date(signedAt).toISOString(),
+      }
+    );
+    if (revocationError) {
+      console.error('set_subscription_revocation failed', { type, details: revocationError.message });
+      return NextResponse.json({ error: 'subscription_update_failed' }, { status: 500 });
+    }
+    const revocationStatus = (revocationData as { status?: unknown } | null)?.status;
+    if (userId && revocationStatus === 'revoked') {
       await captureServerEvent(userId, 'subscription_cancelled', {
         ...base,
         reason: type === 'REVOKE' ? 'revoked' : 'refunded',

@@ -70,6 +70,10 @@ create table if not exists public.subscriptions (
   -- signedDate of the newest renewal info applied, so an older notification
   -- delivered late cannot overwrite auto_renew or grace_until.
   renewal_signed_at timestamptz,
+  -- signedDate of the newest REFUND / REVOKE / REFUND_REVERSED notification
+  -- applied to the latest transaction, so a late refund cannot undo a newer
+  -- reversal and the other way round.
+  revocation_signed_at timestamptz,
   environment text not null check (environment in ('Production', 'Sandbox')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -83,14 +87,30 @@ create policy "Users read own subscriptions"
   on public.subscriptions for select using (auth.uid() = user_id);
 revoke insert, update, delete, truncate on public.subscriptions from anon, authenticated;
 
--- 4. Exports unlocked by the subscription are recorded as their own source, so
---    the fair-use count reads straight from export_unlocks.
+-- 4. Exports unlocked by the subscription are recorded as their own source.
+--    The fair-use count does not read export_unlocks: its rows are deleted
+--    with their optimization (on delete cascade), so deleting exported CVs
+--    would reset the cap (Codex P2 on #204). subscription_export_usage keeps
+--    one row per subscription export, with no link to the optimization row.
 alter table public.export_unlocks drop constraint if exists export_unlocks_source_check;
 alter table public.export_unlocks
   add constraint export_unlocks_source_check check (source in ('credit', 'ungated', 'subscription'));
 
-create index if not exists export_unlocks_user_source_created_idx
-  on public.export_unlocks (user_id, source, created_at);
+create table if not exists public.subscription_export_usage (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  optimization_id uuid not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, optimization_id)
+);
+
+create index if not exists subscription_export_usage_user_created_idx
+  on public.subscription_export_usage (user_id, created_at);
+
+alter table public.subscription_export_usage enable row level security;
+drop policy if exists "Users read own subscription export usage" on public.subscription_export_usage;
+create policy "Users read own subscription export usage"
+  on public.subscription_export_usage for select using (auth.uid() = user_id);
+revoke insert, update, delete, truncate on public.subscription_export_usage from anon, authenticated;
 
 -- 5. ensure_welcome_grant: gives the free exports once to a real account.
 --    Anonymous sessions get nothing (exports need a real account); they get
@@ -180,9 +200,8 @@ begin
 
   select count(*)
     into v_used
-  from public.export_unlocks
+  from public.subscription_export_usage
   where user_id = p_user_id
-    and source = 'subscription'
     and created_at >= v_sub.current_period_start;
 
   return jsonb_build_object(
@@ -234,13 +253,12 @@ grant execute on function public.get_credit_state(uuid) to service_role;
 --    check) or from a verified App Store notification (p_user_id from the
 --    transaction's appAccountToken, or null when Apple sent none).
 --
---    A transaction with a later expiry moves the row forward (a renewal); the
---    same latest transaction can only add a revocation (a refund), never clear
---    one, because a still-valid signed copy from before the refund can be
---    replayed at any time (Codex P1 on #204); an older one changes nothing, so
---    Apple's retries and out-of-order delivery are safe. That includes the
---    refund of an older billing period: the current period was paid for
---    separately, so it stays active (deliberate; second-model review on #204).
+--    A transaction with a later expiry moves the row forward (a renewal);
+--    anything else changes nothing, so Apple's retries and out-of-order
+--    delivery are safe. It never changes the revocation of the transaction it
+--    already holds: a still-valid signed copy from before a refund can be
+--    replayed at any time (Codex P1 on #204). Refunds and their reversals go
+--    through set_subscription_revocation, from verified notifications only.
 create or replace function public.upsert_subscription(
   p_user_id uuid,
   p_original_transaction_id text,
@@ -304,18 +322,11 @@ begin
         current_period_start = p_purchase_date,
         expires_at = p_expires_at,
         revoked_at = p_revoked_at,
+        revocation_signed_at = null,
         grace_until = null,
         updated_at = now()
     where original_transaction_id = v_original;
     v_status := 'renewed';
-  elsif v_transaction = v_sub.latest_transaction_id
-        and p_revoked_at is not null
-        and v_sub.revoked_at is null then
-    update public.subscriptions
-    set revoked_at = p_revoked_at,
-        updated_at = now()
-    where original_transaction_id = v_original;
-    v_status := 'revoked';
   else
     v_status := 'unchanged';
   end if;
@@ -340,6 +351,84 @@ revoke all on function public.upsert_subscription(uuid, text, text, text, timest
   from public, anon, authenticated;
 grant execute on function public.upsert_subscription(uuid, text, text, text, timestamptz, timestamptz, timestamptz, text)
   to service_role;
+
+-- 8b. set_subscription_revocation: a verified REFUND or REVOKE notification
+--     (p_revoked_at set) or REFUND_REVERSED (p_revoked_at null) for the
+--     subscription's latest transaction. Ordered by the notification's
+--     signedDate, so a late refund cannot undo a newer reversal (Codex P2 on
+--     #204). A refund of an older billing period changes nothing: the current
+--     period was paid for separately (second-model review on #204). Only the
+--     notifications route calls this; /verify never can, so a replayed
+--     purchase cannot clear a refund.
+create or replace function public.set_subscription_revocation(
+  p_original_transaction_id text,
+  p_transaction_id text,
+  p_revoked_at timestamptz,
+  p_signed_at timestamptz
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_original text := trim(coalesce(p_original_transaction_id, ''));
+  v_transaction text := trim(coalesce(p_transaction_id, ''));
+  v_sub public.subscriptions%rowtype;
+  v_status text;
+begin
+  if length(v_original) = 0 or length(v_transaction) = 0 then
+    raise exception 'p_original_transaction_id and p_transaction_id are required';
+  end if;
+  if p_signed_at is null then
+    raise exception 'p_signed_at is required';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended('apple_sub:' || v_original, 0));
+
+  select *
+    into v_sub
+  from public.subscriptions
+  where original_transaction_id = v_original
+  for update;
+
+  if not found then
+    return jsonb_build_object('status', 'not_found');
+  end if;
+
+  if v_transaction <> v_sub.latest_transaction_id then
+    v_status := 'unchanged';
+  elsif v_sub.revocation_signed_at is not null and p_signed_at <= v_sub.revocation_signed_at then
+    v_status := 'stale';
+  else
+    update public.subscriptions
+    set revoked_at = p_revoked_at,
+        revocation_signed_at = p_signed_at,
+        updated_at = now()
+    where original_transaction_id = v_original;
+    v_status := case
+      when p_revoked_at is not null and v_sub.revoked_at is null then 'revoked'
+      when p_revoked_at is null and v_sub.revoked_at is not null then 'restored'
+      else 'unchanged'
+    end;
+  end if;
+
+  select *
+    into v_sub
+  from public.subscriptions
+  where original_transaction_id = v_original;
+
+  return jsonb_build_object(
+    'status', v_status,
+    'user_id', v_sub.user_id,
+    'active', v_sub.revoked_at is null
+      and now() < greatest(v_sub.expires_at, coalesce(v_sub.grace_until, v_sub.expires_at))
+  );
+end;
+$$;
+
+revoke all on function public.set_subscription_revocation(text, text, timestamptz, timestamptz) from public, anon, authenticated;
+grant execute on function public.set_subscription_revocation(text, text, timestamptz, timestamptz) to service_role;
 
 -- 9. update_subscription_renewal: auto-renew status and the billing grace
 --    period, from the signed renewal info of a verified notification. Applied
@@ -579,6 +668,9 @@ begin
     if (v_sub ->> 'period_exports')::integer < (v_sub ->> 'period_cap')::integer then
       insert into public.export_unlocks (user_id, optimization_id, source)
       values (p_user_id, p_optimization_id, 'subscription')
+      on conflict (user_id, optimization_id) do nothing;
+      insert into public.subscription_export_usage (user_id, optimization_id)
+      values (p_user_id, p_optimization_id)
       on conflict (user_id, optimization_id) do nothing;
       return jsonb_build_object(
         'status', 'unlocked',

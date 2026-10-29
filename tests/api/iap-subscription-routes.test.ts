@@ -9,6 +9,7 @@ const config = { bundleId: 'b', appAppleId: 1, allowedEnvironments: ['Production
 const PURCHASE = Date.UTC(2026, 9, 29, 10, 0, 0);
 const EXPIRES = Date.UTC(2026, 10, 29, 10, 0, 0);
 const SIGNED = Date.UTC(2026, 10, 1, 9, 0, 0);
+const NOTIFIED = Date.UTC(2026, 10, 2, 12, 0, 0);
 
 const subscriptionTransaction = {
   transactionId: '3000000000000002',
@@ -105,6 +106,7 @@ function subscriptionNotification(type: string, subtype?: string) {
     notificationType: type,
     subtype,
     notificationUUID: `notif-${type}`,
+    signedDate: NOTIFIED,
     data: { signedTransactionInfo: 'signed.txn.info', signedRenewalInfo: 'signed.renewal.info' },
   };
 }
@@ -374,19 +376,80 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'grace_period_expired' }));
   });
 
-  it('REFUND of a subscription revokes it through upsert_subscription, not the credit refund', async () => {
+  it('REFUND of a subscription revokes it through set_subscription_revocation, not the credit refund', async () => {
     const revokedAt = Date.UTC(2026, 10, 2);
     const h = loadHarness({
       notification: subscriptionNotification('REFUND'),
       transaction: { ...subscriptionTransaction, revocationDate: revokedAt },
-      rpc: { upsert_subscription: { data: { status: 'revoked', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        set_subscription_revocation: { data: { status: 'revoked', user_id: USER_ID, active: false }, error: null },
+        update_subscription_renewal: renewalUpdated,
+      },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
-    expect(h.serviceRpc).toHaveBeenCalledWith('upsert_subscription', expect.objectContaining({
+    expect(h.serviceRpc).toHaveBeenCalledWith('set_subscription_revocation', {
+      p_original_transaction_id: '3000000000000001',
+      p_transaction_id: '3000000000000002',
       p_revoked_at: new Date(revokedAt).toISOString(),
-    }));
+      p_signed_at: new Date(NOTIFIED).toISOString(),
+    });
     expect(h.serviceRpc).not.toHaveBeenCalledWith('apply_iap_refund', expect.anything());
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'refunded' }));
+  });
+
+  it('REFUND_REVERSED clears the revocation, ordered by the notification signedDate', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('REFUND_REVERSED'),
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        set_subscription_revocation: { data: { status: 'restored', user_id: USER_ID, active: true }, error: null },
+        update_subscription_renewal: renewalUpdated,
+      },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+    expect(h.serviceRpc).toHaveBeenCalledWith('set_subscription_revocation', expect.objectContaining({
+      p_revoked_at: null,
+      p_signed_at: new Date(NOTIFIED).toISOString(),
+    }));
+    expect(h.serviceRpc).not.toHaveBeenCalledWith('apply_iap_refund', expect.anything());
+    expect(h.captureServerEvent).not.toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.anything());
+  });
+
+  it('a stale refund (older than a reversal already applied) sends no cancellation', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('REFUND'),
+      transaction: { ...subscriptionTransaction, revocationDate: Date.UTC(2026, 10, 2) },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        set_subscription_revocation: { data: { status: 'stale', user_id: USER_ID, active: true }, error: null },
+        update_subscription_renewal: renewalUpdated,
+      },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+    expect(h.captureServerEvent).not.toHaveBeenCalled();
+  });
+
+  it('400 for a refund notification with no signedDate to order it by', async () => {
+    const h = loadHarness({
+      notification: { ...subscriptionNotification('REFUND'), signedDate: undefined },
+      transaction: { ...subscriptionTransaction, revocationDate: Date.UTC(2026, 10, 2) },
+      rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null } },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(400);
+    expect(h.serviceRpc).not.toHaveBeenCalledWith('set_subscription_revocation', expect.anything());
+  });
+
+  it('500 when the revocation cannot be written, so Apple retries', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('REFUND'),
+      transaction: { ...subscriptionTransaction, revocationDate: Date.UTC(2026, 10, 2) },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        set_subscription_revocation: { data: null, error: { message: 'boom' } },
+      },
+    });
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(500);
   });
 
   it('a notification with no account token and no row is acknowledged and changes nothing', async () => {
