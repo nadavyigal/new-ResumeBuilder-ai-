@@ -1,11 +1,14 @@
 /** Local-only integration test. Uses a cached image; never pulls or contacts Supabase.
  * Run: node scripts/tests/apple-iap-local-db.mjs
  *
- * Replays the checked-in baseline and every later migration, in filename order,
- * into a disposable Postgres, then proves grant_apple_purchase and
+ * Replays the checked-in baseline and every later migration up to and including
+ * this story's, in filename order, into a disposable Postgres, then proves grant_apple_purchase and
  * apply_iap_refund (20261023120000_apple_iap_verification.sql) against the
  * StoreKit spec sections 7.2 and 8 and the database tests in section 12.
  * Same scaffold as the export-credits test: only GoTrue jwt() and Storage are stubbed.
+ * Later migrations change these numbers on purpose (pricing v2 starts new
+ * accounts at 0 and adds a welcome grant); scripts/tests/pricing-v2-local-db.mjs
+ * replays every migration and covers the same grant and refund paths after them.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -47,7 +50,7 @@ try {
     alter table storage.objects owner to postgres;
   `, stdio: ['pipe', 'pipe', 'pipe'] });
 
-  const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+  const files = readdirSync(migrationsDir).filter(f => f.endsWith('.sql') && f <= MIGRATION).sort();
   assert.ok(files.includes(MIGRATION), `${MIGRATION} is missing`);
   for (const file of files) {
     await admin.query('reset all');

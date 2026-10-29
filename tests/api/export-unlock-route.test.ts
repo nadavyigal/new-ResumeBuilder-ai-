@@ -128,7 +128,7 @@ describe('POST /api/v1/exports/unlock', () => {
     const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'ungated', balance: null });
+    expect(await response.json()).toEqual({ status: 'ungated', balance: null, source: 'ungated' });
     expect(serviceRpc).toHaveBeenCalledWith('unlock_export', {
       p_user_id: 'user-1',
       p_optimization_id: 'opt-1',
@@ -166,7 +166,7 @@ describe('POST /api/v1/exports/unlock', () => {
     const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'unlocked', balance: 2 });
+    expect(await response.json()).toEqual({ status: 'unlocked', balance: 2, source: 'credit' });
     expect(serviceRpc).toHaveBeenCalledWith('unlock_export', {
       p_user_id: 'user-1',
       p_optimization_id: 'opt-1',
@@ -237,6 +237,56 @@ describe('POST /api/v1/exports/unlock', () => {
     const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ status: 'ungated', balance: null });
+    expect(await response.json()).toEqual({ status: 'ungated', balance: null, source: 'ungated' });
+  });
+
+  it('answers source subscription when the Pro plan paid for the export', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const { POST, captureServerEvent } = loadRoute({
+      rpcResult: {
+        data: { status: 'unlocked', source: 'subscription', balance: 3, paid_user: true, period_exports: 1, period_cap: 40 },
+        error: null,
+      },
+    });
+
+    const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: 'unlocked', balance: 3, source: 'subscription' });
+    expect(captureServerEvent).toHaveBeenCalledWith('user-1', 'export_unlocked', expect.objectContaining({ source: 'subscription' }));
+    expect(captureServerEvent).not.toHaveBeenCalledWith('user-1', 'free_grant_used', expect.anything());
+  });
+
+  it('sends free_grant_used once, on the export that used up the welcome grant', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const { POST, captureServerEvent } = loadRoute({
+      rpcResult: {
+        data: { status: 'unlocked', source: 'credit', balance: 0, paid_user: false, free_grant_used: true, welcome_exports: 3 },
+        error: null,
+      },
+    });
+
+    expect((await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'))).status).toBe(200);
+    expect(captureServerEvent).toHaveBeenCalledWith('user-1', 'free_grant_used', { exports_used: 3, platform: 'ios' });
+  });
+
+  it('tells a subscriber over the fair-use cap when it resets', async () => {
+    process.env.EXPORT_CREDITS_ENABLED = 'true';
+    const { POST } = loadRoute({
+      rpcResult: {
+        data: { status: 'insufficient', balance: 0, subscription_cap_reached: true, cap_resets_at: '2026-12-01T00:00:00+00:00' },
+        error: null,
+      },
+    });
+
+    const response = await POST(buildRequest({ optimizationId: 'opt-1' }, 'ios'));
+
+    expect(response.status).toBe(402);
+    expect(await response.json()).toEqual({
+      error: 'export_credits_required',
+      balance: 0,
+      subscription_cap_reached: true,
+      cap_resets_at: '2026-12-01T00:00:00+00:00',
+    });
   });
 });

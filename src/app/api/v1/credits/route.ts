@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
-import { getCreditBalance } from '@/lib/credits';
+import { getCreditBalance, getCreditState } from '@/lib/credits';
 
+/**
+ * GET /api/v1/credits: the balance, the Pro subscription state and recent
+ * ledger rows. Pricing v2: reading it gives a real account its one-time
+ * welcome grant first, so a new account sees its free exports.
+ */
 export async function GET(request: NextRequest) {
   const supabase = await createRouteHandlerClient(request);
   const {
@@ -16,7 +21,10 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get('limit') || 30), 100);
 
-  const balance = await getCreditBalance(supabase as any, user.id);
+  // Falls back to the plain balance read if the pricing v2 functions are not
+  // there (before the migration is applied) or fail.
+  const state = await getCreditState(user.id);
+  const balance = state ? state.balance : await getCreditBalance(supabase as any, user.id);
   const { data: transactions, error } = await (supabase as any)
     .from('credit_transactions')
     .select('id, delta, reason, source, apple_transaction_id, created_at')
@@ -30,6 +38,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     balance,
+    subscription: state?.subscription ?? { active: false },
     transactions: transactions || [],
   });
 }

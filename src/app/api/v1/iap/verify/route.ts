@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient, createServiceRoleClient } from '@/lib/supabase-server';
-import { creditsForProduct, getAppleIapConfig, verifySignedTransaction } from '@/lib/iap';
+import {
+  creditsForProduct,
+  getAppleIapConfig,
+  isKnownProduct,
+  isSubscriptionProduct,
+  verifySignedTransaction,
+} from '@/lib/iap';
 import { captureServerEvent } from '@/lib/posthog-server';
+import type { AppleEnvironment } from '@/lib/iap';
+import type { JWSTransactionDecodedPayload } from '@apple/app-store-server-library';
 
 // Apple's revocation checks (OCSP) can take a few seconds on a cold start.
 export const maxDuration = 60;
 
 /**
- * Grants export credits for a verified StoreKit 2 purchase (StoreKit spec 7.2).
+ * Grants export credits for a verified StoreKit 2 purchase (StoreKit spec 7.2),
+ * or records a verified Pro subscription transaction (pricing v2: the app sends
+ * new purchases, renewals and `Transaction.currentEntitlements` on restore).
  * Every check runs, in order; any failure grants nothing. The amount comes
  * from the signed transaction, never from the request body. The app calls
  * `transaction.finish()` only after a 200 here, and re-sends unfinished
@@ -25,7 +35,9 @@ type FailureReason =
   | 'account_mismatch'
   | 'transaction_revoked'
   | 'transaction_owned_by_another_account'
-  | 'failed_to_grant_credits';
+  | 'subscription_owned_by_another_account'
+  | 'failed_to_grant_credits'
+  | 'failed_to_record_subscription';
 
 async function fail(
   reason: FailureReason,
@@ -37,7 +49,7 @@ async function fail(
   // client typed before the signature check stays out.
   await captureServerEvent(distinctId, 'iap_verify_failed', {
     reason,
-    ...(productId && creditsForProduct(productId) ? { product_id: productId } : {}),
+    ...(productId && isKnownProduct(productId) ? { product_id: productId } : {}),
   });
   return NextResponse.json({ error: reason }, { status });
 }
@@ -84,6 +96,10 @@ export async function POST(request: NextRequest) {
   const transactionId = transaction.transactionId ?? '';
   if (!transactionId) {
     return fail('invalid_transaction', 400, user.id, requestedProductId);
+  }
+
+  if (transaction.type === 'Auto-Renewable Subscription' && isSubscriptionProduct(productId)) {
+    return recordSubscription({ transaction, productId, requestedProductId, user, environment: verified.environment });
   }
 
   // Check 5: a consumable from the section 4 mapping, the one the app asked for.
@@ -153,5 +169,88 @@ export async function POST(request: NextRequest) {
     status: result.status,
     creditsGranted,
     balance: typeof result.balance === 'number' ? result.balance : null,
+  });
+}
+
+/**
+ * Pricing v2: a verified Pro subscription transaction. Checks 5 to 7 match the
+ * consumable path; check 8 is `upsert_subscription`, which keeps one row per
+ * original transaction on the account that bought it. An expired transaction
+ * is recorded too (a restore can send one), and answers `active: false`, so
+ * the app can finish it.
+ */
+async function recordSubscription({
+  transaction,
+  productId,
+  requestedProductId,
+  user,
+  environment,
+}: {
+  transaction: JWSTransactionDecodedPayload;
+  productId: string;
+  requestedProductId: string;
+  user: { id: string };
+  environment: AppleEnvironment;
+}) {
+  if (productId !== requestedProductId) {
+    return fail('product_mismatch', 400, user.id, productId);
+  }
+  if (!transaction.appAccountToken || transaction.appAccountToken.toLowerCase() !== user.id.toLowerCase()) {
+    return fail('account_mismatch', 403, user.id, productId);
+  }
+  if (transaction.revocationDate) {
+    return fail('transaction_revoked', 409, user.id, productId);
+  }
+  const originalTransactionId = transaction.originalTransactionId ?? '';
+  const transactionId = transaction.transactionId ?? '';
+  if (!originalTransactionId || !transactionId || !transaction.purchaseDate || !transaction.expiresDate) {
+    return fail('invalid_transaction', 400, user.id, productId);
+  }
+
+  const serviceClient = createServiceRoleClient();
+  const { data, error } = await (serviceClient as any).rpc('upsert_subscription', {
+    p_user_id: user.id,
+    p_original_transaction_id: originalTransactionId,
+    p_transaction_id: transactionId,
+    p_product_id: productId,
+    p_purchase_date: new Date(transaction.purchaseDate).toISOString(),
+    p_expires_at: new Date(transaction.expiresDate).toISOString(),
+    p_revoked_at: null,
+    p_environment: environment,
+  });
+  if (error) {
+    console.error('upsert_subscription failed', { productId, details: error.message });
+    return fail('failed_to_record_subscription', 500, user.id, productId);
+  }
+
+  const result = (data ?? {}) as { status?: unknown; active?: unknown; expires_at?: unknown };
+  if (result.status === 'owned_by_other_account') {
+    // Restore Purchases on a second Resumely account: the plan stays with the buyer.
+    return fail('subscription_owned_by_another_account', 409, user.id, productId);
+  }
+  if (typeof result.status !== 'string' || result.status === 'unknown_owner') {
+    console.error('upsert_subscription returned an unexpected status', { status: result.status });
+    return fail('failed_to_record_subscription', 500, user.id, productId);
+  }
+
+  const active = result.active === true;
+  const expiresAt = typeof result.expires_at === 'string' ? result.expires_at : null;
+  await captureServerEvent(user.id, 'iap_verified', {
+    product_id: productId,
+    credits_granted: 0,
+    environment,
+    status: result.status,
+    kind: 'subscription',
+  });
+  if (result.status === 'created') {
+    await captureServerEvent(user.id, 'subscription_started', { product_id: productId, environment, source: 'verify' });
+  }
+
+  return NextResponse.json({
+    success: true,
+    status: result.status === 'created' ? 'granted' : 'already_granted',
+    creditsGranted: 0,
+    balance: null,
+    entitlement: { active, productId, expiresAt },
   });
 }

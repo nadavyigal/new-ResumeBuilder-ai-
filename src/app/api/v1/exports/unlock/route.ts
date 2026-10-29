@@ -10,6 +10,9 @@ import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/ra
  * when the gate applies (the iOS app, with EXPORT_CREDITS_ENABLED or a test
  * account listed in EXPORT_CREDITS_USER_IDS, spec 6.5);
  * otherwise it records an ungated unlock and answers 200 { status: 'ungated' }.
+ * `source` says what paid for it: a credit, the Pro subscription, or nothing
+ * (ungated). A 402 from a subscriber over the fair-use cap carries
+ * `subscription_cap_reached` and `cap_resets_at`.
  */
 export async function POST(request: NextRequest) {
   const supabase = await createRouteHandlerClient(request);
@@ -49,5 +52,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(authorization.body, { status: authorization.httpStatus });
   }
 
-  return NextResponse.json({ status: authorization.status, balance: authorization.balance });
+  return NextResponse.json({
+    status: authorization.status,
+    balance: authorization.balance,
+    source: authorization.source,
+  });
 }

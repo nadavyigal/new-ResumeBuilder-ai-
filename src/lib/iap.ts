@@ -4,6 +4,7 @@ import {
   SignedDataVerifier,
   VerificationException,
   VerificationStatus,
+  type JWSRenewalInfoDecodedPayload,
   type JWSTransactionDecodedPayload,
   type ResponseBodyV2DecodedPayload,
 } from '@apple/app-store-server-library';
@@ -18,15 +19,42 @@ import { APPLE_ROOT_CA_G3_PEM } from '@/lib/apple-root-certificates';
  * ID and the environment. Nothing here trusts the request body for an amount.
  */
 
-/** Section 4 (F4). Unknown IDs, including the old credits_* ones, grant nothing. */
+/**
+ * Export packs, pricing v2 (ResumeBuilder-IOS-APP plans/resumely-pricing-v2.md).
+ * The app sells only the two v2 packs. The three v1 packs are retired (removed
+ * from sale in App Store Connect) but stay here, so a paid v1 transaction that
+ * was never delivered still grants what the buyer paid for. Unknown IDs,
+ * including the old credits_* ones, grant nothing.
+ */
 export const EXPORT_PACKS: Readonly<Record<string, number>> = Object.freeze({
+  'resumely.exports.5.v2': 5,
+  'resumely.exports.14': 14,
   'resumely.exports.1': 1,
   'resumely.exports.5': 5,
   'resumely.exports.10': 10,
 });
 
+/** No longer sold. Still honored for paid transactions (see EXPORT_PACKS). */
+export const RETIRED_PACK_IDS: readonly string[] = Object.freeze([
+  'resumely.exports.1',
+  'resumely.exports.5',
+  'resumely.exports.10',
+]);
+
+/** Auto-renewable products: unlimited exports within fair use. */
+export const SUBSCRIPTION_PRODUCTS: readonly string[] = Object.freeze(['resumely.pro.monthly']);
+
 export function creditsForProduct(productId: string): number {
   return Object.prototype.hasOwnProperty.call(EXPORT_PACKS, productId) ? EXPORT_PACKS[productId] : 0;
+}
+
+export function isSubscriptionProduct(productId: string): boolean {
+  return SUBSCRIPTION_PRODUCTS.includes(productId);
+}
+
+/** A product this app has ever sold, so its ID may go to analytics. */
+export function isKnownProduct(productId: string): boolean {
+  return creditsForProduct(productId) > 0 || isSubscriptionProduct(productId);
 }
 
 export type AppleEnvironment = 'Production' | 'Sandbox';
@@ -147,6 +175,14 @@ async function verifyWith<T>(
 export function verifySignedTransaction(signedTransaction: string, config: AppleIapConfig) {
   return verifyWith<JWSTransactionDecodedPayload>(signedTransaction, 'transaction', config, (verifier) =>
     verifier.verifyAndDecodeTransaction(signedTransaction)
+  );
+}
+
+/** The signed renewal info of a subscription notification (auto-renew, grace period). */
+export function verifySignedRenewalInfo(signedRenewalInfo: string, config: AppleIapConfig) {
+  // Renewal info carries `environment` at the top level, like a transaction.
+  return verifyWith<JWSRenewalInfoDecodedPayload>(signedRenewalInfo, 'transaction', config, (verifier) =>
+    verifier.verifyAndDecodeRenewalInfo(signedRenewalInfo)
   );
 }
 

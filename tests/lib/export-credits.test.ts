@@ -112,7 +112,43 @@ describe('export credits', () => {
         p_optimization_id: 'opt-1',
         p_charge: true,
       });
-      expect(result).toEqual({ ok: true, status: 'unlocked', balance: 4, source: 'credit', paidUser: true });
+      expect(result).toEqual({
+        ok: true, status: 'unlocked', balance: 4, source: 'credit', paidUser: true,
+        freeGrantUsed: false, welcomeExports: null, periodExports: null, periodCap: null,
+      });
+    });
+
+    it('maps a subscription unlock with its period count and cap', async () => {
+      const { mod } = loadModule({
+        data: { status: 'unlocked', source: 'subscription', balance: 3, paid_user: true, period_exports: 7, period_cap: 40 },
+        error: null,
+      });
+
+      await expect(mod.unlockExport('user-1', 'opt-1', true)).resolves.toEqual({
+        ok: true, status: 'unlocked', balance: 3, source: 'subscription', paidUser: true,
+        freeGrantUsed: false, welcomeExports: null, periodExports: 7, periodCap: 40,
+      });
+    });
+
+    it('reports the export that used up the welcome grant', async () => {
+      const { mod } = loadModule({
+        data: { status: 'unlocked', source: 'credit', balance: 0, paid_user: false, free_grant_used: true, welcome_exports: 3 },
+        error: null,
+      });
+
+      const result = await mod.unlockExport('user-1', 'opt-1', true);
+      expect(result).toEqual(expect.objectContaining({ ok: true, freeGrantUsed: true, welcomeExports: 3 }));
+    });
+
+    it('maps a 402 for a subscriber over the fair-use cap', async () => {
+      const { mod } = loadModule({
+        data: { status: 'insufficient', balance: 0, subscription_cap_reached: true, cap_resets_at: '2026-12-01T00:00:00+00:00' },
+        error: null,
+      });
+
+      await expect(mod.unlockExport('user-1', 'opt-1', true)).resolves.toEqual({
+        ok: false, status: 'insufficient', balance: 0, subscriptionCapReached: true, capResetsAt: '2026-12-01T00:00:00+00:00',
+      });
     });
 
     it('maps already_unlocked with its source and balance', async () => {
@@ -127,6 +163,7 @@ describe('export credits', () => {
         balance: 1,
         source: 'ungated',
         paidUser: false,
+        freeGrantUsed: false, welcomeExports: null, periodExports: null, periodCap: null,
       });
     });
 
@@ -139,6 +176,7 @@ describe('export credits', () => {
         balance: null,
         source: 'ungated',
         paidUser: null,
+        freeGrantUsed: false, welcomeExports: null, periodExports: null, periodCap: null,
       });
     });
 
@@ -149,6 +187,8 @@ describe('export credits', () => {
         ok: false,
         status: 'insufficient',
         balance: 0,
+        subscriptionCapReached: false,
+        capResetsAt: null,
       });
     });
 
