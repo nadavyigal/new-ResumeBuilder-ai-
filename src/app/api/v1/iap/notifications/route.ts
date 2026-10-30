@@ -155,6 +155,23 @@ export async function POST(request: NextRequest) {
  * transaction's appAccountToken, or from the existing row when Apple sent no
  * token; a subscription is never moved to another account here.
  */
+/**
+ * True the first time a notification UUID is seen. A failed claim sends no
+ * event: a lost analytics event is better than a doubled one.
+ */
+async function claimNotification(serviceClient: unknown, notification: ResponseBodyV2DecodedPayload) {
+  const notificationUUID = notification.notificationUUID ?? '';
+  if (!notificationUUID) return false;
+  const { data, error } = await (serviceClient as any).rpc('claim_subscription_notification', {
+    p_notification_uuid: notificationUUID,
+  });
+  if (error) {
+    console.error('claim_subscription_notification failed', { details: error.message });
+    return false;
+  }
+  return data === true;
+}
+
 async function handleSubscriptionNotification({
   notification,
   type,
@@ -277,12 +294,15 @@ async function handleSubscriptionNotification({
     if (autoRenewTurnedOff) {
       await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: 'auto_renew_off' });
     }
-    if (type === 'GRACE_PERIOD_EXPIRED') {
-      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: 'grace_period_expired' });
-    }
-    if (type === 'EXPIRED') {
-      const subtype = typeof notification.subtype === 'string' ? notification.subtype.toLowerCase() : 'unknown';
-      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: `expired_${subtype}` });
+    // Nothing in the subscription row changes on these two, so a retry of the
+    // same notification would send the event again. Claim its UUID first and
+    // send only on the first delivery (Codex P2 on #204).
+    if ((type === 'GRACE_PERIOD_EXPIRED' || type === 'EXPIRED') && (await claimNotification(serviceClient, notification))) {
+      const reason =
+        type === 'GRACE_PERIOD_EXPIRED'
+          ? 'grace_period_expired'
+          : `expired_${typeof notification.subtype === 'string' ? notification.subtype.toLowerCase() : 'unknown'}`;
+      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason });
     }
   }
 

@@ -361,16 +361,55 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
     const h = loadHarness({
       notification: subscriptionNotification('EXPIRED', 'VOLUNTARY'),
       renewal: { ok: true, value: { autoRenewStatus: 0, signedDate: SIGNED }, environment: 'Sandbox' },
-      rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        update_subscription_renewal: renewalUpdated,
+        claim_subscription_notification: { data: true, error: null },
+      },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+    expect(h.serviceRpc).toHaveBeenCalledWith('claim_subscription_notification', { p_notification_uuid: 'notif-EXPIRED' });
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'expired_voluntary' }));
+  });
+
+  it('a retried EXPIRED or GRACE_PERIOD_EXPIRED notification sends no second cancellation (Codex P2 on #204)', async () => {
+    for (const type of ['EXPIRED', 'GRACE_PERIOD_EXPIRED']) {
+      const h = loadHarness({
+        notification: subscriptionNotification(type, 'VOLUNTARY'),
+        rpc: {
+          upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+          update_subscription_renewal: renewalUpdated,
+          claim_subscription_notification: { data: false, error: null },
+        },
+      });
+      expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+      expect(h.captureServerEvent).not.toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.anything());
+    }
+  });
+
+  it('a failed claim still answers 200 and sends no event', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('EXPIRED', 'VOLUNTARY'),
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        update_subscription_renewal: renewalUpdated,
+        claim_subscription_notification: { data: null, error: { message: 'boom' } },
+      },
+    });
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
+    expect(h.captureServerEvent).not.toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.anything());
+    errorLog.mockRestore();
   });
 
   it('GRACE_PERIOD_EXPIRED sends subscription_cancelled', async () => {
     const h = loadHarness({
       notification: subscriptionNotification('GRACE_PERIOD_EXPIRED'),
-      rpc: { upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null }, update_subscription_renewal: renewalUpdated },
+      rpc: {
+        upsert_subscription: { data: { status: 'unchanged', user_id: USER_ID }, error: null },
+        update_subscription_renewal: renewalUpdated,
+        claim_subscription_notification: { data: true, error: null },
+      },
     });
     expect((await h.notify(buildRequest(notifyBody))).status).toBe(200);
     expect(h.captureServerEvent).toHaveBeenCalledWith(USER_ID, 'subscription_cancelled', expect.objectContaining({ reason: 'grace_period_expired' }));

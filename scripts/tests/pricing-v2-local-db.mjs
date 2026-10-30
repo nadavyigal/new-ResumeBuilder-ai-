@@ -106,6 +106,7 @@ try {
     'public.update_subscription_renewal(text,boolean,timestamptz,timestamptz)', 'public.grant_apple_purchase(uuid,text,text,integer,text)',
     'public.set_subscription_revocation(text,text,timestamptz,timestamptz)',
     'public.unlock_export(uuid,uuid,boolean)', 'public.welcome_export_grant()', 'public.subscription_export_cap()',
+    'public.claim_subscription_notification(text)',
   ];
   for (const fn of fns) {
     const grantees = (await admin.query(`select coalesce(r.rolname,'PUBLIC') g from pg_proc p,
@@ -123,12 +124,23 @@ try {
     for (const table of ['welcome_grants', 'subscriptions', 'subscription_export_usage']) {
       await assert.rejects(asRole(role, `insert into public.${table}(user_id) values ($1)`, [oldFree]), { code: '42501' });
     }
+    await assert.rejects(asRole(role, "select public.claim_subscription_notification('n')"), { code: '42501' });
+    await assert.rejects(asRole(role, "insert into public.subscription_notification_events(notification_uuid) values ('n')"), { code: '42501' });
+    await assert.rejects(asRole(role, 'select * from public.subscription_notification_events'), { code: '42501' });
   }
   check('new functions: anon/authenticated denied (42501), no PUBLIC grant, service_role can execute; tables not writable by clients');
 
   assert.equal(await svc('public.welcome_export_grant()'), 3);
   assert.equal(await svc('public.subscription_export_cap()'), 40);
   check('constants: 3 welcome exports, 40 subscription exports per period');
+
+  // Codex P2 on #204: one cancellation event per notification, however often Apple retries it.
+  assert.equal(await svc("public.claim_subscription_notification('notif-expired-1')"), true);
+  assert.equal(await svc("public.claim_subscription_notification('notif-expired-1')"), false);
+  assert.equal(await svc("public.claim_subscription_notification(' notif-expired-1 ')"), false, 'whitespace does not make a new claim');
+  assert.equal(await svc("public.claim_subscription_notification('notif-expired-2')"), true);
+  await assert.rejects(svc("public.claim_subscription_notification('')"));
+  check('a subscription notification UUID is claimed once; a retry is refused; an empty UUID is an error');
 
   // Existing accounts keep their balance and get 3 on top, once (D1).
   assert.equal(await balance(oldFree), 1);

@@ -877,3 +877,41 @@ revoke all on function public.welcome_export_grant() from public, anon, authenti
 revoke all on function public.subscription_export_cap() from public, anon, authenticated;
 grant execute on function public.welcome_export_grant() to service_role;
 grant execute on function public.subscription_export_cap() to service_role;
+
+-- 12. One analytics event per subscription notification (Codex P2 on #204).
+--    Apple retries a notification until it gets a 200, so EXPIRED and
+--    GRACE_PERIOD_EXPIRED could each send subscription_cancelled more than
+--    once. The server claims the notification UUID before sending; a retry
+--    finds it claimed and sends nothing. No user data, no client access.
+create table if not exists public.subscription_notification_events (
+  notification_uuid text primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table public.subscription_notification_events enable row level security;
+revoke all on public.subscription_notification_events from anon, authenticated;
+
+create or replace function public.claim_subscription_notification(p_notification_uuid text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows integer;
+begin
+  if length(trim(coalesce(p_notification_uuid, ''))) = 0 then
+    raise exception 'p_notification_uuid is required';
+  end if;
+
+  insert into public.subscription_notification_events (notification_uuid)
+  values (trim(p_notification_uuid))
+  on conflict (notification_uuid) do nothing;
+
+  get diagnostics v_rows = row_count;
+  return v_rows > 0;
+end;
+$$;
+
+revoke all on function public.claim_subscription_notification(text) from public, anon, authenticated;
+grant execute on function public.claim_subscription_notification(text) to service_role;
