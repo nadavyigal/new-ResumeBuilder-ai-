@@ -357,6 +357,20 @@ describe('POST /api/v1/iap/notifications for the Pro subscription', () => {
     expect(h.captureServerEvent).not.toHaveBeenCalled();
   });
 
+  it('a notification for a subscription product the server does not sell records nothing (as /verify)', async () => {
+    const h = loadHarness({
+      notification: subscriptionNotification('SUBSCRIBED', 'INITIAL_BUY'),
+      transaction: { ...subscriptionTransaction, productId: 'resumely.pro.yearly' },
+    });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const response = await h.notify(buildRequest(notifyBody));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ received: true });
+    expect(h.serviceRpc).not.toHaveBeenCalled();
+    expect(h.captureServerEvent).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('EXPIRED sends subscription_cancelled with the expiry reason', async () => {
     const h = loadHarness({
       notification: subscriptionNotification('EXPIRED', 'VOLUNTARY'),

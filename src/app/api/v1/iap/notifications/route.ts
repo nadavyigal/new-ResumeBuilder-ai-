@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import {
   getAppleIapConfig,
+  isSubscriptionProduct,
   verifySignedNotification,
   verifySignedRenewalInfo,
   verifySignedTransaction,
@@ -89,6 +90,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (transactionResult.value.type === 'Auto-Renewable Subscription') {
+    // A subscription product the server does not sell grants nothing, as in
+    // /verify (`unknown_product`). Acknowledged so Apple stops retrying.
+    if (!isSubscriptionProduct(transactionResult.value.productId ?? '')) {
+      console.warn('Notification for an unknown subscription product ignored', { type });
+      return NextResponse.json({ received: true });
+    }
     return handleSubscriptionNotification({
       notification,
       type,
