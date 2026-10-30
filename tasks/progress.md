@@ -1,3 +1,14 @@
+# 2026-10-30: Pricing v2 server, S5 grant source (draft PR #204)
+
+Status: branch `claude/pricing-v2-server`, commit 5cc86cb, draft PR nadavyigal/new-ResumeBuilder-ai-#204. Not merged. Migration `20261029120000_pricing_v2.sql` still not applied.
+Current Phase: Payments v2 (iOS plan `plans/resumely-pricing-v2.md`).
+Active Story: S5 analytics. `unlock_export` reports `source: welcome_grant` for an export paid by the 3 free exports and keeps it on re-download, so the app can send `export_completed` with `grant` or `pack`.
+Last Completed Story: S1 server pricing v2 (Codex clean at abc36d4 before this change).
+Next Recommended Story: S6 QA and Sandbox on the founder's phone.
+Blockers: founder yes to apply the migration; ASC products before Sandbox.
+Last Validation: at 5cc86cb: local Postgres pricing-v2 22, export-credits 13, apple-iap 18, security-definer-grants 11 checks pass; jest export-credits + api 176 pass; tsc 24 pre-existing test-file errors, none new; eslint clean on changed files.
+Last Updated: 2026-10-30
+
 # 2026-10-26: AI consent record
 
 Status: migration applied to production 2026-10-28 (founder yes), recorded as 20261028125956; file renamed to match. RLS on, no policies, anon/authenticated have no grants, 0 rows. PR merging 2026-10-28.
