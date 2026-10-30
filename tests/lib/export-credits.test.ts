@@ -130,6 +130,16 @@ describe('export credits', () => {
       });
     });
 
+    it('passes welcome_grant through as the source of a free export', async () => {
+      const { mod } = loadModule({
+        data: { status: 'unlocked', source: 'welcome_grant', balance: 2, paid_user: false, free_grant_used: false },
+        error: null,
+      });
+
+      const result = await mod.unlockExport('user-1', 'opt-1', true);
+      expect(result).toEqual(expect.objectContaining({ ok: true, source: 'welcome_grant' }));
+    });
+
     it('reports the export that used up the welcome grant', async () => {
       const { mod } = loadModule({
         data: { status: 'unlocked', source: 'credit', balance: 0, paid_user: false, free_grant_used: true, welcome_exports: 3 },

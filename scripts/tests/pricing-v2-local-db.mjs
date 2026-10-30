@@ -170,17 +170,23 @@ try {
   // Spending the grant: the third charged export marks it used up, once.
   const spender = randomUUID();
   await admin.query('insert into auth.users(id) values ($1)', [spender]);
-  const s1 = await unlock(spender, await newOpt(spender));
+  const firstOpt = await newOpt(spender);
+  const s1 = await unlock(spender, firstOpt);
   assert.equal(s1.status, 'unlocked'); assert.equal(s1.balance, 2); assert.equal(s1.free_grant_used, false);
+  assert.equal(s1.source, 'welcome_grant', 'a free export says so');
   assert.equal((await unlock(spender, await newOpt(spender))).free_grant_used, false);
   const s3 = await unlock(spender, await newOpt(spender));
   assert.equal(s3.balance, 0); assert.equal(s3.free_grant_used, true); assert.equal(s3.welcome_exports, 3);
+  assert.equal(s3.source, 'welcome_grant');
   assert.deepEqual(await unlock(spender, await newOpt(spender)), { status: 'insufficient', balance: 0 });
   await svc("public.grant_apple_purchase($1,'txn-spender','resumely.exports.5.v2',5,'Sandbox')", [spender]);
   const s5 = await unlock(spender, await newOpt(spender));
   assert.equal(s5.free_grant_used, false, 'free_grant_used fires once');
   assert.equal(s5.paid_user, true);
-  check('the welcome grant is spent by charged exports; the 3rd reports free_grant_used once; the 4th is a 402');
+  assert.equal(s5.source, 'credit', 'a paid pack credit says credit');
+  const again = await unlock(spender, firstOpt);
+  assert.equal(again.status, 'already_unlocked'); assert.equal(again.source, 'welcome_grant', 'a re-download keeps its source');
+  check('the welcome grant is spent by charged exports (source welcome_grant, kept on re-download); the 3rd reports free_grant_used once; the 4th is a 402; a pack credit says credit');
 
   // The first unlock grants even when ungated (credits wait for the gate).
   const ungated = randomUUID();
@@ -221,7 +227,8 @@ try {
   }
   assert.equal((await state(subUser)).subscription.period_exports, 40);
   const over = await unlock(subUser, await newOpt(subUser));
-  assert.equal(over.source, 'credit', 'the 41st export spends a credit');
+  // This subscriber never used the 3 free exports, so the 41st spends one of them.
+  assert.equal(over.source, 'welcome_grant', 'the 41st export spends a credit (a free one first)');
   assert.equal(await balance(subUser), before - 1);
   await admin.query('update profiles set credit_balance=0 where user_id=$1', [subUser]);
   const capped = await unlock(subUser, await newOpt(subUser));
@@ -270,7 +277,7 @@ try {
   await admin.query('insert into auth.users(id) values ($1)', [lapsed]);
   await upsert(lapsed, 'orig-2', 'txn-c', hours(-24 * 31), hours(-1));
   assert.equal((await state(lapsed)).subscription.active, false);
-  assert.equal((await unlock(lapsed, await newOpt(lapsed))).source, 'credit', 'expired: credits are used');
+  assert.equal((await unlock(lapsed, await newOpt(lapsed))).source, 'welcome_grant', 'expired: credits are used (a free one first), not the plan');
   await renewalUpdate('orig-2', null, hours(24 * 16), hours(-0.5));
   assert.equal((await state(lapsed)).subscription.active, true, 'billing grace period keeps it active');
   assert.equal((await unlock(lapsed, await newOpt(lapsed))).source, 'subscription');

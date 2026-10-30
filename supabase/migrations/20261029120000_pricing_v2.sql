@@ -94,7 +94,7 @@ revoke insert, update, delete, truncate on public.subscriptions from anon, authe
 --    one row per subscription export, with no link to the optimization row.
 alter table public.export_unlocks drop constraint if exists export_unlocks_source_check;
 alter table public.export_unlocks
-  add constraint export_unlocks_source_check check (source in ('credit', 'ungated', 'subscription'));
+  add constraint export_unlocks_source_check check (source in ('credit', 'welcome_grant', 'ungated', 'subscription'));
 
 create table if not exists public.subscription_export_usage (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -606,6 +606,7 @@ declare
   v_grant public.welcome_grants%rowtype;
   v_spent integer;
   v_free_grant_used boolean := false;
+  v_from_grant boolean := false;
 begin
   -- Step 1: the optimization must belong to this user.
   if not exists (
@@ -730,6 +731,14 @@ begin
     and used_up_at is null;
 
   if found then
+    -- The grant was not used up before this export, so this export is one of
+    -- its free ones. Recorded on the unlock so a re-download reports it too.
+    v_from_grant := true;
+    update public.export_unlocks
+    set source = 'welcome_grant'
+    where user_id = p_user_id
+      and optimization_id = p_optimization_id;
+
     select count(*)
       into v_spent
     from public.credit_transactions
@@ -747,7 +756,7 @@ begin
 
   return jsonb_build_object(
     'status', 'unlocked',
-    'source', 'credit',
+    'source', case when v_from_grant then 'welcome_grant' else 'credit' end,
     'balance', v_balance,
     'paid_user', v_paid,
     'free_grant_used', v_free_grant_used,

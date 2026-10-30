@@ -17,7 +17,8 @@ export const EXPORT_CLIENT_HEADER = 'x-resumely-client';
 
 type HeaderReader = { get(name: string): string | null };
 
-export type UnlockSource = 'credit' | 'ungated' | 'subscription';
+/** `welcome_grant`: one of the 3 free exports; `credit`: a paid pack credit. */
+export type UnlockSource = 'credit' | 'welcome_grant' | 'ungated' | 'subscription';
 
 export type UnlockExportResult =
   | {
@@ -85,7 +86,7 @@ function booleanOrNull(value: unknown): boolean | null {
 }
 
 function unlockSource(value: unknown): UnlockSource {
-  return value === 'ungated' || value === 'subscription' ? value : 'credit';
+  return value === 'ungated' || value === 'subscription' || value === 'welcome_grant' ? value : 'credit';
 }
 
 /**
