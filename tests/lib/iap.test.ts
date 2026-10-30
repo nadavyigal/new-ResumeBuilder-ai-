@@ -2,8 +2,11 @@ import { describe, expect, it } from '@jest/globals';
 import { X509Certificate, generateKeyPairSync, sign } from 'node:crypto';
 import {
   EXPORT_PACKS,
+  RETIRED_PACK_IDS,
   creditsForProduct,
   getAppleIapConfig,
+  isKnownProduct,
+  isSubscriptionProduct,
   verifySignedNotification,
   verifySignedTransaction,
   type AppleIapConfig,
@@ -42,8 +45,24 @@ const transactionPayload = {
 };
 
 describe('export packs (spec section 4)', () => {
-  it('maps the three new product IDs to 1, 5 and 10 credits', () => {
-    expect(EXPORT_PACKS).toEqual({ 'resumely.exports.1': 1, 'resumely.exports.5': 5, 'resumely.exports.10': 10 });
+  it('maps the two v2 packs to 5 and 14, and still honors the three retired v1 packs', () => {
+    expect(EXPORT_PACKS).toEqual({
+      'resumely.exports.5.v2': 5,
+      'resumely.exports.14': 14,
+      'resumely.exports.1': 1,
+      'resumely.exports.5': 5,
+      'resumely.exports.10': 10,
+    });
+    expect(RETIRED_PACK_IDS).toEqual(['resumely.exports.1', 'resumely.exports.5', 'resumely.exports.10']);
+  });
+
+  it('knows the Pro subscription, which grants no credits', () => {
+    expect(isSubscriptionProduct('resumely.pro.monthly')).toBe(true);
+    expect(creditsForProduct('resumely.pro.monthly')).toBe(0);
+    expect(isSubscriptionProduct('resumely.exports.14')).toBe(false);
+    expect(isKnownProduct('resumely.pro.monthly')).toBe(true);
+    expect(isKnownProduct('resumely.exports.14')).toBe(true);
+    expect(isKnownProduct('credits_basic')).toBe(false);
   });
 
   it.each(['credits_basic', 'credits_saver', 'credits_super', '', '__proto__', 'constructor', 'resumely.exports.2'])(

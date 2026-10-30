@@ -1,3 +1,14 @@
+# 2026-10-30: Pricing v2 server, S5 grant source (draft PR #204)
+
+Status: branch `claude/pricing-v2-server`, draft PR nadavyigal/new-ResumeBuilder-ai-#204. Not merged. Migration applied to production 2026-10-30 (founder yes), recorded as 20261030094500; file renamed to match. New accounts now start at 0 and every real account gets the 3 free exports on its first credit read or export.
+Current Phase: Payments v2 (iOS plan `plans/resumely-pricing-v2.md`).
+Active Story: S5 analytics. `unlock_export` reports `source: welcome_grant` for an export paid by the 3 free exports and keeps it on re-download, so the app can send `export_completed` with `grant` or `pack`. Codex on e9ff4ca: P2 (a retried EXPIRED or GRACE_PERIOD_EXPIRED sent subscription_cancelled again), fixed in a904f2e with `claim_subscription_notification` (service_role only). Codex on 6f7e892: no major issues. CodeRabbit: 2 minor (unknown subscription products were recorded by notifications; lesson wording), fixed in fbfd001.
+Last Completed Story: S1 server pricing v2 (Codex clean at abc36d4 before this change).
+Next Recommended Story: S6 QA and Sandbox on the founder's phone.
+Blockers: none for the migration. Next launch step is merging #204, then TestFlight 1.6.0.
+Last Validation: 2026-10-30 on production after apply: recorded statements match the file by md5 (963d4606...), default 0, source check has 4 values, 4 new tables with RLS and no client writes, 13 functions service_role only, real calls as anon and authenticated both 42501, rolled-back welcome grant 9 to 12 then already_granted, 0 rows left behind. Before apply: 2 apple_iap rows, 1 user, 0 Production, so no real buyer is affected. Security advisors: the only new warnings are 2 constant functions without a search_path (they read nothing) and RLS with no policies on subscription_notification_events (intended).
+Last Updated: 2026-10-30
+
 # 2026-10-26: AI consent record
 
 Status: migration applied to production 2026-10-28 (founder yes), recorded as 20261028125956; file renamed to match. RLS on, no policies, anon/authenticated have no grants, 0 rows. PR merging 2026-10-28.

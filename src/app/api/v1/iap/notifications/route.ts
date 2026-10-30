@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase-server';
-import { getAppleIapConfig, verifySignedNotification, verifySignedTransaction } from '@/lib/iap';
+import {
+  getAppleIapConfig,
+  isSubscriptionProduct,
+  verifySignedNotification,
+  verifySignedRenewalInfo,
+  verifySignedTransaction,
+  type AppleEnvironment,
+  type AppleIapConfig,
+} from '@/lib/iap';
+import type {
+  JWSTransactionDecodedPayload,
+  ResponseBodyV2DecodedPayload,
+} from '@apple/app-store-server-library';
 import { captureServerEvent } from '@/lib/posthog-server';
 
 // Apple's revocation checks (OCSP) can take a few seconds on a cold start.
@@ -14,7 +26,25 @@ export const maxDuration = 60;
  * notification is handled or deliberately ignored, 500 when the database
  * failed, and 400 for anything that does not verify (nothing changes).
  * `apply_iap_refund` keys on `notificationUUID`, so a retry is a no-op.
+ *
+ * Pricing v2: subscription notifications update the Pro entitlement through
+ * `upsert_subscription` and `update_subscription_renewal`, which are safe to
+ * repeat and to receive out of order, and send the subscription funnel events.
  */
+const REFUND_TYPES = new Set(['REFUND', 'REFUND_REVERSED']);
+const SUBSCRIPTION_TYPES = new Set([
+  'SUBSCRIBED',
+  'DID_RENEW',
+  'DID_CHANGE_RENEWAL_STATUS',
+  'DID_FAIL_TO_RENEW',
+  'EXPIRED',
+  'GRACE_PERIOD_EXPIRED',
+  'REFUND',
+  'REFUND_REVERSED',
+  'REVOKE',
+]);
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(request: NextRequest) {
   const config = getAppleIapConfig();
   if (!config) {
@@ -40,8 +70,8 @@ export async function POST(request: NextRequest) {
   }
 
   const notification = verified.value;
-  const type = notification.notificationType;
-  if (type !== 'REFUND' && type !== 'REFUND_REVERSED') {
+  const type = notification.notificationType ?? '';
+  if (!REFUND_TYPES.has(type) && !SUBSCRIPTION_TYPES.has(type)) {
     // CONSUMPTION_REQUEST is logged only in v1 (spec 8); so is everything else.
     console.info('App Store notification ignored', { type, subtype: notification.subtype });
     return NextResponse.json({ received: true });
@@ -49,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   const notificationUUID = notification.notificationUUID ?? '';
   const signedTransactionInfo = notification.data?.signedTransactionInfo ?? '';
-  if (!notificationUUID || !signedTransactionInfo) {
+  if (!signedTransactionInfo) {
     return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
   }
 
@@ -57,6 +87,30 @@ export async function POST(request: NextRequest) {
   if (!transactionResult.ok) {
     const status = transactionResult.reason === 'verification_unavailable' ? 503 : 400;
     return NextResponse.json({ error: 'invalid_notification' }, { status });
+  }
+
+  if (transactionResult.value.type === 'Auto-Renewable Subscription') {
+    // A subscription product the server does not sell grants nothing, as in
+    // /verify (`unknown_product`). Acknowledged so Apple stops retrying.
+    if (!isSubscriptionProduct(transactionResult.value.productId ?? '')) {
+      console.warn('Notification for an unknown subscription product ignored', { type });
+      return NextResponse.json({ received: true });
+    }
+    return handleSubscriptionNotification({
+      notification,
+      type,
+      transaction: transactionResult.value,
+      environment: transactionResult.environment,
+      config,
+    });
+  }
+
+  if (!REFUND_TYPES.has(type)) {
+    console.info('Subscription notification for a non-subscription transaction ignored', { type });
+    return NextResponse.json({ received: true });
+  }
+  if (!notificationUUID) {
+    return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
   }
   const transactionId = transactionResult.value.transactionId ?? '';
   if (!transactionId) {
@@ -98,6 +152,165 @@ export async function POST(request: NextRequest) {
       environment: typeof result.environment === 'string' ? result.environment : verified.environment,
       notification_type: type,
     });
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+/**
+ * Pricing v2: one subscription notification. The owner comes from the signed
+ * transaction's appAccountToken, or from the existing row when Apple sent no
+ * token; a subscription is never moved to another account here.
+ */
+/**
+ * True the first time a notification UUID is seen. A failed claim sends no
+ * event: a lost analytics event is better than a doubled one.
+ */
+async function claimNotification(serviceClient: unknown, notification: ResponseBodyV2DecodedPayload) {
+  const notificationUUID = notification.notificationUUID ?? '';
+  if (!notificationUUID) return false;
+  const { data, error } = await (serviceClient as any).rpc('claim_subscription_notification', {
+    p_notification_uuid: notificationUUID,
+  });
+  if (error) {
+    console.error('claim_subscription_notification failed', { details: error.message });
+    return false;
+  }
+  return data === true;
+}
+
+async function handleSubscriptionNotification({
+  notification,
+  type,
+  transaction,
+  environment,
+  config,
+}: {
+  notification: ResponseBodyV2DecodedPayload;
+  type: string;
+  transaction: JWSTransactionDecodedPayload;
+  environment: AppleEnvironment;
+  config: AppleIapConfig;
+}) {
+  const originalTransactionId = transaction.originalTransactionId ?? '';
+  const transactionId = transaction.transactionId ?? '';
+  if (!originalTransactionId || !transactionId || !transaction.purchaseDate || !transaction.expiresDate) {
+    return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
+  }
+  const token = transaction.appAccountToken ?? '';
+  const productId = transaction.productId ?? '';
+
+  const serviceClient = createServiceRoleClient();
+  const { data, error } = await (serviceClient as any).rpc('upsert_subscription', {
+    p_user_id: UUID_PATTERN.test(token) ? token.toLowerCase() : null,
+    p_original_transaction_id: originalTransactionId,
+    p_transaction_id: transactionId,
+    p_product_id: productId,
+    p_purchase_date: new Date(transaction.purchaseDate).toISOString(),
+    p_expires_at: new Date(transaction.expiresDate).toISOString(),
+    p_revoked_at: transaction.revocationDate ? new Date(transaction.revocationDate).toISOString() : null,
+    p_environment: environment,
+  });
+  if (error) {
+    console.error('upsert_subscription failed', { type, details: error.message });
+    return NextResponse.json({ error: 'subscription_update_failed' }, { status: 500 });
+  }
+
+  const result = (data ?? {}) as { status?: unknown; user_id?: unknown };
+  if (result.status === 'unknown_owner' || result.status === 'owned_by_other_account') {
+    // No account to credit yet (the app records it through /verify), or the
+    // token names another account than the buyer. Nothing changes.
+    console.warn('Subscription notification not applied', { type, status: result.status });
+    return NextResponse.json({ received: true });
+  }
+  const userId = typeof result.user_id === 'string' ? result.user_id : null;
+  const base = { product_id: productId, environment };
+
+  // Events that follow from the transaction go out now, before the renewal
+  // info step can fail: a retry finds the row unchanged and would never send
+  // them (Codex P2 on #204). Whichever request records a renewal first, this
+  // one or /verify, gets 'renewed' and sends subscription_renewed, once.
+  if (userId) {
+    if (result.status === 'created') {
+      await captureServerEvent(userId, 'subscription_started', { ...base, source: 'notification' });
+    }
+    if (result.status === 'renewed') {
+      await captureServerEvent(userId, 'subscription_renewed', { ...base, source: 'notification' });
+    }
+  }
+
+  // Refunds and their reversals: only here, from a verified notification,
+  // ordered by its signedDate (Codex P1 and P2 on #204).
+  if (type === 'REFUND' || type === 'REVOKE' || type === 'REFUND_REVERSED') {
+    const signedAt = notification.signedDate;
+    if (!signedAt) {
+      return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
+    }
+    const reversed = type === 'REFUND_REVERSED';
+    const revokedAt = transaction.revocationDate ?? signedAt;
+    const { data: revocationData, error: revocationError } = await (serviceClient as any).rpc(
+      'set_subscription_revocation',
+      {
+        p_original_transaction_id: originalTransactionId,
+        p_transaction_id: transactionId,
+        p_revoked_at: reversed ? null : new Date(revokedAt).toISOString(),
+        p_signed_at: new Date(signedAt).toISOString(),
+      }
+    );
+    if (revocationError) {
+      console.error('set_subscription_revocation failed', { type, details: revocationError.message });
+      return NextResponse.json({ error: 'subscription_update_failed' }, { status: 500 });
+    }
+    const revocationStatus = (revocationData as { status?: unknown } | null)?.status;
+    if (userId && revocationStatus === 'revoked') {
+      await captureServerEvent(userId, 'subscription_cancelled', {
+        ...base,
+        reason: type === 'REVOKE' ? 'revoked' : 'refunded',
+      });
+    }
+  }
+
+  let autoRenewTurnedOff = false;
+  const signedRenewalInfo = notification.data?.signedRenewalInfo ?? '';
+  if (signedRenewalInfo) {
+    const renewal = await verifySignedRenewalInfo(signedRenewalInfo, config);
+    if (!renewal.ok) {
+      const status = renewal.reason === 'verification_unavailable' ? 503 : 400;
+      return NextResponse.json({ error: 'invalid_notification' }, { status });
+    }
+    const autoRenewStatus = renewal.value.autoRenewStatus;
+    const grace = renewal.value.gracePeriodExpiresDate;
+    const signedDate = renewal.value.signedDate;
+    if (!signedDate) {
+      return NextResponse.json({ error: 'invalid_notification' }, { status: 400 });
+    }
+    const { data: renewalData, error: renewalError } = await (serviceClient as any).rpc('update_subscription_renewal', {
+      p_original_transaction_id: originalTransactionId,
+      p_auto_renew: autoRenewStatus === 1 ? true : autoRenewStatus === 0 ? false : null,
+      p_grace_until: grace ? new Date(grace).toISOString() : null,
+      p_signed_at: new Date(signedDate).toISOString(),
+    });
+    if (renewalError) {
+      console.error('update_subscription_renewal failed', { type, details: renewalError.message });
+      return NextResponse.json({ error: 'subscription_update_failed' }, { status: 500 });
+    }
+    autoRenewTurnedOff = (renewalData as { auto_renew_turned_off?: unknown } | null)?.auto_renew_turned_off === true;
+  }
+
+  if (userId) {
+    if (autoRenewTurnedOff) {
+      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason: 'auto_renew_off' });
+    }
+    // Nothing in the subscription row changes on these two, so a retry of the
+    // same notification would send the event again. Claim its UUID first and
+    // send only on the first delivery (Codex P2 on #204).
+    if ((type === 'GRACE_PERIOD_EXPIRED' || type === 'EXPIRED') && (await claimNotification(serviceClient, notification))) {
+      const reason =
+        type === 'GRACE_PERIOD_EXPIRED'
+          ? 'grace_period_expired'
+          : `expired_${typeof notification.subtype === 'string' ? notification.subtype.toLowerCase() : 'unknown'}`;
+      await captureServerEvent(userId, 'subscription_cancelled', { ...base, reason });
+    }
   }
 
   return NextResponse.json({ received: true });

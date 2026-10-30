@@ -43,9 +43,10 @@ Help job seekers fit their resume to a specific job: paste the job, see what is 
 - Bulk processing
 
 ## Business Model
-Updated 2026-10-15 from `docs/plans/2026-10-14-market-play-implementation.md` (founder decision D1).
+Updated 2026-10-29: pricing v2, founder-approved plan `plans/resumely-pricing-v2.md` in ResumeBuilder-IOS-APP (v3). Supersedes the 2026-10-14 D1 shape ($3.99/1, $12.99/5, $19.99/10, no subscription).
 - Today: free. No paywall, no charge, no visible "Premium" before the StoreKit gate (EXD-009, EXD-029, EXD-018).
-- Decided shape: iOS credit packs, $3.99 for 1, $12.99 for 5, $19.99 for 10 tailored exports; credits never expire; no subscription at launch.
+- Decided shape (iOS only): the Match Score is free and unlimited for everyone; only PDF exports are paid. Every real account gets 3 free PDF exports once (`welcome_export_grant()`). Packs `resumely.exports.5.v2` ($3.99, 5 exports) and `resumely.exports.14` ($7.99, 14 exports); monthly subscription `resumely.pro.monthly` ($9.99, unlimited exports, fair use 40 per billing period, `subscription_export_cap()`). The v1 packs are retired from sale but a paid v1 transaction is still honored. Credits never expire.
+- Server side: `supabase/migrations/20261030094500_pricing_v2.sql` (welcome grant, subscriptions, fair use in `unlock_export`), `/api/v1/iap/verify` and `/api/v1/iap/notifications` handle the subscription, `/api/v1/credits` returns the plan state.
 - Built only when all four StoreKit gate conditions hold (plan, Track 2). Stripe code still exists in the repo (`src/app/api/upgrade/route.ts`) but is not the pricing plan.
 
 ## Main Tech Stack
@@ -96,7 +97,7 @@ new-ResumeBuilder-ai-/       ← repo root, the Next.js app (run all commands fr
 - [OPEN QUESTION] Which OpenAI model to use in production: GPT-4o (quality) vs GPT-4o-mini (cost)
 - [OPEN QUESTION] LinkedIn import — timeline and API access approach
 - [OPEN QUESTION] Cover letter generation — separate product or same app
-- Pricing: answered 2026-10-14 (D1): credit packs, see Business Model
+- Pricing: answered 2026-10-14 (D1), revised 2026-10-29 (pricing v2): see Business Model
 
 ---
 

@@ -2,28 +2,48 @@ import { createServiceRoleClient } from '@/lib/supabase-server';
 import { captureServerEvent } from '@/lib/posthog-server';
 
 /**
- * Export credits (StoreKit spec, docs/superpowers/specs/2026-10-15-resumely-storekit-export-credits-spec.md).
+ * Export credits (StoreKit spec, docs/superpowers/specs/2026-10-15-resumely-storekit-export-credits-spec.md,
+ * and pricing v2, ResumeBuilder-IOS-APP plans/resumely-pricing-v2.md).
  *
  * One credit unlocks one optimization for export, forever: every format, every
- * re-download (spec 6.1). The gate applies only when `EXPORT_CREDITS_ENABLED`
- * is "true" **and** the request comes from the iOS app (spec 6.5, F1). The web
- * stays ungated until the Paddle checkout ships (spec 16.7).
+ * re-download (spec 6.1). Every real account gets a one-time welcome grant of
+ * free exports, and an active Pro subscription unlocks within its fair-use cap
+ * without spending credits (both in `unlock_export`). The gate applies only
+ * when `EXPORT_CREDITS_ENABLED` is "true" **and** the request comes from the
+ * iOS app (spec 6.5, F1). The web stays ungated. Match Scores are never gated.
  */
 
 export const EXPORT_CLIENT_HEADER = 'x-resumely-client';
 
 type HeaderReader = { get(name: string): string | null };
 
+/** `welcome_grant`: one of the 3 free exports; `credit`: a paid pack credit. */
+export type UnlockSource = 'credit' | 'welcome_grant' | 'ungated' | 'subscription';
+
 export type UnlockExportResult =
   | {
       ok: true;
       status: 'unlocked' | 'already_unlocked' | 'ungated';
       balance: number | null;
-      source: 'credit' | 'ungated';
-      /** Has any `apple_iap` ledger row. Null when the database did not say. */
+      source: UnlockSource;
+      /** Has an Apple purchase or a subscription. Null when the database did not say. */
       paidUser: boolean | null;
+      /** This export used up the welcome grant (fires `free_grant_used` once). */
+      freeGrantUsed: boolean;
+      /** How many exports the welcome grant gave, when `freeGrantUsed`. */
+      welcomeExports: number | null;
+      /** Subscription exports this period and the cap, for a subscription unlock. */
+      periodExports: number | null;
+      periodCap: number | null;
     }
-  | { ok: false; status: 'insufficient'; balance: 0 }
+  | {
+      ok: false;
+      status: 'insufficient';
+      balance: 0;
+      /** A subscriber over the fair-use cap with no credits left. */
+      subscriptionCapReached: boolean;
+      capResetsAt: string | null;
+    }
   | { ok: false; status: 'not_found' }
   | { ok: false; status: 'error'; details?: string };
 
@@ -65,6 +85,10 @@ function booleanOrNull(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
 
+function unlockSource(value: unknown): UnlockSource {
+  return value === 'ungated' || value === 'subscription' || value === 'welcome_grant' ? value : 'credit';
+}
+
 /**
  * Calls `unlock_export` (supabase/migrations/20261021120000_export_credits.sql).
  *
@@ -88,23 +112,54 @@ export async function unlockExport(
     return { ok: false, status: 'error', details: error.message };
   }
 
-  const result = (data ?? {}) as { status?: unknown; balance?: unknown; source?: unknown; paid_user?: unknown };
+  const result = (data ?? {}) as {
+    status?: unknown;
+    balance?: unknown;
+    source?: unknown;
+    paid_user?: unknown;
+    free_grant_used?: unknown;
+    welcome_exports?: unknown;
+    period_exports?: unknown;
+    period_cap?: unknown;
+    subscription_cap_reached?: unknown;
+    cap_resets_at?: unknown;
+  };
   const paidUser = booleanOrNull(result.paid_user);
+  const extras = {
+    freeGrantUsed: result.free_grant_used === true,
+    welcomeExports: numberOrNull(result.welcome_exports),
+    periodExports: numberOrNull(result.period_exports),
+    periodCap: numberOrNull(result.period_cap),
+  };
   switch (result.status) {
     case 'unlocked':
-      return { ok: true, status: 'unlocked', balance: numberOrNull(result.balance), source: 'credit', paidUser };
+      return {
+        ok: true,
+        status: 'unlocked',
+        balance: numberOrNull(result.balance),
+        source: unlockSource(result.source),
+        paidUser,
+        ...extras,
+      };
     case 'already_unlocked':
       return {
         ok: true,
         status: 'already_unlocked',
         balance: numberOrNull(result.balance),
-        source: result.source === 'ungated' ? 'ungated' : 'credit',
+        source: unlockSource(result.source),
         paidUser,
+        ...extras,
       };
     case 'ungated':
-      return { ok: true, status: 'ungated', balance: null, source: 'ungated', paidUser };
+      return { ok: true, status: 'ungated', balance: null, source: 'ungated', paidUser, ...extras };
     case 'insufficient':
-      return { ok: false, status: 'insufficient', balance: 0 };
+      return {
+        ok: false,
+        status: 'insufficient',
+        balance: 0,
+        subscriptionCapReached: result.subscription_cap_reached === true,
+        capResetsAt: typeof result.cap_resets_at === 'string' ? result.cap_resets_at : null,
+      };
     case 'not_found':
       return { ok: false, status: 'not_found' };
     default:
@@ -113,7 +168,12 @@ export async function unlockExport(
 }
 
 export type ExportAuthorization =
-  | { allowed: true; status: 'unlocked' | 'already_unlocked' | 'ungated'; balance: number | null }
+  | {
+      allowed: true;
+      status: 'unlocked' | 'already_unlocked' | 'ungated';
+      balance: number | null;
+      source: UnlockSource;
+    }
   | { allowed: false; httpStatus: 401 | 402 | 404 | 500; body: Record<string, unknown> };
 
 /**
@@ -153,11 +213,19 @@ export async function authorizeExport({
     await captureServerEvent(user.id, 'export_unlocked', {
       optimization_id: optimizationId,
       status: result.status,
+      source: result.source,
       paid_user: result.paidUser,
       balance_after: result.balance,
       platform,
     });
-    return { allowed: true, status: result.status, balance: result.balance };
+    if (result.freeGrantUsed) {
+      // Funnel step (pricing v2 section 6): the welcome grant is gone.
+      await captureServerEvent(user.id, 'free_grant_used', {
+        exports_used: result.welcomeExports,
+        platform,
+      });
+    }
+    return { allowed: true, status: result.status, balance: result.balance, source: result.source };
   }
 
   if (result.status === 'not_found') {
@@ -165,8 +233,22 @@ export async function authorizeExport({
   }
 
   if (result.status === 'insufficient') {
-    await captureServerEvent(user.id, 'export_blocked', { optimization_id: optimizationId, platform });
-    return { allowed: false, httpStatus: 402, body: { error: 'export_credits_required', balance: 0 } };
+    await captureServerEvent(user.id, 'export_blocked', {
+      optimization_id: optimizationId,
+      platform,
+      subscription_cap_reached: result.subscriptionCapReached,
+    });
+    return {
+      allowed: false,
+      httpStatus: 402,
+      body: {
+        error: 'export_credits_required',
+        balance: 0,
+        ...(result.subscriptionCapReached
+          ? { subscription_cap_reached: true, cap_resets_at: result.capResetsAt }
+          : {}),
+      },
+    };
   }
 
   if (!charged) {
@@ -174,7 +256,7 @@ export async function authorizeExport({
       optimizationId,
       details: result.details,
     });
-    return { allowed: true, status: 'ungated', balance: null };
+    return { allowed: true, status: 'ungated', balance: null, source: 'ungated' };
   }
 
   console.error('unlock_export failed on a charged export', { optimizationId, details: result.details });

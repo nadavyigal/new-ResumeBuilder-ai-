@@ -1,5 +1,15 @@
 # Lessons Learned — ResumeBuilder
 
+## A still-valid signed Apple payload can be replayed after a refund (2026-10-29)
+
+**Symptom:** Codex P1 on #204. After a REFUND notification revoked a subscription, sending the original, pre-refund signed transaction to `/api/v1/iap/verify` cleared `revoked_at` and switched the plan back on. Same class as the consumable "refund before grant" hole fixed on #197.
+
+**Root cause:** Apple's signature proves a payload is genuine, not that it is current. A JWS signed before the refund stays valid forever and carries no `revocationDate`. The upsert treated "same transaction, no revocation" as the newer truth.
+
+**Fix:** `upsert_subscription` (`20261030094500_pricing_v2.sql`) leaves `revoked_at` unchanged for the transaction the row already holds when its expiry is not later; only a later-expiry renewal overwrites it from its payload. Refunds, revokes and `REFUND_REVERSED` go through `set_subscription_revocation`, ordered by the notification's `signedDate` (`revocation_signed_at`). Renewal info is ordered by its `signedDate` (`renewal_signed_at`), so a late older notification answers `stale`.
+
+**Rule:** for every Apple-signed input, decide which field orders it (expiry for transactions, `signedDate` for renewal info) and never let an equal-or-older payload undo a stricter state (revoked, refunded, auto-renew off). Test it by replaying the old payload after the newer one.
+
 ## `REVOKE ... FROM PUBLIC` does not lock a Supabase function (2026-10-22)
 
 **Symptom:** the local database test for PR #195 replayed the production baseline and found `anon` could execute `consume_credit` and `grant_apple_credits`. Both are SECURITY DEFINER and trust `p_user_id`, so any client could have granted itself Apple credits.
