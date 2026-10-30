@@ -2,9 +2,10 @@
 -- Plan: ResumeBuilder-IOS-APP plans/resumely-pricing-v2.md (v3, approved 2026-10-29), story S1.
 -- Builds on 20261021120000_export_credits.sql and 20261023120000_apple_iap_verification.sql.
 --
--- NOT APPLIED. Applying it to production needs the founder's separate, explicit
--- yes. Apply it on its own through the Supabase MCP, then rename this file to
--- the recorded version (supabase/migrations_archive/README.md).
+-- Applied to production 2026-10-30 through the Supabase MCP with the founder's
+-- explicit yes, recorded as version 20261030094500 (this file's name). Never
+-- `db push` before the migration-history repair described in
+-- supabase/migrations_archive/README.md.
 --
 -- What changes for users once applied:
 --   * Every real (non-anonymous) account gets 3 free PDF exports once, ever,

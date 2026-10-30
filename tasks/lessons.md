@@ -6,7 +6,7 @@
 
 **Root cause:** Apple's signature proves a payload is genuine, not that it is current. A JWS signed before the refund stays valid forever and carries no `revocationDate`. The upsert treated "same transaction, no revocation" as the newer truth.
 
-**Fix:** `upsert_subscription` (`20261029120000_pricing_v2.sql`) leaves `revoked_at` unchanged for the transaction the row already holds when its expiry is not later; only a later-expiry renewal overwrites it from its payload. Refunds, revokes and `REFUND_REVERSED` go through `set_subscription_revocation`, ordered by the notification's `signedDate` (`revocation_signed_at`). Renewal info is ordered by its `signedDate` (`renewal_signed_at`), so a late older notification answers `stale`.
+**Fix:** `upsert_subscription` (`20261030094500_pricing_v2.sql`) leaves `revoked_at` unchanged for the transaction the row already holds when its expiry is not later; only a later-expiry renewal overwrites it from its payload. Refunds, revokes and `REFUND_REVERSED` go through `set_subscription_revocation`, ordered by the notification's `signedDate` (`revocation_signed_at`). Renewal info is ordered by its `signedDate` (`renewal_signed_at`), so a late older notification answers `stale`.
 
 **Rule:** for every Apple-signed input, decide which field orders it (expiry for transactions, `signedDate` for renewal info) and never let an equal-or-older payload undo a stricter state (revoked, refunded, auto-renew off). Test it by replaying the old payload after the newer one.
 

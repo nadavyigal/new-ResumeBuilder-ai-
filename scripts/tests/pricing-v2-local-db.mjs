@@ -2,7 +2,7 @@
  * Run: node scripts/tests/pricing-v2-local-db.mjs
  *
  * Replays the baseline and every migration before pricing v2, creates accounts
- * that exist before it, applies 20261029120000_pricing_v2.sql verbatim, then
+ * that exist before it, applies 20261030094500_pricing_v2.sql verbatim, then
  * replays anything after it. Proves the welcome grant, the subscription
  * entitlement and fair-use cap, and that packs, refunds and grants still work.
  * Same scaffold as the other credit tests: only GoTrue jwt(), Storage and the
@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
 
-const MIGRATION = '20261029120000_pricing_v2.sql';
+const MIGRATION = '20261030094500_pricing_v2.sql';
 const root = new URL('../../', import.meta.url);
 const migrationsDir = new URL('supabase/migrations/', root);
 const image = 'public.ecr.aws/supabase/postgres:17.6.1.158';
