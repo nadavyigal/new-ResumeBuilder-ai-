@@ -20,7 +20,9 @@
  *
  *   1. It reads the campaign identity from the landing URL and keeps it.
  *   2. It stamps that identity onto Apple's `ct` campaign token, so the install
- *      side of the hop is separable in App Store Connect's own reporting.
+ *      side of the hop is separable in App Store Connect's own reporting. Apple
+ *      only records `ct` next to the account's provider token (`pt`), which comes
+ *      from configuration, see `buildAppStoreUrl`.
  *   3. It records a `campaign_store_handoff` event, so the number of people a
  *      campaign pushed at the store is a measured quantity rather than a guess.
  *
@@ -40,7 +42,12 @@ export const APP_STORE_BASE_URL =
 
 /** Preserved from the previous hard-coded link so organic behaviour is unchanged. */
 export const DEFAULT_STORE_CAMPAIGN_TOKEN = 'web-ats';
-export const STORE_PROVIDER_TOKEN = 'organic';
+
+/** Apple's limit, App Store Connect Analytics help, "Campaign links". */
+export const STORE_CAMPAIGN_TOKEN_MAX_LENGTH = 30;
+
+/** Apple's media type for apps. */
+const STORE_MEDIA_TYPE = '8';
 
 /** Non-governed. Web-only. Never used as an activation step. */
 export const CAMPAIGN_HANDOFF_EVENT = 'campaign_store_handoff';
@@ -95,13 +102,32 @@ export function readCampaignFromSearch(
 }
 
 /**
- * The App Store URL for a given campaign. With no campaign the URL is byte-for-
- * byte what the page served before this module existed, so the organic path has
- * no behaviour change to roll back.
+ * The value for Apple's `ct`. Stricter than the campaign id: a long id is cut to
+ * Apple's limit here, so the link and the handoff event report the same token.
+ */
+export function storeCampaignToken(campaignId?: string | null): string {
+  const token = sanitizeCampaignToken(campaignId)
+    .slice(0, STORE_CAMPAIGN_TOKEN_MAX_LENGTH)
+    .replace(/-+$/, '');
+  return token || DEFAULT_STORE_CAMPAIGN_TOKEN;
+}
+
+/**
+ * The App Store URL for a given campaign, in Apple's `pt`, `ct`, `mt` format.
+ *
+ * `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` is the account's provider token, from a
+ * campaign link generated in App Store Connect. It is not a secret: Apple prints
+ * it in every campaign link. Without it the link is byte-for-byte what the page
+ * served before, which Apple does not record as a campaign, so unsetting it is
+ * the rollback. Spelled out in full so Next.js inlines it in the client bundle.
  */
 export function buildAppStoreUrl(campaignId?: string | null): string {
-  const token = sanitizeCampaignToken(campaignId) || DEFAULT_STORE_CAMPAIGN_TOKEN;
-  return `${APP_STORE_BASE_URL}?ct=${encodeURIComponent(token)}&at=${STORE_PROVIDER_TOKEN}`;
+  const ct = encodeURIComponent(storeCampaignToken(campaignId));
+  const providerToken = process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN?.trim();
+  if (!providerToken) {
+    return `${APP_STORE_BASE_URL}?ct=${ct}&at=organic`;
+  }
+  return `${APP_STORE_BASE_URL}?pt=${encodeURIComponent(providerToken)}&ct=${ct}&mt=${STORE_MEDIA_TYPE}`;
 }
 
 /** Storage is best-effort: private windows and blocked site data must not throw. */
@@ -163,6 +189,6 @@ export function handoffProperties(
     utm_content: context?.utm_content ?? null,
     locale,
     destination: 'app_store',
-    store_campaign_token: sanitizeCampaignToken(context?.campaign_id) || DEFAULT_STORE_CAMPAIGN_TOKEN,
+    store_campaign_token: storeCampaignToken(context?.campaign_id),
   };
 }

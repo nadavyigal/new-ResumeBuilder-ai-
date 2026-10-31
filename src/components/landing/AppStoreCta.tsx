@@ -21,8 +21,8 @@ interface AppStoreCtaProps {
  *
  * The href is resolved on the client because the campaign lives in the URL the
  * visitor arrived on, not in the route. Before hydration the link is the plain
- * organic URL, which is exactly what this page served previously, so a visitor
- * who clicks in that window is no worse off than before.
+ * organic URL, so a visitor who clicks in that window loses the campaign, not
+ * the store.
  *
  * The click emits `campaign_store_handoff` — a new, web-only event. It is not
  * an activation step and is never read as one: the governed funnel begins at

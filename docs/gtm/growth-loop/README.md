@@ -150,10 +150,13 @@ filters on `$lib = resumely-ios-urlsession`, which no web event carries.
 
 ### Rollback
 
-The organic path is unchanged by construction: with no campaign present,
-`buildAppStoreUrl()` returns the exact string the page hard-coded before
-(`…id6776752349?ct=web-ats&at=organic`). That equality is asserted in
-`tests/unit/campaign-context.test.ts` under the name `ROLLBACK`.
+With `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` set, the store link uses Apple's
+format (`…id6776752349?pt=<token>&ct=<campaign>&mt=8`), and Apple records the
+campaign. Unset it and, with no campaign present, `buildAppStoreUrl()` returns
+the exact string the page hard-coded before (`…id6776752349?ct=web-ats&at=organic`).
+That equality is asserted in `tests/unit/campaign-context.test.ts` under the name
+`ROLLBACK`. Apple caps `ct` at 30 characters, so keep campaign ids to 30 or the
+App Store Connect report shows a cut name.
 
 To revert entirely:
 

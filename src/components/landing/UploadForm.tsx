@@ -105,7 +105,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           className="sr-only"
         />
         {resumeFile && (
-          <p className="break-all text-xs text-foreground/60">
+          <p data-private className="break-all text-xs text-foreground/60">
             {t("selectedFile", { fileName: resumeFile.name })}
           </p>
         )}
@@ -181,7 +181,10 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       </div>
 
       {errorMessage && (
-        <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          data-private
+          className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {errorMessage}
         </div>
       )}

@@ -263,6 +263,12 @@ export function FreeATSChecker({ heading }: FreeATSCheckerProps = {}) {
                 >
                   {heading ?? t("title")}
                 </h1>
+                {/* Hebrew only: there is no approved English slogan. */}
+                {locale === "he" && (
+                  <p data-testid="ats-checker-slogan" className="text-xl font-semibold text-foreground">
+                    {t("slogan")}
+                  </p>
+                )}
                 <p className="text-lg text-foreground/80 leading-relaxed">
                   {t("description")}
                 </p>

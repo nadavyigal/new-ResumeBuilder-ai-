@@ -1,5 +1,13 @@
 # Lessons Learned — ResumeBuilder
 
+## Funnel overrides decide what /he shows (2026-10-31)
+
+**Symptom:** a Hebrew copy fix in `src/messages/he.json` alone would change nothing on `/he`.
+
+**Root cause:** `src/i18n.ts` merges `src/messages-overrides/funnel/<locale>.json` last, and that file repeats most of `landing.*`. `HeroSection` and its `landing.hero.*` strings are also dead: the home hero is `FreeATSChecker`.
+
+**Rule:** for landing copy, change both files and read the result in a browser. `tests/contracts/he-landing-copy.test.ts` pins the audited lines in both.
+
 ## A still-valid signed Apple payload can be replayed after a refund (2026-10-29)
 
 **Symptom:** Codex P1 on #204. After a REFUND notification revoked a subscription, sending the original, pre-refund signed transaction to `/api/v1/iap/verify` cleared `revoked_at` and switched the plan back on. Same class as the consumable "refund before grant" hole fixed on #197.

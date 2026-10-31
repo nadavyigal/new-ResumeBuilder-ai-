@@ -1,3 +1,14 @@
+# 2026-10-31: Growth audit gates: store link, Hebrew copy, replay masking
+
+Status: branch `fix/2026-10-31-growth-gates`, PR open, not merged, not deployed.
+Current Phase: Market play. These three fixes gate invitations and the capped $150 paid test (vault `02-Products/ResumeBuilder/2026-10-31-growth-pack/`).
+Active Story: Store link reads `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` and builds Apple's `pt`, `ct`, `mt` link, with `ct` cut to Apple's 30-character limit. `/he` copy fixed in both Hebrew message files, slogan added under the heading. `data-private` added to the result root, the selected file name and the form error.
+Last Completed Story: Pricing v2 server (#204).
+Next Recommended Story: Founder sets the provider token in Vercel, then the paid test can record campaigns.
+Blockers: the provider token. Until it is set, the store link is the old one and Apple records no campaign. It comes from a campaign link generated in App Store Connect.
+Last Validation: 2026-10-31 jest 1186 passed, 84 skipped, 0 failed; eslint on changed files passed; `check:i18n` passed; `/he` checked in a browser at 375 and 1024 wide with a fake token. `tsc --noEmit` has 24 errors, all in 4 test files this branch does not touch. No real session recording was made.
+Last Updated: 2026-10-31
+
 # 2026-10-30: Pricing v2 server, S5 grant source (draft PR #204)
 
 Status: branch `claude/pricing-v2-server`, draft PR nadavyigal/new-ResumeBuilder-ai-#204. Not merged. Migration applied to production 2026-10-30 (founder yes), recorded as 20261030094500; file renamed to match. New accounts now start at 0 and every real account gets the 3 free exports on its first credit read or export.
