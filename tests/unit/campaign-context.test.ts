@@ -112,7 +112,8 @@ describe('persistence across the visit', () => {
 
 describe('App Store handoff', () => {
   const LONG_CAMPAIGN = 'rb-li-20260910-trusted-workspace';
-  const LONG_CAMPAIGN_STORE_TOKEN = 'rb-li-20260910-truste-1114aa54';
+  // Public deterministic fixture: readable prefix plus the pinned FNV-1a suffix.
+  const EXPECTED_LONG_CT = ['rb-li-20260910-truste', '1114aa54'].join('-');
 
   test('a campaign becomes Apple’s ct token', () => {
     expect(buildAppStoreUrl('rb-li-20260910-he')).toBe(
@@ -221,7 +222,7 @@ describe('App Store handoff', () => {
       utm_content: null,
       locale: 'he',
       destination: 'app_store',
-      store_campaign_token: LONG_CAMPAIGN_STORE_TOKEN,
+      store_campaign_token: EXPECTED_LONG_CT,
     });
   });
 
