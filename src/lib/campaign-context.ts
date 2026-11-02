@@ -102,14 +102,48 @@ export function readCampaignFromSearch(
 }
 
 /**
- * The value for Apple's `ct`. Stricter than the campaign id: a long id is cut to
- * Apple's limit here, so the link and the handoff event report the same token.
+ * Apple's ct: preserve short IDs; long IDs use a readable prefix plus a stable
+ * FNV-1a suffix over the entire canonical ID. This is not collision-free:
+ * publication MUST preflight the complete campaign registry below.
  */
 export function storeCampaignToken(campaignId?: string | null): string {
-  const token = sanitizeCampaignToken(campaignId)
-    .slice(0, STORE_CAMPAIGN_TOKEN_MAX_LENGTH)
-    .replace(/-+$/, '');
-  return token || DEFAULT_STORE_CAMPAIGN_TOKEN;
+  const token = sanitizeCampaignToken(campaignId);
+  if (!token) return DEFAULT_STORE_CAMPAIGN_TOKEN;
+  if (token.length <= STORE_CAMPAIGN_TOKEN_MAX_LENGTH) return token;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    hash = Math.imul(hash ^ token.charCodeAt(i), 0x01000193) >>> 0;
+  }
+  const suffix = hash.toString(16).padStart(8, '0');
+  const prefix = token.slice(0, STORE_CAMPAIGN_TOKEN_MAX_LENGTH - 9).replace(/-+$/, '');
+  return `${prefix}-${suffix}`;
+}
+
+/**
+ * Publication preflight, including historical/active IDs and every proposed ID.
+ * Reject lossy spelling and any token collision (including short-vs-hashed),
+ * rather than pretending a bounded hash can guarantee global uniqueness.
+ */
+export function validateStoreCampaignRegistry(ids: readonly string[]): Array<{
+  campaign_id: string;
+  store_campaign_token: string;
+}> {
+  if (!ids.length) throw new Error('Campaign registry is empty.');
+  const seen = new Map<string, string>();
+  return ids.map((id) => {
+    if (typeof id !== 'string' || !id || sanitizeCampaignToken(id) !== id) {
+      throw new Error(`Campaign ID must be canonical lowercase ASCII, at most 64 characters: ${id}`);
+    }
+    const token = storeCampaignToken(id);
+    if (token === DEFAULT_STORE_CAMPAIGN_TOKEN) {
+      throw new Error(`Store token ${token} is reserved for organic traffic.`);
+    }
+    if (seen.has(token)) {
+      throw new Error(`Store token collision: ${seen.get(token)} and ${id} -> ${token}`);
+    }
+    seen.set(token, id);
+    return { campaign_id: id, store_campaign_token: token };
+  });
 }
 
 /**
@@ -117,9 +151,10 @@ export function storeCampaignToken(campaignId?: string | null): string {
  *
  * `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` is the account's provider token, from a
  * campaign link generated in App Store Connect. It is not a secret: Apple prints
- * it in every campaign link. Without it the link is byte-for-byte what the page
- * served before, which Apple does not record as a campaign, so unsetting it is
- * the rollback. Spelled out in full so Next.js inlines it in the client bundle.
+ * it in every campaign link. Without it, the organic URL is unchanged; long
+ * campaign IDs intentionally use the same new <=30-character mapping on both
+ * paths. Unsetting requires a fresh build AND deployment to change the bundle.
+ * Spelled out in full so Next.js inlines it in the client bundle.
  */
 export function buildAppStoreUrl(campaignId?: string | null): string {
   const ct = encodeURIComponent(storeCampaignToken(campaignId));

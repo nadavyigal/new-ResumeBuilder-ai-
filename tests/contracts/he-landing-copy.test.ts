@@ -34,7 +34,7 @@ describe.each(FILES)('Hebrew landing copy in %s', (file) => {
   });
 
   it('describes the format block without ATS language or a doubt about filters', () => {
-    expect(descriptions[4]).toBe('תבניות נקיות וקריאות, ששומרות על הניסיון שלכם ברור.');
+    expect(descriptions[4]).toBe('תבניות נקיות וקריאות, שמציגות את הניסיון שלכם בבירור.');
     expect(descriptions.join(' ')).not.toContain('ATS');
     expect(descriptions.join(' ')).not.toContain('ערובה');
   });

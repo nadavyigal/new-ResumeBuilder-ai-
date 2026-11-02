@@ -11,6 +11,7 @@ import {
   DEFAULT_STORE_CAMPAIGN_TOKEN,
   STORE_CAMPAIGN_TOKEN_MAX_LENGTH,
   buildAppStoreUrl,
+  validateStoreCampaignRegistry,
   handoffProperties,
   loadCampaign,
   readCampaignFromSearch,
@@ -111,7 +112,7 @@ describe('persistence across the visit', () => {
 
 describe('App Store handoff', () => {
   const LONG_CAMPAIGN = 'rb-li-20260910-trusted-workspace';
-  const LONG_CAMPAIGN_STORE_TOKEN = 'rb-li-20260910-trusted-workspa';
+  const LONG_CAMPAIGN_STORE_TOKEN = 'rb-li-20260910-truste-1114aa54';
 
   test('a campaign becomes Apple’s ct token', () => {
     expect(buildAppStoreUrl('rb-li-20260910-he')).toBe(
@@ -119,14 +120,47 @@ describe('App Store handoff', () => {
     );
   });
 
-  test('the store token is cut to Apple’s 30-character limit', () => {
-    expect(STORE_CAMPAIGN_TOKEN_MAX_LENGTH).toBe(30);
-    expect(storeCampaignToken(LONG_CAMPAIGN)).toBe(LONG_CAMPAIGN_STORE_TOKEN);
-    expect(storeCampaignToken(LONG_CAMPAIGN)).toHaveLength(30);
+  test.each([29, 30, 31, 64])('bounds a %i-character ID without changing short IDs', (length) => {
+    const id = 'a'.repeat(length);
+    const token = storeCampaignToken(id);
+    expect(token.length).toBeLessThanOrEqual(30);
+    expect(token).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    if (length <= 30) expect(token).toBe(id);
+    else expect(token).toMatch(/^a+-[a-f0-9]{8}$/);
   });
 
-  test('a cut never leaves a trailing hyphen', () => {
-    expect(storeCampaignToken(`${'a'.repeat(29)}-bbb`)).toBe('a'.repeat(29));
+  test('distinguishes the reviewed long IDs with an identical 30-character prefix', () => {
+    const a = 'rb-li-20260910-trusted-workspace-a';
+    const b = 'rb-li-20260910-trusted-workspace-b';
+    expect(storeCampaignToken(a)).not.toBe(storeCampaignToken(b));
+    expect(storeCampaignToken(a)).toBe(storeCampaignToken(a));
+    expect(STORE_CAMPAIGN_TOKEN_MAX_LENGTH).toBe(30);
+  });
+
+  test.each([undefined, '', '123456'])('URL/event equality including long-ID migration, provider=%p', (provider) => {
+    if (provider === undefined) delete process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN;
+    else process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = provider;
+    for (const id of [null, 'a'.repeat(30), 'a'.repeat(31), 'a'.repeat(64), 'a'.repeat(29) + '-bbb']) {
+      const context = id ? readCampaignFromSearch('?utm_campaign=' + id) : null;
+      const ct = new URL(buildAppStoreUrl(id)).searchParams.get('ct');
+      expect(ct).toBe(handoffProperties(context, 'he').store_campaign_token);
+      expect(ct!.length).toBeLessThanOrEqual(30);
+    }
+  });
+
+  test('publication preflight rejects sanitization, truncation and reserved-token collisions', () => {
+    expect(validateStoreCampaignRegistry(['launch-a', 'launch-b'])).toHaveLength(2);
+    expect(() => validateStoreCampaignRegistry(['launch a', 'launch-a'])).toThrow(/canonical/i);
+    expect(() => validateStoreCampaignRegistry(['a'.repeat(65)])).toThrow(/canonical/i);
+    expect(() => validateStoreCampaignRegistry(['web-ats'])).toThrow(/reserved/i);
+    expect(() => validateStoreCampaignRegistry(['launch-a', 'launch-a'])).toThrow(/collision/i);
+    expect(() => validateStoreCampaignRegistry([])).toThrow(/empty/i);
+    expect(() => validateStoreCampaignRegistry(['קמפיין'])).toThrow(/canonical/i);
+  });
+
+  test('publication preflight rejects even a short ID equal to a derived long token', () => {
+    const id = 'rb-li-20260910-trusted-workspace-a';
+    expect(() => validateStoreCampaignRegistry([id, storeCampaignToken(id)])).toThrow(/collision/i);
   });
 
   describe('with a provider token configured', () => {

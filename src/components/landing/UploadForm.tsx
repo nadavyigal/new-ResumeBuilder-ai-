@@ -99,6 +99,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           id="resume"
           type="file"
           data-testid="resume-upload"
+          data-private-input
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           required
@@ -136,6 +137,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Textarea
               id="jobDescription"
               data-testid="job-description-input"
+              data-private-input
               placeholder={t("placeholders.description")}
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
@@ -157,6 +159,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Input
               id="jobDescriptionUrl"
               data-testid="job-description-url-input"
+              data-private-input
               type="url"
               inputMode="url"
               autoCapitalize="none"

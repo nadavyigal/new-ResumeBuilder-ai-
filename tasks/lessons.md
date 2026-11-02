@@ -321,3 +321,12 @@ Always wrap the call in try/catch returning a JSON 400 so a bad PDF can never su
 **Never let a scrape silently produce a score.** Added `isThinExtraction` + `ThinJobExtractionError` thrown centrally in `extractJob`; `/api/upload-resume` now prefers pasted text and otherwise returns `422 JOB_URL_UNREADABLE`. Optimizing against an empty JD is worse than telling the user to paste it.
 
 **Reproduction caveat:** a real authwall only reproduces from a datacenter IP. Local curl/dev gets full content. Verify on a Vercel preview via the `?token=`-gated `/api/debug/scrape-check` route, not locally.
+
+## 2026-11-02 — DOM privacy selectors do not prove recorder-payload privacy
+
+A real local recording in posthog-js 1.310.1 exposed file-input filenames and a
+controlled textarea's value attribute despite `maskAllInputs: true`. Text masking
+on the displayed filename/result was insufficient. Block sensitive form controls
+from replay as well, and check full snapshots plus incremental events with
+fictional sentinels and a public positive control. Keep local payload evidence
+separate from hosted recording and production-configuration verification.

@@ -78,6 +78,7 @@ function textNodesContaining(container: HTMLElement, needles: string[]): Text[] 
 
 describe('free check text stays out of session replay', () => {
   let selector: string;
+  let blockSelector: string;
   let container: HTMLDivElement;
   let root: Root;
 
@@ -85,8 +86,9 @@ describe('free check text stays out of session replay', () => {
     process.env.NEXT_PUBLIC_POSTHOG_KEY = 'phc_test';
     const { initPostHog } = require('@/lib/posthog');
     initPostHog();
-    const options = posthogInit.mock.calls[0]?.[1] as { session_recording: { maskTextSelector: string } };
+    const options = posthogInit.mock.calls[0]?.[1] as { session_recording: { maskTextSelector: string; blockSelector: string } };
     selector = options.session_recording.maskTextSelector;
+    blockSelector = options.session_recording.blockSelector;
   });
 
   beforeEach(() => {
@@ -118,6 +120,11 @@ describe('free check text stays out of session replay', () => {
     act(() => root.render(<UploadForm onSubmit={() => {}} />));
 
     const input = container.querySelector('[data-testid="resume-upload"]') as HTMLInputElement;
+    expect(input.matches(blockSelector)).toBe(true);
+    expect(container.querySelector('[data-testid="job-description-input"]')?.matches(blockSelector)).toBe(true);
+    const urlButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'landing.uploadForm.inputModes.url')!;
+    act(() => urlButton.click());
+    expect(container.querySelector('[data-testid="job-description-url-input"]')?.matches(blockSelector)).toBe(true);
     const file = new File(['%PDF'], 'NAMESENTINEL-cv.pdf', { type: 'application/pdf' });
     Object.defineProperty(input, 'files', { value: [file] });
     act(() => {
