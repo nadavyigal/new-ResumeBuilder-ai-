@@ -120,6 +120,8 @@ export function initPostHog() {
     session_recording: {
       maskAllInputs: true,
       maskTextSelector: '[data-private]',
+      // File values and controlled-field attributes can escape input masking.
+      blockSelector: 'input[type="file"], [data-private-input]',
     },
     before_send: sanitizeBeforeSend,
     loaded: () => {

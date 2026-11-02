@@ -1,5 +1,13 @@
 # Lessons Learned — ResumeBuilder
 
+## Funnel overrides decide what /he shows (2026-10-31)
+
+**Symptom:** a Hebrew copy fix in `src/messages/he.json` alone would change nothing on `/he`.
+
+**Root cause:** `src/i18n.ts` merges `src/messages-overrides/funnel/<locale>.json` last, and that file repeats most of `landing.*`. `HeroSection` and its `landing.hero.*` strings are also dead: the home hero is `FreeATSChecker`.
+
+**Rule:** for landing copy, change both files and read the result in a browser. `tests/contracts/he-landing-copy.test.ts` pins the audited lines in both.
+
 ## A still-valid signed Apple payload can be replayed after a refund (2026-10-29)
 
 **Symptom:** Codex P1 on #204. After a REFUND notification revoked a subscription, sending the original, pre-refund signed transaction to `/api/v1/iap/verify` cleared `revoked_at` and switched the plan back on. Same class as the consumable "refund before grant" hole fixed on #197.
@@ -313,3 +321,12 @@ Always wrap the call in try/catch returning a JSON 400 so a bad PDF can never su
 **Never let a scrape silently produce a score.** Added `isThinExtraction` + `ThinJobExtractionError` thrown centrally in `extractJob`; `/api/upload-resume` now prefers pasted text and otherwise returns `422 JOB_URL_UNREADABLE`. Optimizing against an empty JD is worse than telling the user to paste it.
 
 **Reproduction caveat:** a real authwall only reproduces from a datacenter IP. Local curl/dev gets full content. Verify on a Vercel preview via the `?token=`-gated `/api/debug/scrape-check` route, not locally.
+
+## 2026-11-02 — DOM privacy selectors do not prove recorder-payload privacy
+
+A real local recording in posthog-js 1.310.1 exposed file-input filenames and a
+controlled textarea's value attribute despite `maskAllInputs: true`. Text masking
+on the displayed filename/result was insufficient. Block sensitive form controls
+from replay as well, and check full snapshots plus incremental events with
+fictional sentinels and a public positive control. Keep local payload evidence
+separate from hosted recording and production-configuration verification.

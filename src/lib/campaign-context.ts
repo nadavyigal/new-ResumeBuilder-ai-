@@ -20,7 +20,9 @@
  *
  *   1. It reads the campaign identity from the landing URL and keeps it.
  *   2. It stamps that identity onto Apple's `ct` campaign token, so the install
- *      side of the hop is separable in App Store Connect's own reporting.
+ *      side of the hop is separable in App Store Connect's own reporting. Apple
+ *      only records `ct` next to the account's provider token (`pt`), which comes
+ *      from configuration, see `buildAppStoreUrl`.
  *   3. It records a `campaign_store_handoff` event, so the number of people a
  *      campaign pushed at the store is a measured quantity rather than a guess.
  *
@@ -40,7 +42,12 @@ export const APP_STORE_BASE_URL =
 
 /** Preserved from the previous hard-coded link so organic behaviour is unchanged. */
 export const DEFAULT_STORE_CAMPAIGN_TOKEN = 'web-ats';
-export const STORE_PROVIDER_TOKEN = 'organic';
+
+/** Apple's limit, App Store Connect Analytics help, "Campaign links". */
+export const STORE_CAMPAIGN_TOKEN_MAX_LENGTH = 30;
+
+/** Apple's media type for apps. */
+const STORE_MEDIA_TYPE = '8';
 
 /** Non-governed. Web-only. Never used as an activation step. */
 export const CAMPAIGN_HANDOFF_EVENT = 'campaign_store_handoff';
@@ -95,13 +102,67 @@ export function readCampaignFromSearch(
 }
 
 /**
- * The App Store URL for a given campaign. With no campaign the URL is byte-for-
- * byte what the page served before this module existed, so the organic path has
- * no behaviour change to roll back.
+ * Apple's ct: preserve short IDs; long IDs use a readable prefix plus a stable
+ * FNV-1a suffix over the entire canonical ID. This is not collision-free:
+ * publication MUST preflight the complete campaign registry below.
+ */
+export function storeCampaignToken(campaignId?: string | null): string {
+  const token = sanitizeCampaignToken(campaignId);
+  if (!token) return DEFAULT_STORE_CAMPAIGN_TOKEN;
+  if (token.length <= STORE_CAMPAIGN_TOKEN_MAX_LENGTH) return token;
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    hash = Math.imul(hash ^ token.charCodeAt(i), 0x01000193) >>> 0;
+  }
+  const suffix = hash.toString(16).padStart(8, '0');
+  const prefix = token.slice(0, STORE_CAMPAIGN_TOKEN_MAX_LENGTH - 9).replace(/-+$/, '');
+  return `${prefix}-${suffix}`;
+}
+
+/**
+ * Publication preflight, including historical/active IDs and every proposed ID.
+ * Reject lossy spelling and any token collision (including short-vs-hashed),
+ * rather than pretending a bounded hash can guarantee global uniqueness.
+ */
+export function validateStoreCampaignRegistry(ids: readonly string[]): Array<{
+  campaign_id: string;
+  store_campaign_token: string;
+}> {
+  if (!ids.length) throw new Error('Campaign registry is empty.');
+  const seen = new Map<string, string>();
+  return ids.map((id) => {
+    if (typeof id !== 'string' || !id || sanitizeCampaignToken(id) !== id) {
+      throw new Error(`Campaign ID must be canonical lowercase ASCII, at most 64 characters: ${id}`);
+    }
+    const token = storeCampaignToken(id);
+    if (token === DEFAULT_STORE_CAMPAIGN_TOKEN) {
+      throw new Error(`Store token ${token} is reserved for organic traffic.`);
+    }
+    if (seen.has(token)) {
+      throw new Error(`Store token collision: ${seen.get(token)} and ${id} -> ${token}`);
+    }
+    seen.set(token, id);
+    return { campaign_id: id, store_campaign_token: token };
+  });
+}
+
+/**
+ * The App Store URL for a given campaign, in Apple's `pt`, `ct`, `mt` format.
+ *
+ * `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` is the account's provider token, from a
+ * campaign link generated in App Store Connect. It is not a secret: Apple prints
+ * it in every campaign link. Without it, the organic URL is unchanged; long
+ * campaign IDs intentionally use the same new <=30-character mapping on both
+ * paths. Unsetting requires a fresh build AND deployment to change the bundle.
+ * Spelled out in full so Next.js inlines it in the client bundle.
  */
 export function buildAppStoreUrl(campaignId?: string | null): string {
-  const token = sanitizeCampaignToken(campaignId) || DEFAULT_STORE_CAMPAIGN_TOKEN;
-  return `${APP_STORE_BASE_URL}?ct=${encodeURIComponent(token)}&at=${STORE_PROVIDER_TOKEN}`;
+  const ct = encodeURIComponent(storeCampaignToken(campaignId));
+  const providerToken = process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN?.trim();
+  if (!providerToken) {
+    return `${APP_STORE_BASE_URL}?ct=${ct}&at=organic`;
+  }
+  return `${APP_STORE_BASE_URL}?pt=${encodeURIComponent(providerToken)}&ct=${ct}&mt=${STORE_MEDIA_TYPE}`;
 }
 
 /** Storage is best-effort: private windows and blocked site data must not throw. */
@@ -163,6 +224,6 @@ export function handoffProperties(
     utm_content: context?.utm_content ?? null,
     locale,
     destination: 'app_store',
-    store_campaign_token: sanitizeCampaignToken(context?.campaign_id) || DEFAULT_STORE_CAMPAIGN_TOKEN,
+    store_campaign_token: storeCampaignToken(context?.campaign_id),
   };
 }

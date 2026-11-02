@@ -99,13 +99,14 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
           id="resume"
           type="file"
           data-testid="resume-upload"
+          data-private-input
           accept=".pdf,application/pdf"
           onChange={handleFileChange}
           required
           className="sr-only"
         />
         {resumeFile && (
-          <p className="break-all text-xs text-foreground/60">
+          <p data-private className="break-all text-xs text-foreground/60">
             {t("selectedFile", { fileName: resumeFile.name })}
           </p>
         )}
@@ -136,6 +137,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Textarea
               id="jobDescription"
               data-testid="job-description-input"
+              data-private-input
               placeholder={t("placeholders.description")}
               value={jobDescription}
               onChange={(event) => setJobDescription(event.target.value)}
@@ -157,6 +159,7 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
             <Input
               id="jobDescriptionUrl"
               data-testid="job-description-url-input"
+              data-private-input
               type="url"
               inputMode="url"
               autoCapitalize="none"
@@ -181,7 +184,10 @@ export function UploadForm({ onSubmit, onFileSelected, errorMessage }: UploadFor
       </div>
 
       {errorMessage && (
-        <div className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          data-private
+          className="rounded-2xl border-2 border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
           {errorMessage}
         </div>
       )}

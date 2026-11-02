@@ -1,20 +1,23 @@
 /**
  * Campaign propagation: link -> stored context -> App Store `ct` token.
  *
- * The rollback case is a test rather than a note: with no campaign present the
- * store URL must be byte-for-byte the string this page served before the
- * change, so reverting is provably a no-op for organic traffic.
+ * The rollback case is a test rather than a note: with no campaign and no
+ * provider token the store URL must be byte-for-byte the string this page
+ * served before the change, so unsetting the token is provably a clean rollback.
  */
 import {
   APP_STORE_BASE_URL,
   CAMPAIGN_STORAGE_KEY,
   DEFAULT_STORE_CAMPAIGN_TOKEN,
+  STORE_CAMPAIGN_TOKEN_MAX_LENGTH,
   buildAppStoreUrl,
+  validateStoreCampaignRegistry,
   handoffProperties,
   loadCampaign,
   readCampaignFromSearch,
   resolveCampaign,
   sanitizeCampaignToken,
+  storeCampaignToken,
 } from '@/lib/campaign-context';
 
 const cardLogic = require('../../docs/gtm/growth-loop/loop-card.logic.js');
@@ -23,8 +26,19 @@ const cardLogic = require('../../docs/gtm/growth-loop/loop-card.logic.js');
 const PRE_CHANGE_URL =
   'https://apps.apple.com/app/resume-ai-cv-builder/id6776752349?ct=web-ats&at=organic';
 
+const ORIGINAL_PROVIDER_TOKEN = process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN;
+
 beforeEach(() => {
   window.localStorage.clear();
+  delete process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN;
+});
+
+afterAll(() => {
+  if (ORIGINAL_PROVIDER_TOKEN === undefined) {
+    delete process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN;
+  } else {
+    process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = ORIGINAL_PROVIDER_TOKEN;
+  }
 });
 
 describe('campaign id spelling', () => {
@@ -97,13 +111,99 @@ describe('persistence across the visit', () => {
 });
 
 describe('App Store handoff', () => {
+  const LONG_CAMPAIGN = 'rb-li-20260910-trusted-workspace';
+  // Public deterministic fixture: readable prefix plus the pinned FNV-1a suffix.
+  const EXPECTED_LONG_CT = ['rb-li-20260910-truste', '1114aa54'].join('-');
+
   test('a campaign becomes Apple’s ct token', () => {
-    expect(buildAppStoreUrl('rb-li-20260910-trusted-workspace')).toBe(
-      `${APP_STORE_BASE_URL}?ct=rb-li-20260910-trusted-workspace&at=organic`,
+    expect(buildAppStoreUrl('rb-li-20260910-he')).toBe(
+      `${APP_STORE_BASE_URL}?ct=rb-li-20260910-he&at=organic`,
     );
   });
 
-  test('ROLLBACK: with no campaign the URL is unchanged from before this feature', () => {
+  test.each([29, 30, 31, 64])('bounds a %i-character ID without changing short IDs', (length) => {
+    const id = 'a'.repeat(length);
+    const token = storeCampaignToken(id);
+    expect(token.length).toBeLessThanOrEqual(30);
+    expect(token).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+    if (length <= 30) expect(token).toBe(id);
+    else expect(token).toMatch(/^a+-[a-f0-9]{8}$/);
+  });
+
+  test('distinguishes the reviewed long IDs with an identical 30-character prefix', () => {
+    const a = 'rb-li-20260910-trusted-workspace-a';
+    const b = 'rb-li-20260910-trusted-workspace-b';
+    expect(storeCampaignToken(a)).not.toBe(storeCampaignToken(b));
+    expect(storeCampaignToken(a)).toBe(storeCampaignToken(a));
+    expect(STORE_CAMPAIGN_TOKEN_MAX_LENGTH).toBe(30);
+  });
+
+  test.each([undefined, '', '123456'])('URL/event equality including long-ID migration, provider=%p', (provider) => {
+    if (provider === undefined) delete process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN;
+    else process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = provider;
+    for (const id of [null, 'a'.repeat(30), 'a'.repeat(31), 'a'.repeat(64), 'a'.repeat(29) + '-bbb']) {
+      const context = id ? readCampaignFromSearch('?utm_campaign=' + id) : null;
+      const ct = new URL(buildAppStoreUrl(id)).searchParams.get('ct');
+      expect(ct).toBe(handoffProperties(context, 'he').store_campaign_token);
+      expect(ct!.length).toBeLessThanOrEqual(30);
+    }
+  });
+
+  test('publication preflight rejects sanitization, truncation and reserved-token collisions', () => {
+    expect(validateStoreCampaignRegistry(['launch-a', 'launch-b'])).toHaveLength(2);
+    expect(() => validateStoreCampaignRegistry(['launch a', 'launch-a'])).toThrow(/canonical/i);
+    expect(() => validateStoreCampaignRegistry(['a'.repeat(65)])).toThrow(/canonical/i);
+    expect(() => validateStoreCampaignRegistry(['web-ats'])).toThrow(/reserved/i);
+    expect(() => validateStoreCampaignRegistry(['launch-a', 'launch-a'])).toThrow(/collision/i);
+    expect(() => validateStoreCampaignRegistry([])).toThrow(/empty/i);
+    expect(() => validateStoreCampaignRegistry(['קמפיין'])).toThrow(/canonical/i);
+  });
+
+  test('publication preflight rejects even a short ID equal to a derived long token', () => {
+    const id = 'rb-li-20260910-trusted-workspace-a';
+    expect(() => validateStoreCampaignRegistry([id, storeCampaignToken(id)])).toThrow(/collision/i);
+  });
+
+  describe('with a provider token configured', () => {
+    beforeEach(() => {
+      process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = '123456';
+    });
+
+    test('a campaign link uses Apple’s pt, ct and mt format', () => {
+      expect(buildAppStoreUrl('rb-li-20260910-he')).toBe(
+        `${APP_STORE_BASE_URL}?pt=123456&ct=rb-li-20260910-he&mt=8`,
+      );
+    });
+
+    test('an organic visit records under the default web token', () => {
+      expect(buildAppStoreUrl(null)).toBe(
+        `${APP_STORE_BASE_URL}?pt=123456&ct=${DEFAULT_STORE_CAMPAIGN_TOKEN}&mt=8`,
+      );
+    });
+
+    test('the old at parameter is gone', () => {
+      expect(new URL(buildAppStoreUrl('rb-li-20260910-he')).searchParams.has('at')).toBe(false);
+    });
+
+    test('stray whitespace in the configured token does not reach the link', () => {
+      process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = ' 123456\n';
+      expect(new URL(buildAppStoreUrl(null)).searchParams.get('pt')).toBe('123456');
+    });
+
+    test('the event reports the token the link actually carries', () => {
+      const context = readCampaignFromSearch(`?utm_campaign=${LONG_CAMPAIGN}`);
+      expect(handoffProperties(context, 'he').store_campaign_token).toBe(
+        new URL(buildAppStoreUrl(context?.campaign_id)).searchParams.get('ct'),
+      );
+    });
+  });
+
+  test('a blank provider token falls back to the link served today', () => {
+    process.env.NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN = '   ';
+    expect(buildAppStoreUrl(null)).toBe(PRE_CHANGE_URL);
+  });
+
+  test('ROLLBACK: with no campaign and no provider token the URL is unchanged', () => {
     expect(buildAppStoreUrl(null)).toBe(PRE_CHANGE_URL);
     expect(buildAppStoreUrl(undefined)).toBe(PRE_CHANGE_URL);
     expect(buildAppStoreUrl('')).toBe(PRE_CHANGE_URL);
@@ -122,7 +222,7 @@ describe('App Store handoff', () => {
       utm_content: null,
       locale: 'he',
       destination: 'app_store',
-      store_campaign_token: 'rb-li-20260910-trusted-workspace',
+      store_campaign_token: EXPECTED_LONG_CT,
     });
   });
 

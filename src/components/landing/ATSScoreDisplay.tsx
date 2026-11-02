@@ -38,8 +38,10 @@ export function ATSScoreDisplay({ data, onSignup, onCheckAnother, checksRemainin
   // verdict. When the verdict is withheld (thin job extraction), no label shows.
   const verdict = data.fit?.verdict ?? null;
 
+  // data-private on the root, not per field: everything below is derived from the
+  // visitor's CV or job, and a new child must not need to remember to opt in.
   return (
-    <div data-testid="ats-score-display" className="space-y-6">
+    <div data-testid="ats-score-display" data-private className="space-y-6">
       <div className="text-center space-y-2">
         {verdict && (
           <div

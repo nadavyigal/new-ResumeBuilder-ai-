@@ -1,3 +1,14 @@
+# 2026-10-31: Growth audit gates: store link, Hebrew copy, replay masking
+
+Status: branch `fix/2026-10-31-growth-gates`, PR open, not merged, not deployed.
+Current Phase: Market play. These three fixes gate invitations and the capped $150 paid test (vault `02-Products/ResumeBuilder/2026-10-31-growth-pack/`).
+Active Story: Store link reads `NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` and builds Apple's `pt`, `ct`, `mt` link, with `ct` cut to Apple's 30-character limit. `/he` copy fixed in both Hebrew message files, slogan added under the heading. `data-private` added to the result root, the selected file name and the form error.
+Last Completed Story: Pricing v2 server (#204).
+Next Recommended Story: Founder sets the provider token in Vercel, then the paid test can record campaigns.
+Blockers: the provider token. Until it is set, the store link is the old one and Apple records no campaign. It comes from a campaign link generated in App Store Connect.
+Last Validation: 2026-10-31 jest 1186 passed, 84 skipped, 0 failed; eslint on changed files passed; `check:i18n` passed; `/he` checked in a browser at 375 and 1024 wide with a fake token. `tsc --noEmit` has 24 errors, all in 4 test files this branch does not touch. No real session recording was made.
+Last Updated: 2026-10-31
+
 # 2026-10-30: Pricing v2 server, S5 grant source (draft PR #204)
 
 Status: branch `claude/pricing-v2-server`, draft PR nadavyigal/new-ResumeBuilder-ai-#204. Not merged. Migration applied to production 2026-10-30 (founder yes), recorded as 20261030094500; file renamed to match. New accounts now start at 0 and every real account gets the 3 free exports on its first credit read or export.
@@ -904,3 +915,17 @@ Founder re-ran a fresh optimization live (not a cached one) on the Base44 Partne
 Direct curl of the identical LinkedIn URL from this machine returned the full page (260KB) with the show-more-less-html section intact (2,950 chars, "Job Description" + "Qualifications" bullet lists, no authwall). The production scraper (src/lib/scraper/jobExtractor.ts, fetched from Vercel's serverless egress) is getting a stripped-down version of the same page — almost certainly LinkedIn anti-bot serving degraded content to flagged datacenter/cloud IP ranges. No error is thrown (200 OK), so it fails silently into a near-empty job_data.
 
 This means PR #76's resolver and the save-path fix above are both correct and necessary, but neither can fix this specific failure mode — there's no real text to fall back to. Founder decision 2026-06-19: park this, do not add a scraping-proxy dependency without explicit approval. If revisited, options are (a) a residential-IP proxy service (new paid dependency) or (b) detect thin scrapes and prompt the user to paste the JD manually instead of silently scoring against the meta snippet.
+
+## 2026-11-02 — Web #205 review repairs (commit/push and Preview approved)
+
+Existing `growth-gates` worktree/branch retained at `cc48991`; current reviews and
+Steward read. Added stable bounded long-ID tokens and a complete-registry
+collision preflight; settled the long-ID fallback as an intentional migration.
+Corrected fresh-build/deploy/rollback guidance, removed this PR's env template
+addition and aligned Hebrew base/override/assertions. Actual local recorder tests
+found filename/input-attribute leaks; blocked sensitive controls and verified
+fictional error/result/URL captures. Production provider, inventory and hosted
+playback remain unverified. Founder then accepted the fixes and approved commit,
+push and automatic Preview; production changes remain on hold. No merge or
+production configuration/deployment is authorized. See `docs/gtm/growth-loop/2026-11-02-pr205-handoff.md` for checks, limitations and
+the exact commit/push, configuration and deployment approval sequence.

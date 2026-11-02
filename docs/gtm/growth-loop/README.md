@@ -47,7 +47,8 @@ Campaign ID, channel, locale, positioning, the question, destination URL.
 
 Campaign ID convention: `product-channel-yyyymmdd-slug`, lowercase ASCII with hyphens,
 e.g. `rb-li-20260910-trusted-workspace`. The card rejects anything the App Store `ct`
-token cannot carry, and tells you the usable spelling. The same string must appear as
+token cannot carry, and tells you the usable spelling. Before marking tracking verified,
+run the registry preflight below. The same campaign ID must appear as
 `utm_campaign` in the destination URL — that is what makes the arrival attributable.
 
 ### 2. Prepare
@@ -148,12 +149,64 @@ Three files in `src/`, all additive:
 written, renamed, or given a new meaning. The iOS contract read is unaffected — it
 filters on `$lib = resumely-ios-urlsession`, which no web event carries.
 
-### Rollback
+### Attribution setup and publication preflight
 
-The organic path is unchanged by construction: with no campaign present,
-`buildAppStoreUrl()` returns the exact string the page hard-coded before
-(`…id6776752349?ct=web-ats&at=organic`). That equality is asserted in
-`tests/unit/campaign-context.test.ts` under the name `ROLLBACK`.
+The provider token is the public `pt` value from a campaign link generated for
+this app in App Store Connect; verify it against that account, never guess it.
+`NEXT_PUBLIC_APP_STORE_PROVIDER_TOKEN` must be present in the target environment
+**before a fresh build**. Next.js embeds `NEXT_PUBLIC_` values in the browser
+bundle ([official guidance](https://nextjs.org/docs/app/guides/environment-variables)).
+Changing a setting does not change an existing deployment. Build, then deploy
+only with separate founder approval. This also applies to the public PostHog key
+and host. No production token, analytics configuration or attribution is verified
+by a passing local test.
+
+Apple limits `ct` to 30 characters ([campaign links](https://developer.apple.com/help/app-store-connect-analytics/acquisition/campaign-links)).
+IDs up to 30 characters stay intact. Longer canonical IDs (up to 64) use the first
+21 characters (without a trailing hyphen), a hyphen and an eight-hex FNV-1a suffix
+computed over the entire canonical ID. Full `campaign_id` stays in the web event;
+`store_campaign_token` equals the URL's `ct`. Do not match long IDs by eye alone.
+
+A finite hash cannot guarantee uniqueness. Before **every publication**, collect
+all historical, active and proposed campaign IDs in a JSON array, then run:
+
+```bash
+npx --no-install tsx scripts/check-store-campaigns.ts /absolute/path/complete-registry.json
+```
+
+This offline command rejects empty/incomplete spellings, IDs over 64 characters,
+noncanonical IDs (including punctuation/case/whitespace rewrites), the reserved
+organic token `web-ats`, duplicate IDs and any derived token collision, including
+a short ID equal to a hashed token. A passing subset is not a complete registry
+check. Do not mark the card's tracking status `verified` until the complete list
+passes, its printed ID/token mapping is saved in the card's tracking note, and
+URL/event equality is observed in the target deployment. On conflict choose a
+new canonical ID and rerun the entire list. No complete production registry has
+been checked in this repair. The experiment card is a manual publication record;
+it does not run this command or publish anything itself.
+
+### Rollback and long-ID compatibility decision
+
+With the provider configured, the URL is
+`…id6776752349?pt=<token>&ct=<mapped-token>&mt=8`. Without it, the URL uses
+`?ct=<mapped-token>&at=organic`; this is not verified Apple campaign attribution.
+The exact old organic URL (`?ct=web-ats&at=organic`) is preserved when no campaign
+is present, as asserted by `ROLLBACK` in the unit test.
+
+**Intentional migration:** long-ID tokens use the new bounded mapping on both
+paths, including when the provider is absent. We do not restore the former
+64-character fallback. Removing the provider disables the configured attribution
+format; it does not restore old long-ID token names or repair historical rows.
+Record old/new mappings separately if a campaign was already published; live
+campaign history has not been checked. Short canonical IDs remain unchanged.
+
+To disable the configured provider: remove/unset it in the target environment,
+make a **fresh build**, then perform a separately approved deployment. Inspect
+both organic and campaign CTAs and compare `ct` with the handoff event afterward.
+Unsetting alone, restarting a server or promoting the same built artifact leaves
+the embedded value unchanged. An approved rollback to a known earlier deployment
+can restore that deployment's embedded configuration; check its source and public
+values first. Full source reverts likewise require a new build and approved deploy.
 
 To revert entirely:
 

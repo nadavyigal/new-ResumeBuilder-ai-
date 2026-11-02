@@ -99,9 +99,9 @@
   }
 
   /**
-   * Apple's campaign token and our own campaign id share one spelling so a
-   * store-side row and a PostHog row can be matched by eye. Lowercase, ASCII,
-   * hyphen-separated; anything else is dropped rather than transliterated,
+   * Canonical IDs use lowercase ASCII, hyphen-separated. Long IDs map to a
+   * shorter Apple token; save the registry preflight mapping in the tracking
+   * note. Other characters are dropped rather than transliterated,
    * because a silently rewritten id is worse than a rejected one.
    */
   function sanitizeCampaignToken(value) {
@@ -322,8 +322,9 @@
         owns: 'Local repository work named in this card, on a branch.',
         brief:
           'For ' + id + ': implement only what stage 2 lists, on a branch. Return a diff. ' +
-          'The campaign id is the one identity the card, the store token and the analytics ' +
-          'session must all spell the same way.',
+          'Use the same campaign id in the card and analytics session. Run the complete ' +
+          'store-token registry preflight from README before marking tracking verified; ' +
+          'save its ID/token mapping in the tracking note.',
         must_not: [
           'Deploy, release, merge, or publish.',
           'Change governed activation-event meanings.',
