@@ -18,8 +18,14 @@ type Phase = "checking" | "ready" | "invalid" | "done";
 /**
  * Landing page of the password reset email (`resetPasswordForEmail` in
  * `../reset-password/page.tsx` redirects here). The link signs the user in
- * with a recovery session: a PKCE `code`, a `token_hash`, or tokens in the
- * URL hash. Once that session exists, the user sets a new password.
+ * with a recovery session, then the user sets a new password.
+ *
+ * Required Supabase "Reset password" email template link, so it works on any
+ * device: `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`.
+ * `../confirm/route.ts` verifies it on the server and redirects here signed in.
+ * The default `{{ .ConfirmationURL }}` sends a PKCE `code`, which only works in
+ * the browser that asked for the reset (its code verifier lives there).
+ * A `token_hash` or hash tokens arriving here directly are also handled.
  */
 export default function UpdatePasswordPage() {
   const t = useTranslations("auth.updatePassword");
@@ -53,6 +59,18 @@ export default function UpdatePasswordPage() {
       // while it starts, and getSession waits for that.
       const { data } = await supabase.auth.getSession();
       if (data.session) return true;
+
+      // Implicit-flow links put the tokens in the hash. The PKCE browser
+      // client refuses them on start, so set the session from them here.
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        return !error;
+      }
 
       const code = url.searchParams.get("code");
       if (code) {

@@ -7,6 +7,7 @@ const exchangeCodeForSession = jest.fn<(code: string) => Promise<{ error: unknow
 const verifyOtp = jest.fn<(args: unknown) => Promise<{ error: unknown }>>();
 const updateUser = jest.fn<(args: unknown) => Promise<{ error: unknown }>>();
 const signOut = jest.fn<() => Promise<{ error: null }>>();
+const setSession = jest.fn<(args: unknown) => Promise<{ error: unknown }>>();
 
 function t() {
   return (key: string, values?: Record<string, unknown>) =>
@@ -28,7 +29,7 @@ jest.mock('@/navigation', () => ({
 jest.mock('@/lib/supabase', () => ({
   __esModule: true,
   createClientComponentClient: () => ({
-    auth: { getSession, exchangeCodeForSession, verifyOtp, updateUser, signOut },
+    auth: { getSession, exchangeCodeForSession, verifyOtp, updateUser, signOut, setSession },
   }),
 }));
 
@@ -57,6 +58,7 @@ describe('UpdatePasswordPage', () => {
     verifyOtp.mockResolvedValue({ error: null });
     updateUser.mockResolvedValue({ error: null });
     signOut.mockResolvedValue({ error: null });
+    setSession.mockResolvedValue({ error: null });
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -109,6 +111,18 @@ describe('UpdatePasswordPage', () => {
     await render();
 
     expect(verifyOtp).toHaveBeenCalledWith({ type: 'recovery', token_hash: 'th1' });
+    expect(container.querySelector('form')).not.toBeNull();
+  });
+
+  it('sets the session from implicit-flow hash tokens', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/auth/update-password#access_token=at1&refresh_token=rt1&type=recovery'
+    );
+    await render();
+
+    expect(setSession).toHaveBeenCalledWith({ access_token: 'at1', refresh_token: 'rt1' });
     expect(container.querySelector('form')).not.toBeNull();
   });
 

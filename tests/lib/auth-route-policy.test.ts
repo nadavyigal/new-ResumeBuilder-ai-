@@ -6,6 +6,10 @@ describe('redirectsSignedInUserFromAuthPage', () => {
     expect(redirectsSignedInUserFromAuthPage('/auth/update-password')).toBe(false);
   });
 
+  it('lets a signed-in browser open a reset link through /auth/confirm', () => {
+    expect(redirectsSignedInUserFromAuthPage('/auth/confirm')).toBe(false);
+  });
+
   it('still sends a signed-in user away from sign-in, sign-up and reset', () => {
     expect(redirectsSignedInUserFromAuthPage('/auth/signin')).toBe(true);
     expect(redirectsSignedInUserFromAuthPage('/auth/signup')).toBe(true);

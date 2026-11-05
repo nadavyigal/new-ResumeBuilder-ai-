@@ -92,13 +92,16 @@ export async function GET(
     });
 
     if (!error && data.user) {
-      // Successfully verified - track signup completion
-      await captureServerEvent(data.user.id, 'signup_completed', {
-        method: 'email',
-        source: 'email_confirmation',
-        user_id: data.user.id,
-        email: data.user.email,
-      });
+      // A password reset link also lands here (type=recovery). Only a
+      // confirmed sign-up counts as signup_completed.
+      if (type === 'signup' || type === 'email') {
+        await captureServerEvent(data.user.id, 'signup_completed', {
+          method: 'email',
+          source: 'email_confirmation',
+          user_id: data.user.id,
+          email: data.user.email,
+        });
+      }
 
       // Redirect to dashboard or specified path
       return NextResponse.redirect(redirectTo);
