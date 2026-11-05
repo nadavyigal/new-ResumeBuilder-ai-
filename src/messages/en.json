@@ -1816,7 +1816,6 @@
       "gateClosedCta": "Premium is not open yet",
       "gateClosedNote": "We are keeping paid upgrades closed while we improve the activation flow.",
       "processing": "Processing...",
-      "securePayment": "Secure payment via Stripe",
       "maybeLater": "Not now",
       "errors": {
         "startUpgrade": "Couldn't start upgrade. Check your connection and try again.",
