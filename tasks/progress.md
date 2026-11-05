@@ -1,3 +1,14 @@
+# 2026-11-05: Terms and Privacy name Apple billing (WP-79 S5)
+
+Status: branch `claude/terms-apple-billing-2f7713`, PR open, not merged, not deployed. Merging deploys the live Terms.
+Current Phase: Payments v2, Resumely iOS 1.6.0 submission prep.
+Active Story: `/terms` section 4 rewritten from the dead Stripe $9/month Premium plan to Apple In-App Purchase: free Match Score, 3 free PDF downloads per account, 5 for $3.99, 14 for $7.99, Pro $9.99/month (fair use 40 per period), Apple renewals, cancellation in iOS Settings, refunds at reportaproblem.apple.com, Apple EULA link. `/privacy` payment line and provider list swap Stripe for Apple. EN and HE. Guard test `tests/contracts/legal-pages-billing-copy.test.ts`.
+Last Completed Story: Growth audit gates (#205).
+Next Recommended Story: founder reads the PR screenshots and merges; then iOS 1.6.0 submission.
+Blockers: none. Founder yes needed to merge (deploys production).
+Last Validation: 2026-11-05 jest 117 suites passed, 6 skipped, 0 failed (1200 tests); `npm run lint` 0 errors; `npm run build` passes; `tsc --noEmit` 24 errors, all in 4 test files this branch does not touch (same as 2026-10-31). `/terms` and `/privacy` checked in Chrome in EN and HE (screenshots in `audit/terms-apple-billing/`).
+Last Updated: 2026-11-05
+
 # 2026-10-31: Growth audit gates: store link, Hebrew copy, replay masking
 
 Status: branch `fix/2026-10-31-growth-gates`, PR open, not merged, not deployed.

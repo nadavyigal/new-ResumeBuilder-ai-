@@ -1,5 +1,13 @@
 # Lessons Learned — ResumeBuilder
 
+## Hebrew copy: never put a Latin word, a colon and a number side by side (2026-11-05)
+
+**Symptom:** on `/he/terms`, "5 הורדות PDF: 3.99$" rendered with the colon and the price in the wrong order, and a plain-text URL broke at its hyphen into two pieces read in the wrong order.
+
+**Root cause:** the Unicode bidi algorithm groups "PDF: 3.99$" into one left-to-right run inside a right-to-left line, so the neutral colon lands on the wrong side.
+
+**Rule:** in Hebrew strings, put a Hebrew word between Latin text and a number ("חבילה של 5 הורדות PDF ב-3.99$"), and render long URLs as links with a Hebrew label, never as text. Check every Hebrew string with numbers or Latin words in a browser, not only in the JSON.
+
 ## Funnel overrides decide what /he shows (2026-10-31)
 
 **Symptom:** a Hebrew copy fix in `src/messages/he.json` alone would change nothing on `/he`.

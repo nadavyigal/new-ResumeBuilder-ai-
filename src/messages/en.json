@@ -400,7 +400,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "lastUpdated": "Last updated: December 23, 2025",
+    "lastUpdated": "Last updated: November 5, 2026",
     "intro": "At Resumely, we take your privacy seriously. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our AI-powered resume optimization service.",
     "sections": {
       "infoCollect": {
@@ -411,7 +411,7 @@
             "Account information: Name, email address, and password when you create an account",
             "Resume data: Resume files and content you upload for optimization",
             "Job descriptions: Job description text you input for comparison",
-            "Payment information: Payment details processed securely via Stripe (we do not store credit card numbers)",
+            "Purchase information: purchases in the iOS app are handled by Apple, and we never receive your card details. Apple sends us a signed record of each purchase (product, transaction ID, dates, and subscription status), which we use to deliver what you bought.",
             "Communications: Messages you send us and newsletter subscriptions"
           ]
         },
@@ -488,9 +488,9 @@
               "url": "https://resend.com/legal/privacy-policy"
             },
             {
-              "name": "Stripe",
-              "description": "Secure payment processing",
-              "url": "https://stripe.com/privacy"
+              "name": "Apple",
+              "description": "In-app purchases and subscriptions in the iOS app",
+              "url": "https://www.apple.com/legal/privacy/"
             }
           ]
         }
@@ -575,11 +575,11 @@
         ]
       }
     },
-    "closingNote": "This Privacy Policy is effective as of December 23, 2025. By using Resumely, you acknowledge that you have read and understood this Privacy Policy."
+    "closingNote": "This Privacy Policy is effective as of November 5, 2026. By using Resumely, you acknowledge that you have read and understood this Privacy Policy."
   },
   "terms": {
     "title": "Terms of Service",
-    "lastUpdated": "Last updated: December 23, 2025",
+    "lastUpdated": "Last updated: November 5, 2026",
     "intro": "Welcome to Resumely. By accessing or using our AI-powered resume optimization service, you agree to be bound by these Terms of Service. Please read them carefully.",
     "sections": {
       "acceptance": {
@@ -619,32 +619,40 @@
         }
       },
       "pricing": {
-        "title": "4. Subscription Plans and Payments",
+        "title": "4. Prices and Payments",
         "tiers": {
-          "title": "Pricing Tiers",
-          "intro": "Resumely offers the following pricing plans:",
+          "title": "What is free and what you can buy",
+          "intro": "Resumely on the website is free to use at this time. Paid features are sold only in the Resumely iOS app, through Apple In-App Purchase. Prices here are in US dollars. The App Store shows the price in your local currency before you buy, and that is the price you pay.",
           "items": [
-            "Free Tier: One (1) resume optimization per user account",
-            "Premium Plan: $9/month for unlimited resume optimizations, premium templates, and priority support"
+            "Match Score: free for everyone, as often as you like, within normal usage limits.",
+            "Free PDF downloads: in the iOS app, every Resumely account gets 3 free PDF downloads, once.",
+            "5 PDF downloads: $3.99, one-time purchase.",
+            "14 PDF downloads: $7.99, one-time purchase.",
+            "Resumely Pro: $9.99 per month, an auto-renewing subscription. Unlimited PDF downloads for your own job search, under a fair-use limit of 40 PDF downloads per billing period. The app shows how many you have used."
           ]
         },
         "payment": {
-          "title": "Payment Terms",
+          "title": "How Payment Works",
           "items": [
-            "All payments are processed securely through Stripe",
-            "Subscriptions renew automatically on a monthly basis unless cancelled",
-            "You authorize us to charge your payment method for all fees due",
-            "Prices are subject to change with 30 days notice",
-            "All fees are non-refundable except as required by law or stated in our refund policy"
-          ]
+            "Apple processes every payment. Apple charges your Apple Account when you confirm a purchase. We never see or store your card details.",
+            "One PDF download unlocks one tailored CV. Downloading a CV you already unlocked again is free.",
+            "PDF downloads from packs and from the free grant do not expire. They belong to your Resumely account, so they are there on any device where you sign in.",
+            "Resumely Pro renews every month until you cancel. Apple charges the renewal within the 24 hours before the current period ends, unless you cancel at least 24 hours before it ends.",
+            "We may change prices. A new pack price applies only to purchases made after the change. Before a Pro price increase, Apple tells you, and asks for your consent where Apple's rules require it."
+          ],
+          "eula": {
+            "text": "Purchases in the iOS app are also governed by",
+            "linkLabel": "Apple's Standard License Agreement for apps (EULA)",
+            "href": "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+          }
         },
         "refund": {
-          "title": "Refund Policy",
-          "body": "Premium subscriptions are eligible for a full refund within 7 days of purchase if you are not satisfied with the service. To request a refund, contact us at resumebuilderaiteam@gmail.com with your account details."
+          "title": "Refunds",
+          "body": "Apple handles refunds for purchases made in the iOS app, under Apple's refund policy. We cannot refund an App Store purchase ourselves. To ask for a refund, go to reportaproblem.apple.com. If Apple refunds a purchase, we remove what it gave you: the PDF downloads from a pack, or Pro access. Nothing in these Terms limits a refund right you have under the law of your country."
         },
         "cancellation": {
-          "title": "Cancellation",
-          "body": "You may cancel your Premium subscription at any time through your account settings. Cancellation takes effect at the end of your current billing period. You will retain access to Premium features until the end of the paid period."
+          "title": "Cancelling Resumely Pro",
+          "body": "You can cancel Pro at any time in your iPhone Settings: tap your name, then Subscriptions, then Resumely. In the app, Manage subscription in your Profile opens the same screen. Cancelling stops the next renewal. You keep Pro until the end of the period you already paid for. Deleting the app or your Resumely account does not cancel the subscription with Apple."
         }
       },
       "acceptableUse": {
@@ -719,7 +727,7 @@
       },
       "thirdParty": {
         "title": "11. Third-Party Services",
-        "body": "Our Service integrates with third-party services including OpenAI (AI processing), Stripe (payments), and others. Your use of these services may be subject to their respective terms and conditions. We are not responsible for the practices of third-party services."
+        "body": "Our Service integrates with third-party services, including OpenAI (AI processing), Apple (purchases in the iOS app), and others. Your use of these services may be subject to their respective terms and conditions. We are not responsible for the practices of third-party services."
       },
       "changes": {
         "title": "12. Changes to Terms",
@@ -758,7 +766,7 @@
         "body": "BY USING RESUMELY, YOU ACKNOWLEDGE THAT YOU HAVE READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS OF SERVICE. IF YOU DO NOT AGREE TO THESE TERMS, YOU MAY NOT USE OUR SERVICE."
       }
     },
-    "effectiveDate": "These Terms of Service are effective as of December 23, 2025."
+    "effectiveDate": "These Terms of Service are effective as of November 5, 2026."
   },
   "dashboard": {
     "home": {
