@@ -1,3 +1,14 @@
+# 2026-11-05: Remove the leftover Stripe code (WP-79 S5 follow-up)
+
+Status: branch `claude/2026-11-05-remove-stripe-leftovers`, PR open, not merged. Merging deploys production; no user sees a change (the gate was closed).
+Current Phase: Payments v2, Resumely iOS 1.6.0 submission prep.
+Active Story: Resumely bills through Apple, so the dead Stripe path goes. Deleted `/api/upgrade` (Stripe checkout, returned 403 behind the closed gate), the unused `UpgradeModal`, its route test, the two optional Stripe keys in `src/lib/env.ts`, and the `securePayment` string ("Secure checkout via Stripe") in 4 message files. `ExpertModesPanel` lost its dead upgrade call and always shows the disabled "coming soon" button it already showed. The FR-023/024 block in `tests/contract/test_user_management.spec.ts` called the deleted route and is gone. `tests/security-fixes.test.ts` section 5 now fails if any file under `src` mentions Stripe.
+Last Completed Story: Terms and Privacy name Apple billing (#206, merged `fc6e276`, live).
+Next Recommended Story: founder merges; then iOS 1.6.0 submission (WP-79 S6 to S8).
+Blockers: none. Founder yes needed to merge (deploys production).
+Last Validation: 2026-11-05 jest 116 suites passed, 6 skipped, 0 failed (1199 tests); `npm run lint` 0 errors, 11 warnings; `npm run build` passes; `tsc --noEmit` 24 errors, all in the same 4 test files as main. Guard test checked both ways: it fails when a `stripe` comment is added to `src/lib/env.ts`.
+Last Updated: 2026-11-05
+
 # 2026-11-05: Terms and Privacy name Apple billing (WP-79 S5)
 
 Status: branch `claude/terms-apple-billing-2f7713`, PR open, not merged, not deployed. Merging deploys the live Terms.

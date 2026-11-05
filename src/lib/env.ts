@@ -21,9 +21,6 @@ const baseSchema = z.object({
 
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
   SENTRY_AUTH_TOKEN: z.string().optional(),
-
-  STRIPE_SECRET_KEY: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 const envSchema =
@@ -52,8 +49,6 @@ export function getEnv(): Env {
       NODE_ENV: process.env.NODE_ENV,
       NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
       SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
-      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     });
 
     return validatedEnv;

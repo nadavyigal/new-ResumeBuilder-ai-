@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "@/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +32,6 @@ import {
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/navigation";
 import { cn } from "@/lib/utils";
-import { MONETIZATION_GATE_OPEN } from "@/lib/monetization-gate";
 
 type WorkflowStatus = "completed" | "needs_user_input" | "failed";
 
@@ -185,13 +183,11 @@ export function ExpertModesPanel({
   const t = useTranslations("dashboard.optimization.expert");
   const paywallT = useTranslations("dashboard.paywall");
   const locale = useLocale();
-  const router = useRouter();
 
   const [activeWorkflow, setActiveWorkflow] = useState<SurfacedExpertWorkflowType>(WORKFLOWS[0].type);
   const [runLoading, setRunLoading] = useState(false);
   const [applyLoading, setApplyLoading] = useState(false);
   const [saveLoading, setSaveLoading] = useState(false);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lockedMessage, setLockedMessage] = useState<string | null>(null);
   const [runResult, setRunResult] = useState<RunResponse | null>(null);
@@ -309,45 +305,6 @@ export function ExpertModesPanel({
       setError(runError instanceof Error ? runError.message : t("errors.run"));
     } finally {
       setRunLoading(false);
-    }
-  };
-
-  const startUpgrade = async () => {
-    if (!MONETIZATION_GATE_OPEN) {
-      setError(paywallT("gateClosedNote"));
-      return;
-    }
-
-    setUpgradeLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/upgrade", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          plan: "premium",
-          locale,
-          source: "expert_mode",
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (response.ok && typeof payload.checkoutUrl === "string" && payload.checkoutUrl) {
-        window.location.href = payload.checkoutUrl;
-        return;
-      }
-
-      if (response.status === 401) {
-        router.push("/auth/signin");
-        return;
-      }
-
-      throw new Error(payload.error || paywallT("errors.startUpgrade"));
-    } catch (upgradeError) {
-      setError(upgradeError instanceof Error ? upgradeError.message : paywallT("errors.generic"));
-    } finally {
-      setUpgradeLoading(false);
     }
   };
 
@@ -546,15 +503,9 @@ export function ExpertModesPanel({
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {!isPremium ? (
                 <>
-                  {MONETIZATION_GATE_OPEN ? (
-                    <Button onClick={startUpgrade} disabled={upgradeLoading}>
-                      {upgradeLoading ? paywallT("processing") : t("actions.upgrade")}
-                    </Button>
-                  ) : (
-                    <Button disabled aria-disabled="true">
-                      {paywallT("gateClosedCta")}
-                    </Button>
-                  )}
+                  <Button disabled aria-disabled="true">
+                    {paywallT("gateClosedCta")}
+                  </Button>
                   <Button variant="outline" onClick={runWorkflow} disabled={runLoading}>
                     {runLoading ? t("actions.running") : t("actions.preview")}
                   </Button>

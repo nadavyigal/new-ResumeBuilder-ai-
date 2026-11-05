@@ -1817,7 +1817,6 @@
       "gateClosedCta": "Premium עדיין לא פתוח",
       "gateClosedNote": "אנחנו משאירים שדרוגים בתשלום סגורים בזמן שאנחנו משפרים את תהליך ההפעלה.",
       "processing": "מעבד...",
-      "securePayment": "תשלום מאובטח דרך Stripe",
       "maybeLater": "אולי מאוחר יותר",
       "errors": {
         "startUpgrade": "נכשל בהתחלת השדרוג. אנא נסה שוב.",

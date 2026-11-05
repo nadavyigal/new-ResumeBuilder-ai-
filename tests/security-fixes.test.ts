@@ -6,7 +6,7 @@
  * 2. Race condition in quota check
  * 3. Unsafe environment variable access
  * 4. RLS policies enabled
- * 5. Stripe webhook security
+ * 5. No Stripe code or copy ships (billing is Apple in-app purchase)
  */
 
 import { describe, it, expect, beforeAll, afterEach, jest } from '@jest/globals';
@@ -197,33 +197,35 @@ describe('Security Fixes Verification', () => {
     });
   });
 
-  // ==================== TEST 5: STRIPE WEBHOOK SECURITY ====================
-  // There is no Stripe webhook route today: the only copy was deleted with the
-  // duplicate src tree (c59ea78). /api/upgrade still creates Stripe subscriptions,
-  // so nothing would mark a paying user premium. That is safe only while the
-  // monetization gate is closed. This test fails the moment the gate opens
-  // without a signature-verified webhook in place.
+  // ==================== TEST 5: NO STRIPE IN SHIPPED CODE ====================
+  // Resumely bills through Apple in-app purchase. The old Stripe checkout route
+  // (/api/upgrade), its modal and the "Secure checkout via Stripe" copy were
+  // removed on 2026-11-05. Web checkout, when it opens, goes through Paddle.
+  // This fails if Stripe code or user-facing Stripe copy comes back into src.
 
-  describe('5. Stripe Webhook Security', () => {
-    it('does not open paid upgrades without a signature-verified webhook', () => {
+  describe('5. No Stripe in shipped code', () => {
+    it('has no Stripe checkout route, API calls, env keys or copy under src', () => {
       const fs = require('fs');
       const path = require('path');
-      const { MONETIZATION_GATE_OPEN } = require('@/lib/monetization-gate');
 
-      const webhookRoutePath = path.join(process.cwd(), 'src/app/api/stripe/webhook/route.ts');
-      const hasWebhook = fs.existsSync(webhookRoutePath);
+      const srcRoot = path.join(process.cwd(), 'src');
+      const offenders: string[] = [];
+      const walk = (dir: string) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            walk(full);
+          } else if (/\.(ts|tsx|js|jsx|json)$/.test(entry.name)) {
+            if (/stripe/i.test(fs.readFileSync(full, 'utf-8'))) {
+              offenders.push(path.relative(process.cwd(), full));
+            }
+          }
+        }
+      };
+      walk(srcRoot);
 
-      if (!MONETIZATION_GATE_OPEN) {
-        expect(MONETIZATION_GATE_OPEN).toBe(false);
-        return;
-      }
-
-      expect(hasWebhook).toBe(true);
-      const routeContent = fs.readFileSync(webhookRoutePath, 'utf-8');
-      expect(routeContent).toContain('stripe-signature');
-      expect(routeContent).toContain('constructEvent');
-      expect(routeContent).toContain('STRIPE_WEBHOOK_SECRET');
-      expect(routeContent).not.toContain('501');
+      expect(fs.existsSync(path.join(srcRoot, 'app/api/upgrade/route.ts'))).toBe(false);
+      expect(offenders).toEqual([]);
     });
   });
 });
@@ -258,11 +260,6 @@ describe('Integration Test Scenarios', () => {
          - Remove OPENAI_API_KEY from .env.local
          - Restart server
          - Expected: Clear error message about missing variable
-
-      5. STRIPE WEBHOOK TEST:
-         - Use Stripe CLI: stripe listen --forward-to localhost:3000/api/stripe/webhook
-         - Trigger test event: stripe trigger checkout.session.completed
-         - Expected: Webhook processes successfully, user upgraded to premium
 
       ================================================================
     `);
