@@ -1,3 +1,14 @@
+# 2026-11-05: Password reset works again (PR #208)
+
+Status: branch `claude/web-update-password-page`, PR nadavyigal/new-ResumeBuilder-ai-#208 open, not merged, not deployed.
+Current Phase: Payments v2; Resumely iOS 1.6.0 is in App Review.
+Active Story: the reset email linked to `/auth/update-password`, which returned 404, so no user could reset a password. New page sets the password with `supabase.auth.updateUser` from a recovery session (PKCE code, `token_hash`, or hash tokens), then signs out. Middleware lets a signed-in browser open `/auth/update-password` and `/auth/confirm`. `/auth/confirm` records `signup_completed` only for sign-up and email confirmations. `SMTP-PASSWORD-FIX.md` (plain-text Resend key) deleted.
+Last Completed Story: #207 Stripe leftovers merged and live.
+Next Recommended Story: founder yes to switch the Supabase "Reset password" template from the default `{{ .ConfirmationURL }}` (PKCE code, same browser only) to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/update-password`; merge and deploy #208 on his yes; test one real reset end to end.
+Blockers: Resend API key must be rotated by the founder (it is in git history and 10 more tracked docs); founder decision on redacting those docs. Codex review unavailable (usage limit).
+Last Validation: 2026-11-05 jest 119 suites passed, 6 skipped, 0 failed (1217 tests); `npm run lint` 0 errors, 11 old warnings; `npm run build` passes with the route; `tsc --noEmit` 24 old errors; local `next start` renders EN and HE pages.
+Last Updated: 2026-11-05
+
 # 2026-11-05: Remove the leftover Stripe code (WP-79 S5 follow-up)
 
 Status: branch `claude/2026-11-05-remove-stripe-leftovers`, PR open, not merged. Merging deploys production; no user sees a change (the gate was closed).
