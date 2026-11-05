@@ -2,6 +2,7 @@ import createIntlMiddleware from "next-intl/middleware";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, locales, type Locale } from "@/locales";
+import { redirectsSignedInUserFromAuthPage } from "@/lib/auth-route-policy";
 
 const intlMiddleware = createIntlMiddleware({
   locales,
@@ -83,7 +84,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(withLocale("/auth/signin", locale), request.url));
     }
 
-    if (user && pathname.startsWith("/auth/")) {
+    if (user && redirectsSignedInUserFromAuthPage(pathname)) {
       return NextResponse.redirect(new URL(withLocale("/dashboard", locale), request.url));
     }
 
