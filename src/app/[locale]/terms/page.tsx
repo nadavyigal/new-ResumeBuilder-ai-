@@ -83,6 +83,18 @@ export default async function TermsOfService({ params }: TermsPageProps) {
           {paymentItems.map((item) => (
             <li key={item}>{item}</li>
           ))}
+          <li>
+            {t('sections.pricing.payment.eula.text')}{' '}
+            <a
+              href={t('sections.pricing.payment.eula.href')}
+              className="text-blue-600 hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('sections.pricing.payment.eula.linkLabel')}
+            </a>
+            .
+          </li>
         </ul>
 
         <h3 className="text-xl font-semibold mt-6 mb-3">{t('sections.pricing.refund.title')}</h3>
