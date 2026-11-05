@@ -335,6 +335,22 @@
       "sending": "שולח...",
       "sendLink": "שלח קישור לאיפוס",
       "backToSignIn": "חזור להיכנס"
+    },
+    "updatePassword": {
+      "title": "בחירת סיסמה חדשה",
+      "description": "הזן סיסמה חדשה לחשבון Resumely שלך.",
+      "checking": "בודקים את קישור האיפוס...",
+      "invalidLink": "קישור האיפוס לא תקין או שפג תוקפו.",
+      "requestNewLink": "שלח קישור איפוס חדש",
+      "passwordLabel": "סיסמה חדשה",
+      "confirmLabel": "אימות סיסמה חדשה",
+      "tooShort": "השתמש לפחות ב-{min} תווים.",
+      "mismatch": "הסיסמאות לא תואמות.",
+      "save": "שמור סיסמה חדשה",
+      "saving": "שומר...",
+      "success": "הסיסמה עודכנה. היכנס עם הסיסמה החדשה.",
+      "goToSignIn": "מעבר לכניסה",
+      "genericError": "משהו השתבש. נסה שוב."
     }
   },
   "contact": {

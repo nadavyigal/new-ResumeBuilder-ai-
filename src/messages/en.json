@@ -334,6 +334,22 @@
       "sending": "Sending...",
       "sendLink": "Send Reset Link",
       "backToSignIn": "Back to sign in"
+    },
+    "updatePassword": {
+      "title": "Choose a new password",
+      "description": "Enter a new password for your Resumely account.",
+      "checking": "Checking your reset link...",
+      "invalidLink": "This reset link is invalid or has expired.",
+      "requestNewLink": "Request a new reset link",
+      "passwordLabel": "New password",
+      "confirmLabel": "Confirm new password",
+      "tooShort": "Use at least {min} characters.",
+      "mismatch": "The passwords do not match.",
+      "save": "Save new password",
+      "saving": "Saving...",
+      "success": "Your password is updated. Sign in with your new password.",
+      "goToSignIn": "Go to sign in",
+      "genericError": "Something went wrong. Try again."
     }
   },
   "contact": {
