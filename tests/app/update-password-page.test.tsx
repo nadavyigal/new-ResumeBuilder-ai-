@@ -171,6 +171,28 @@ describe('UpdatePasswordPage', () => {
     expect(container.querySelector('a')?.getAttribute('href')).toBe('/auth/signin');
   });
 
+  it('offers to open the iOS app after the update on an iPhone', async () => {
+    const original = Object.getOwnPropertyDescriptor(window.navigator, 'userAgent');
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+    });
+    try {
+      getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+      await render();
+
+      await submit('New-Pass-1234!', 'New-Pass-1234!');
+      await flush();
+
+      const hrefs = Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+      expect(hrefs).toEqual(['resumebuilder://signin', '/auth/signin']);
+      expect(container.textContent).toContain('openApp');
+    } finally {
+      if (original) Object.defineProperty(window.navigator, 'userAgent', original);
+      else delete (window.navigator as { userAgent?: string }).userAgent;
+    }
+  });
+
   it('shows the Supabase error when the update fails', async () => {
     getSession.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
     updateUser.mockResolvedValue({ error: new Error('Password is too weak') });
