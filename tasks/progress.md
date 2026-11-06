@@ -1,6 +1,17 @@
+# 2026-11-06: "Open the Resumely app" after a password reset (iOS 1.6.1 plan A)
+
+Status: branch `claude/web-open-app-after-reset`, PR open, not merged. Merge only after iOS 1.6.1 is live in the App Store: older apps have no `resumebuilder` URL scheme, so the button would be a dead link for them.
+Current Phase: Payments v2; Resumely iOS 1.6.0 is in App Review.
+Active Story: on iPhone and iPad, the `/auth/update-password` success screen shows "Open the Resumely app" (`resumebuilder://signin`), which opens the app's sign-in. Other devices see only "Go to sign in".
+Last Completed Story: #208 password reset page merged and live; Supabase reset template on `/auth/confirm`; Resend key rotated in the `resumebuilderaiteam` Resend account and the leaked key deleted.
+Next Recommended Story: iOS 1.6.1 (forgot and change password in the app), then merge this PR.
+Blockers: iOS 1.6.1 must ship first.
+Last Validation: 2026-11-06 jest 120 suites passed, 6 skipped, 0 failed (1222 tests); `npm run lint` 0 errors, 11 old warnings; `npm run build` passes.
+Last Updated: 2026-11-06
+
 # 2026-11-05: Password reset works again (PR #208)
 
-Status: branch `claude/web-update-password-page`, PR nadavyigal/new-ResumeBuilder-ai-#208 open, not merged, not deployed.
+Status: merged 2026-11-05 (7a36835) and live.
 Current Phase: Payments v2; Resumely iOS 1.6.0 is in App Review.
 Active Story: the reset email linked to `/auth/update-password`, which returned 404, so no user could reset a password. New page sets the password with `supabase.auth.updateUser` from a recovery session (PKCE code, `token_hash`, or hash tokens), then signs out. Middleware lets a signed-in browser open `/auth/update-password` and `/auth/confirm`. `/auth/confirm` records `signup_completed` only for sign-up and email confirmations. `SMTP-PASSWORD-FIX.md` (plain-text Resend key) deleted.
 Last Completed Story: #207 Stripe leftovers merged and live.

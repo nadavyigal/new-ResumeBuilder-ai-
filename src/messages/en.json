@@ -349,6 +349,7 @@
       "saving": "Saving...",
       "success": "Your password is updated. Sign in with your new password.",
       "goToSignIn": "Go to sign in",
+      "openApp": "Open the Resumely app",
       "genericError": "Something went wrong. Try again."
     }
   },

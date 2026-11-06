@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ROUTES } from "@/lib/constants";
+import { IOS_APP_SIGN_IN_URL, isAppleMobileDevice } from "@/lib/ios-app-link";
 
 // Same minimum as Supabase (`supabase/config.toml`) and iOS sign-up.
 const MIN_PASSWORD_LENGTH = 6;
@@ -35,6 +36,12 @@ export default function UpdatePasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Read after mount so the server render and the first client render match.
+  const [onAppleMobile, setOnAppleMobile] = useState(false);
+
+  useEffect(() => {
+    setOnAppleMobile(isAppleMobileDevice(navigator.userAgent, navigator.maxTouchPoints ?? 0));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,7 +194,12 @@ export default function UpdatePasswordPage() {
               <p className="text-sm text-green-600" role="status">
                 {t("success")}
               </p>
-              <Link href={ROUTES.auth.signIn} className="text-sm text-primary hover:underline">
+              {onAppleMobile && (
+                <Button asChild className="w-full">
+                  <a href={IOS_APP_SIGN_IN_URL}>{t("openApp")}</a>
+                </Button>
+              )}
+              <Link href={ROUTES.auth.signIn} className="block text-sm text-primary hover:underline">
                 {t("goToSignIn")}
               </Link>
             </div>
