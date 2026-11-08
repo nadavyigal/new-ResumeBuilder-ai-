@@ -4,8 +4,8 @@ Status: branch `claude/billing-switch-preflight`, docs only. `EXPORT_CREDITS_ENA
 Current Phase: Payments v2; Resumely iOS 1.6.0 live since 2026-11-07.
 Active Story: preflight for turning billing on, `docs/qa/2026-11-08-billing-switch-preflight.md`.
 Last Completed Story: #208 password reset page, live.
-Next Recommended Story: founder makes one real 5-pack purchase on live 1.6.0 with a gated 0-credit account; Claude reads the Production ledger row; founder confirms no old `credits_*` or v1 pack is on sale; then a named yes to set the flag and redeploy.
-Blockers: App Store Connect rows (agreement, banking, product state, old packs, notification URL) not verified, Chrome not signed in. Founder only: עוסק פטור approval, accountant, Small Business Program.
+Next Recommended Story: founder's named yes, then Claude sets `EXPORT_CREDITS_ENABLED=true` in production, redeploys, checks a non-gated 0-credit iOS export gets 402, and reads the first real sale's ledger row. A real test purchase is optional (founder declined it).
+Blockers: founder's named yes. App Store Connect verified 2026-11-08: Paid Apps agreement, bank and tax Active; packs Approved; no `credits_*` products; v1 packs still Approved and honored. Server notification URL not checked. Founder only: עוסק פטור approval, accountant, Small Business Program.
 Last Validation: 2026-11-08 Apple lookup 1.6.0 (US, IL); Supabase production has all 7 migrations; Vercel production has `EXPORT_CREDITS_USER_IDS` (6 founder accounts, set before the live deploy) and `APPLE_IAP_ALLOWED_ENVIRONMENTS=Production,Sandbox`; ledger has 5 Sandbox Apple grants and 0 Production.
 Last Updated: 2026-11-08
 
