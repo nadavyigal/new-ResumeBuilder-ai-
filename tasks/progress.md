@@ -1,6 +1,6 @@
-# 2026-11-08: Billing is ON for Resumely iOS (EXD-040)
+# 2026-11-08: Billing is ON for Resumely iOS (EXD-041)
 
-Status: `EXPORT_CREDITS_ENABLED=true` set in Vercel production (`new-resume-builder-ai`) on the founder's yes, 2026-11-08. Production redeployed: `new-resume-builder-83vqo92my`, READY 18:42 UTC, commit `7a36835`, aliased to www.resumelybuilderai.com. Value read back as `true`. Docs in PR nadavyigal/new-ResumeBuilder-ai-#210; decision EXD-040 in Agentic-OS PR #141.
+Status: `EXPORT_CREDITS_ENABLED=true` set in Vercel production (`new-resume-builder-ai`) on the founder's yes, 2026-11-08. Production redeployed: `new-resume-builder-83vqo92my`, READY 18:42 UTC, commit `7a36835`, aliased to www.resumelybuilderai.com. Value read back as `true`. Docs in PR nadavyigal/new-ResumeBuilder-ai-#210; decision EXD-041 in Agentic-OS PR #141.
 Current Phase: Payments v2 live. iOS exports past the 3 free ones need a pack (5 or 14) or Pro. Web stays free.
 Active Story: watch the first non-gated iOS export and the first real sale.
 Last Completed Story: billing switch preflight (`docs/qa/2026-11-08-billing-switch-preflight.md`).

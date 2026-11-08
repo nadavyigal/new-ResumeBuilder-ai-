@@ -1,6 +1,6 @@
 # Resumely billing switch preflight, 2026-11-08
 
-**Switched on 2026-11-08, 18:42 UTC, on the founder's yes** (deploy `new-resume-builder-83vqo92my`, decision EXD-040). Before the switch: **ready.** Server and App Store Connect are verified (App Store Connect checked
+**Switched on 2026-11-08, 18:42 UTC, on the founder's yes** (deploy `new-resume-builder-83vqo92my`, decision EXD-041). Before the switch: **ready.** Server and App Store Connect are verified (App Store Connect checked
 later the same day, signed in). A real purchase before the switch is optional: the Sandbox purchases
 already ran through the production server, and the founder declined it. The first real buyer's
 ledger row is checked after the switch instead.
