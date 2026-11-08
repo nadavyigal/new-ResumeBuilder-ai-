@@ -1,12 +1,13 @@
-# 2026-11-08: Billing switch preflight (iOS export credits)
+# 2026-11-08: Billing is ON for Resumely iOS (EXD-040)
 
-Status: branch `claude/billing-switch-preflight`, docs only. `EXPORT_CREDITS_ENABLED` is not set in Vercel production, so billing is still off. Nothing deployed, no env change, no migration.
-Current Phase: Payments v2; Resumely iOS 1.6.0 live since 2026-11-07.
-Active Story: preflight for turning billing on, `docs/qa/2026-11-08-billing-switch-preflight.md`.
-Last Completed Story: #208 password reset page, live.
-Next Recommended Story: founder's named yes, then Claude sets `EXPORT_CREDITS_ENABLED=true` in production, redeploys, checks a non-gated 0-credit iOS export gets 402, and reads the first real sale's ledger row. A real test purchase is optional (founder declined it).
-Blockers: founder's named yes. App Store Connect verified 2026-11-08: Paid Apps agreement, bank and tax Active; packs Approved; no `credits_*` products; v1 packs still Approved and honored. Server notification URL not checked. Founder only: עוסק פטור approval, accountant, Small Business Program.
-Last Validation: 2026-11-08 Apple lookup 1.6.0 (US, IL); Supabase production has all 7 migrations; Vercel production has `EXPORT_CREDITS_USER_IDS` (6 founder accounts, set before the live deploy) and `APPLE_IAP_ALLOWED_ENVIRONMENTS=Production,Sandbox`; ledger has 5 Sandbox Apple grants and 0 Production.
+Status: `EXPORT_CREDITS_ENABLED=true` set in Vercel production (`new-resume-builder-ai`) on the founder's yes, 2026-11-08. Production redeployed: `new-resume-builder-83vqo92my`, READY 18:42 UTC, commit `7a36835`, aliased to www.resumelybuilderai.com. Value read back as `true`. Docs in PR nadavyigal/new-ResumeBuilder-ai-#210; decision EXD-040 in Agentic-OS PR #141.
+Current Phase: Payments v2 live. iOS exports past the 3 free ones need a pack (5 or 14) or Pro. Web stays free.
+Active Story: watch the first non-gated iOS export and the first real sale.
+Last Completed Story: billing switch preflight (`docs/qa/2026-11-08-billing-switch-preflight.md`).
+Next Recommended Story: Claude reads `export_unlocks` for a non-gated account with `source` `welcome_grant` or `credit` after 18:42 UTC (proves the gate applies beyond the test list), and the first `credit_transactions` row with `environment = 'Production'`. Day 1 and day 7: `export_blocked`, `paywall_shown`, `purchase_completed`, `iap_verify_failed` in PostHog (spec 11 step 8).
+Blockers: none for selling. Not verified: a non-gated account hitting the gate (no way to sign in as one; Claude may not create production accounts). App Store server notification URL (refunds) not checked. Founder only: עוסק פטור approval, accountant, Small Business Program.
+Last Validation: 2026-11-08 env value `true` (production target); deploy READY; `POST /api/v1/exports/unlock` without auth answers 401 on the new deploy. App Store Connect: Paid Apps agreement, bank, tax Active; packs Approved. Supabase: 7/7 migrations; 0 Production purchases before the switch.
+Kill switch: delete `EXPORT_CREDITS_ENABLED` in Vercel production and redeploy.
 Last Updated: 2026-11-08
 
 # 2026-11-05: Password reset works again (PR #208)

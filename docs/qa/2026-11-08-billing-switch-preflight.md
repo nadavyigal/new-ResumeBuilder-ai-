@@ -1,12 +1,12 @@
 # Resumely billing switch preflight, 2026-11-08
 
-**Verdict: ready to switch.** Server and App Store Connect are verified (App Store Connect checked
+**Switched on 2026-11-08, 18:42 UTC, on the founder's yes** (deploy `new-resume-builder-83vqo92my`, decision EXD-040). Before the switch: **ready.** Server and App Store Connect are verified (App Store Connect checked
 later the same day, signed in). A real purchase before the switch is optional: the Sandbox purchases
 already ran through the production server, and the founder declined it. The first real buyer's
 ledger row is checked after the switch instead.
 
 The switch is the Vercel production env var `EXPORT_CREDITS_ENABLED` on project
-`new-resume-builder-ai` (`src/lib/export-credits.ts:51`). It is **not set** today, so it is off.
+`new-resume-builder-ai` (`src/lib/export-credits.ts:51`). It was not set before 2026-11-08; it is now `true`.
 It gates iOS exports only; the web stays free (spec 6.5, F1). Kill switch: delete it or set it to
 anything but `true`, then redeploy.
 
