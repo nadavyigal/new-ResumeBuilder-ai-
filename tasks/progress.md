@@ -1,3 +1,14 @@
+# 2026-11-08: Billing switch preflight (iOS export credits)
+
+Status: branch `claude/billing-switch-preflight`, docs only. `EXPORT_CREDITS_ENABLED` is not set in Vercel production, so billing is still off. Nothing deployed, no env change, no migration.
+Current Phase: Payments v2; Resumely iOS 1.6.0 live since 2026-11-07.
+Active Story: preflight for turning billing on, `docs/qa/2026-11-08-billing-switch-preflight.md`.
+Last Completed Story: #208 password reset page, live.
+Next Recommended Story: founder makes one real 5-pack purchase on live 1.6.0 with a gated 0-credit account; Claude reads the Production ledger row; founder confirms no old `credits_*` or v1 pack is on sale; then a named yes to set the flag and redeploy.
+Blockers: App Store Connect rows (agreement, banking, product state, old packs, notification URL) not verified, Chrome not signed in. Founder only: עוסק פטור approval, accountant, Small Business Program.
+Last Validation: 2026-11-08 Apple lookup 1.6.0 (US, IL); Supabase production has all 7 migrations; Vercel production has `EXPORT_CREDITS_USER_IDS` (6 founder accounts, set before the live deploy) and `APPLE_IAP_ALLOWED_ENVIRONMENTS=Production,Sandbox`; ledger has 5 Sandbox Apple grants and 0 Production.
+Last Updated: 2026-11-08
+
 # 2026-11-05: Password reset works again (PR #208)
 
 Status: branch `claude/web-update-password-page`, PR nadavyigal/new-ResumeBuilder-ai-#208 open, not merged, not deployed.
