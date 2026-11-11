@@ -3,7 +3,7 @@
 Current Phase: Payments v2 configured on; repo hygiene pass on `claude/2026-11-11-web-repo-audit`.
 Active Story: remove committed Supabase keys, dead modules, root clutter; make `tsc --noEmit` pass; correct CLAUDE.md.
 Next Recommended Story: founder revokes the leaked Supabase token and service_role keys, then audit items 3-6 in `docs/audits/2026-11-11-repo-audit.md`.
-Blockers: credential rotation is founder-only; until done the leaked keys remain usable from git history.
+Blockers: founder must rotate leaked keys; PR #213 is Tier 2, code-reviewer fixes applied, hosted Codex and founder yes pending.
 Last Validation: 2026-11-11 lint 0 errors; tsc 24 to 0; Jest 1217 passed 80 skipped (same as main); next build passes.
 Last Updated: 2026-11-11
 
