@@ -1,3 +1,12 @@
+# 2026-11-11: Billing state read back; preflight record corrected (#210)
+
+Current Phase: Payments v2 configured on (deploy 83vqo92my, 7a36835); gate not yet exercised by any export; 0 real purchases.
+Active Story: PR #210 record fixes: fresh-lock gate test, per-product first-sale check, production state, accepted risks.
+Next Recommended Story: find why there are 0 optimizations since 2026-11-05 (no traffic, or broken flow), then run step C.
+Blockers: step C needs an account outside the test list; Claude may not create production accounts. Server notification URL unverified.
+Last Validation: 2026-11-11 read-only: Vercel deploy and env metadata; Supabase counts: 0 unlocks and 0 Production rows since switch.
+Last Updated: 2026-11-11
+
 # 2026-11-08: Billing is ON for Resumely iOS (EXD-041)
 
 Status: `EXPORT_CREDITS_ENABLED=true` set in Vercel production (`new-resume-builder-ai`) on the founder's yes, 2026-11-08. Production redeployed: `new-resume-builder-83vqo92my`, READY 18:42 UTC, commit `7a36835`, aliased to www.resumelybuilderai.com. Value read back as `true`. Docs in PR nadavyigal/new-ResumeBuilder-ai-#210; decision EXD-041 in Agentic-OS PR #141.
