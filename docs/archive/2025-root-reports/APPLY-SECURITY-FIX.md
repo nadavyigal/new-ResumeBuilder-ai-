@@ -95,7 +95,7 @@ Service Role (Backend) → Database → ✅ Full access
 ```bash
 # This should return an error about RLS
 curl https://brtdyamysfmctrhuankn.supabase.co/rest/v1/profiles \
-  -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJydGR5YW15c2ZtY3RyaHVhbmtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyNDYwODQsImV4cCI6MjA3MjgyMjA4NH0.x7IhVevlwHqrhJOVtcLeX8U-fN-tSZn-0AcC1dsXuyU"
+  -H "apikey: <anon-key>"
 ```
 
 **Expected:** Error about row-level security policy violation

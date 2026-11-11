@@ -83,7 +83,6 @@ new-ResumeBuilder-ai-/       ← repo root, the Next.js app (run all commands fr
 |-------------|---------|-------|
 | Supabase | Auth, DB, file storage | RLS on all tables |
 | OpenAI | Resume optimization, Match Score | Rate limit all routes |
-| Stripe | Legacy upgrade route only, not the pricing plan | Webhook secret must match endpoint if it is ever used |
 | Vercel | Hosting | Connect to GitHub for auto-deploy |
 
 ## Known Risks
