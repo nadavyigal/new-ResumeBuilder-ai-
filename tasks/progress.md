@@ -1,3 +1,12 @@
+# 2026-11-11: Vercel Claude plugin enabled per repo, off globally
+
+Current Phase: Payments v2 configured on; #210 billing record merged and live.
+Active Story: Claude setup: Vercel plugin now enabled in this repo's .claude/settings.json, disabled at user scope.
+Next Recommended Story: find why there are 0 optimizations since 2026-11-05, then run the billing gate test (preflight step C).
+Blockers: none. Sessions on branches cut before this merge have no Vercel plugin skills until rebased.
+Last Validation: 2026-11-11, claude plugin list shows vercel enabled on this branch, disabled in Agentic OS and iOS repos.
+Last Updated: 2026-11-11
+
 # 2026-11-11: Pin the E2E job to ubuntu-24.04 (#211)
 
 Current Phase: Payments v2 configured on; #210 billing record merged (aaaa8f7) and live.
