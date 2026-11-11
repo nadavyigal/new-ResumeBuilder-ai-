@@ -1,3 +1,12 @@
+# 2026-11-11: Pin the E2E job to ubuntu-24.04 (#211)
+
+Current Phase: Payments v2 configured on; #210 billing record merged (aaaa8f7) and live.
+Active Story: CI fix: Activation path E2E fails on ubuntu-latest (26.04), Playwright has no Chromium there.
+Next Recommended Story: find why there are 0 optimizations since 2026-11-05, then run the billing gate test (preflight step C).
+Blockers: none for this fix. Undo the pin once Playwright supports Ubuntu 26.04.
+Last Validation: 2026-11-11, run 42966159216 failed at Playwright install on ubuntu26.04; PR #211 checks pending.
+Last Updated: 2026-11-11
+
 # 2026-11-11: Billing state read back; preflight record corrected (#210)
 
 Current Phase: Payments v2 configured on (deploy 83vqo92my, 7a36835); gate not yet exercised by any export; 0 real purchases.
