@@ -13,7 +13,6 @@
 - `npm run build` — Production build (Next.js + TypeScript).
 - `npm start` — Run the compiled production server.
 - `npm run lint` — Lint code with ESLint.
-- Optional helpers: `start-server.ps1`, `start-app.bat` (Windows convenience).
 
 ## Coding Style & Naming Conventions
 - TypeScript-first; 2-space indentation; prefer explicit types at module boundaries.

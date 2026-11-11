@@ -53,7 +53,7 @@ AI Resume Optimizer — a Next.js application that analyzes resumes against job 
 | Database + Auth | Supabase (PostgreSQL + RLS + Auth) |
 | AI | OpenAI |
 | Storage | Supabase Storage |
-| Payments | Stripe (freemium) |
+| Payments | Apple In-App Purchase export credits, verified server-side (`/api/v1/iap/*`, `src/lib/iap.ts`). No Stripe code in `src/`. |
 
 ### Core Data Flow
 
@@ -96,12 +96,11 @@ AI Resume Optimizer — a Next.js application that analyzes resumes against job 
 
 ### API Routes
 
-- `POST /api/upload-resume` — parse and store resume
-- `POST /api/ingest-jd` — parse job description
+- `POST /api/upload-resume` — parse and store resume (job description travels with it)
 - `POST /api/optimize` — run AI optimization
-- `POST /api/score` — compute ATS score
-- `GET /api/download` — export PDF/DOCX
-- `GET /api/templates` — list available templates
+- `POST /api/ats/score`, `POST /api/public/ats-check` — Match Score (signed-in / free public check)
+- `GET /api/download/[id]` — export PDF/DOCX
+- `/api/v1/*` — iOS and dashboard API (optimizations, design, chat, expert workflows, credits, IAP, consent)
 
 ### Database Tables (Supabase)
 
@@ -111,9 +110,7 @@ All tables use Row Level Security (RLS). Never query without considering RLS. Us
 
 ### Business Model
 
-- **Free tier:** 1 optimization per user
-- **Premium:** unlimited optimizations + premium templates
-- Stripe handles payment; check `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set
+See `docs/agent-os/project-context.md` → Business Model (pricing v2, iOS export credits). The web gate is `MONETIZATION_ENABLED` in `src/lib/premium-access.ts`.
 
 ### Environment Variables Required
 
@@ -122,9 +119,7 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 OPENAI_API_KEY
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+NEXT_PUBLIC_POSTHOG_KEY / POSTHOG_API_KEY (analytics; full list in .env.example)
 ```
 
 ### Development Patterns
@@ -154,7 +149,6 @@ See `tasks/lessons.md` when it exists. Until then, known patterns:
 
 - **Supabase 406:** `.single()` on 0 or multiple rows → use `.maybeSingle()`
 - **Wrong Supabase project:** verify `NEXT_PUBLIC_SUPABASE_URL` subdomain matches your dashboard
-- **Stripe webhook failures:** verify `STRIPE_WEBHOOK_SECRET` matches the webhook endpoint secret in Stripe Dashboard, not the API key
 - **OpenAI timeout:** streaming responses need `export const maxDuration = 60` in the route file
 
 ## Session End Rule: Nothing Stays Local

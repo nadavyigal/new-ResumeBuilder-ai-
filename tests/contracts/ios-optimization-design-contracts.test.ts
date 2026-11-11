@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+// `@jest/globals` types a bare jest.fn() as taking and returning nothing.
+type AnyFn = (...args: any[]) => any;
+
 function mockNextServer() {
   jest.doMock('next/server', () => ({
     __esModule: true,
@@ -30,7 +33,7 @@ function mockNextServer() {
 function optimizationDetailSupabase(options: { appliedRunsError?: { message: string } | null } = {}) {
   return {
     auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      getUser: jest.fn<AnyFn>().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
     },
     from(table: string) {
       if (table === 'optimizations') {
@@ -127,7 +130,7 @@ function optimizationPatchSupabase() {
     optimizationUpdates,
     versionInserts,
     auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
+      getUser: jest.fn<AnyFn>().mockResolvedValue({ data: { user: { id: 'user-1' } }, error: null }),
     },
     from(table: string) {
       if (table === 'optimizations') {
@@ -243,7 +246,7 @@ describe('iOS optimization/design contracts', () => {
 
   it('returns contact data from optimization detail', async () => {
     mockNextServer();
-    const createRouteHandlerClient = jest.fn().mockResolvedValue(optimizationDetailSupabase());
+    const createRouteHandlerClient = jest.fn<AnyFn>().mockResolvedValue(optimizationDetailSupabase());
     jest.doMock('@/lib/supabase-server', () => ({
       __esModule: true,
       createRouteHandlerClient,
@@ -274,7 +277,7 @@ describe('iOS optimization/design contracts', () => {
 
   it('fails closed when ATS improvement completion state cannot be read', async () => {
     mockNextServer();
-    const createRouteHandlerClient = jest.fn().mockResolvedValue(
+    const createRouteHandlerClient = jest.fn<AnyFn>().mockResolvedValue(
       optimizationDetailSupabase({ appliedRunsError: { message: 'temporary read failure' } })
     );
     jest.doMock('@/lib/supabase-server', () => ({
@@ -295,8 +298,8 @@ describe('iOS optimization/design contracts', () => {
   it('normalizes responsibilities before PATCH scoring and persistence', async () => {
     mockNextServer();
     const supabase = optimizationPatchSupabase();
-    const createRouteHandlerClient = jest.fn().mockResolvedValue(supabase);
-    const scoreOptimization = jest.fn().mockResolvedValue({
+    const createRouteHandlerClient = jest.fn<AnyFn>().mockResolvedValue(supabase);
+    const scoreOptimization = jest.fn<AnyFn>().mockResolvedValue({
       ats_score_original: 43,
       ats_score_optimized: 64,
     });
@@ -346,9 +349,9 @@ describe('iOS optimization/design contracts', () => {
 
   it('renders UUID-backed templates differently and honors iOS customization keys', async () => {
     mockNextServer();
-    const createRouteHandlerClient = jest.fn().mockResolvedValue({});
+    const createRouteHandlerClient = jest.fn<AnyFn>().mockResolvedValue({});
     const getDesignTemplateById = jest
-      .fn()
+      .fn<AnyFn>()
       .mockResolvedValueOnce({
         id: 'template-modern',
         slug: 'modern-pro',
@@ -377,7 +380,7 @@ describe('iOS optimization/design contracts', () => {
     jest.doMock('@/lib/supabase/design-templates', () => ({
       __esModule: true,
       getDesignTemplateById,
-      getDesignTemplateBySlug: jest.fn().mockResolvedValue(null),
+      getDesignTemplateBySlug: jest.fn<AnyFn>().mockResolvedValue(null),
     }));
 
     const { POST } = require('@/app/api/v1/design/render-preview/route');

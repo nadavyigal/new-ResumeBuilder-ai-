@@ -27,7 +27,6 @@ const eslintConfig = [
       // in jest.config.js); tsconfig and eslint never got the same fix.
       ".claude/worktrees/**",
       "resume-builder-ai/**",
-      "scripts/scripts/**",
     ],
   },
   {

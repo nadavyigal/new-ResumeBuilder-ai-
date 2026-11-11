@@ -38,7 +38,6 @@
     "node_modules",
     ".next",
     ".claude/worktrees/**", "resume-builder-ai/**",
-    "scripts/scripts/**",
     "supabase/**"
   ]
 }

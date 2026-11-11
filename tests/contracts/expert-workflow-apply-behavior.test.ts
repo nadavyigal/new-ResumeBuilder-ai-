@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+// `@jest/globals` types a bare jest.fn() as taking and returning nothing.
+type AnyFn = (...args: any[]) => any;
+
 type QueryResult = { data: any; error: any };
 
 function buildUpdateChain(finalizeError: QueryResult['error'] = null) {
@@ -118,7 +121,7 @@ function buildSupabaseMock(config: {
 function loadApplyHarness() {
   jest.resetModules();
 
-  const scoreOptimization = jest.fn();
+  const scoreOptimization = jest.fn<AnyFn>();
   jest.doMock('@/lib/ats/integration', () => ({
     __esModule: true,
     scoreOptimization,

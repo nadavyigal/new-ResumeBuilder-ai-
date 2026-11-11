@@ -1,13 +1,16 @@
 /** @jest-environment node */
 import { describe, expect, it, jest } from '@jest/globals';
 
+// `@jest/globals` types a bare jest.fn() as taking and returning nothing.
+type AnyFn = (...args: any[]) => any;
+
 function load({
   user = { id: 'user-1' } as { id: string } | null,
   insertError = null as { message: string } | null,
 } = {}) {
   jest.resetModules();
-  const insert = jest.fn(async () => ({ error: insertError }));
-  const routeClient = { auth: { getUser: jest.fn(async () => ({ data: { user }, error: null })) } };
+  const insert = jest.fn<AnyFn>(async () => ({ error: insertError }));
+  const routeClient = { auth: { getUser: jest.fn<AnyFn>(async () => ({ data: { user }, error: null })) } };
   jest.doMock('@/lib/supabase-server', () => ({
     createRouteHandlerClient: async () => routeClient,
     createServiceRoleClient: () => ({ from: () => ({ insert }) }),
