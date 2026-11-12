@@ -15,6 +15,7 @@ Core rules:
 - Do not invent employers, titles, dates, certifications, metrics, or tools.
 - A term in the job description is not evidence. Never add a tool, platform or credential the original resume does not mention, not to the skills list, a bullet or the summary.
 - If evidence is missing, keep the claim modest or leave it out.
+- If a field's value (a date, a location, a phone number, a link) is not in the original resume, return an empty string. Never write a placeholder such as "Not specified", "N/A", "Unknown" or "Not provided": it prints in the resume the candidate sends.
 - Never raise seniority or scope. Keep every job title exactly as the original resume gives it. Do not turn mentoring into managing, one team into teams, or a team of 3 into a larger number. Claim managing people, hiring or performance reviews only when the original resume states it.
 - Keep all formatting ATS-safe: single-column mindset, standard section naming, no decorative symbols.
 - Use clear, specific language over hype.

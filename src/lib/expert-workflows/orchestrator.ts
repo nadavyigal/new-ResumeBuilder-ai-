@@ -2,6 +2,7 @@ import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
+import { stripPlaceholderValues } from '@/lib/resume/placeholder-values';
 import { scoreOptimization } from '@/lib/ats/integration';
 import { buildRewritePrompt } from './prompts/rewrite';
 import { buildQuantifierPrompt } from './prompts/quantifier';
@@ -816,6 +817,9 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   }
 
   if (updatedFields.length > 0) {
+    // An expert pass can write "Not specified" into a field it could not fill;
+    // clear it before it reaches the saved resume.
+    updatedResume = stripPlaceholderValues(updatedResume);
     const { error: updateError } = await params.supabase
       .from('optimizations')
       .update({ rewrite_data: updatedResume })

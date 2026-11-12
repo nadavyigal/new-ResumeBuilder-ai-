@@ -338,3 +338,10 @@ on the displayed filename/result was insufficient. Block sensitive form controls
 from replay as well, and check full snapshots plus incremental events with
 fictional sentinels and a public positive control. Keep local payload evidence
 separate from hosted recording and production-configuration verification.
+
+## 2026-11-12 — The optimizer writes "Not specified" into fields it lacks
+
+**Symptom:** a tester's exported PDF showed "Not specified" in the header, beside every company and beside her university. Her original used icons for contact details and logos for employers, so the parser had nothing to give those fields. Production: 4 of 59 optimizations in 60 days carried "Not specified", "N/A" or "Not provided" at `experience[].location`, `education[].graduationDate/location/institution`, `experience[].startDate/endDate` and `contact.phone/location`. Parsed `resumes.canonical_data` had none: the optimize step adds them.
+**Cause:** both prompt schemas ask for every field as `"string"` with no rule for missing values, and `firstNonEmptyString` accepted any non-empty text.
+**Fix:** `src/lib/resume/placeholder-values.ts` clears whole-value stand-ins at the optimizer parse (`ai-optimizer/index.ts`), in `normalizeOptimizedResume` (falls back to the original value first) and before the expert-workflow save. Both prompts now say "empty string, never a placeholder".
+**Rule:** a prompt rule is not enough on its own; scrub model stand-ins at every persistence boundary, the same as the `responsibilities` alias. Find them in production with a JSON walk over `optimizations.rewrite_data` before guessing which field.
