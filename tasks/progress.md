@@ -4,7 +4,7 @@ Current Phase: Payments v2 configured on; resume output quality fixes from teste
 Active Story: clear AI stand-ins ("Not specified", "N/A") at optimizer parse, normalizer and expert save; prompts forbid them.
 Next Recommended Story: iOS story 1b, ask for missing contact fields before export; then clean the 4 stored rows (needs founder yes).
 Blockers: none. Already-saved optimizations keep their placeholders until a data cleanup runs.
-Last Validation: 2026-11-12, full jest 1250 passed 0 failed; new suite 33/33 incl. review-run save; eslint clean; tsc 24 before and after.
+Last Validation: 2026-11-12, full jest 1251 passed 0 failed; placeholder + expert-apply tests 41/41; eslint clean; tsc 24 before and after.
 Last Updated: 2026-11-12
 
 # 2026-11-11: Vercel Claude plugin enabled per repo, off globally
