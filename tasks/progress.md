@@ -1,6 +1,6 @@
 # 2026-11-12: No "Not specified" placeholders in optimized resumes
 
-Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (Meirav call).
+Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (tester call).
 Active Story: clear AI stand-ins ("Not specified", "N/A") at optimizer parse, normalizer and expert save; prompts forbid them.
 Next Recommended Story: iOS story 1b, ask for missing contact fields before export; then clean the 4 stored rows (needs founder yes).
 Blockers: none. Saved rows keep placeholders until cleanup; templates no longer print a stray separator for empty fields.
@@ -653,7 +653,7 @@ Nine commits of scorer-integrity work were stacked three PRs deep with none of i
 
 ## 2026-07-24 — WP-45 S2: symmetric comparison + no-regression invariant (PR #120, stacked on #119)
 
-**The invariant.** `optimize-pipeline.ts` chose between pass 1 and pass 2 by comparing them to each other and never to the resume the user started with, so a run that moved the score +2 — or moved it down — was returned as a result. That is the 42 -> 44 from the Meirav session, and it is not rare: 24 of 59 optimizations in 60 days ended at +4 or worse, 6 of them lower than they started. Pass 2 now also triggers when a run has not meaningfully beaten the original, and every result carries a `LiftAssessment` from the new `src/lib/ats/lift.ts`. That module never raises a score, never clamps a delta positive and never applies a floor — `lift.displayScores` tells the caller to show what changed and what is still missing instead of a number pair. Floor is a named constant at 5, provisional until S5 picks it from the labelled benchmark.
+**The invariant.** `optimize-pipeline.ts` chose between pass 1 and pass 2 by comparing them to each other and never to the resume the user started with, so a run that moved the score +2 — or moved it down — was returned as a result. That is the 42 -> 44 from the tester session, and it is not rare: 24 of 59 optimizations in 60 days ended at +4 or worse, 6 of them lower than they started. Pass 2 now also triggers when a run has not meaningfully beaten the original, and every result carries a `LiftAssessment` from the new `src/lib/ats/lift.ts`. That module never raises a score, never clamps a delta positive and never applies a floor — `lift.displayScores` tells the caller to show what changed and what is still missing instead of a number pair. Floor is a named constant at 5, provisional until S5 picks it from the labelled benchmark.
 
 **Fifth measurement defect found.** Four analyzers branch on `resume_json` — section_completeness, title_alignment, metrics_presence, semantic — and in the shipping path only the optimized side ever has it. section_completeness scores field presence via `hasRequiredSections()` with JSON and a header regex over messy extracted text without it. Production 60d: optimized mean 99.7 with 58 of 59 rows at or above 99 (min 85), against 66.5 original. Roughly +3 points of fake delta on every optimization. The structured path is now used only when both sides are structured; recency is exempt because it takes `recency_json`, reconstructed in S1 for exactly this reason.
 
@@ -667,7 +667,7 @@ Nine commits of scorer-integrity work were stacked three PRs deep with none of i
 
 ## 2026-07-24 — WP-45 S1: repair the three dead scoring components (PR #119)
 
-Backend-only scorer integrity pass. Triggered by a moderated user session (Meirav) that showed a fit score of 45, then 42 before / 44 after optimizing. The audit found the composite was structurally incapable of doing better.
+Backend-only scorer integrity pass. Triggered by a moderated user session that showed a fit score of 45, then 42 before / 44 after optimizing. The audit found the composite was structurally incapable of doing better.
 
 **Evidence (privacy-safe aggregates, 60 days, pulled 2026-07-24):** free checker `anonymous_ats_scores` n=67, mean 34.5, max 51, zero at or above 75. Authenticated `optimizations` n=59, 32.2 -> 41.6, max after 62, and 24 of 59 (41%) ended at +4 or worse. Across all non-tester `fit_check_completed` events, `strong` has never once been emitted against its own >= 75 threshold.
 
