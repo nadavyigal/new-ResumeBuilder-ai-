@@ -113,6 +113,17 @@ function escapeHtml(text: string): string {
 }
 
 /**
+ * Joins only the parts that have a value. A field the parser could not read is
+ * empty, and must not leave "Kaltura | " or "2021 – " behind.
+ */
+function joinPresent(parts: Array<string | null | undefined>, separator: string): string {
+  return parts
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join(separator);
+}
+
+/**
  * Generate ATS-Safe HTML template
  */
 export function generateATSSafeHTML(resume: OptimizedResume): string {
@@ -335,7 +346,7 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
         <span class="job-title">${escapeHtml(exp.title)}</span> | <span class="company-name">${escapeHtml(exp.company)}</span>
       </h3>
       <div class="job-meta">
-        ${escapeHtml(exp.location)} | ${escapeHtml(exp.startDate)} – ${escapeHtml(exp.endDate)}
+        ${joinPresent([escapeHtml(exp.location), joinPresent([escapeHtml(exp.startDate), escapeHtml(exp.endDate)], ' – ')], ' | ')}
       </div>
       ${exp.achievements?.length ? `
       <ul class="achievements">
@@ -353,7 +364,7 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
     <div class="education-item">
       <div class="degree">${escapeHtml(edu.degree)}</div>
       <div class="institution">
-        ${escapeHtml(edu.institution)} | ${escapeHtml(edu.location)} | ${escapeHtml(edu.graduationDate)}
+        ${joinPresent([escapeHtml(edu.institution), escapeHtml(edu.location), escapeHtml(edu.graduationDate)], ' | ')}
       </div>
       ${edu.gpa ? `<div class="institution">GPA: ${escapeHtml(edu.gpa)}</div>` : ''}
     </div>
@@ -626,7 +637,7 @@ export function generateModernHTML(resume: OptimizedResume): string {
         <span class="job-title">${escapeHtml(exp.title)}</span> | <span class="company-name">${escapeHtml(exp.company)}</span>
       </h3>
       <div class="job-meta">
-        ${escapeHtml(exp.location)} | ${escapeHtml(exp.startDate)} – ${escapeHtml(exp.endDate)}
+        ${joinPresent([escapeHtml(exp.location), joinPresent([escapeHtml(exp.startDate), escapeHtml(exp.endDate)], ' – ')], ' | ')}
       </div>
       ${exp.achievements?.length ? `
       <ul class="achievements">
@@ -644,7 +655,7 @@ export function generateModernHTML(resume: OptimizedResume): string {
     <div class="education-item">
       <div class="degree">${escapeHtml(edu.degree)}</div>
       <div class="institution">
-        ${escapeHtml(edu.institution)} | ${escapeHtml(edu.location)} | ${escapeHtml(edu.graduationDate)}
+        ${joinPresent([escapeHtml(edu.institution), escapeHtml(edu.location), escapeHtml(edu.graduationDate)], ' | ')}
       </div>
       ${edu.gpa ? `<div class="institution">GPA: ${escapeHtml(edu.gpa)}</div>` : ''}
     </div>

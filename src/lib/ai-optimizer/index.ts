@@ -6,6 +6,7 @@ import {
   OPTIMIZATION_CONFIG,
 } from '../prompts/resume-optimizer';
 import { normalizeExperienceBullets } from './normalize-experience';
+import { stripPlaceholderValues } from '@/lib/resume/placeholder-values';
 
 /**
  * Optimized resume structure returned by AI
@@ -138,8 +139,12 @@ export async function optimizeResume(
     // `responsibilities` rather than `achievements`, and every consumer reads
     // `achievements` only — so the bullets were silently discarded. Normalize
     // at the parse boundary, before anything downstream sees the object.
-    const optimizedResume = normalizeExperienceBullets(
-      JSON.parse(responseContent) as OptimizedResume
+    // Stand-ins such as "Not specified" are cleared here for the callers of
+    // optimizeResume (pipeline fallback/retry, /api/agent/run). The main
+    // pipeline path is guarded in normalizeOptimizedResume, which every review
+    // run and every apply goes through before saving.
+    const optimizedResume = stripPlaceholderValues(
+      normalizeExperienceBullets(JSON.parse(responseContent) as OptimizedResume)
     );
 
     return {

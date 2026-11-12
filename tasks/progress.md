@@ -1,3 +1,12 @@
+# 2026-11-12: No "Not specified" placeholders in optimized resumes
+
+Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (Meirav call).
+Active Story: clear AI stand-ins ("Not specified", "N/A") at optimizer parse, normalizer and expert save; prompts forbid them.
+Next Recommended Story: iOS story 1b, ask for missing contact fields before export; then clean the 4 stored rows (needs founder yes).
+Blockers: none. Saved rows keep placeholders until cleanup; templates no longer print a stray separator for empty fields.
+Last Validation: 2026-11-12, full jest 1263 passed 0 failed; placeholder, expert-apply and template tests pass; eslint clean; tsc 24 unchanged.
+Last Updated: 2026-11-12
+
 # 2026-11-11: Vercel Claude plugin enabled per repo, off globally
 
 Current Phase: Payments v2 configured on; #210 billing record merged and live.

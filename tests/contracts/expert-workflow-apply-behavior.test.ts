@@ -212,6 +212,61 @@ describe('expert workflow apply behavior', () => {
     });
   });
 
+  it('scores and saves the same résumé, with placeholders cleared before scoring', async () => {
+    const { applyExpertWorkflowRun, scoreOptimization } = loadApplyHarness();
+    scoreOptimization.mockResolvedValue({
+      ats_score_original: 58,
+      ats_score_optimized: 70,
+      subscores: {},
+      subscores_original: {},
+      suggestions: [],
+      confidence: 'high',
+    } as never);
+
+    const rewrittenResume = {
+      summary: 'Not specified',
+      contact: { name: 'Ada', email: 'ada@example.com', phone: 'N/A', location: 'Not provided' },
+      skills: { technical: ['TypeScript', 'N/A'], soft: [] },
+      experience: [
+        { title: 'Engineer', company: 'Acme', location: 'Not specified', startDate: '2021', endDate: 'Present', achievements: ['Shipped billing'] },
+      ],
+      education: [],
+      matchScore: 70,
+      keyImprovements: [],
+      missingKeywords: [],
+    };
+
+    const supabase = buildSupabaseMock({
+      runResult: {
+        data: {
+          id: 'run-1',
+          user_id: 'user-1',
+          optimization_id: 'opt-1',
+          workflow_type: 'full_resume_rewrite',
+          output_json: { rewritten_resume: rewrittenResume },
+        },
+        error: null,
+      },
+      optimizationResult: {
+        data: { id: 'opt-1', rewrite_data: { summary: 'Old summary' }, resume_id: 'resume-1', jd_id: 'jd-1', ats_score_optimized: 62, match_score: 62 },
+        error: null,
+      },
+      resumeResult: { data: { raw_text: 'Original resume text' }, error: null },
+      jobDescriptionResult: { data: { raw_text: 'JD raw', clean_text: 'JD clean', title: 'Engineer' }, error: null },
+    });
+
+    await applyExpertWorkflowRun({ supabase, userId: 'user-1', runId: 'run-1' });
+
+    const scored = (scoreOptimization.mock.calls[0][0] as { resumeOptimizedJson: unknown }).resumeOptimizedJson;
+    const saved = (supabase as any).getOptimizationUpdates()[0].rewrite_data;
+    expect(JSON.stringify(scored)).not.toMatch(/not specified|not provided|"n\/a"/i);
+    expect(scored).toEqual(saved);
+    expect(saved.summary).toBe('');
+    expect(saved.contact).toMatchObject({ phone: '', location: '' });
+    expect(saved.experience[0].location).toBe('');
+    expect(saved.skills.technical).toEqual(['TypeScript']);
+  });
+
   it('applies nothing when the run would lower the score', async () => {
     // The whole point of scoring before writing. There is no revert for résumé
     // content, so a run that measures worse must leave the document and the
