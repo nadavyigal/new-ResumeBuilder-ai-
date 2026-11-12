@@ -115,6 +115,17 @@ export function getFreeTemplates(): Template[] {
 }
 
 /**
+ * Joins only the parts that have a value. A field the parser could not read is
+ * empty, and must not leave "Kaltura | " or "2021 - " behind.
+ */
+function joinPresent(parts: Array<string | null | undefined>, separator: string): string {
+  return parts
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter(Boolean)
+    .join(separator);
+}
+
+/**
  * Generate ATS-Safe resume HTML
  * FR-019: ATS compatibility ensured
  */
@@ -200,7 +211,7 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
 <body>
   <h1>${contact.name}</h1>
   <div class="contact">
-    <div class="contact-line">${contact.email} | ${contact.phone}</div>
+    <div class="contact-line">${joinPresent([contact.email, contact.phone], ' | ')}</div>
     <div class="contact-line">${contact.location}</div>
     ${contact.linkedin ? `<div class="contact-line">${contact.linkedin}</div>` : ''}
   </div>
@@ -227,8 +238,8 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
     ${experience.map(exp => `
       <div class="job-header">
         <h3>${exp.title}</h3>
-        <div><span class="company">${exp.company}</span> | ${exp.location}</div>
-        <div class="dates">${exp.startDate} - ${exp.endDate}</div>
+        <div><span class="company">${exp.company}</span>${exp.location?.trim() ? ` | ${exp.location}` : ''}</div>
+        <div class="dates">${joinPresent([exp.startDate, exp.endDate], ' - ')}</div>
       </div>
       <ul>
         ${exp.achievements.map(achievement => `<li>${achievement}</li>`).join('\n        ')}
@@ -241,7 +252,7 @@ export function generateATSSafeHTML(resume: OptimizedResume): string {
     ${education.map(edu => `
       <div>
         <h3>${edu.degree}</h3>
-        <div>${edu.institution} | ${edu.location}</div>
+        <div>${joinPresent([edu.institution, edu.location], ' | ')}</div>
         <div class="dates">${edu.graduationDate}</div>
         ${edu.gpa ? `<div>GPA: ${edu.gpa}</div>` : ''}
       </div>
@@ -432,9 +443,9 @@ export function generateModernHTML(resume: OptimizedResume): string {
       <div class="experience-item">
         <div class="job-header">
           <h3>${exp.title}</h3>
-          <span class="dates">${exp.startDate} - ${exp.endDate}</span>
+          <span class="dates">${joinPresent([exp.startDate, exp.endDate], ' - ')}</span>
         </div>
-        <div class="company-info">${exp.company} | ${exp.location}</div>
+        <div class="company-info">${joinPresent([exp.company, exp.location], ' | ')}</div>
         <ul>
           ${exp.achievements.map(achievement => `<li>${achievement}</li>`).join('\n          ')}
         </ul>
@@ -447,7 +458,7 @@ export function generateModernHTML(resume: OptimizedResume): string {
     ${education.map(edu => `
       <div class="education-item">
         <h3>${edu.degree}</h3>
-        <div class="company-info">${edu.institution}, ${edu.location}</div>
+        <div class="company-info">${joinPresent([edu.institution, edu.location], ', ')}</div>
         <div class="dates">${edu.graduationDate}</div>
         ${edu.gpa ? `<div style="margin-top: 4pt;">GPA: ${edu.gpa}</div>` : ''}
       </div>
