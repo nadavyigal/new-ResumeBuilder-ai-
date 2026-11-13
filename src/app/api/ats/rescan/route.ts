@@ -9,6 +9,7 @@ import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { rescoreOptimization } from '@/lib/ats';
 import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import { logger } from '@/lib/agent/utils/logger';
+import { enforceAiRateLimit } from "@/lib/utils/ai-rate-limit";
 
 export async function POST(request: NextRequest) {
   let optimizationId: string | null = null;
@@ -23,6 +24,9 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const limited = enforceAiRateLimit(`ats-rescan:${user.id}`);
+    if (limited) return limited;
 
     const body = await request.json();
     // `accept_decrease` is set only after the user has been shown the drop and

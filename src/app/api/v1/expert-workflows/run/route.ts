@@ -8,6 +8,7 @@ import {
   isSurfacedExpertWorkflowType,
   type SurfacedExpertWorkflowType,
 } from '@/lib/expert-workflows';
+import { enforceAiRateLimit } from '@/lib/utils/ai-rate-limit';
 
 function getLockedPreview(workflowType: SurfacedExpertWorkflowType) {
   const previews: Record<SurfacedExpertWorkflowType, string> = {
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const limited = enforceAiRateLimit(`expert-workflow-run:${user.id}`);
+  if (limited) return limited;
 
   try {
     const body = await request.json();
