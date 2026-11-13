@@ -47,7 +47,7 @@ Updated 2026-10-29: pricing v2, founder-approved plan `plans/resumely-pricing-v2
 - Today: free. No paywall, no charge, no visible "Premium" before the StoreKit gate (EXD-009, EXD-029, EXD-018).
 - Decided shape (iOS only): the Match Score is free and unlimited for everyone; only PDF exports are paid. Every real account gets 3 free PDF exports once (`welcome_export_grant()`). Packs `resumely.exports.5.v2` ($3.99, 5 exports) and `resumely.exports.14` ($7.99, 14 exports); monthly subscription `resumely.pro.monthly` ($9.99, unlimited exports, fair use 40 per billing period, `subscription_export_cap()`). The v1 packs are retired from sale but a paid v1 transaction is still honored. Credits never expire.
 - Server side: `supabase/migrations/20261030094500_pricing_v2.sql` (welcome grant, subscriptions, fair use in `unlock_export`), `/api/v1/iap/verify` and `/api/v1/iap/notifications` handle the subscription, `/api/v1/credits` returns the plan state.
-- Built only when all four StoreKit gate conditions hold (plan, Track 2). Stripe code still exists in the repo (`src/app/api/upgrade/route.ts`) but is not the pricing plan.
+- Built only when all four StoreKit gate conditions hold (plan, Track 2). The old Stripe route has been removed; no Stripe code remains in `src/` (checked 2026-11-11).
 
 ## Main Tech Stack
 
@@ -83,7 +83,6 @@ new-ResumeBuilder-ai-/       ← repo root, the Next.js app (run all commands fr
 |-------------|---------|-------|
 | Supabase | Auth, DB, file storage | RLS on all tables |
 | OpenAI | Resume optimization, Match Score | Rate limit all routes |
-| Stripe | Legacy upgrade route only, not the pricing plan | Webhook secret must match endpoint if it is ever used |
 | Vercel | Hosting | Connect to GitHub for auto-deploy |
 
 ## Known Risks

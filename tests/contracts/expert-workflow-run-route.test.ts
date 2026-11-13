@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+// `@jest/globals` types a bare jest.fn() as taking and returning nothing.
+type AnyFn = (...args: any[]) => any;
+
 function buildSupabaseClient({
   user = { id: 'user-1', user_metadata: {} },
   profilePlan = 'free',
@@ -9,12 +12,12 @@ function buildSupabaseClient({
 }) {
   return {
     auth: {
-      getUser: jest.fn().mockResolvedValue({
+      getUser: jest.fn<AnyFn>().mockResolvedValue({
         data: { user },
         error: null,
       }),
     },
-    from: jest.fn((table: string) => {
+    from: jest.fn<AnyFn>((table: string) => {
       if (table !== 'profiles') {
         throw new Error(`Unexpected table: ${table}`);
       }
@@ -37,9 +40,9 @@ function buildSupabaseClient({
 function loadRouteHarness() {
   jest.resetModules();
 
-  const createRouteHandlerClient = jest.fn();
-  const captureServerEvent = jest.fn();
-  const runExpertWorkflow = jest.fn();
+  const createRouteHandlerClient = jest.fn<AnyFn>();
+  const captureServerEvent = jest.fn<AnyFn>();
+  const runExpertWorkflow = jest.fn<AnyFn>();
 
   jest.doMock('next/server', () => ({
     __esModule: true,
@@ -73,7 +76,7 @@ function loadRouteHarness() {
   }));
 
   jest.doMock('@/lib/expert-workflows', () => {
-    const actual = jest.requireActual('@/lib/expert-workflows');
+    const actual = jest.requireActual<Record<string, unknown>>('@/lib/expert-workflows');
     return {
       __esModule: true,
       ...actual,

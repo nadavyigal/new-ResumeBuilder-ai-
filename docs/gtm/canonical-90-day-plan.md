@@ -116,7 +116,7 @@ Detailed operating assets: `docs/gtm/execution-assets.md`
 
 ## Source Mapping
 This document supersedes fragmented plans from:
-- `GTM-WEEK-1-IMPLEMENTATION-GUIDE.md`
-- `VIRAL_GROWTH_ENGINE_PLAN.md`
-- `LAUNCH_CHECKLIST.md`
-- `PROMOTION_READINESS_STATUS.md`
+- `docs/archive/2025-root-reports/GTM-WEEK-1-IMPLEMENTATION-GUIDE.md`
+- `docs/archive/2025-root-reports/VIRAL_GROWTH_ENGINE_PLAN.md`
+- `docs/archive/2025-root-reports/LAUNCH_CHECKLIST.md`
+- `docs/archive/2025-root-reports/PROMOTION_READINESS_STATUS.md`

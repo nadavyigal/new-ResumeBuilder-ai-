@@ -1,5 +1,13 @@
 # Lessons Learned — ResumeBuilder
 
+## A secret-scanning hook only catches the shapes it lists (2026-11-11)
+
+**Symptom:** a Supabase personal access token sat in `mcp.json` in this public repo for 13 months, and a production `service_role` key sat in `full-verification.js` for 10.
+
+**Root cause:** both predate `.githooks/pre-commit`, whose pattern list had no `sbp_` shape, and the hook is only active after `git config core.hooksPath .githooks` in each clone.
+
+**Rule:** when a new provider's key format appears, add its pattern to the hook in the same PR. Never paste a key into a script "just to test"; read it from the environment. Deleting a leaked key from the tree does not revoke it: rotate first.
+
 ## Hebrew copy: never put a Latin word, a colon and a number side by side (2026-11-05)
 
 **Symptom:** on `/he/terms`, "5 הורדות PDF: 3.99$" rendered with the colon and the price in the wrong order, and a plain-text URL broke at its hyphen into two pieces read in the wrong order.
