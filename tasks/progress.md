@@ -1,3 +1,12 @@
+# 2026-11-13: CI runs the typecheck
+
+Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
+Active Story: add `npx tsc --noEmit` as a gating CI step after lint.
+Next Recommended Story: rate limits on the 5 unlimited AI routes (separate Tier 2 PR).
+Blockers: none.
+Last Validation: 2026-11-13 `npx tsc --noEmit` exits 0 on main; workflow YAML parses.
+Last Updated: 2026-11-13
+
 # 2026-11-12: No "Not specified" placeholders in optimized resumes
 
 Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (tester call).

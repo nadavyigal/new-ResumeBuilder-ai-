@@ -20,6 +20,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Added 2026-11-13: CLAUDE.md requires a clean typecheck before done, but
+      # CI never ran it, and 24 errors reached main before the 2026-11-11 audit.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       # The whole jest suite gates (2026-10-06). It used to run only tests/contracts
       # with 4 suites quarantined, while 18 suites / 77 tests were red on main.
       # Suites that need paid or shared systems (OpenAI, the real Supabase project,
