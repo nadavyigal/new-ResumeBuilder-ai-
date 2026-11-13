@@ -1,5 +1,6 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { getOpenAI } from "@/lib/openai";
+import { isPlaceholderValue } from "@/lib/resume/placeholder-values";
 
 const STRUCTURE_RESUME_SYSTEM_PROMPT = `You convert a resume into structured JSON.
 
@@ -7,6 +8,7 @@ Rules:
 - Return valid JSON only.
 - Extract only what is explicitly supported by the resume text.
 - Do not invent employers, dates, metrics, tools, certifications, links, or projects.
+- If a value is not in the resume text, return an empty string (or an empty array). Never write a placeholder such as "Not specified", "N/A", "Unknown" or "Not provided".
 - Preserve the candidate's original language when possible.
 - Keep the schema exactly as requested.
 
@@ -60,9 +62,11 @@ Schema:
   "missingKeywords": []
 }`;
 
+// A stand-in such as "Not specified" counts as empty, so the original value is
+// used when there is one and nothing is printed when there is not.
 function firstNonEmptyString(...values: unknown[]): string {
   for (const value of values) {
-    if (typeof value === "string" && value.trim().length > 0) {
+    if (typeof value === "string" && value.trim().length > 0 && !isPlaceholderValue(value)) {
       return value.trim();
     }
   }
@@ -72,7 +76,7 @@ function firstNonEmptyString(...values: unknown[]): string {
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .map((item) => (typeof item === "string" && !isPlaceholderValue(item) ? item.trim() : ""))
     .filter(Boolean);
 }
 

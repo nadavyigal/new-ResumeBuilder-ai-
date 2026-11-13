@@ -2,6 +2,7 @@ import { commitOptimizedScore } from '@/lib/scoring/optimized-score';
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
+import { stripPlaceholderValues } from '@/lib/resume/placeholder-values';
 import { scoreOptimization } from '@/lib/ats/integration';
 import { buildRewritePrompt } from './prompts/rewrite';
 import { buildQuantifierPrompt } from './prompts/quantifier';
@@ -734,6 +735,13 @@ export async function applyExpertWorkflowRun(params: ApplyWorkflowParams): Promi
   // the score and the user has not accepted it, nothing is written at all —
   // not the résumé, not the score — and both numbers come back so the app can
   // ask. Approving re-runs this with `acceptScoreDecrease`.
+  // An expert pass can write "Not specified" into a field it could not fill.
+  // Clear it before scoring, so the score guard and the stored score measure
+  // the résumé that is actually saved.
+  if (updatedFields.length > 0) {
+    updatedResume = stripPlaceholderValues(updatedResume);
+  }
+
   let newAtsScore: number | null = null;
   let scoreDecreaseBlocked = false;
   let measuredAtsScore: number | null = null;
