@@ -1,3 +1,12 @@
+# 2026-11-13: Rate limits on four AI routes
+
+Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
+Active Story: per-user 20/min cap (RATE_LIMITS.ai, same as refine-section and chat) on expert-workflows/run, agent/run, ats/rescan, design/recommend.
+Next Recommended Story: a shared store for the limiter (in-memory today, per server instance).
+Blockers: Tier 2; needs founder yes to merge.
+Last Validation: 2026-11-13 tsc 0 errors, lint 0 errors, Jest 1265 passed 80 skipped (2 new limiter tests).
+Last Updated: 2026-11-13
+
 # 2026-11-12: No "Not specified" placeholders in optimized resumes
 
 Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (tester call).
