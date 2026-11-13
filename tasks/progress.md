@@ -1,3 +1,12 @@
+# 2026-11-13: Unused dependencies removed; finance model moved private
+
+Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
+Active Story: drop 10 unused packages (8 deps, 2 type packages), move the financial model to the private vault, archive 6 finished work packs.
+Next Recommended Story: merge #217 (rate limits) and this PR once CI is green.
+Blockers: Tier 2 (dependencies); needs founder yes to merge.
+Last Validation: 2026-11-13 tsc 0 errors, lint 0 errors, Jest 1263 passed 80 skipped, next build passes.
+Last Updated: 2026-11-13
+
 # 2026-11-12: No "Not specified" placeholders in optimized resumes
 
 Current Phase: Payments v2 configured on; resume output quality fixes from tester feedback (tester call).
