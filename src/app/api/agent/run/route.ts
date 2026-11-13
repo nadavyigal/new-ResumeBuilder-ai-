@@ -5,6 +5,7 @@ import { log } from "@/lib/agent/utils/logger";
 import { agentFlags } from "@/lib/agent/config";
 import { optimizeResume } from "@/lib/ai-optimizer";
 import { ATS } from "@/lib/agent/tools/ats";
+import { enforceAiRateLimit } from "@/lib/utils/ai-rate-limit";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,9 @@ export async function POST(req: NextRequest) {
   const supabase = await createRouteHandlerClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limited = enforceAiRateLimit(`agent-run:${user.id}`);
+  if (limited) return limited;
 
   try {
     const body = await req.json();
