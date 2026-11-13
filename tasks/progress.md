@@ -1,3 +1,11 @@
+# 2026-11-13: CI runs the typecheck
+
+Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
+Active Story: add `npx tsc --noEmit` as a gating CI step after lint.
+Next Recommended Story: rate limits on the 5 unlimited AI routes (separate Tier 2 PR).
+Blockers: none.
+Last Validation: 2026-11-13 `npx tsc --noEmit` exits 0 on main; workflow YAML parses.
+
 # 2026-11-13: Unused dependencies removed; finance model moved private
 
 Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
