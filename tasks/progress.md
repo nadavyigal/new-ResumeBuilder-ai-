@@ -1,10 +1,10 @@
 # 2026-11-22: Supabase key swap, Preview first
 
 Current Phase: leaked Supabase keys rotation; new publishable and secret keys created 2026-11-22.
-Active Story: Preview test on branch; publishable key works in browser, branch `SUPABASE_SERVICE_ROLE_KEY` holds the publishable key by mistake.
-Next Recommended Story: re-paste the secret key, rebuild Preview, retest; then production swap with founder yes.
-Blockers: founder re-pastes `sb_secret_` into the branch `SUPABASE_SERVICE_ROLE_KEY`.
-Last Validation: 2026-11-22 Preview c8d410d: bundle has new publishable key, no secret; free check 500, log shows publishable key on server client.
+Active Story: Preview on new keys passes server checks; founder sign-in test on Preview pending.
+Next Recommended Story: production swap of both Vercel values (founder yes), then edge functions and iOS keys.
+Blockers: founder signs in on Preview; production swap needs founder yes.
+Last Validation: 2026-11-22 Preview ec82ff6: free check 200; Supabase log shows sb_secret_ on score insert (201) and rate limit (200).
 Last Updated: 2026-11-22
 
 # 2026-11-13: CI runs the typecheck
