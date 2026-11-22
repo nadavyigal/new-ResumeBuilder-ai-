@@ -12,6 +12,21 @@ No key values belong in this file, in git, or in chat.
   a publishable key (`sb_publishable_...`) and a secret key (`sb_secret_...`).
 - Legacy keys still work. Do not disable them until every surface below is moved:
   iOS 1.6.0 still ships the legacy anon key.
+- 2026-11-22: Vercel production moved to the new keys and redeployed (no build cache).
+  Verified on www.resumelybuilderai.com: browser bundle has only `sb_publishable_`;
+  Supabase API log shows `/auth/v1/user` 200 with `sb_publishable_` and server
+  storage reads 200 with `sb_secret_`; dashboard and applications list load.
+
+## Gotchas found on 2026-11-22
+
+- Vercel refuses the Secret type for `NEXT_PUBLIC_` vars. Save the publishable key as Config.
+- The old production `SUPABASE_SERVICE_ROLE_KEY` was Config (readable). It is Secret now.
+- A publishable key pasted into `SUPABASE_SERVICE_ROLE_KEY` gives RLS 401s on writes, not
+  a startup error. Check the key type in Supabase Logs Explorer:
+  `request.sb.apikey.apikey.prefix` on `edge_logs`.
+- Saving a Vercel env var offers a Redeploy prompt. A redeploy started before both values
+  are saved ships a mixed build; redeploy again once both are saved.
+- Production redeploy asks for the founder's passkey.
 
 ## Vercel project `new-resume-builder-ai`
 

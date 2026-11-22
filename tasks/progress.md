@@ -1,10 +1,10 @@
 # 2026-11-22: Supabase key swap, Preview first
 
-Current Phase: leaked Supabase keys rotation; new publishable and secret keys created 2026-11-22.
-Active Story: Preview on new keys passes server checks; founder sign-in test on Preview pending.
-Next Recommended Story: production swap of both Vercel values (founder yes), then edge functions and iOS keys.
-Blockers: founder signs in on Preview; production swap needs founder yes.
-Last Validation: 2026-11-22 Preview ec82ff6: free check 200; Supabase log shows sb_secret_ on score insert (201) and rate limit (200).
+Current Phase: leaked Supabase keys rotation; Vercel production now on new publishable and secret keys.
+Active Story: web key swap done; legacy keys still enabled for iOS 1.6.0 and edge functions.
+Next Recommended Story: edge functions and iOS `Secrets.xcconfig` to new keys, then disable legacy keys.
+Blockers: none for web; legacy disable waits on iOS release.
+Last Validation: 2026-11-22 production: bundle only sb_publishable_; Supabase log auth 200 publishable, storage 200 secret; dashboard and applications load.
 Last Updated: 2026-11-22
 
 # 2026-11-13: CI runs the typecheck
