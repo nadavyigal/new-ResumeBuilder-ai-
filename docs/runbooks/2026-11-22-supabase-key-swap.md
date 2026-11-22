@@ -58,9 +58,35 @@ The code keeps the same env var names. Only the values change.
 5. Rollback: Vercel Instant Rollback to the previous production deployment. The
    legacy keys stay valid until step 6, so rollback is safe.
 
-## Still to move before disabling legacy keys
+## Surface status (2026-11-22)
 
-- `supabase/functions/storekit-verify/index.ts` and `ambassador-reward/index.ts` (this repo)
-- `supabase/functions/delete_account/index.ts` (iOS repo)
-- iOS `Secrets.xcconfig` `SUPABASE_ANON_KEY`, shipped in a new iOS build
-- Then: disable legacy keys in Supabase, and never re-enable them.
+| Surface | Key | Status |
+|---|---|---|
+| Web production (Vercel `new-resume-builder-ai`) | publishable + secret | Done, verified on live site and Supabase API log |
+| `delete_account` edge function (iOS repo) | `SUPABASE_SECRET_KEYS.default` | Done: v4 deployed, `verify_jwt = false`; probes 401/401/405; manual E2E delete test PASSED (founder, simulator, test user removed from Supabase) |
+| `storekit-verify`, `ambassador-reward` (this repo) | none today | Not deployed (404) and stubs that return 501 without reading a key. Code comments now require `SUPABASE_SECRET_KEYS` when built |
+| Database: cron, `pg_net`, webhooks | none | Checked: no job or webhook holds a key |
+| CI (`.github/workflows/ci.yml`) | placeholders | No change needed |
+| iOS app `Secrets.xcconfig` `SUPABASE_ANON_KEY` | publishable | Local file updated on the founder's Mac; ships with the next App Store build (iOS PR #246) |
+| iOS 1.6.0 and older, already installed | legacy anon | Breaks sign-in when legacy keys are disabled |
+
+## Stale Vercel copies (safe to delete)
+
+Branch-scoped Preview vars on branch `claude/2026-11-22-supabase-key-swap`:
+`SUPABASE_SERVICE_ROLE_KEY` (Secret) and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (Config).
+They hold the same new keys as All Environments, so deleting them changes nothing.
+Delete both after this PR merges (Vercel > Environment Variables > search SUPABASE > row menu > Delete).
+
+## Checklist before disabling legacy keys (all must be green)
+
+1. [x] Web production on new keys.
+2. [x] `delete_account` on the new secret key; E2E delete test passed.
+3. [x] No database job, webhook or CI uses a key.
+4. [ ] An iOS build with `sb_publishable_` in `Secrets.xcconfig` is live on the App Store.
+5. [ ] Old app versions: most active users have updated. Decide: force-update prompt, or accept
+   that 1.6.0 and older lose sign-in. Supabase ends legacy keys at the end of 2026 anyway.
+6. [ ] Supabase Logs Explorer shows no legacy key traffic for 7 days except old app builds you accept losing:
+   `select timestamp, event_message, log_attributes from logs where source = 'edge_logs' order by timestamp desc limit 500`
+   and look at `request.sb.apikey.apikey.prefix` (legacy shows a JWT, not `sb_`).
+7. [ ] Disable legacy keys (Settings > API Keys > Legacy). Reversible: re-enable only if a missed caller breaks,
+   and only briefly, since the legacy keys leaked.

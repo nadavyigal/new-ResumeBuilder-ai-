@@ -22,6 +22,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 serve(async (req) => {
   // TODO: Implement when gate opens.
+  // Keys (2026-11-22 rotation): read the admin key with
+  //   JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}').default
+  // Never use SUPABASE_SERVICE_ROLE_KEY (legacy, leaked). See
+  // docs/runbooks/2026-11-22-supabase-key-swap.md and the iOS delete_account function.
   // Steps:
   // 1. Parse { userID, exportID } from request body
   // 2. Authenticate: verify JWT, confirm userID matches auth.uid()
