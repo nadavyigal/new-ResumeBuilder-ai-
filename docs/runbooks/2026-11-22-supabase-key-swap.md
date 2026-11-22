@@ -83,8 +83,10 @@ Delete both after this PR merges (Vercel > Environment Variables > search SUPABA
 2. [x] `delete_account` on the new secret key; E2E delete test passed.
 3. [x] No database job, webhook or CI uses a key.
 4. [ ] An iOS build with `sb_publishable_` in `Secrets.xcconfig` is live on the App Store.
-5. [ ] Old app versions: most active users have updated. Decide: force-update prompt, or accept
-   that 1.6.0 and older lose sign-in. Supabase ends legacy keys at the end of 2026 anyway.
+5. [ ] Old app versions: decide now, do not wait for users to update. While legacy keys are enabled the
+   leaked `service_role` key still bypasses RLS, and Supabase cannot retire it without also turning off
+   `anon`, so 1.6.0 and older lose sign-in. Options: disable now and accept that older builds must update,
+   or disable the day the new build is live with a forced-update prompt. Supabase ends legacy keys at the end of 2026 anyway.
 6. [ ] Supabase Logs Explorer shows no legacy key traffic for 7 days except old app builds you accept losing:
    `select timestamp, event_message, log_attributes from logs where source = 'edge_logs' order by timestamp desc limit 500`
    and look at `request.sb.apikey.apikey.prefix` (legacy shows a JWT, not `sb_`).
