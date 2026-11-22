@@ -1,3 +1,12 @@
+# 2026-11-22: Supabase key swap, Preview first
+
+Current Phase: leaked Supabase keys rotation; new publishable and secret keys created 2026-11-22.
+Active Story: move Vercel `NEXT_PUBLIC_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` to the new keys, branch Preview first.
+Next Recommended Story: edge functions and iOS `Secrets.xcconfig` to new keys, then disable legacy keys.
+Blockers: founder pastes key values into Vercel; production swap needs founder yes.
+Last Validation: 2026-11-22 Supabase API Keys page shows `default` publishable and secret keys; docs-only change.
+Last Updated: 2026-11-22
+
 # 2026-11-13: CI runs the typecheck
 
 Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.
