@@ -23,7 +23,7 @@ import type {
   ResponseInputItem,
 } from 'openai/resources/responses/responses';
 import { captureAiGenerationEvent, type AITraceOptions } from '@/lib/posthog-ai';
-import { logModelUsage, readUsage, selectModel, type ModelSelection } from '@/lib/ai/models';
+import { logModelUsage, readUsage, selectModel, type ModelSelection } from '@/lib/model-tiers';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 

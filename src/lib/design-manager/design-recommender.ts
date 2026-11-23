@@ -7,7 +7,7 @@
  */
 
 import OpenAI from 'openai';
-import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/ai/models';
+import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/model-tiers';
 
 const VALID_TEMPLATES = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'] as const;
 
@@ -97,7 +97,7 @@ Respond in JSON format:
       temperature: 0.3,
       max_tokens: 300,
       response_format: RECOMMENDATION_SCHEMA,
-    }) as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming);
+    }));
     logModelUsage('design.recommendTemplate', selection, readUsage(completion.usage), Date.now() - startedAt);
 
     const responseText = completion.choices[0]?.message?.content?.trim();

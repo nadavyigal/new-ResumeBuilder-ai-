@@ -1,9 +1,9 @@
 /**
- * src/lib/ai/models.ts: tier resolution and reasoning-model param handling.
+ * src/lib/model-tiers.ts: tier resolution and reasoning-model param handling.
  * The rejected params below were checked against the live API on 2026-11-23.
  */
 import { describe, it, expect, afterEach } from '@jest/globals';
-import { adaptChatParams, isReasoningModel, readUsage, selectModel } from '@/lib/ai/models';
+import { adaptChatParams, isReasoningModel, readUsage, selectModel } from '@/lib/model-tiers';
 
 const ENV_KEYS = [
   'OPENAI_MODEL_PLAN', 'OPENAI_MODEL_WRITER', 'OPENAI_MODEL_FAST',
@@ -48,7 +48,7 @@ describe('selectModel', () => {
 });
 
 describe('adaptChatParams', () => {
-  const params = { messages: [], temperature: 0.3, top_p: 0.9, max_tokens: 300, response_format: { type: 'json_object' } };
+  const params = { messages: [], temperature: 0.3, top_p: 0.9, max_tokens: 300, response_format: { type: 'json_object' as const } };
 
   it('leaves non-reasoning params untouched', () => {
     expect(adaptChatParams({ tier: 'FAST', model: 'gpt-4o-mini' }, params)).toEqual({ ...params, model: 'gpt-4o-mini' });
