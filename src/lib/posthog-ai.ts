@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import { readUsage } from '@/lib/model-tiers';
 
 type ChatCompletionParams = OpenAI.Chat.Completions.ChatCompletionCreateParams;
 type ChatCompletionOptions = Parameters<OpenAI.Chat.Completions['create']>[1];
@@ -164,6 +165,17 @@ export async function trackedChatCompletion(
 
   try {
     const completion = await client.chat.completions.create(params as any, options as any);
+    // Per-call token line (incl. reasoning tokens, billed as output) for cost comparison.
+    console.info(
+      JSON.stringify({
+        event: 'openai_usage',
+        callSite: trace.traceName,
+        model: (completion as any)?.model ?? params.model,
+        reasoningEffort: (params as any).reasoning_effort ?? null,
+        latencyMs: Date.now() - startedAt,
+        ...readUsage((completion as any)?.usage),
+      })
+    );
     const posthog = await getServerPostHog();
     await captureAiGeneration(params, completion, trace, Date.now() - startedAt);
     await posthog?.flushPostHogClient();

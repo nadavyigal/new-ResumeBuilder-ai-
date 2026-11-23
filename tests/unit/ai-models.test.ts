@@ -82,3 +82,17 @@ describe('isReasoningModel / readUsage', () => {
       .toMatchObject({ inputTokens: 7, outputTokens: 3, reasoningTokens: 1 });
   });
 });
+
+describe('overrideEnv', () => {
+  afterEach(() => {
+    delete process.env.AGENT_SDK_MODEL;
+  });
+
+  it('an older per-feature env var keeps priority over the tier env var', () => {
+    process.env.OPENAI_MODEL_FAST = 'gpt-6-luna';
+    process.env.AGENT_SDK_MODEL = 'gpt-4o-mini';
+    expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL')).toEqual({ tier: 'FAST', model: 'gpt-4o-mini' });
+    delete process.env.AGENT_SDK_MODEL;
+    expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL').model).toBe('gpt-6-luna');
+  });
+});

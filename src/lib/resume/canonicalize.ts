@@ -1,6 +1,7 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { getOpenAI } from "@/lib/openai";
 import { isPlaceholderValue } from "@/lib/resume/placeholder-values";
+import { adaptChatParams, logModelUsage, readUsage, selectModel } from "@/lib/model-tiers";
 
 const STRUCTURE_RESUME_SYSTEM_PROMPT = `You convert a resume into structured JSON.
 
@@ -271,8 +272,9 @@ export async function parseResumeToCanonical(rawText: string): Promise<Optimized
   }
 
   try {
-    const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+    const selection = selectModel("FAST", "gpt-4o-mini");
+    const startedAt = Date.now();
+    const response = await getOpenAI().chat.completions.create(adaptChatParams(selection, {
       temperature: 0.1,
       max_tokens: 2500,
       response_format: { type: "json_object" },
@@ -286,7 +288,8 @@ export async function parseResumeToCanonical(rawText: string): Promise<Optimized
           content: `Resume text:\n${rawText}\n\nReturn only the structured JSON.`,
         },
       ],
-    });
+    }));
+    logModelUsage("resume.canonicalize", selection, readUsage(response.usage), Date.now() - startedAt);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {

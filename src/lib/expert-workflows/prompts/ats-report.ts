@@ -61,6 +61,7 @@ export function buildATSReportPrompt(context: ExpertWorkflowContext): PromptBund
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.15,
     max_tokens: 2200,

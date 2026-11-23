@@ -72,13 +72,17 @@ function normalizeEffort(model: string, effort: ReasoningEffort): ReasoningEffor
  * Resolve the model for a tier.
  * @param codeDefault the model this call site used before tiers existed
  * @param effortOverride a fixed effort for this call site (wins over the tier env var)
+ * @param overrideEnv an older per-feature env var (e.g. AGENT_SDK_MODEL); it keeps
+ *   priority over the tier env var so existing settings behave as before
  */
 export function selectModel(
   tier: ModelTier,
   codeDefault: string,
-  effortOverride?: ReasoningEffort
+  effortOverride?: ReasoningEffort,
+  overrideEnv?: string
 ): ModelSelection {
-  const model = readEnv(`OPENAI_MODEL_${tier}`) ?? codeDefault;
+  const model =
+    (overrideEnv ? readEnv(overrideEnv) : undefined) ?? readEnv(`OPENAI_MODEL_${tier}`) ?? codeDefault;
   if (!isReasoningModel(model)) return { tier, model };
 
   const envEffort = readEnv(`OPENAI_REASONING_EFFORT_${tier}`) as ReasoningEffort | undefined;

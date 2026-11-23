@@ -26,6 +26,8 @@ export interface Usage {
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
+  /** Part of outputTokens (reasoning models bill reasoning as output). */
+  reasoningTokens?: number;
   totalTokens: number;
 }
 
@@ -56,13 +58,17 @@ export interface BlockedRequest {
 
 /**
  * USD per 1M tokens. Read from https://developers.openai.com/api/docs/pricing on
- * 2026-09-24 (Standard tier). Re-check before trusting a cost figure from a later
- * batch; a stale price makes the cap wrong, not the run.
+ * 2026-11-23 (Standard tier; gpt-4o and gpt-4o-mini unchanged since 2026-09-24).
+ * Re-check before trusting a cost figure from a later batch; a stale price makes
+ * the cap wrong, not the run.
  */
-export const PRICES_CHECKED_ON = '2026-09-24';
+export const PRICES_CHECKED_ON = '2026-11-23';
 export const PRICES_PER_MTOK: Record<string, { input: number; cachedInput: number; output: number }> = {
   'gpt-4o-mini': { input: 0.15, cachedInput: 0.075, output: 0.6 },
   'gpt-4o': { input: 2.5, cachedInput: 1.25, output: 10 },
+  'gpt-6.2-sol': { input: 2, cachedInput: 0.1, output: 10 },
+  'gpt-6.1-terra': { input: 1, cachedInput: 0.05, output: 5 },
+  'gpt-6-luna': { input: 0.1, cachedInput: 0.01, output: 0.5 },
   'text-embedding-3-small': { input: 0.02, cachedInput: 0.02, output: 0 },
 };
 
@@ -100,6 +106,7 @@ function parseUsage(raw: unknown): Usage | null {
     inputTokens: input,
     cachedInputTokens: Number(u.prompt_tokens_details?.cached_tokens ?? 0),
     outputTokens: output,
+    reasoningTokens: Number(u.completion_tokens_details?.reasoning_tokens ?? u.output_tokens_details?.reasoning_tokens ?? 0),
     totalTokens: Number(u.total_tokens ?? input + output),
   };
 }
@@ -252,6 +259,7 @@ export interface RunCallSummary {
   judgeCalls: number;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   costUsd: number;
   unpricedCalls: number;
   requestedModels: string[];
@@ -271,6 +279,7 @@ export function summarizeCalls(records: CallRecord[]): RunCallSummary {
     judgeCalls: records.filter((r) => r.phase === 'judge' && r.retryCount === 0).length,
     inputTokens: records.reduce((n, r) => n + (r.usage?.inputTokens ?? 0), 0),
     outputTokens: records.reduce((n, r) => n + (r.usage?.outputTokens ?? 0), 0),
+    reasoningTokens: records.reduce((n, r) => n + (r.usage?.reasoningTokens ?? 0), 0),
     costUsd: records.reduce((n, r) => n + (r.costUsd ?? 0), 0),
     unpricedCalls: records.filter((r) => r.costEstimated).length,
     requestedModels: uniq(records.map((r) => r.requestedModel)),

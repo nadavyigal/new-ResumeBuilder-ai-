@@ -1,9 +1,11 @@
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
+import { adaptChatParams } from '@/lib/model-tiers';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_USER_PROMPT,
   OPTIMIZATION_CONFIG,
+  selectOptimizerModel,
 } from '../prompts/resume-optimizer';
 import { normalizeExperienceBullets } from './normalize-experience';
 import { stripPlaceholderValues } from '@/lib/resume/placeholder-values';
@@ -109,8 +111,7 @@ export async function optimizeResume(
       jobPreview: jobDescription.substring(0, 100),
     });
 
-    const completion = await trackedChatCompletion(openai, {
-      model: OPTIMIZATION_CONFIG.model,
+    const completion = await trackedChatCompletion(openai, adaptChatParams(selectOptimizerModel(), {
       temperature: OPTIMIZATION_CONFIG.temperature,
       max_tokens: OPTIMIZATION_CONFIG.maxTokens,
       response_format: { type: 'json_object' },
@@ -124,7 +125,7 @@ export async function optimizeResume(
           content: RESUME_OPTIMIZATION_USER_PROMPT(resumeText, jobDescription),
         },
       ],
-    }, aiTrace || { traceName: 'optimize' });
+    }), aiTrace || { traceName: 'optimize' });
 
     const responseContent = completion.choices[0]?.message?.content;
 

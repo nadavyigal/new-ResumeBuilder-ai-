@@ -130,7 +130,10 @@ export interface ApplicationExpertReport {
 export interface PromptBundle {
   system: string;
   user: string;
-  model: 'gpt-4o' | 'gpt-4o-mini';
+  /** Code default; OPENAI_MODEL_<tier> overrides it. */
+  model: string;
+  /** Model tier (src/lib/model-tiers.ts). Defaults to FAST. */
+  tier?: 'WRITER' | 'FAST';
   temperature: number;
   max_tokens: number;
 }

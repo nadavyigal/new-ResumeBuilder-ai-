@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 import type { JobExtraction, Suggestion } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { AffectedField } from '@/types/chat';
+import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/model-tiers';
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -153,15 +154,17 @@ ${JSON.stringify(resumeContent, null, 2)}
 
 Analyze this suggestion and return the JSON array of affected fields with specific changes.`;
 
-    const response = await getOpenAI().chat.completions.create({
-      model: 'gpt-4o-mini',
+    const selection = selectModel('FAST', 'gpt-4o-mini');
+    const startedAt = Date.now();
+    const response = await getOpenAI().chat.completions.create(adaptChatParams(selection, {
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3, // Lower temperature for more consistent structured output
-      response_format: { type: 'json_object' } as any,
-    });
+      response_format: { type: 'json_object' },
+    }));
+    logModelUsage('ats.amendment-generator', selection, readUsage(response.usage), Date.now() - startedAt);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
