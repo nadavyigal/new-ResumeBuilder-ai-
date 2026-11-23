@@ -4,7 +4,7 @@ Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, 
 Active Story: C2 draft PR, chat moved from the Assistants API to Responses + Conversations; design recommender off gpt-4, now gpt-6-luna with a JSON schema.
 Next Recommended Story: C1 model tiers (PLAN/WRITER/FAST env vars) with resume-optimizer evals, stacked on this branch.
 Blockers: draft PR; needs a second-model review and founder yes to merge.
-Last Validation: 2026-11-23 tsc 0 errors, Jest 1282 passed 80 skipped, live smoke 5/5 chat and 5/5 design on gpt-6-luna.
+Last Validation: 2026-11-23 tsc 0 on a fresh clone (model-tiers.ts was gitignored by `AI/`, moved), Jest 1282 passed, smoke 5/5 chat, 5/5 design.
 
 # 2026-11-13: CI runs the typecheck
 
