@@ -7,6 +7,36 @@
  */
 
 import OpenAI from 'openai';
+import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/ai/models';
+
+const VALID_TEMPLATES = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'] as const;
+
+/**
+ * Structured output schema. The model used to return free text that was
+ * JSON.parse'd; a schema makes the shape a guarantee instead of a hope.
+ */
+const RECOMMENDATION_SCHEMA = {
+  type: 'json_schema' as const,
+  json_schema: {
+    name: 'template_recommendation',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['templateId', 'reasoning', 'confidence'],
+      properties: {
+        templateId: { type: 'string', enum: [...VALID_TEMPLATES] },
+        reasoning: { type: 'string' },
+        confidence: { type: 'number' },
+      },
+    },
+  },
+};
+
+/** FAST tier. gpt-4 was shut down on 2026-10-23, so the default is the new model. */
+export function resolveRecommenderModel() {
+  return selectModel('FAST', 'gpt-6-luna');
+}
 
 // Lazy initialization to avoid build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -38,8 +68,9 @@ export async function recommendTemplate(
   try {
     const prompt = buildRecommendationPrompt(resumeData, jobDescription);
 
-    const completion = await getOpenAI().chat.completions.create({
-      model: 'gpt-4',
+    const selection = resolveRecommenderModel();
+    const startedAt = Date.now();
+    const completion = await getOpenAI().chat.completions.create(adaptChatParams(selection, {
       messages: [
         {
           role: 'system',
@@ -64,8 +95,10 @@ Respond in JSON format:
         }
       ],
       temperature: 0.3,
-      max_tokens: 300
-    });
+      max_tokens: 300,
+      response_format: RECOMMENDATION_SCHEMA,
+    }) as OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming);
+    logModelUsage('design.recommendTemplate', selection, readUsage(completion.usage), Date.now() - startedAt);
 
     const responseText = completion.choices[0]?.message?.content?.trim();
 
@@ -73,7 +106,7 @@ Respond in JSON format:
       throw new Error('Empty response from OpenAI');
     }
 
-    // Parse JSON response
+    // Structured output: the content is JSON matching RECOMMENDATION_SCHEMA
     const result = JSON.parse(responseText);
 
     // Validate response structure
@@ -82,8 +115,7 @@ Respond in JSON format:
     }
 
     // Validate template ID
-    const validTemplates = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'];
-    if (!validTemplates.includes(result.templateId)) {
+    if (!(VALID_TEMPLATES as readonly string[]).includes(result.templateId)) {
       // Fallback to minimal if invalid template returned
       return {
         templateId: 'minimal-ssr',

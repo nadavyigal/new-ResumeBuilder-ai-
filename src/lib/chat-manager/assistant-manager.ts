@@ -1,23 +1,55 @@
 /**
- * OpenAI Assistant Manager
+ * Resume Editor Assistant
  *
- * Manages OpenAI Assistants API for resume editing conversations.
- * Handles thread creation, message posting, and function execution.
+ * Runs resume editing conversations on the OpenAI Responses API with
+ * conversation state (Conversations API). Replaces the Assistants API, which
+ * OpenAI shut down on 2026-08-26, and gpt-4-1106-preview, shut down 2026-10-23.
+ *
+ * Behavior kept from the Assistants version:
+ * - same system instructions (buildAssistantInstructions, unchanged text)
+ * - same tools (ASSISTANT_FUNCTIONS) and the same acknowledgement sent back
+ *   for each tool call; the caller still executes the changes
+ * - same resume-context message prepended to the user request
+ * - an empty threadId starts a new conversation; its id is returned as threadId
  */
 
 import OpenAI from 'openai';
-import type { Assistant } from 'openai/resources/beta/assistants';
-import type { Thread } from 'openai/resources/beta/threads/threads';
+import type { Conversation } from 'openai/resources/conversations/conversations';
+import type {
+  FunctionTool,
+  Response,
+  ResponseCreateParamsNonStreaming,
+  ResponseFunctionToolCall,
+  ResponseInputItem,
+} from 'openai/resources/responses/responses';
 import { captureAiGenerationEvent, type AITraceOptions } from '@/lib/posthog-ai';
+import { logModelUsage, readUsage, selectModel, type ModelSelection } from '@/lib/ai/models';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 
-const ASSISTANT_MODEL = 'gpt-4-1106-preview'; // GPT-4 Turbo with function calling
-const ASSISTANT_NAME = 'Resume Editor Assistant';
+/** FAST tier. The previous model is shut down, so the default is the new model. */
+export function resolveAssistantModel(): ModelSelection {
+  return selectModel('FAST', 'gpt-6-luna');
+}
+
+/** Safety cap on tool-call round trips in one turn. */
+const MAX_TOOL_ROUNDS = 5;
+
+const TOOL_ACK = JSON.stringify({ success: true, message: 'Function will be executed' });
+
+/** Assistants-style function definitions mapped to Responses API function tools. */
+export const RESPONSE_TOOLS: FunctionTool[] = ASSISTANT_FUNCTIONS.map((tool) => ({
+  type: 'function',
+  name: tool.function.name,
+  description: tool.function.description,
+  parameters: tool.function.parameters as Record<string, unknown>,
+  strict: false,
+}));
 
 export interface AssistantManagerConfig {
   apiKey: string;
-  assistantId?: string; // Use existing assistant
+  /** Injected in tests. */
+  client?: OpenAI;
 }
 
 export interface RunAssistantInput {
@@ -31,7 +63,7 @@ export interface RunAssistantOutput {
   response: string;
   functionCalls: FunctionCall[];
   requiresClarification: boolean;
-  threadId: string; // The thread ID (created or existing)
+  threadId: string; // The conversation ID (created or existing)
 }
 
 export interface FunctionCall {
@@ -40,76 +72,36 @@ export interface FunctionCall {
   result?: any;
 }
 
+function functionCallsOf(response: Response): ResponseFunctionToolCall[] {
+  return (response.output ?? []).filter(
+    (item): item is ResponseFunctionToolCall => item.type === 'function_call'
+  );
+}
+
 /**
- * OpenAI Assistant Manager
+ * Resume Editor Assistant on the Responses API
  */
 export class AssistantManager {
   private client: OpenAI;
-  private assistantId?: string;
-  private assistant?: Assistant;
 
   constructor(config: AssistantManagerConfig) {
-    this.client = new OpenAI({ apiKey: config.apiKey });
-    this.assistantId = config.assistantId;
+    this.client = config.client ?? new OpenAI({ apiKey: config.apiKey });
   }
 
   /**
-   * Get or create assistant
+   * Create a new conversation for a chat session
    */
-  async getOrCreateAssistant(): Promise<Assistant> {
-    // If we have a cached assistant, return it
-    if (this.assistant) {
-      return this.assistant;
-    }
-
-    // If we have an assistant ID, retrieve it
-    if (this.assistantId) {
-      try {
-        this.assistant = await this.client.beta.assistants.retrieve(this.assistantId);
-        console.log('Retrieved existing assistant:', this.assistantId);
-        return this.assistant;
-      } catch (error) {
-        console.warn('Failed to retrieve assistant, will create new one:', error);
-      }
-    }
-
-    // Create new assistant
-    const instructions = this.buildAssistantInstructions();
-
-    this.assistant = await this.client.beta.assistants.create({
-      name: ASSISTANT_NAME,
-      instructions,
-      model: ASSISTANT_MODEL,
-      tools: ASSISTANT_FUNCTIONS
-    });
-
-    this.assistantId = this.assistant.id;
-    console.log('Created new assistant:', this.assistantId);
-
-    return this.assistant;
+  async createThread(): Promise<Conversation> {
+    const conversation = await this.client.conversations.create({});
+    console.log('Created new conversation:', conversation.id);
+    return conversation;
   }
 
   /**
-   * Get assistant ID (for storage)
+   * Retrieve an existing conversation
    */
-  getAssistantId(): string | undefined {
-    return this.assistantId;
-  }
-
-  /**
-   * Create a new thread for a chat session
-   */
-  async createThread(): Promise<Thread> {
-    const thread = await this.client.beta.threads.create();
-    console.log('Created new thread:', thread.id);
-    return thread;
-  }
-
-  /**
-   * Retrieve an existing thread
-   */
-  async getThread(threadId: string): Promise<Thread> {
-    return await this.client.beta.threads.retrieve(threadId);
+  async getThread(threadId: string): Promise<Conversation> {
+    return await this.client.conversations.retrieve(threadId);
   }
 
   /**
@@ -117,123 +109,105 @@ export class AssistantManager {
    */
   async runAssistant(input: RunAssistantInput): Promise<RunAssistantOutput> {
     const startedAt = Date.now();
-    const assistant = await this.getOrCreateAssistant();
+    const selection = resolveAssistantModel();
+    const instructions = this.buildAssistantInstructions();
 
-    // Create thread if not provided - use const to prevent reassignment
     let resolvedThreadId: string;
     if (!input.threadId || input.threadId === '') {
-      const thread = await this.createThread();
-      resolvedThreadId = thread.id;
-      console.log('Created new thread for session:', resolvedThreadId);
+      const conversation = await this.createThread();
+      resolvedThreadId = conversation.id;
     } else {
       resolvedThreadId = input.threadId;
-      console.log('Using existing thread:', resolvedThreadId);
     }
 
-    // Add resume context as a system-like message
+    // Add resume context to the user message, as before
     const contextMessage = buildResumeContext(input.resumeContext);
 
-    console.log('Adding message to thread:', resolvedThreadId);
-    // Add user message to thread with context
-    await this.client.beta.threads.messages.create(resolvedThreadId, {
-      role: 'user',
-      content: `${contextMessage}\n\nUser Request: ${input.userMessage}`
-    });
-
-    console.log('Creating run for thread:', resolvedThreadId);
-    // Run the assistant
-    let run = await this.client.beta.threads.runs.create(resolvedThreadId, {
-      assistant_id: assistant.id
-    });
-    console.log('Created run:', run.id, 'for thread:', resolvedThreadId);
-
-    // Poll for completion
     const functionCalls: FunctionCall[] = [];
-    let response = '';
     let requiresClarification = false;
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let reasoningTokens = 0;
 
-    while (run.status === 'queued' || run.status === 'in_progress' || run.status === 'requires_action') {
-      // Wait a bit before polling again
-      await this.sleep(1000);
+    const createResponse = async (items: ResponseInputItem[]): Promise<Response> => {
+      const params: ResponseCreateParamsNonStreaming = {
+        model: selection.model,
+        instructions,
+        input: items,
+        tools: RESPONSE_TOOLS,
+        conversation: resolvedThreadId,
+        // openai@5.23 types predate the "none" / "xhigh" / "max" efforts the API accepts
+        ...(selection.reasoningEffort
+          ? { reasoning: { effort: selection.reasoningEffort as NonNullable<ResponseCreateParamsNonStreaming['reasoning']>['effort'] } }
+          : {}),
+      };
+      const response = await this.client.responses.create(params);
+      const usage = readUsage(response.usage);
+      inputTokens += usage.inputTokens ?? 0;
+      outputTokens += usage.outputTokens ?? 0;
+      reasoningTokens += usage.reasoningTokens ?? 0;
+      return response;
+    };
 
-      console.log('Retrieving run status - thread:', resolvedThreadId, 'run:', run.id);
-      run = await this.client.beta.threads.runs.retrieve(run.id, {
-        thread_id: resolvedThreadId,
-      });
-
-      // Handle function calls
-      if (run.status === 'requires_action' && run.required_action?.type === 'submit_tool_outputs') {
-        const toolCalls = run.required_action.submit_tool_outputs.tool_calls;
-
-        const toolOutputs = [];
-
-        for (const toolCall of toolCalls) {
-          console.log('Function called:', toolCall.function.name);
-          console.log('Parameters:', toolCall.function.arguments);
-
-          const params = JSON.parse(toolCall.function.arguments);
-
-          functionCalls.push({
-            name: toolCall.function.name,
-            params,
-            result: null // Will be filled by caller
-          });
-
-          // For now, just acknowledge the function call
-          // The actual execution will be done by the caller
-          toolOutputs.push({
-            tool_call_id: toolCall.id,
-            output: JSON.stringify({ success: true, message: 'Function will be executed' })
-          });
-
-          // Check if it's a clarification request
-          if (toolCall.function.name === 'clarify_request') {
-            requiresClarification = true;
-          }
-        }
-
-        // Submit tool outputs to continue the run
-        run = await this.client.beta.threads.runs.submitToolOutputs(run.id, {
-          thread_id: resolvedThreadId,
-          tool_outputs: toolOutputs
-        });
-      }
-    }
-
-    // Get the assistant's response
-    if (run.status === 'completed') {
-      const messages = await this.client.beta.threads.messages.list(resolvedThreadId, {
-        order: 'desc',
-        limit: 1
-      });
-
-      const lastMessage = messages.data[0];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        const content = lastMessage.content[0];
-        if (content.type === 'text') {
-          response = content.text.value;
-        }
-      }
-    } else {
+    const trackFailure = async (status: string) => {
       await captureAiGenerationEvent({
         input: {
           thread_id: resolvedThreadId,
           user_message: input.userMessage,
           resume_context: input.resumeContext,
         },
-        model: ASSISTANT_MODEL,
+        model: selection.model,
         trace: input.aiTrace || { traceName: 'chat' },
         latency: Date.now() - startedAt,
-        usage: {
-          inputTokens: run.usage?.prompt_tokens,
-          outputTokens: run.usage?.completion_tokens,
-          totalTokens: run.usage?.total_tokens,
-        },
-        error: new Error(`Assistant run failed: ${run.status}`),
+        usage: { inputTokens, outputTokens, reasoningTokens, totalTokens: inputTokens + outputTokens },
+        error: new Error(`Assistant run failed: ${status}`),
       });
-      console.error('Run failed with status:', run.status);
-      throw new Error(`Assistant run failed: ${run.status}`);
+      console.error('Run failed with status:', status);
+      throw new Error(`Assistant run failed: ${status}`);
+    };
+
+    let response = await createResponse([
+      { role: 'user', content: `${contextMessage}\n\nUser Request: ${input.userMessage}` },
+    ]);
+
+    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+      if (response.status && response.status !== 'completed') break;
+      const toolCalls = functionCallsOf(response);
+      if (toolCalls.length === 0) break;
+
+      const toolOutputs: ResponseInputItem[] = [];
+      for (const toolCall of toolCalls) {
+        console.log('Function called:', toolCall.name);
+
+        const params = JSON.parse(toolCall.arguments);
+        functionCalls.push({
+          name: toolCall.name,
+          params,
+          result: null, // Will be filled by caller
+        });
+
+        // Acknowledge the call; the caller executes the change
+        toolOutputs.push({ type: 'function_call_output', call_id: toolCall.call_id, output: TOOL_ACK });
+
+        if (toolCall.name === 'clarify_request') {
+          requiresClarification = true;
+        }
+      }
+
+      response = await createResponse(toolOutputs);
     }
+
+    if (response.status && response.status !== 'completed') {
+      await trackFailure(response.status);
+    }
+    if (functionCallsOf(response).length > 0) {
+      await trackFailure('tool_round_limit');
+    }
+
+    const text = response.output_text ?? '';
+
+    const latency = Date.now() - startedAt;
+    logModelUsage('chat.assistant', selection, { inputTokens, outputTokens, reasoningTokens }, latency);
 
     await captureAiGenerationEvent({
       input: {
@@ -241,26 +215,22 @@ export class AssistantManager {
         user_message: input.userMessage,
         resume_context: input.resumeContext,
       },
-      output: response,
-      model: ASSISTANT_MODEL,
+      output: text,
+      model: selection.model,
       trace: input.aiTrace || { traceName: 'chat' },
-      latency: Date.now() - startedAt,
-      usage: {
-        inputTokens: run.usage?.prompt_tokens,
-        outputTokens: run.usage?.completion_tokens,
-        totalTokens: run.usage?.total_tokens,
-      },
+      latency,
+      usage: { inputTokens, outputTokens, reasoningTokens, totalTokens: inputTokens + outputTokens },
     });
 
     return {
-      response,
+      response: text,
       functionCalls,
       requiresClarification,
-      threadId: resolvedThreadId // Return the thread ID for storage
+      threadId: resolvedThreadId, // Return the conversation ID for storage
     };
   }
 
-  /**
+/**
    * Build assistant instructions (system prompt)
    */
   private buildAssistantInstructions(): string {
