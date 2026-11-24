@@ -117,3 +117,12 @@ describe('groundAffectedFields', () => {
     expect(fields[1].newValue).toEqual(['y']);
   });
 });
+
+describe('review follow-ups', () => {
+  it('an unknown response shape whose heuristic finds nothing is flagged as no truthful edit', async () => {
+    create.mockResolvedValueOnce({ choices: [{ message: { content: '{"something":"else"}' }, finish_reason: 'stop' }], usage: {} });
+    const out = await generateAmendments({ ...addCloud, action: undefined, category: 'formatting' } as any, resume);
+    expect(out.affectedFields).toEqual([]);
+    expect(out.noTruthfulEdit).toBe(true);
+  });
+});

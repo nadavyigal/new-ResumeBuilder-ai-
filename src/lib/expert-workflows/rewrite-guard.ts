@@ -63,7 +63,14 @@ export async function guardRewriteOutput(
     );
     return { ...output, rewritten_resume: resume };
   } catch (error) {
-    console.error('Expert rewrite truth guard failed; keeping the validated output:', error);
+    // Fail open (the output already passed validation) but loudly: a distinct
+    // event so a broken guard shows up in logs instead of passing silently.
+    console.error(
+      JSON.stringify({
+        event: 'expert_rewrite_truth_guard_failed',
+        message: error instanceof Error ? error.message : String(error),
+      })
+    );
     return output;
   }
 }

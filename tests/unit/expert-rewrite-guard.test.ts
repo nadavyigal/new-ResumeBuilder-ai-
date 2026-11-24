@@ -131,3 +131,23 @@ describe('expert prompts', () => {
     expect(buildCoverLetterPrompt(context()).user).toContain('in English');
   });
 });
+
+describe('guard failure', () => {
+  it('keeps the validated output and logs a distinct event', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let guard: typeof guardRewriteOutput = guardRewriteOutput;
+    jest.isolateModules(() => {
+      jest.doMock('@/lib/ai-optimizer/seniority-claims', () => ({
+        enforceSeniorityTruth: () => {
+          throw new Error('boom');
+        },
+      }));
+      guard = require('@/lib/expert-workflows/rewrite-guard').guardRewriteOutput;
+    });
+    const planted = resume();
+    const out = await guard({ rewritten_resume: planted }, context());
+    expect(out.rewritten_resume).toBe(planted);
+    expect(spy.mock.calls.some((c) => String(c[0]).includes('expert_rewrite_truth_guard_failed'))).toBe(true);
+    spy.mockRestore();
+  });
+});

@@ -204,7 +204,6 @@ export async function generateAmendments(
 
     // Extract affected fields array (handle different response formats)
     let affectedFields: AffectedField[] = [];
-    let modelUsedHeuristic = false;
 
     if (Array.isArray(parsedResponse)) {
       affectedFields = parsedResponse;
@@ -215,7 +214,6 @@ export async function generateAmendments(
     } else {
       console.warn('Unexpected response format, falling back to heuristic parsing');
       affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent, context);
-      modelUsedHeuristic = true;
     }
 
     // Post-process: Clean up keywords using smart expansion and noise filtering
@@ -253,9 +251,10 @@ export async function generateAmendments(
     const proposed = affectedFields.filter(field => field.sectionId && field.field && field.changeType);
     affectedFields = groundAffectedFields(proposed, resumeContent).slice(0, 5); // Limit to 5 fields
 
-    if (affectedFields.length === 0 && !modelUsedHeuristic) {
-      // The model proposed nothing, or only unsupported additions. Running the
-      // keyword heuristic here would add the job's terms as claims, so don't.
+    if (affectedFields.length === 0) {
+      // The model proposed nothing, only unsupported additions, or an unknown shape
+      // the heuristic could not turn into a grounded edit. Running the keyword
+      // heuristic again would add the job's terms as claims, so don't.
       console.warn(`No truthful amendment for suggestion ${suggestion.id}`);
       return { affectedFields: [], success: true, noTruthfulEdit: true, outputLanguage };
     }
@@ -274,12 +273,13 @@ export async function generateAmendments(
     console.log('Falling back to heuristic amendment generation');
     try {
       const affectedFields = groundAffectedFields(
-        await generateAmendmentsHeuristic(suggestion, resumeContent, context),
+        filterBoilerplateAffectedFields(await generateAmendmentsHeuristic(suggestion, resumeContent, context)),
         resumeContent
-      );
+      ).slice(0, 5);
       return {
         affectedFields,
         success: true,
+        outputLanguage: resolveOutputLanguage(resumeText(resumeContent), context?.jobDescriptionText || ''),
         ...(affectedFields.length === 0 ? { noTruthfulEdit: true } : {}),
       };
     } catch {
