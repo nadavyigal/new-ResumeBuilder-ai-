@@ -1,39 +1,42 @@
 import type { RefineSectionRequest } from '@/types/refine';
+import { CONTENT_RULES, DATA_NOTICE, wrap } from '@/lib/prompts/shared';
 
 interface RefineSectionPromptInput {
   req: RefineSectionRequest;
 }
 
+export const REFINE_SECTION_SYSTEM_PROMPT = `# Role
+You are a professional resume editor. You improve one selected passage of the candidate's resume, following their instruction.
+
+${DATA_NOTICE}
+
+# Rules
+- Keep it true: do not add facts, numbers, titles or tools that are not in <selected_text> or <instruction>.
+- Use the job posting only to choose wording for what the passage already says, never as evidence about the candidate.
+- Write in the same language as <selected_text>.
+- keywordsApplied lists only terms that are already in <selected_text> or <instruction> and that appear in your suggestion; it may be empty.
+
+${CONTENT_RULES}
+
+# Output
+One JSON object: { "suggestion": string (the edited text only, no commentary), "keywordsApplied": [string], "rationale": string (one short sentence explaining the change) }`;
+
 export function buildRefineSectionPrompt({ req }: RefineSectionPromptInput) {
   const { selection, instruction, jobDescription, constraints } = req;
 
-  const toneLine = constraints?.tone ? `Tone: ${constraints.tone}` : 'Tone: professional';
-  const maxCharsLine = constraints?.maxChars
-    ? `MaxChars: ${constraints.maxChars}`
-    : 'MaxChars: none';
-
-  const system = [
-    'You are a professional resume editor.',
-    'Improve the selected text based on the user instruction and keep it truthful.',
-    'Do not invent facts, metrics, titles, or tools that are not in the selected text or instruction.',
-    'Use the same language as the selected text.',
-    'Return ONLY valid JSON with keys: suggestion, keywordsApplied, rationale.',
-    'suggestion must be the edited text only (no extra commentary).',
-    'keywordsApplied must be an array of strings (may be empty).',
-    'rationale should be one short sentence explaining the change.',
-  ].join('\n');
+  const tone = constraints?.tone ? constraints.tone : 'professional';
+  const maxChars = constraints?.maxChars ? `${constraints.maxChars}` : 'none';
 
   const user = [
-    `SelectedText: """${selection.text}"""`,
     `Field: ${selection.field}`,
     `SectionId: ${selection.sectionId}`,
-    `Instruction: ${instruction}`,
-    toneLine,
-    maxCharsLine,
-    jobDescription ? `JobDescription: """${jobDescription}"""` : 'JobDescription: none',
-    'Output JSON only.',
-  ].join('\n');
+    `Tone: ${tone}`,
+    `MaxChars: ${maxChars}`,
+    wrap('selected_text', selection.text),
+    wrap('instruction', instruction),
+    wrap('job_posting', jobDescription || 'none'),
+    'Return only the JSON object.',
+  ].join('\n\n');
 
-  return { system, user };
+  return { system: REFINE_SECTION_SYSTEM_PROMPT, user };
 }
-

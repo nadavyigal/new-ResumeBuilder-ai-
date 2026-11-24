@@ -12,7 +12,6 @@ jest.mock('openai', () => ({
 }));
 
 import { classifyIntentLLM } from '@/lib/agent/intents';
-import { planWithLLM } from '@/lib/agent/llm-planner';
 
 describe('agent model tiers', () => {
   beforeEach(() => {
@@ -39,14 +38,5 @@ describe('agent model tiers', () => {
     expect(params).toMatchObject({ model: 'gpt-6-luna', reasoning_effort: 'none', max_completion_tokens: 16 });
     expect(params).not.toHaveProperty('temperature');
     expect(params).not.toHaveProperty('max_tokens');
-  });
-
-  it('planner follows the WRITER tier, not FAST', async () => {
-    process.env.OPENAI_MODEL_FAST = 'gpt-6-luna';
-    process.env.OPENAI_MODEL_WRITER = 'gpt-6.1-terra';
-    mockCreate.mockResolvedValue({ choices: [{ message: { content: '{"actions":[{"tool":"ATS.score","args":{},"rationale":"r"}]}' } }] });
-    const actions = await planWithLLM({ command: 'score my resume' });
-    expect(actions).toHaveLength(1);
-    expect(mockCreate.mock.calls[0][0]).toMatchObject({ model: 'gpt-6.1-terra', reasoning_effort: 'low' });
   });
 });

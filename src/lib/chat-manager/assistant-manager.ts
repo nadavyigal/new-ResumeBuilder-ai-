@@ -6,7 +6,9 @@
  * OpenAI shut down on 2026-08-26, and gpt-4-1106-preview, shut down 2026-10-23.
  *
  * Behavior kept from the Assistants version:
- * - same system instructions (buildAssistantInstructions, unchanged text)
+ * - same system instructions (buildAssistantInstructions; since the 2026-11-24
+ *   prompt upgrade they end with the shared content rules and the tip reply is
+ *   in the user's language)
  * - same tools (ASSISTANT_FUNCTIONS) and the same acknowledgement sent back
  *   for each tool call; the caller still executes the changes
  * - same resume-context message prepended to the user request
@@ -24,6 +26,7 @@ import type {
 } from 'openai/resources/responses/responses';
 import { captureAiGenerationEvent, type AITraceOptions } from '@/lib/posthog-ai';
 import { logModelUsage, readUsage, selectModel, type ModelSelection } from '@/lib/model-tiers';
+import { CONTENT_RULES } from '@/lib/prompts/shared';
 import { ASSISTANT_FUNCTIONS, type UpdateDesignParams, type UpdateContentParams, type ClarifyRequestParams } from './assistant-functions';
 import { buildResumeContext, type ResumeContext } from './memory-manager';
 
@@ -259,14 +262,16 @@ Content rules:
 - Education/Certifications: require complete details if adding new entries.
 - Summary: keep it clear, targeted to role, and truthful.
 
-Critical ATS tip rule:
+ATS tip rule:
 - If the user asks to apply or implement tip numbers (for example: "apply tip 2"), do not perform direct manual edits yourself.
 - These requests are handled by a dedicated tip implementation flow.
-- Respond with: "I will apply tip X now. You will see the changes in your resume shortly."
+- Tell the user, in their language, that you will apply tip X now and that they will see the change in their resume shortly.
 
 When changes are made:
 - Confirm exactly what changed.
-- If helpful, include a short next step the user can take.`;
+- If helpful, include a short next step the user can take.
+
+${CONTENT_RULES}`;
   }
 
   /**

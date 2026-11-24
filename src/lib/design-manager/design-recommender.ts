@@ -8,6 +8,7 @@
 
 import OpenAI from 'openai';
 import { adaptChatParams, logModelUsage, readUsage, selectModel, warnIfTruncated } from '@/lib/model-tiers';
+import { DATA_NOTICE, resolveOutputLanguage, wrap } from '@/lib/prompts/shared';
 
 const VALID_TEMPLATES = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'] as const;
 
@@ -49,6 +50,44 @@ function getOpenAI(): OpenAI {
   return openaiInstance;
 }
 
+/**
+ * The template numbers are internal readability estimates for ranking only
+ * (founder decision 2026-11-23 keeps them); users read `reasoning`, so it must
+ * never print a score or number (2026-11-24).
+ */
+export const DESIGN_SYSTEM_PROMPT = `# Role
+You are a resume design consultant. Recommend the one template that fits the candidate's background and target role best.
+
+${DATA_NOTICE}
+
+# Templates (the number is an internal rough readability estimate, for your ranking only)
+1. minimal-ssr: clean, text-focused, single column. Best for technical roles, academia, or conservative industries (law, finance). Readability estimate 98.
+2. card-ssr: modern card-based layout with visual sections. Best for creative professionals, marketing, UX/UI roles. Readability estimate 92.
+3. sidebar-ssr: sidebar layout with contact info set apart. Best for managers, consultants, executives. Readability estimate 94.
+4. timeline-ssr: timeline layout that shows career progression. Best for roles that value an experience trajectory (PM, sales, leadership). Readability estimate 90.
+
+# reasoning (the candidate reads this)
+- 2 or 3 sentences on why this layout suits their background and the role.
+- Do not print any score, percentage or other number, and do not repeat the readability estimates.
+- Do not say a layout will beat, pass or get past applicant tracking systems; you may say it is easy for recruiters and screening software to read.
+- Do not promise outcomes.
+
+# Output
+One JSON object: { "templateId": "minimal-ssr" | "card-ssr" | "sidebar-ssr" | "timeline-ssr", "reasoning": string, "confidence": number from 0 to 1 }`;
+
+/**
+ * Safety net for the rule above: drop any sentence of user-facing reasoning that
+ * contains a digit (a score, a percentage). If nothing is left, use a neutral line.
+ */
+export function stripNumbersFromReasoning(text: string): string {
+  const sentences = text.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.trim().length > 0);
+  const kept = sentences.filter((sentence) => !/\d/.test(sentence));
+  if (kept.length > 0) return kept.join(' ').trim();
+  return /[\u0590-\u05FF]/.test(text)
+    ? 'התבנית הזו מתאימה לרקע שלך ולתפקיד.'
+    : 'This layout fits your background and the role.';
+}
+
 export interface RecommendationResult {
   templateId: string;
   reasoning: string;
@@ -74,20 +113,7 @@ export async function recommendTemplate(
       messages: [
         {
           role: 'system',
-          content: `You are a professional resume design consultant. Your job is to recommend the most appropriate resume template based on the candidate's background and target role.
-
-Available templates:
-1. minimal-ssr: Clean, text-focused layout. Best for technical roles, academia, or conservative industries (law, finance). ATS score: 98
-2. card-ssr: Modern card-based layout with visual sections. Best for creative professionals, marketing, UX/UI roles. ATS score: 92
-3. sidebar-ssr: Professional sidebar layout with contact info separation. Best for managers, consultants, executives. ATS score: 94
-4. timeline-ssr: Timeline-based layout emphasizing career progression. Best for roles valuing experience trajectory (PM, sales, leadership). ATS score: 90
-
-Respond in JSON format:
-{
-  "templateId": "template-slug",
-  "reasoning": "2-3 sentence explanation",
-  "confidence": 0.85
-}`
+          content: DESIGN_SYSTEM_PROMPT
         },
         {
           role: 'user',
@@ -120,14 +146,14 @@ Respond in JSON format:
       // Fallback to minimal if invalid template returned
       return {
         templateId: 'minimal-ssr',
-        reasoning: 'Defaulting to minimal template for maximum ATS compatibility.',
+        reasoning: 'Defaulting to the minimal template: a clean single-column layout that recruiters and screening software read easily.',
         confidence: 0.7
       };
     }
 
     return {
       templateId: result.templateId,
-      reasoning: result.reasoning,
+      reasoning: stripNumbersFromReasoning(String(result.reasoning)),
       confidence: Math.min(1.0, Math.max(0.0, result.confidence))
     };
   } catch (error) {
@@ -136,7 +162,7 @@ Respond in JSON format:
     // Return safe default on error
     return {
       templateId: 'minimal-ssr',
-      reasoning: 'Recommending minimal template as a safe default for ATS compatibility.',
+      reasoning: 'Recommending the minimal template: a clean single-column layout that recruiters and screening software read easily.',
       confidence: 0.6
     };
   }
@@ -149,31 +175,33 @@ function buildRecommendationPrompt(resumeData: any, jobDescription: string): str
   const data = resumeData.content || resumeData;
 
   const experience = data.experience || [];
-  const skills = data.skills || [];
+  // OptimizedResume keeps skills as { technical, soft }; older rows used a flat list.
+  // `.slice` on the object threw, so every call fell back to the default template.
+  const rawSkills = data.skills || [];
+  const skills: string[] = Array.isArray(rawSkills)
+    ? rawSkills
+    : [...(rawSkills.technical || []), ...(rawSkills.soft || [])];
   const summary = data.summary || '';
+  const outputLanguage = resolveOutputLanguage(`${summary} ${skills.join(' ')}`, jobDescription);
 
   const experienceYears = calculateExperienceYears(experience);
   const industryKeywords = extractIndustryKeywords(jobDescription);
 
-  return `Analyze this resume and job description to recommend the best template.
-
-RESUME SUMMARY:
-- Years of experience: ${experienceYears}
-- Key skills: ${skills.slice(0, 10).join(', ')}
-- Professional summary: ${summary.substring(0, 200)}
-- Number of positions: ${experience.length}
-
-JOB DESCRIPTION:
-${jobDescription.substring(0, 500)}
-
-INDUSTRY INDICATORS:
-${industryKeywords.join(', ')}
-
-Recommend the most appropriate template considering:
-1. Industry norms (conservative vs. creative)
-2. Career level (entry vs. senior)
-3. Role type (technical vs. managerial vs. creative)
-4. ATS compatibility requirements`;
+  return [
+    `Write "reasoning" in ${outputLanguage === 'he' ? 'Hebrew' : 'English'}. JSON keys and template ids stay in English.`,
+    wrap(
+      'resume_summary',
+      [
+        `Years of experience: ${experienceYears}`,
+        `Key skills: ${skills.slice(0, 10).join(', ')}`,
+        `Professional summary: ${summary.substring(0, 200)}`,
+        `Number of positions: ${experience.length}`,
+        `Industry indicators from the posting: ${industryKeywords.join(', ')}`,
+      ].join('\n')
+    ),
+    wrap('job_posting', jobDescription.substring(0, 500)),
+    'Recommend the template, weighing industry norms (conservative or creative), career level, role type (technical, managerial or creative) and readability. Return only the JSON object.',
+  ].join('\n\n');
 }
 
 /**

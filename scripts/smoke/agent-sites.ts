@@ -1,5 +1,6 @@
 /**
- * Live smoke for the agent intent classifier (max_tokens 5) and planner.
+ * Live smoke for the agent intent classifier (max_tokens 5). The LLM planner was
+ * deleted in the 2026-11-24 prompt upgrade (its output only went to an actions log).
  *   npx tsx scripts/smoke/agent-sites.ts            # current
  *   OPENAI_MODEL_FAST=gpt-6-luna npx tsx scripts/smoke/agent-sites.ts
  * A reasoning model with any effort above "none" can spend the 5-token budget on
@@ -7,7 +8,6 @@
  */
 import OpenAI from 'openai';
 import { classifyIntentLLM } from '../../src/lib/agent/intents';
-import { planWithLLM } from '../../src/lib/agent/llm-planner';
 import { adaptChatParams, selectModel } from '../../src/lib/model-tiers';
 
 const COMMANDS = ['make my summary punchier', 'add Kubernetes to skills', 'export as PDF', 'undo that', 'תשפר את הניסוח של הניסיון שלי'];
@@ -15,12 +15,9 @@ const COMMANDS = ['make my summary punchier', 'add Kubernetes to skills', 'expor
 async function main() {
   console.log(`# FAST=${selectModel('FAST', 'gpt-4o-mini').model}`);
   for (const command of COMMANDS) {
-    let t = Date.now();
+    const t = Date.now();
     const label = await classifyIntentLLM(command);
     console.log(JSON.stringify({ site: 'agent.classifyIntent', command, ok: label !== null, label, ms: Date.now() - t }));
-    t = Date.now();
-    const actions = await planWithLLM({ command });
-    console.log(JSON.stringify({ site: 'agent.llmPlanner', command, ok: actions.length > 0, tools: actions.map((a) => a.tool), ms: Date.now() - t }));
   }
   // Negative control: the same 5-token call at effort "low" on a reasoning model.
   const sel = selectModel('FAST', 'gpt-4o-mini', 'low');

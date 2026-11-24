@@ -56,3 +56,19 @@ describe('recommendTemplate', () => {
     expect(result.confidence).toBe(0.6);
   });
 });
+
+describe('design recommender prompt (prompt upgrade S7)', () => {
+  it('keeps the template numbers but forbids printing them in reasoning', () => {
+    const { DESIGN_SYSTEM_PROMPT } = jest.requireActual('@/lib/design-manager/design-recommender');
+    expect(DESIGN_SYSTEM_PROMPT).toContain('Readability estimate 98');
+    expect(DESIGN_SYSTEM_PROMPT).toContain('Do not print any score, percentage or other number');
+    expect(DESIGN_SYSTEM_PROMPT).not.toMatch(/maximum ATS compatibility/i);
+  });
+
+  it('drops sentences with numbers from reasoning', () => {
+    const { stripNumbersFromReasoning } = jest.requireActual('@/lib/design-manager/design-recommender');
+    expect(stripNumbersFromReasoning('Clean and calm. It scores 98 on ATS.')).toBe('Clean and calm.');
+    expect(stripNumbersFromReasoning('ATS score: 98')).toBe('This layout fits your background and the role.');
+    expect(stripNumbersFromReasoning('ציון 98')).toBe('התבנית הזו מתאימה לרקע שלך ולתפקיד.');
+  });
+});
