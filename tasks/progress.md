@@ -1,10 +1,10 @@
 # 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
 
 Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
-Active Story: S4 expert workflows: 8 prompts on shared blocks, rewrite truth guards before preview.
-Next Recommended Story: S5 quick wins prompt, estimate-labelled badge copy.
+Active Story: S5 quick wins: static system prompt, full resume up to 12,000 characters, estimate-labelled badges.
+Next Recommended Story: S6 amendment generator: no expansion map, grounding on both paths.
 Blockers: none; one draft PR, never merged without founder yes.
-Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1321 passed (S4).
+Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1327 passed (S5).
 
 # 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
 

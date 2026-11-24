@@ -8,6 +8,7 @@
 import type { JobExtraction, SubScores, SubScoreKey } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import { SUB_SCORE_WEIGHTS } from '../config/weights';
+import { CONTENT_RULES, DATA_NOTICE, languageRules, resolveOutputLanguage, wrap } from '@/lib/prompts/shared';
 
 interface QuickWinsPromptParams {
   resume_text: string;
@@ -15,6 +16,8 @@ interface QuickWinsPromptParams {
   job_data: JobExtraction;
   subscores: SubScores;
   current_ats_score: number;
+  /** Raw job posting, when the caller has it; used only to pick the output language. */
+  job_text?: string;
 }
 
 interface WeakSpot {
@@ -23,78 +26,63 @@ interface WeakSpot {
 }
 
 /**
- * Build OpenAI prompt for generating quick wins
+ * Static system prompt: identical for every call, rules first. All variable
+ * data goes in the user message (buildQuickWinsPrompt), inside data tags.
+ * estimated_impact stays model-filled and is shown labelled as an estimate
+ * (founder decisions 2 and 3, 2026-11-23).
+ */
+export const QUICK_WINS_SYSTEM_PROMPT = `# Role
+You find up to 3 sentences in a candidate's resume that can be rewritten to fit a job posting better, using only what the resume already says.
+
+${DATA_NOTICE}
+
+# Rules (a rewrite that breaks one is discarded automatically)
+1. original_text is copied character for character from <original_resume>, in its original language.
+2. Every fact in optimized_text is already in the resume: numbers, counts, scope, tools, activities, outcomes.
+3. Do not add any duty, skill, scope, audience or result from the posting that the resume does not state. Swapping one action verb for another is fine ("monitor" to "track"). Never append a job duty to a bullet.
+4. Keep every number from the original sentence. You may derive a rate from two of its numbers ("38 of 41" becomes "93%"). Never replace a real number with a placeholder. Do not inflate ("over 150" when the resume says 150).
+5. If the sentence has no number at all, you may add one bracket placeholder such as [X%] for the candidate to fill in. Never invent the number.
+6. keywords_added lists only terms that appear in both optimized_text and the resume.
+
+# Priorities
+Bring the candidate's own results and numbers forward, use posting terms the resume already contains, use clear action, scope and outcome wording, and pick different sections where possible.
+
+${CONTENT_RULES}
+
+# Output
+One JSON object: { "quick_wins": [ { "original_text": string, "optimized_text": string, "improvement_type": "keyword_optimization" | "quantified_achievement" | "action_verb" | "relevance_enhancement", "estimated_impact": integer from 5 to 15, your rough estimate of the points this one change could add, "location": { "section": "summary" | "experience" | "skills" | "education", "subsection": string }, "rationale": one short sentence, "keywords_added": [string] } ] }
+Return up to 3 wins. Return fewer if fewer sentences can be honestly improved.`;
+
+/** Longest resume text sent to the model; the free check is a public endpoint. */
+export const QUICK_WINS_RESUME_CHAR_LIMIT = 12000;
+
+/**
+ * Build the user message for generating quick wins: language rules, then the
+ * variable data, resume last.
  */
 export function buildQuickWinsPrompt(params: QuickWinsPromptParams): string {
   const { resume_text, job_data, subscores, current_ats_score } = params;
 
-  // Identify weakest subscores
   const weakSpots = identifyWeakSpots(subscores);
-
-  // Extract missing keywords
   const missingKeywords = extractMissingKeywords(job_data, resume_text);
   const resumeLower = resume_text.toLowerCase();
   const presentKeywords = job_data.must_have.filter(skill => resumeLower.includes(skill.toLowerCase()));
+  const outputLanguage = resolveOutputLanguage(
+    resume_text,
+    params.job_text ?? [job_data.title, ...(job_data.must_have || [])].join(' ')
+  );
 
-  // Truncate resume text to save tokens
-  const truncatedResume = resume_text.slice(0, 2000);
-  const resumeSuffix = resume_text.length > 2000 ? '...' : '';
-
-  return `You are an ATS optimization specialist. Identify the 3 highest-impact resume improvements for the target job.
-
-**Current Resume** (the ONLY source of facts about the candidate):
-${truncatedResume}${resumeSuffix}
-
-**Target Job**:
-- Title: ${job_data.title}
-- Job keywords the resume already uses (safe to bring forward): ${presentKeywords.slice(0, 10).join(', ') || 'none'}
-
-**Current ATS Score**: ${current_ats_score}/100
-
-**Weak Areas** (prioritize these):
-${weakSpots.map(spot => `- ${spot.name}: ${spot.score}/100`).join('\n')}
-
-**Job terms NOT found in the resume (do not claim these)**: ${missingKeywords.slice(0, 15).join(', ')}
-
-**Truth rules** (a rewrite that breaks one is discarded):
-1. Every fact in optimized_text must already be in the resume: numbers, counts, scopes, tools, activities, outcomes.
-2. Do not add any term from the job that the resume does not already use: no duty, scope, skill, audience or result the candidate did not write. You may swap one action verb for another ("monitor" -> "track"). Never append a job duty to a bullet.
-3. Keep every number from the original bullet. If the bullet has numbers, build on them (you may compute a rate from two of them, e.g. "38 of 41" -> "93%"). Never replace a real number with a placeholder.
-4. Use a bracket placeholder like [X%] only when the bullet has no number at all, and never invent one.
-5. Do not inflate numbers ("over 150" when the resume says 150).
-6. original_text must be copied exactly from the resume.
-
-**Instructions**:
-1. Select 3 specific sentences or bullets from the resume that can be improved.
-2. Rewrite each one to improve ATS match while following the truth rules.
-3. Prioritize:
-   - Moving the candidate's own results and numbers forward
-   - Clear action + scope + outcome phrasing, using only what the resume says
-   - Job terms the resume already uses
-4. Target different resume sections when possible.
-5. Keep rationale short and practical.
-6. keywords_added lists only terms that actually appear in optimized_text.
-
-**Output Format** (strict JSON):
-{
-  "quick_wins": [
-    {
-      "original_text": "exact text from resume",
-      "optimized_text": "improved version",
-      "improvement_type": "keyword_optimization" | "quantified_achievement" | "action_verb" | "relevance_enhancement",
-      "estimated_impact": 5-15,
-      "location": {
-        "section": "summary" | "experience" | "skills" | "education",
-        "subsection": "optional job title or section name"
-      },
-      "rationale": "brief explanation of improvement",
-      "keywords_added": ["keyword1", "keyword2"]
-    }
-  ]
-}
-
-Generate exactly 3 quick wins.
-Return ONLY valid JSON (no markdown, no commentary).`;
+  return [
+    languageRules(outputLanguage),
+    'optimized_text and rationale follow the language above; original_text stays exactly as the resume writes it.',
+    wrap('job_title', job_data.title),
+    `<current_match_score_estimate>${Math.round(current_ats_score)}/100 (estimate)</current_match_score_estimate>`,
+    wrap('posting_terms_in_resume', presentKeywords.slice(0, 10).join(', ') || 'none'),
+    wrap('posting_terms_not_in_resume', `${missingKeywords.slice(0, 15).join(', ') || 'none'} (do not claim these)`),
+    wrap('weak_areas', weakSpots.map(spot => `${spot.name}: ${spot.score}/100`).join('\n') || 'none'),
+    wrap('original_resume', resume_text.slice(0, QUICK_WINS_RESUME_CHAR_LIMIT)),
+    'Return only the JSON object.',
+  ].join('\n\n');
 }
 
 /**

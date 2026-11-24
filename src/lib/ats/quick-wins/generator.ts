@@ -11,7 +11,7 @@ import { getOpenAI } from '@/lib/openai';
 import { trackedChatCompletion } from '@/lib/posthog-ai';
 import type { QuickWinSuggestion, JobExtraction, SubScores } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
-import { buildQuickWinsPrompt } from './prompt';
+import { QUICK_WINS_SYSTEM_PROMPT, buildQuickWinsPrompt } from './prompt';
 import { getCacheKey, getCachedQuickWins, cacheQuickWins } from './cache';
 import {
   checkQuickWinGrounding,
@@ -34,9 +34,6 @@ interface GenerateQuickWinsParams {
 const TARGET_COUNT = 3;
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
-
-const SYSTEM_MESSAGE =
-  'You are an expert ATS optimization specialist. You never add facts the resume does not state. Always respond with valid JSON.';
 
 interface Rejected {
   qw: QuickWinSuggestion;
@@ -74,7 +71,7 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
 
   try {
     const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_MESSAGE },
+      { role: 'system', content: QUICK_WINS_SYSTEM_PROMPT },
       { role: 'user', content: buildQuickWinsPrompt(params) },
     ];
 
