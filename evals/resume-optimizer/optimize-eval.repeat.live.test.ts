@@ -4,7 +4,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { OPTIMIZATION_CONFIG } from '@/lib/prompts/resume-optimizer';
+import { OPTIMIZATION_CONFIG, selectOptimizerModel } from '@/lib/prompts/resume-optimizer';
 import { SCORE_VERSION } from '@/lib/ats/core';
 import { clearCache as clearEmbeddingsCache } from '@/lib/ats/utils/embeddings';
 import { manifest, MANIFEST_VERSION } from './manifest';
@@ -75,10 +75,10 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
         const root = process.cwd();
         const config = buildConfigFingerprint(root, {
           scoreVersion: SCORE_VERSION,
-          optimizationModel: OPTIMIZATION_CONFIG.model,
+          optimizationModel: selectOptimizerModel().model,
           temperature: OPTIMIZATION_CONFIG.temperature,
           maxTokens: OPTIMIZATION_CONFIG.maxTokens,
-          nightlyJudge: `gpt-4o-mini:${hashSources(root, ['evals/resume-optimizer/judge.ts']).slice(0, 12)}`,
+          nightlyJudge: `${GROUNDING_JUDGE_MODEL}:${hashSources(root, ['evals/resume-optimizer/judge.ts']).slice(0, 12)}`,
           groundingJudge: `${GROUNDING_JUDGE_MODEL}:${GROUNDING_JUDGE_VERSION}:${hashSources(root, ['evals/resume-optimizer/judge-grounding.ts']).slice(0, 12)}`,
           harnessVersion: `${HARNESS_VERSION}:${hashSources(root, [
             'evals/resume-optimizer/checks.ts',

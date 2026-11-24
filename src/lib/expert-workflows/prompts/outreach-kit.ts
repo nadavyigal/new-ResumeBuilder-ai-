@@ -42,6 +42,7 @@ export function buildOutreachKitPrompt(context: ExpertWorkflowContext): PromptBu
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.25,
     max_tokens: 1600,

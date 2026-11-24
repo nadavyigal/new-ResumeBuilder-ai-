@@ -72,6 +72,11 @@ Optional: `EVAL_REPEATS` (default 3), `EVAL_CALIBRATE=0` to skip judge calibrati
 `EVAL_BASELINE=<path to an earlier report.json>` for regression findings, and
 `EVAL_ENV_FILE=<path>` when running from a worktree without its own `.env.local`.
 
+Model selection: the generator follows `OPENAI_MODEL_PLAN` (default `gpt-4o`, see
+`src/lib/model-tiers.ts`). Both judges follow `EVAL_JUDGE_MODEL` (default `gpt-4o-mini`,
+which OpenAI shuts down on 2027-01-14) and `EVAL_JUDGE_EFFORT` for reasoning judges
+(default `none`). Prices for cost figures are in `call-ledger.ts`.
+
 Every live mode blanks the PostHog keys before starting jest. Without that, a local
 run sends synthetic résumés to production analytics as `$ai_generation` events,
 because the optimizer traces every model call.

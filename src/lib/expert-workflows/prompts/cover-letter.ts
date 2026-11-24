@@ -66,6 +66,7 @@ export function buildCoverLetterPrompt(context: ExpertWorkflowContext): PromptBu
   return {
     system,
     user,
+    tier: 'WRITER',
     model: 'gpt-4o',
     temperature: 0.25,
     max_tokens: 2600,

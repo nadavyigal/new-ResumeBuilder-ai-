@@ -63,6 +63,7 @@ export function buildScreeningAnswersPrompt(context: ExpertWorkflowContext): Pro
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.2,
     max_tokens: 2200,

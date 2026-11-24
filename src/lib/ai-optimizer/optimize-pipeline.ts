@@ -1,10 +1,12 @@
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
+import { adaptChatParams } from '@/lib/model-tiers';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
   RESUME_TRUTH_REPAIR_PROMPT,
   OPTIMIZATION_CONFIG,
+  selectOptimizerModel,
   type ResumeOptimizationGaps,
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
@@ -86,8 +88,7 @@ async function callOpenAIWithGapPrompt(
 
     const completion = await trackedChatCompletion(
       openai,
-      {
-        model: OPTIMIZATION_CONFIG.model,
+      adaptChatParams(selectOptimizerModel(), {
         temperature: OPTIMIZATION_CONFIG.temperature,
         max_tokens: OPTIMIZATION_CONFIG.maxTokens,
         response_format: { type: 'json_object' },
@@ -101,7 +102,7 @@ async function callOpenAIWithGapPrompt(
             content: userPrompt,
           },
         ],
-      },
+      }),
       aiTrace || { traceName: 'optimize' },
       { timeout: OPTIMIZATION_CONFIG.timeout }
     );

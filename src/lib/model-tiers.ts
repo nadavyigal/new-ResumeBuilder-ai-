@@ -59,12 +59,16 @@ export function isReasoningModel(model: string): boolean {
 }
 
 /** Models that reject effort "none" (lowest accepted is "low"). */
-function rejectsNoneEffort(model: string): boolean {
-  return /^gpt-6\.2-sol/i.test(model.trim());
-}
-
+/**
+ * Lowest effort each family accepts. gpt-6.2-sol and the o-series reject "none"
+ * and "minimal" (lowest is "low"); gpt-5 / gpt-5-mini / gpt-5-nano accept
+ * "minimal" but not "none" (gpt-5.1 and later accept "none").
+ */
 function normalizeEffort(model: string, effort: ReasoningEffort): ReasoningEffort {
-  if ((effort === 'none' || effort === 'minimal') && rejectsNoneEffort(model)) return 'low';
+  const id = model.trim().toLowerCase();
+  const low = effort === 'none' || effort === 'minimal';
+  if (low && (/^gpt-6\.2-sol/.test(id) || /^o\d/.test(id))) return 'low';
+  if (effort === 'none' && /^gpt-5(-|$)/.test(id)) return 'minimal';
   return effort;
 }
 
@@ -72,13 +76,17 @@ function normalizeEffort(model: string, effort: ReasoningEffort): ReasoningEffor
  * Resolve the model for a tier.
  * @param codeDefault the model this call site used before tiers existed
  * @param effortOverride a fixed effort for this call site (wins over the tier env var)
+ * @param overrideEnv an older per-feature env var (e.g. AGENT_SDK_MODEL); it keeps
+ *   priority over the tier env var so existing settings behave as before
  */
 export function selectModel(
   tier: ModelTier,
   codeDefault: string,
-  effortOverride?: ReasoningEffort
+  effortOverride?: ReasoningEffort,
+  overrideEnv?: string
 ): ModelSelection {
-  const model = readEnv(`OPENAI_MODEL_${tier}`) ?? codeDefault;
+  const model =
+    (overrideEnv ? readEnv(overrideEnv) : undefined) ?? readEnv(`OPENAI_MODEL_${tier}`) ?? codeDefault;
   if (!isReasoningModel(model)) return { tier, model };
 
   const envEffort = readEnv(`OPENAI_REASONING_EFFORT_${tier}`) as ReasoningEffort | undefined;

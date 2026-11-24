@@ -55,6 +55,7 @@ export function buildRewritePrompt(context: ExpertWorkflowContext): PromptBundle
   return {
     system,
     user,
+    tier: 'WRITER',
     model: 'gpt-4o',
     temperature: 0.2,
     max_tokens: 3500,

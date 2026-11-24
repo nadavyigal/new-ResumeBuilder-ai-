@@ -59,3 +59,25 @@ no-percentage passthrough, percentage-only-bullet edge case).
 This baseline is now green at 100% / 0 critical. Re-run with `npm run
 eval:resume` after any future change to the pipeline or prompt, and update
 this file if the result changes.
+
+## 2026-11-23: model comparison before the gpt-4o shutdown (2027-01-14)
+
+Repeat eval, 20 manifest cases (6 Hebrew), 1 run each, `EVAL_REPEATS=1`. Generator
+set with `OPENAI_MODEL_PLAN`; judges `gpt-4o-mini` unless noted. Prompts unchanged.
+
+| Generator | Verdict pass | Hebrew pass | Deterministic | Grounding judge | Gen p50 / p95 per call | Gen tokens in / out / reasoning | Gen cost per CV |
+|---|---|---|---|---|---|---|---|
+| gpt-4o (current) | 12/20 | 4/6 | 20/20 | 12/20 | 3.5 s / 4.6 s | 64,435 / 16,795 / 0 | $0.0165 |
+| gpt-6.2-sol (effort low) | 13/20 | 4/6 | 20/20 | 13/20 | 7.6 s / 10.6 s | 65,376 / 19,973 / 0 | $0.0114 |
+| gpt-6.1-terra (effort low) | 13/20 | 4/6 | 19/20 | 13/20 | 6.5 s / 8.6 s | 65,095 / 18,679 / 23 | $0.0058 |
+| gpt-6.2-sol, judges on gpt-6-luna | 18/20 | 5/6 | 19/20 | 19/20 | 7.6 s / 10.6 s | 65,371 / 19,970 / 0 | $0.0121 |
+
+- No generator regressed. All 40 generation calls per model returned valid JSON (0 non-200, 0 repair calls).
+- The one deterministic failure (terra, and sol on its second batch) is the same Hebrew case,
+  `he-career-change-army-to-ops`: the model expanded צה״ל to "צבא ההגנה לישראל (צה״ל)" and the
+  substring employer check reads the expansion as a new employer. A checker limit on Hebrew
+  abbreviations, not an invented employer; left as is.
+- Judge calibration (10 labelled outputs, 7 planted fabrications): nightly judge gpt-4o-mini 6/10,
+  gpt-6-luna 10/10; grounding judge gpt-4o-mini 9/10, gpt-6-luna 8/10. Neither missed a planted
+  fabrication. On live outputs gpt-6-luna fails far fewer runs (19/20 vs 13/20 grounding passes),
+  so switching the judge moves the baseline: re-baseline before using it as the gate.

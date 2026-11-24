@@ -1,3 +1,11 @@
+# 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
+
+Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.
+Active Story: C1 draft PR, every Resumely model id env-driven by tier; defaults unchanged so merging is a no-op.
+Next Recommended Story: set OPENAI_MODEL_PLAN/WRITER/FAST on preview, re-run evals there, then production.
+Blockers: stacked on the C2 PR; draft; needs review and founder yes.
+Last Validation: 2026-11-23 tsc 0, Jest 1286 passed; evals sol 13/20 and terra 13/20 vs gpt-4o 12/20; smoke 70/70 target.
+
 # 2026-11-23: Chat and design recommender off dead OpenAI models
 
 Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.

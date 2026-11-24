@@ -81,6 +81,7 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.1,
     max_tokens: 2200,

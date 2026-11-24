@@ -2,6 +2,7 @@ import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
   OPTIMIZATION_CONFIG,
+  selectOptimizerModel,
 } from '@/lib/prompts/resume-optimizer';
 import type { ManifestCase } from './manifest';
 import { PRICES_PER_MTOK, PRICES_CHECKED_ON } from './call-ledger';
@@ -73,7 +74,7 @@ export interface BatchEstimate {
 }
 
 export function estimateCase(c: ManifestCase): CaseEstimate {
-  const model = OPTIMIZATION_CONFIG.model;
+  const model = selectOptimizerModel().model;
   const system = estimateTokens(RESUME_OPTIMIZATION_SYSTEM_PROMPT) + 80;
   const pass1Input =
     system +
@@ -92,7 +93,7 @@ export function estimateCase(c: ManifestCase): CaseEstimate {
   const fakeOutput = { summary: c.resumeText } as never;
   const groundingInput = estimateTokens(buildGroundingPrompt(c, fakeOutput)) + resumeOut;
   const judges =
-    callCost('gpt-4o-mini', judgeInput, JUDGE_OUTPUT_TOKENS) + callCost(GROUNDING_JUDGE_MODEL, groundingInput, JUDGE_OUTPUT_TOKENS);
+    callCost(GROUNDING_JUDGE_MODEL, judgeInput, JUDGE_OUTPUT_TOKENS) + callCost(GROUNDING_JUDGE_MODEL, groundingInput, JUDGE_OUTPUT_TOKENS);
 
   // Two scorings per run, each embedding the job text and the résumé sections on both sides.
   const embeddings = callCost('text-embedding-3-small', 2 * (estimateTokens(c.jobDescription) + 2 * resumeOut), 0);
@@ -108,10 +109,10 @@ export function estimateBatch(cases: ManifestCase[], repeats: number, calibratio
   const perCase = cases.map(estimateCase);
   const typicalUsd = repeats * perCase.reduce((n, c) => n + c.typicalRunUsd, 0);
   const worstUsd = repeats * perCase.reduce((n, c) => n + c.worstRunUsd, 0);
-  const calibrationUsd = calibrationItems * 2 * callCost('gpt-4o-mini', 2500, JUDGE_OUTPUT_TOKENS);
+  const calibrationUsd = calibrationItems * 2 * callCost(GROUNDING_JUDGE_MODEL, 2500, JUDGE_OUTPUT_TOKENS);
   return {
     pricesCheckedOn: PRICES_CHECKED_ON,
-    generationModel: OPTIMIZATION_CONFIG.model,
+    generationModel: selectOptimizerModel().model,
     repeats,
     runs: repeats * cases.length,
     perCase,

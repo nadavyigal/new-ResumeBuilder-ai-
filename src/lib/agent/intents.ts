@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { Intent } from "./types";
+import { adaptChatParams, isReasoningModel, logModelUsage, readUsage, selectModel } from "@/lib/model-tiers";
 
 const INTENT_REGEX: Array<{ intent: Intent; pattern: RegExp }> = [
   { intent: "tip_implementation", pattern: /(implement|apply|use|do)\s+tip[s]?\s+(?:number\s+|#\s*)?\d+/i },
@@ -35,15 +36,21 @@ export async function classifyIntentLLM(command: string): Promise<Intent | null>
     const openai = new OpenAI({ apiKey });
     // Lightweight classification; keep cost minimal
     const prompt = `Classify this resume-edit command into one intent: expert_rewrite | expert_quantifier | expert_ats_report | expert_summary_lab | rewrite | add_skills | design | layout | ats_optimize | optimize | export | undo | redo | compare | save_history. Reply with just the label.\n\nCommand: ${command}`;
-    const resp = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+    // Reasoning models (smoke-tested 2026-11-23 on gpt-6-luna): at effort "low" the
+    // 5-token budget goes to reasoning and the label is empty, so effort is "none".
+    // Their tokenizer also needs more than 5 tokens for labels such as
+    // "add_skills" (cut to "add_sk"), so they get 16. gpt-4o-mini keeps 5.
+    const selection = selectModel("FAST", "gpt-4o-mini", "none");
+    const startedAt = Date.now();
+    const resp = await openai.chat.completions.create(adaptChatParams(selection, {
       temperature: 0,
-      max_tokens: 5,
+      max_tokens: isReasoningModel(selection.model) ? 16 : 5,
       messages: [
         { role: "system", content: "You return only one word from the provided labels." },
         { role: "user", content: prompt },
       ],
-    });
+    }));
+    logModelUsage("agent.classifyIntent", selection, readUsage(resp.usage), Date.now() - startedAt);
     const label = resp.choices?.[0]?.message?.content?.trim().toLowerCase();
     const intents: Intent[] = [
       "expert_rewrite",

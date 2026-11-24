@@ -24,6 +24,7 @@ import type {
   ExpertWorkflowType,
   PromptBundle,
 } from './types';
+import { adaptChatParams, selectModel } from '@/lib/model-tiers';
 
 const WORKFLOW_TIMEOUT_MS = 30_000;
 
@@ -249,8 +250,7 @@ async function runModelWithRetry(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const completionPromise = trackedChatCompletion(client, {
-        model: prompt.model,
+      const completionPromise = trackedChatCompletion(client, adaptChatParams(selectModel(prompt.tier ?? 'FAST', prompt.model), {
         temperature: prompt.temperature,
         max_tokens: prompt.max_tokens,
         response_format: { type: 'json_object' },
@@ -258,7 +258,7 @@ async function runModelWithRetry(
           { role: 'system', content: prompt.system },
           { role: 'user', content: prompt.user },
         ],
-      }, aiTrace || { traceName: 'expert-mode' });
+      }), aiTrace || { traceName: 'expert-mode' });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Expert workflow request timed out.')), WORKFLOW_TIMEOUT_MS);

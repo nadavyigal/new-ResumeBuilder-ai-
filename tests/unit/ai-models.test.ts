@@ -47,6 +47,19 @@ describe('selectModel', () => {
   });
 });
 
+describe('effort per model family', () => {
+  it('maps "none" to the lowest effort each family accepts', () => {
+    process.env.OPENAI_MODEL_FAST = 'gpt-5-mini';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('minimal');
+    process.env.OPENAI_MODEL_FAST = 'o4-mini';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('low');
+    process.env.OPENAI_MODEL_FAST = 'gpt-5.1';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('none');
+    process.env.OPENAI_MODEL_FAST = 'gpt-6-luna';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('none');
+  });
+});
+
 describe('adaptChatParams', () => {
   const params = { messages: [], temperature: 0.3, top_p: 0.9, max_tokens: 300, response_format: { type: 'json_object' as const } };
 
@@ -80,5 +93,19 @@ describe('isReasoningModel / readUsage', () => {
       .toMatchObject({ inputTokens: 10, outputTokens: 5, reasoningTokens: 2 });
     expect(readUsage({ input_tokens: 7, output_tokens: 3, output_tokens_details: { reasoning_tokens: 1 } }))
       .toMatchObject({ inputTokens: 7, outputTokens: 3, reasoningTokens: 1 });
+  });
+});
+
+describe('overrideEnv', () => {
+  afterEach(() => {
+    delete process.env.AGENT_SDK_MODEL;
+  });
+
+  it('an older per-feature env var keeps priority over the tier env var', () => {
+    process.env.OPENAI_MODEL_FAST = 'gpt-6-luna';
+    process.env.AGENT_SDK_MODEL = 'gpt-4o-mini';
+    expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL')).toEqual({ tier: 'FAST', model: 'gpt-4o-mini' });
+    delete process.env.AGENT_SDK_MODEL;
+    expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL').model).toBe('gpt-6-luna');
   });
 });

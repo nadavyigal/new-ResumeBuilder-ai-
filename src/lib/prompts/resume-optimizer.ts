@@ -5,6 +5,9 @@
  * while maintaining truthfulness and ATS compatibility.
  */
 
+import { selectModel, type ModelSelection } from '@/lib/model-tiers';
+
+
 export const RESUME_OPTIMIZATION_SYSTEM_PROMPT = `You are an ATS resume optimization assistant.
 
 Goal:
@@ -133,7 +136,8 @@ Return only the JSON object with the optimized resume data.
 `;
 
 /**
- * Configuration for OpenAI API calls
+ * Configuration for OpenAI API calls.
+ * `model` is the code default only; OPENAI_MODEL_PLAN overrides it (selectOptimizerModel).
  */
 export const OPTIMIZATION_CONFIG = {
   model: 'gpt-4o',
@@ -141,6 +145,11 @@ export const OPTIMIZATION_CONFIG = {
   maxTokens: 4000,
   timeout: 50000,
 };
+
+/** PLAN tier: core CV tailoring. Target gpt-6.2-sol at effort low. */
+export function selectOptimizerModel(): ModelSelection {
+  return selectModel('PLAN', OPTIMIZATION_CONFIG.model);
+}
 
 /**
  * Shape of gap data passed into the second-pass prompt
