@@ -19,7 +19,7 @@ import {
   keywordsPresentIn,
   type GroundingContext,
 } from './grounding';
-import { adaptChatParams, selectModel } from '@/lib/model-tiers';
+import { adaptChatParams, outputTokenCap, selectModel } from '@/lib/model-tiers';
 
 interface GenerateQuickWinsParams {
   resume_text: string;
@@ -130,11 +130,12 @@ async function requestQuickWins(
   messages: ChatMessage[],
   currentScore: number,
 ): Promise<{ raw: string; candidates: QuickWinSuggestion[] }> {
-  const completion = await trackedChatCompletion(getOpenAI(), adaptChatParams(selectModel('FAST', 'gpt-4o-mini'), {
+  const selection = selectModel('FAST', 'gpt-4o-mini');
+  const completion = await trackedChatCompletion(getOpenAI(), adaptChatParams(selection, {
     messages,
     response_format: { type: 'json_object' },
     temperature: 0.3, // Rewrites of the user's own facts, not creative writing
-    max_tokens: 2000,
+    max_tokens: outputTokenCap(selection, 2000, 4000),
   }), {
     traceName: 'ats-check',
     properties: {

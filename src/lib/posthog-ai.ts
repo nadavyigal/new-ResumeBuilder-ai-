@@ -1,5 +1,5 @@
 import type OpenAI from 'openai';
-import { readUsage } from '@/lib/model-tiers';
+import { readUsage, warnIfTruncated } from '@/lib/model-tiers';
 
 type ChatCompletionParams = OpenAI.Chat.Completions.ChatCompletionCreateParams;
 type ChatCompletionOptions = Parameters<OpenAI.Chat.Completions['create']>[1];
@@ -173,9 +173,11 @@ export async function trackedChatCompletion(
         model: (completion as any)?.model ?? params.model,
         reasoningEffort: (params as any).reasoning_effort ?? null,
         latencyMs: Date.now() - startedAt,
+        finishReason: (completion as any)?.choices?.[0]?.finish_reason ?? null,
         ...readUsage((completion as any)?.usage),
       })
     );
+    warnIfTruncated(trace.traceName, completion);
     const posthog = await getServerPostHog();
     await captureAiGeneration(params, completion, trace, Date.now() - startedAt);
     await posthog?.flushPostHogClient();

@@ -9,7 +9,7 @@ import OpenAI from 'openai';
 import type { JobExtraction, Suggestion } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { AffectedField } from '@/types/chat';
-import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/model-tiers';
+import { adaptChatParams, logModelUsage, readUsage, selectModel, warnIfTruncated } from '@/lib/model-tiers';
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -164,7 +164,8 @@ Analyze this suggestion and return the JSON array of affected fields with specif
       temperature: 0.3, // Lower temperature for more consistent structured output
       response_format: { type: 'json_object' },
     }));
-    logModelUsage('ats.amendment-generator', selection, readUsage(response.usage), Date.now() - startedAt);
+    logModelUsage('ats.amendment-generator', selection, readUsage(response.usage), Date.now() - startedAt, response.choices[0]?.finish_reason);
+    warnIfTruncated('ats.amendment-generator', response);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {

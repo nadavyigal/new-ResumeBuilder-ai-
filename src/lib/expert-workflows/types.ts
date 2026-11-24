@@ -136,6 +136,8 @@ export interface PromptBundle {
   tier?: 'WRITER' | 'FAST';
   temperature: number;
   max_tokens: number;
+  /** Cap used instead of max_tokens on reasoning models (reasoning tokens count against it). Default 4000. */
+  reasoning_max_tokens?: number;
 }
 
 export interface QuantifiedBulletRewrite {

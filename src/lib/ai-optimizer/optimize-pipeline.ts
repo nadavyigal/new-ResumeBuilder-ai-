@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
-import { adaptChatParams } from '@/lib/model-tiers';
+import { adaptChatParams, outputTokenCap } from '@/lib/model-tiers';
 import {
   RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
@@ -86,11 +86,12 @@ async function callOpenAIWithGapPrompt(
 - Use truthful, professional Hebrew and avoid unnecessary English text.`
       : '';
 
+    const optimizerSelection = selectOptimizerModel();
     const completion = await trackedChatCompletion(
       openai,
-      adaptChatParams(selectOptimizerModel(), {
+      adaptChatParams(optimizerSelection, {
         temperature: OPTIMIZATION_CONFIG.temperature,
-        max_tokens: OPTIMIZATION_CONFIG.maxTokens,
+        max_tokens: outputTokenCap(optimizerSelection, OPTIMIZATION_CONFIG.maxTokens, OPTIMIZATION_CONFIG.reasoningMaxTokens),
         response_format: { type: 'json_object' },
         messages: [
           {

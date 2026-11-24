@@ -70,5 +70,6 @@ export function buildCoverLetterPrompt(context: ExpertWorkflowContext): PromptBu
     model: 'gpt-4o',
     temperature: 0.25,
     max_tokens: 2600,
+    reasoning_max_tokens: 6000,
   };
 }

@@ -24,9 +24,11 @@ import type {
   ExpertWorkflowType,
   PromptBundle,
 } from './types';
-import { adaptChatParams, selectModel } from '@/lib/model-tiers';
+import { adaptChatParams, outputTokenCap, selectModel } from '@/lib/model-tiers';
 
 const WORKFLOW_TIMEOUT_MS = 30_000;
+/** Output cap on reasoning models for workflows that do not set their own. */
+const EXPERT_REASONING_MAX_TOKENS = 4000;
 
 type RunWorkflowParams = {
   supabase: any;
@@ -250,9 +252,10 @@ async function runModelWithRetry(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const completionPromise = trackedChatCompletion(client, adaptChatParams(selectModel(prompt.tier ?? 'FAST', prompt.model), {
+      const selection = selectModel(prompt.tier ?? 'FAST', prompt.model);
+      const completionPromise = trackedChatCompletion(client, adaptChatParams(selection, {
         temperature: prompt.temperature,
-        max_tokens: prompt.max_tokens,
+        max_tokens: outputTokenCap(selection, prompt.max_tokens, prompt.reasoning_max_tokens ?? EXPERT_REASONING_MAX_TOKENS),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: prompt.system },

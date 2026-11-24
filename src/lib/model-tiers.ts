@@ -121,6 +121,28 @@ export function adaptChatParams(
   return out as unknown as ChatParams;
 }
 
+/**
+ * Output-token cap for a call. Reasoning models count reasoning tokens against
+ * max_completion_tokens (OpenAI reasoning guide, checked 2026-11-24), so a cap
+ * sized for gpt-4o can cut the JSON in half once effort goes up. Billing is per
+ * token used, not per cap. Non-reasoning models keep their old cap exactly.
+ */
+export function outputTokenCap(selection: ModelSelection, baseCap: number, reasoningCap: number): number {
+  return isReasoningModel(selection.model) ? Math.max(baseCap, reasoningCap) : baseCap;
+}
+
+/**
+ * Log a call whose output hit the token cap (finish_reason "length"). The JSON
+ * is then cut, and callers used to swallow that as a parse error with no reason.
+ */
+export function warnIfTruncated(callSite: string, completion: unknown): boolean {
+  const choice = (completion as { choices?: Array<{ finish_reason?: string | null }> } | null | undefined)?.choices?.[0];
+  if (choice?.finish_reason !== 'length') return false;
+  const usage = readUsage((completion as { usage?: unknown } | null | undefined)?.usage);
+  console.warn(JSON.stringify({ event: 'openai_output_truncated', callSite, ...usage }));
+  return true;
+}
+
 export interface TokenUsageLog {
   inputTokens?: number;
   outputTokens?: number;
@@ -148,7 +170,8 @@ export function logModelUsage(
   callSite: string,
   selection: ModelSelection,
   usage: TokenUsageLog,
-  latencyMs: number
+  latencyMs: number,
+  finishReason?: string | null
 ): void {
   console.info(
     JSON.stringify({
@@ -158,6 +181,7 @@ export function logModelUsage(
       model: selection.model,
       reasoningEffort: selection.reasoningEffort ?? null,
       latencyMs,
+      finishReason: finishReason ?? null,
       ...usage,
     })
   );

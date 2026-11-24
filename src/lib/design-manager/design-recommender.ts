@@ -7,7 +7,7 @@
  */
 
 import OpenAI from 'openai';
-import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/model-tiers';
+import { adaptChatParams, logModelUsage, readUsage, selectModel, warnIfTruncated } from '@/lib/model-tiers';
 
 const VALID_TEMPLATES = ['minimal-ssr', 'card-ssr', 'sidebar-ssr', 'timeline-ssr'] as const;
 
@@ -98,7 +98,8 @@ Respond in JSON format:
       max_tokens: 300,
       response_format: RECOMMENDATION_SCHEMA,
     }));
-    logModelUsage('design.recommendTemplate', selection, readUsage(completion.usage), Date.now() - startedAt);
+    logModelUsage('design.recommendTemplate', selection, readUsage(completion.usage), Date.now() - startedAt, completion.choices[0]?.finish_reason);
+    warnIfTruncated('design.recommendTemplate', completion);
 
     const responseText = completion.choices[0]?.message?.content?.trim();
 

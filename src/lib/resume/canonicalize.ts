@@ -1,7 +1,7 @@
 import type { OptimizedResume } from "@/lib/ai-optimizer";
 import { getOpenAI } from "@/lib/openai";
 import { isPlaceholderValue } from "@/lib/resume/placeholder-values";
-import { adaptChatParams, logModelUsage, readUsage, selectModel } from "@/lib/model-tiers";
+import { adaptChatParams, logModelUsage, outputTokenCap, readUsage, selectModel, warnIfTruncated } from "@/lib/model-tiers";
 
 const STRUCTURE_RESUME_SYSTEM_PROMPT = `You convert a resume into structured JSON.
 
@@ -276,7 +276,7 @@ export async function parseResumeToCanonical(rawText: string): Promise<Optimized
     const startedAt = Date.now();
     const response = await getOpenAI().chat.completions.create(adaptChatParams(selection, {
       temperature: 0.1,
-      max_tokens: 2500,
+      max_tokens: outputTokenCap(selection, 2500, 6000),
       response_format: { type: "json_object" },
       messages: [
         {
@@ -289,7 +289,8 @@ export async function parseResumeToCanonical(rawText: string): Promise<Optimized
         },
       ],
     }));
-    logModelUsage("resume.canonicalize", selection, readUsage(response.usage), Date.now() - startedAt);
+    logModelUsage("resume.canonicalize", selection, readUsage(response.usage), Date.now() - startedAt, response.choices[0]?.finish_reason);
+    warnIfTruncated("resume.canonicalize", response);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
