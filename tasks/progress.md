@@ -1,10 +1,10 @@
 # 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
 
 Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
-Active Story: S2 token safety: truncation logging on every call, output caps raised for reasoning ids only.
-Next Recommended Story: S3 core optimizer prompts, pass 2 sees the original, strict schema.
+Active Story: S3 core optimizer prompts, pass 2 sees the original resume, strict tailored-resume schema.
+Next Recommended Story: S4 expert workflows: report block, rewrite and cover letter, rewrite truth guards.
 Blockers: none; one draft PR, never merged without founder yes.
-Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1302 passed (S2).
+Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1312 passed (S3).
 
 # 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
 

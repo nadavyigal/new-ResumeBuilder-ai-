@@ -489,8 +489,9 @@ describe('enforceSeniorityTruth: management claims (from #161)', () => {
 
 describe('the optimizer prompt (from #161)', () => {
   it('forbids raising seniority or scope, and keeps the target role a goal', () => {
-    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('Never raise seniority or scope.');
-    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('Keep every job title exactly as the original resume gives it.');
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('Do not raise seniority or scope');
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('Keep employer names, job titles, dates');
+    expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('Do not translate, expand or rename them.');
     expect(RESUME_OPTIMIZATION_SYSTEM_PROMPT).toContain('never as who the candidate already is');
   });
 });

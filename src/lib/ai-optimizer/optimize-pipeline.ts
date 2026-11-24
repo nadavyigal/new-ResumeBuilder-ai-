@@ -1,12 +1,11 @@
 import OpenAI from 'openai';
-import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
-import { adaptChatParams, outputTokenCap } from '@/lib/model-tiers';
+import type { AITraceOptions } from '@/lib/posthog-ai';
+import { resolveOutputLanguage } from '../prompts/shared';
+import { dropEmptyOptionalFields, requestTailoredResume } from './optimizer-request';
 import {
-  RESUME_OPTIMIZATION_SYSTEM_PROMPT,
   RESUME_OPTIMIZATION_GAP_PROMPT,
   RESUME_TRUTH_REPAIR_PROMPT,
   OPTIMIZATION_CONFIG,
-  selectOptimizerModel,
   type ResumeOptimizationGaps,
 } from '../prompts/resume-optimizer';
 import { optimizeResume, type OptimizedResume } from './index';
@@ -70,54 +69,20 @@ function getOpenAIClient(): OpenAI {
 
 async function callOpenAIWithGapPrompt(
   userPrompt: string,
-  systemPrompt: string,
-  isHebrew: boolean,
   aiTrace?: AITraceOptions
 ): Promise<OptimizedResume | null> {
   try {
     const openai = getOpenAIClient();
-
-    const languageInstruction = isHebrew
-      ? `\n\nHEBREW OUTPUT REQUIREMENT:
-- Write all resume content values in Hebrew.
-- Keep JSON field names in English exactly as required by the schema.
-- Preserve natural right-to-left Hebrew phrasing.
-- Keep proper nouns (company names, product names, tools) in their original form when needed.
-- Use truthful, professional Hebrew and avoid unnecessary English text.`
-      : '';
-
-    const optimizerSelection = selectOptimizerModel();
-    const completion = await trackedChatCompletion(
-      openai,
-      adaptChatParams(optimizerSelection, {
-        temperature: OPTIMIZATION_CONFIG.temperature,
-        max_tokens: outputTokenCap(optimizerSelection, OPTIMIZATION_CONFIG.maxTokens, OPTIMIZATION_CONFIG.reasoningMaxTokens),
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt + languageInstruction,
-          },
-          {
-            role: 'user',
-            content: userPrompt,
-          },
-        ],
-      }),
-      aiTrace || { traceName: 'optimize' },
-      { timeout: OPTIMIZATION_CONFIG.timeout }
-    );
-
-    const responseContent = completion.choices[0]?.message?.content;
-    if (!responseContent) {
+    const { content } = await requestTailoredResume(openai, userPrompt, aiTrace || { traceName: 'optimize' }, {
+      timeout: OPTIMIZATION_CONFIG.timeout,
+    });
+    if (!content) {
       return null;
     }
 
     // WP-64: normalize the bullet key here too — the gap pass is a second,
     // independent model call and drifts the same way.
-    return normalizeExperienceBullets(
-      JSON.parse(responseContent) as OptimizedResume
-    );
+    return dropEmptyOptionalFields(normalizeExperienceBullets(JSON.parse(content) as OptimizedResume));
   } catch (error) {
     console.error('Gap-prompt OpenAI call failed:', error);
     return null;
@@ -277,7 +242,7 @@ export async function runOptimizePipeline(
   options?: OptimizationPipelineOptions
 ): Promise<OptimizationPipelineResult> {
   const selected = await selectCandidate(resumeText, jobDescription, options);
-  const isHebrew = /[֐-׿]/.test(resumeText) || /[֐-׿]/.test(jobDescription);
+  const outputLanguage = resolveOutputLanguage(resumeText, jobDescription);
 
   const guarded = await enforceJobAdTruth(selected.optimizedResume, {
     resumeText,
@@ -286,9 +251,7 @@ export async function runOptimizePipeline(
     repair: async (candidate, issues) => {
       const trace = options?.aiTrace ?? { traceName: 'optimize' };
       const repaired = await callOpenAIWithGapPrompt(
-        RESUME_TRUTH_REPAIR_PROMPT(resumeText, candidate, issues),
-        RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-        isHebrew,
+        RESUME_TRUTH_REPAIR_PROMPT(resumeText, candidate, issues, outputLanguage),
         {
           ...trace,
           // Rides on the existing $ai_generation event: counts only, no terms, no résumé text.
@@ -369,10 +332,9 @@ async function selectCandidate(
   jobDescription: string,
   options?: OptimizationPipelineOptions
 ): Promise<OptimizationPipelineResult> {
-  const hebrewPattern = /[֐-׿]/;
-  const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
+  const outputLanguage = resolveOutputLanguage(resumeText, jobDescription);
 
-  console.log('Pipeline start:', { isHebrew, resumeLen: resumeText.length });
+  console.log('Pipeline start:', { outputLanguage, resumeLen: resumeText.length });
 
   // Step 1: Extract JD structure (use parsed_data fallbacks when available)
   const jobExtraction = options?.jobExtractedJson
@@ -389,12 +351,10 @@ async function selectCandidate(
     missingKeywords: initialGaps.missingKeywords.length,
   });
 
-  const gapUserPrompt = RESUME_OPTIMIZATION_GAP_PROMPT(resumeText, jobDescription, initialGaps);
+  const gapUserPrompt = RESUME_OPTIMIZATION_GAP_PROMPT(resumeText, jobDescription, initialGaps, { outputLanguage });
 
   let candidate1: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapUserPrompt,
-    RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-    isHebrew,
     options?.aiTrace
   );
 
@@ -462,12 +422,15 @@ async function selectCandidate(
   console.log('Pipeline: running pass 2');
   const gaps2 = buildGapsFromAtsResult(score1, jobExtraction.must_have);
   const candidate1Text = resumeJsonToText(candidate1);
-  const gapPrompt2 = RESUME_OPTIMIZATION_GAP_PROMPT(candidate1Text, jobDescription, gaps2);
+  // Pass 2 gets the original résumé as the only evidence and pass 1 as the draft
+  // to improve, so nothing pass 1 invented can become a "fact" here.
+  const gapPrompt2 = RESUME_OPTIMIZATION_GAP_PROMPT(resumeText, jobDescription, gaps2, {
+    outputLanguage,
+    draftText: candidate1Text,
+  });
 
   const candidate2Raw: OptimizedResume | null = await callOpenAIWithGapPrompt(
     gapPrompt2,
-    RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-    isHebrew,
     options?.aiTrace
   );
 
