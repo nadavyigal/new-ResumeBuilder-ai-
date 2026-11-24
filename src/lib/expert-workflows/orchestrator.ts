@@ -13,6 +13,7 @@ import { buildScreeningAnswersPrompt } from './prompts/screening-answers';
 import { buildOutreachKitPrompt } from './prompts/outreach-kit';
 import { buildStoryBankPrompt } from './prompts/story-bank';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
+import { guardRewriteOutput } from './rewrite-guard';
 import type { WorkflowValidationResult } from './validators';
 import type {
   ApplicationExpertReport,
@@ -419,7 +420,7 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
 
   const context = await loadWorkflowContext(params);
   const prompt = extractPromptBundle(context);
-  const { output: parsed, validation } = await generateValidatedOutput(
+  const { output: generated, validation } = await generateValidatedOutput(
     context.workflow_type,
     prompt,
     (attemptPrompt) =>
@@ -432,6 +433,11 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
         },
       })
   );
+
+  // The full rewrite replaces the user's resume, so it gets the optimizer's
+  // deterministic truth guards before it is stored and previewed.
+  const parsed =
+    context.workflow_type === 'full_resume_rewrite' ? await guardRewriteOutput(generated, context) : generated;
 
   const status = validation.missingEvidence.length > 0 ? 'needs_user_input' : 'completed';
 
