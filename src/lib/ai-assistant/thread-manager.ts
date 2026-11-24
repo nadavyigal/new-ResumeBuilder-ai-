@@ -1,7 +1,10 @@
 /**
- * Thread Manager - OpenAI Assistant Thread Lifecycle Management
+ * Thread Manager - OpenAI conversation lifecycle management
  *
- * Handles creation, restoration, and error recovery for OpenAI Assistant threads.
+ * Handles creation, restoration, and error recovery for chat conversations.
+ * Since 2026-11-23 the stored `openai_thread_id` holds a Conversations API id
+ * (conv_...). The Assistants API (thread_...) was shut down on 2026-08-26; a
+ * stored thread_ id fails validation and is replaced with a new conversation.
  * Ensures one active thread per optimization and prevents "undefined thread ID" errors.
  *
  * @module lib/ai-assistant/thread-manager
@@ -96,8 +99,8 @@ export async function ensureThread(
     // Step 2: If thread exists, validate it with OpenAI
     if (existingThread) {
       try {
-        // Verify thread still exists in OpenAI
-        await openaiClient.beta.threads.retrieve(existingThread.openai_thread_id);
+        // Verify the conversation still exists in OpenAI
+        await openaiClient.conversations.retrieve(existingThread.openai_thread_id);
 
         // Thread is valid, update last_message_at and return
         const canUpdate = typeof threadsTable.update === 'function';
@@ -141,8 +144,8 @@ export async function ensureThread(
       }
     }
 
-    // Step 3: Create new thread in OpenAI
-    const newOpenAIThread = await openaiClient.beta.threads.create();
+    // Step 3: Create new conversation in OpenAI
+    const newOpenAIThread = await openaiClient.conversations.create({});
 
     // Step 4: Save thread to database
     const { data: newThread, error: insertError } = await threadsTable

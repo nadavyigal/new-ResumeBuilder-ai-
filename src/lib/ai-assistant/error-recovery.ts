@@ -176,7 +176,7 @@ export function toRecoverableError(error: unknown): RecoverableError {
  * @example
  * ```ts
  * try {
- *   await openai.beta.threads.retrieve(threadId);
+ *   await openai.conversations.retrieve(threadId);
  * } catch (error) {
  *   const result = await recoverFromThreadError(error, 'opt-123', 'user-456', supabase);
  *   if (result.recovered) {
@@ -275,7 +275,7 @@ export function sanitizeErrorForClient(error: unknown): string {
  * @example
  * ```ts
  * const result = await retryWithBackoff(
- *   () => openai.beta.threads.create(),
+ *   () => openai.conversations.create({}),
  *   3,
  *   1000
  * );

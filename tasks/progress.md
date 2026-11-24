@@ -1,3 +1,11 @@
+# 2026-11-23: Chat and design recommender off dead OpenAI models
+
+Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.
+Active Story: C2 draft PR, chat moved from the Assistants API to Responses + Conversations; design recommender off gpt-4, now gpt-6-luna with a JSON schema.
+Next Recommended Story: C1 model tiers (PLAN/WRITER/FAST env vars) with resume-optimizer evals, stacked on this branch.
+Blockers: draft PR; needs a second-model review and founder yes to merge.
+Last Validation: 2026-11-23 tsc 0 on a fresh clone (model-tiers.ts was gitignored by `AI/`, moved), Jest 1282 passed, smoke 5/5 chat, 5/5 design.
+
 # 2026-11-13: CI runs the typecheck
 
 Current Phase: Payments v2 configured on; audit follow-ups decided by the founder.

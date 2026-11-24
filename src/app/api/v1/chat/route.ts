@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@/lib/supabase-server';
 import { getActiveSession } from '@/lib/supabase/chat-sessions';
 import { processUnifiedMessage } from '@/lib/chat-manager/unified-processor';
+import { resolveAssistantModel } from '@/lib/chat-manager/assistant-manager';
 import type { ChatSendMessageRequest, ChatSendMessageResponse, ChatSession } from '@/types/chat';
 import {
   getDesignAssignment,
@@ -650,7 +651,7 @@ export async function POST(request: NextRequest) {
         sender: 'ai',
         content: aiResponseText,
         metadata: {
-          ai_model_version: 'gpt-4',
+          ai_model_version: resolveAssistantModel().model,
           processing_time_ms: processingTime,
           intent: processResult.intent,
           amendment_type: processResult.contentAmendments?.[0]?.type,
