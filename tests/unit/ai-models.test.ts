@@ -2,8 +2,8 @@
  * src/lib/model-tiers.ts: tier resolution and reasoning-model param handling.
  * The rejected params below were checked against the live API on 2026-11-23.
  */
-import { describe, it, expect, afterEach } from '@jest/globals';
-import { adaptChatParams, isReasoningModel, readUsage, selectModel } from '@/lib/model-tiers';
+import { describe, it, expect, afterEach, jest } from '@jest/globals';
+import { adaptChatParams, isReasoningModel, outputTokenCap, readUsage, selectModel, warnIfTruncated } from '@/lib/model-tiers';
 
 const ENV_KEYS = [
   'OPENAI_MODEL_PLAN', 'OPENAI_MODEL_WRITER', 'OPENAI_MODEL_FAST',
@@ -107,5 +107,25 @@ describe('overrideEnv', () => {
     expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL')).toEqual({ tier: 'FAST', model: 'gpt-4o-mini' });
     delete process.env.AGENT_SDK_MODEL;
     expect(selectModel('FAST', 'gpt-4o-mini', undefined, 'AGENT_SDK_MODEL').model).toBe('gpt-6-luna');
+  });
+});
+
+describe('outputTokenCap', () => {
+  it('keeps the old cap on non-reasoning models and raises it on reasoning models', () => {
+    expect(outputTokenCap({ tier: 'PLAN', model: 'gpt-4o' }, 4000, 8000)).toBe(4000);
+    expect(outputTokenCap({ tier: 'PLAN', model: 'gpt-6.2-sol', reasoningEffort: 'low' }, 4000, 8000)).toBe(8000);
+    expect(outputTokenCap({ tier: 'FAST', model: 'gpt-6-luna', reasoningEffort: 'none' }, 5000, 4000)).toBe(5000);
+  });
+});
+
+describe('warnIfTruncated', () => {
+  it('logs only when the output hit the cap', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(warnIfTruncated('x', { choices: [{ finish_reason: 'stop' }] })).toBe(false);
+    expect(warnIfTruncated('x', { choices: [{ finish_reason: 'length' }], usage: { completion_tokens: 4000 } })).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).toContain('openai_output_truncated');
+    expect(warnIfTruncated('x', undefined)).toBe(false);
+    warn.mockRestore();
   });
 });

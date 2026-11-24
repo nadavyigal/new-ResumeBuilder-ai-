@@ -15,7 +15,6 @@ import { writeFileSync } from 'node:fs';
 import { manifest } from '../../evals/resume-optimizer/manifest';
 import { parseResumeToCanonical } from '../../src/lib/resume/canonicalize';
 import { classifyIntentLLM } from '../../src/lib/agent/intents';
-import { planWithLLM } from '../../src/lib/agent/llm-planner';
 import { generateAmendments } from '../../src/lib/ats/amendment-generator';
 import { generateQuickWins } from '../../src/lib/ats/quick-wins/generator';
 import { buildRefineSectionPrompt } from '../../src/lib/ai/prompt-builders/refineSectionPrompt';
@@ -200,10 +199,6 @@ async function main() {
     await run('agent.classifyIntent', command, async () => {
       const label = await classifyIntentLLM(command);
       return { ok: label !== null, detail: String(label) };
-    });
-    await run('agent.llmPlanner', command, async () => {
-      const actions = await planWithLLM({ command });
-      return { ok: actions.length > 0, detail: actions.map((a) => a.tool).join(',') };
     });
   }
 

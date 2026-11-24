@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRouteHandlerClient } from "@/lib/supabase-server";
-import { generateAmendments } from "@/lib/ats/amendment-generator";
+import { generateAmendments, NO_TRUTHFUL_EDIT_MESSAGE } from "@/lib/ats/amendment-generator";
 import {
   buildJobDataFromExtractedJson,
   resolveJobDescriptionText,
@@ -80,6 +80,17 @@ export async function POST(
     return NextResponse.json(
       { error: result.error || "Failed to generate preview" },
       { status: 502 },
+    );
+  }
+
+  // Nothing can be changed from what the résumé already says. An empty list would
+  // show iOS an Approve button with nothing to approve, so send the message the
+  // clients already render for a preview error (iOS shows the `error` text).
+  if (result.noTruthfulEdit && result.affectedFields.length === 0) {
+    const lang = result.outputLanguage ?? "en";
+    return NextResponse.json(
+      { error: NO_TRUTHFUL_EDIT_MESSAGE[lang], code: "no_truthful_edit" },
+      { status: 422 },
     );
   }
 

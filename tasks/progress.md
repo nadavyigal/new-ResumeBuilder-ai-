@@ -1,3 +1,11 @@
+# 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
+
+Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
+Active Story: Draft PR #223; polish B pushed: design reasoning filter now strips only score-like numbers, keeps plain counts.
+Next Recommended Story: Founder review of PR #223; then set tier env vars on preview.
+Blockers: none; one draft PR, never merged without founder yes.
+Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1352 passed; eval C 42/60, Hebrew 15/18 (no new paid eval).
+
 # 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
 
 Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.

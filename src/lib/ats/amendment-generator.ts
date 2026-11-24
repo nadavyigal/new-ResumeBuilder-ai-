@@ -9,7 +9,105 @@ import OpenAI from 'openai';
 import type { JobExtraction, Suggestion } from './types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { AffectedField } from '@/types/chat';
-import { adaptChatParams, logModelUsage, readUsage, selectModel } from '@/lib/model-tiers';
+import { adaptChatParams, logModelUsage, readUsage, selectModel, warnIfTruncated } from '@/lib/model-tiers';
+import {
+  CONTENT_RULES,
+  DATA_NOTICE,
+  TRUTH_RULES,
+  languageRules,
+  resolveOutputLanguage,
+  wrap,
+} from '@/lib/prompts/shared';
+
+/**
+ * System prompt for turning one suggestion into field edits (prompt upgrade S6).
+ * No expansion map: the old one told the model that "add cloud" means AWS.
+ */
+export const AMENDMENT_SYSTEM_PROMPT = `# Role
+You turn one resume-improvement suggestion into specific field edits that the candidate will preview before applying.
+
+${DATA_NOTICE}
+
+${TRUTH_RULES}
+
+# Edit rules
+- Propose 0 to 5 edits, highest value first.
+- Skills: add a skill only if the resume already shows it in a bullet, the summary or a project. Write it in its common professional form ("REST APIs", not "api"). Never add a related skill the resume does not show, even if the suggestion names it.
+- If the suggestion cannot be applied truthfully, return {"affectedFields": []}. The app then tells the candidate to add it only if it is true.
+- Bullets: modify the specific bullet, keep its numbers, and do not append job duties.
+- Never copy whole sentences or boilerplate (responsibilities, requirements, benefits) from the posting.
+- Ignore posting metadata words ("job", "posted", "about", "senior", "role").
+
+# Fields
+sectionId: "summary" | "skills" | "certifications" | "experience-N" | "education-N" | "projects-N" (N starts at 0)
+field: summary -> "text"; experience -> "title" | "company" | "location" | "achievements"; skills -> "technical" | "soft"; education -> "degree" | "institution"; certifications -> "items"; projects -> "name" | "description" | "technologies"
+changeType: "add" | "modify" | "remove". For arrays, newValue is the full new array (existing items plus additions).
+reason: one sentence on why the edit makes the resume clearer for this posting.
+
+${CONTENT_RULES}
+
+# Output
+One JSON object: { "affectedFields": [ { "sectionId": string, "field": string, "originalValue": string | [string], "newValue": string | [string], "changeType": "add" | "modify" | "remove", "reason": string } ] }`;
+
+/** Shown when no edit can be made truthfully (preview route, iOS shows it as text). */
+export const NO_TRUTHFUL_EDIT_MESSAGE = {
+  en: "This can't be added from what your resume already says. Add it yourself only if it is true.",
+  he: 'אי אפשר להוסיף את זה ממה שכבר כתוב בקורות החיים. הוסיפו את זה בעצמכם רק אם זה נכון.',
+} as const;
+
+function collectStrings(value: unknown, out: string[]): void {
+  if (typeof value === 'string') out.push(value);
+  else if (Array.isArray(value)) value.forEach((v) => collectStrings(v, out));
+  else if (value && typeof value === 'object') Object.values(value).forEach((v) => collectStrings(v, out));
+}
+
+/** Every text value in the resume, one per line. */
+export function resumeText(resume: OptimizedResume): string {
+  const out: string[] = [];
+  collectStrings(resume, out);
+  return out.join('\n');
+}
+
+function normalizeForMatch(text: string): string {
+  return ` ${text.toLowerCase().replace(/[^\p{L}\p{N}+#]+/gu, ' ').trim()} `;
+}
+
+/** True when the resume already shows this term (whole-word, case-insensitive). */
+export function resumeShows(term: string, source: string): boolean {
+  const needle = normalizeForMatch(term).trim();
+  return needle.length > 0 && normalizeForMatch(source).includes(` ${needle} `);
+}
+
+const GROUNDED_LIST_FIELDS = new Set(['skills.technical', 'skills.soft', 'certifications.items']);
+
+/**
+ * Drop any skill or certification an edit would add that the resume does not
+ * already show. Applies to the model path and the heuristic path alike. An
+ * edit left with no additions and no removals is dropped.
+ */
+export function groundAffectedFields(fields: AffectedField[], resume: OptimizedResume): AffectedField[] {
+  const source = resumeText(resume);
+  const grounded: AffectedField[] = [];
+  for (const field of fields) {
+    const key = `${String(field.sectionId).replace(/-\d+$/, '')}.${field.field}`;
+    if (!GROUNDED_LIST_FIELDS.has(key) || !Array.isArray(field.newValue)) {
+      grounded.push(field);
+      continue;
+    }
+    const before = Array.isArray(field.originalValue) ? (field.originalValue as unknown[]).map(String) : [];
+    const beforeLower = new Set(before.map((v) => v.toLowerCase()));
+    const kept = (field.newValue as unknown[]).map(String).filter((item) => {
+      if (beforeLower.has(item.toLowerCase())) return true;
+      const ok = resumeShows(item, source);
+      if (!ok) console.log(`🛡️ Dropped unsupported addition: "${item}"`);
+      return ok;
+    });
+    const added = kept.some((item) => !beforeLower.has(item.toLowerCase()));
+    const removed = before.some((item) => !kept.some((k) => k.toLowerCase() === item.toLowerCase()));
+    if (added || removed) grounded.push({ ...field, newValue: kept });
+  }
+  return grounded;
+}
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -29,6 +127,14 @@ export interface AmendmentGenerationResult {
   affectedFields: AffectedField[];
   success: boolean;
   error?: string;
+  /**
+   * True when no edit could be made from what the resume already says (the model
+   * returned none on purpose, or every edit was unsupported). The heuristic is
+   * not run in that case, because it would add the job's keywords as claims.
+   */
+  noTruthfulEdit?: boolean;
+  /** Language for any message about this result. */
+  outputLanguage?: 'he' | 'en';
 }
 
 export interface AmendmentGenerationContext {
@@ -50,109 +156,24 @@ export async function generateAmendments(
   try {
     console.log(`📝 Generating amendments for suggestion: ${suggestion.id}`);
 
-    const systemPrompt = `You are an expert resume editor. Your task is to analyze an ATS improvement suggestion and determine which specific resume sections need to be changed.
-
-IMPORTANT: You must return a JSON object with an "affectedFields" array containing the changes:
-{
-  "affectedFields": [
-    {
-      "sectionId": "summary" | "experience-0" | "experience-1" | "skills" | "education-0" | etc.,
-      "field": "text" | "achievements" | "technical" | "soft" | etc.,  // REQUIRED - NEVER leave this undefined!
-      "originalValue": <current value as string or array>,
-      "newValue": <proposed value as string or array>,
-      "changeType": "add" | "modify" | "remove",
-      "reason": "Brief explanation of why this change helps ATS scoring"
-    }
-  ]
-}
-
-Section ID Format:
-- summary: Main summary section
-- experience-N: Experience item (N is 0-indexed)
-- skills: Skills section
-- education-N: Education item (N is 0-indexed)
-- certifications: Certifications section
-- projects-N: Project item (N is 0-indexed)
-
-Field Names:
-- summary section: "text"
-- experience items: "title", "company", "location", "achievements" (array)
-- skills: "technical" (array), "soft" (array)
-- education: "degree", "institution"
-- certifications: "items" (array)
-- projects: "name", "description", "technologies" (array)
-
-CRITICAL Guidelines for Keyword/Skill Additions:
-
-1. **Professional Skill Formatting**: When adding technical skills, use FULL PROFESSIONAL NAMES, not abbreviations:
-   - ❌ BAD: "api", "ml", "ai", "cloud"
-   - ✅ GOOD: "API Design", "REST API Development", "Machine Learning", "ML Model Development", "Cloud Architecture"
-
-2. **Filter Job Description Noise**: NEVER add these as skills (they're job posting metadata, not skills):
-   - ❌ Ignore: "job", "title", "posted", "company", "about", "see", "this", "senior", "manager", "description", "position", "role"
-   - ✅ Focus on: actual technologies, tools, methodologies, and competencies
-
-3. **Context Intelligence**: When a suggestion says "add X", interpret it professionally:
-   - "add api" → Add ["API Design", "REST API Development", "API Integration"]
-   - "add payment" → Add ["Payment Processing", "Payment Gateway Integration"]
-   - "add cloud" → Add ["Cloud Architecture", "Cloud Computing", "AWS"]
-   - "add security" → Add ["Security Engineering", "Information Security"]
-
-4. **Technical vs Soft Skills**: Auto-categorize intelligently:
-   - Technical: programming languages, frameworks, tools, platforms, methodologies
-   - Soft: leadership, communication, teamwork, problem-solving
-
-5. **Keyword Expansion Map**: Apply these professional expansions:
-   - fintech → "FinTech Solutions", "Financial Technology"
-   - blockchain → "Blockchain Development", "Distributed Ledger Technology"
-   - devops → "DevOps Engineering", "CI/CD Pipeline Management"
-   - frontend → "Frontend Development", "UI Development"
-   - backend → "Backend Development", "Server-Side Development"
-   - mobile → "Mobile App Development", "iOS/Android Development"
-   - analytics → "Data Analytics", "Business Analytics"
-
-General Guidelines:
-1. ALWAYS include the "field" property - NEVER leave it undefined or missing!
-2. Be specific - extract exact text changes from the suggestion
-3. For keyword additions, append to existing arrays (don't replace)
-4. For achievement improvements, modify the specific bullet point
-5. Include clear before/after values
-6. Return at least 1 affected field per suggestion
-7. Maximum 5 affected fields per suggestion (prioritize highest impact)
-8. Use context from the job description to infer professional skill names
-9. Filter out noise words that aren't actual skills
-10. Do not copy full job description sentences; rephrase using resume evidence
-11. Avoid job posting boilerplate (responsibilities, requirements, qualifications, benefits)
-12. Do not fabricate metrics; only use numbers already present in the resume
-
-Return ONLY the JSON object in the format shown above - no markdown, no code blocks, no explanation text outside the JSON.`;
-
-    const jobDescriptionText = context?.jobDescriptionText || 'N/A';
-    const jobDataText = context?.jobData
-      ? JSON.stringify(context.jobData, null, 2)
-      : 'N/A';
-    const actionText = suggestion.action ? JSON.stringify(suggestion.action, null, 2) : 'None';
-
-    const userPrompt = `ATS Suggestion:
-"${suggestion.text}"
-
-${suggestion.explanation ? `Explanation: ${suggestion.explanation}` : ''}
-
-Estimated Impact: +${suggestion.estimated_gain} points
-Targets: ${suggestion.targets.join(', ')}
-Category: ${suggestion.category}
-Suggestion Action: ${actionText}
-
-Job Description Context:
-${jobDescriptionText}
-
-Structured Job Data:
-${jobDataText}
-
-Current Resume Content:
-${JSON.stringify(resumeContent, null, 2)}
-
-Analyze this suggestion and return the JSON array of affected fields with specific changes.`;
+    const outputLanguage = resolveOutputLanguage(resumeText(resumeContent), context?.jobDescriptionText || '');
+    const systemPrompt = AMENDMENT_SYSTEM_PROMPT;
+    const actionText = suggestion.action ? JSON.stringify(suggestion.action) : 'none';
+    const suggestionBlock = [
+      `Suggestion: ${suggestion.text}`,
+      suggestion.explanation ? `Explanation: ${suggestion.explanation}` : '',
+      `Estimated impact (rough estimate): +${suggestion.estimated_gain} points`,
+      `Targets: ${suggestion.targets.join(', ')}`,
+      `Category: ${suggestion.category}`,
+      `Action: ${actionText}`,
+    ].filter(Boolean).join('\n');
+    const userPrompt = [
+      languageRules(outputLanguage),
+      wrap('suggestion', suggestionBlock),
+      wrap('job_posting', context?.jobDescriptionText || 'none'),
+      wrap('current_resume_json', JSON.stringify(resumeContent, null, 2)),
+      'Return only the JSON object with the "affectedFields" array.',
+    ].join('\n\n');
 
     const selection = selectModel('FAST', 'gpt-4o-mini');
     const startedAt = Date.now();
@@ -164,7 +185,8 @@ Analyze this suggestion and return the JSON array of affected fields with specif
       temperature: 0.3, // Lower temperature for more consistent structured output
       response_format: { type: 'json_object' },
     }));
-    logModelUsage('ats.amendment-generator', selection, readUsage(response.usage), Date.now() - startedAt);
+    logModelUsage('ats.amendment-generator', selection, readUsage(response.usage), Date.now() - startedAt, response.choices[0]?.finish_reason);
+    warnIfTruncated('ats.amendment-generator', response);
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
@@ -226,13 +248,15 @@ Analyze this suggestion and return the JSON array of affected fields with specif
     affectedFields = filterBoilerplateAffectedFields(affectedFields);
 
     // Validate and clean affected fields
-    affectedFields = affectedFields
-      .filter(field => field.sectionId && field.field && field.changeType)
-      .slice(0, 5); // Limit to 5 fields
+    const proposed = affectedFields.filter(field => field.sectionId && field.field && field.changeType);
+    affectedFields = groundAffectedFields(proposed, resumeContent).slice(0, 5); // Limit to 5 fields
 
     if (affectedFields.length === 0) {
-      console.warn('No valid affected fields generated, using fallback');
-      affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent);
+      // The model proposed nothing, only unsupported additions, or an unknown shape
+      // the heuristic could not turn into a grounded edit. Running the keyword
+      // heuristic again would add the job's terms as claims, so don't.
+      console.warn(`No truthful amendment for suggestion ${suggestion.id}`);
+      return { affectedFields: [], success: true, noTruthfulEdit: true, outputLanguage };
     }
 
     console.log(`✅ Generated ${affectedFields.length} amendments for suggestion ${suggestion.id}`);
@@ -240,6 +264,7 @@ Analyze this suggestion and return the JSON array of affected fields with specif
     return {
       affectedFields,
       success: true,
+      outputLanguage,
     };
   } catch (error) {
     console.error('Error generating amendments:', error);
@@ -247,10 +272,15 @@ Analyze this suggestion and return the JSON array of affected fields with specif
     // Fallback to heuristic generation
     console.log('Falling back to heuristic amendment generation');
     try {
-      const affectedFields = await generateAmendmentsHeuristic(suggestion, resumeContent, context);
+      const affectedFields = groundAffectedFields(
+        filterBoilerplateAffectedFields(await generateAmendmentsHeuristic(suggestion, resumeContent, context)),
+        resumeContent
+      ).slice(0, 5);
       return {
         affectedFields,
         success: true,
+        outputLanguage: resolveOutputLanguage(resumeText(resumeContent), context?.jobDescriptionText || ''),
+        ...(affectedFields.length === 0 ? { noTruthfulEdit: true } : {}),
       };
     } catch {
       return {
@@ -294,7 +324,8 @@ async function generateAmendmentsHeuristic(
 
   if (affectedFields.length === 0 && action?.type === 'add_phrase') {
     const phrase = sanitizePhrase(action.params.phrases?.[0]);
-    if (phrase) {
+    // "Experience with X" is a claim; make it only when the resume shows X.
+    if (phrase && resumeShows(phrase, resumeText(resumeContent))) {
       const summary = resumeContent.summary || '';
       const newSummary = summary
         ? `${summary.replace(/\s+$/, '')}${summary.endsWith('.') ? '' : '.'} Experience with ${phrase}.`
@@ -436,31 +467,21 @@ function extractKeywords(text: string): string[] {
 }
 
 /**
- * Intelligently expand and filter keywords to be more professional and contextual
+ * Clean keywords: drop job-posting noise and fix casing. It never expands a
+ * keyword into other terms: the old expansion map turned "cloud" into AWS and
+ * Azure, "database" into SQL and "mobile" into iOS/Android, all claims the
+ * resume may not support.
  *
  * Examples:
- * - "api" → ["API Design", "REST API Development", "API Integration"]
- * - "payment" → ["Payment Processing", "Payment Gateway Integration"]
+ * - "api" → ["API"]
+ * - "payment processing" → ["Payment processing"]
  * - "job" → [] (filtered as noise)
  */
 function smartKeywordExpansion(keywords: string[]): string[] {
-  // Professional expansion map for common tech/business terms
-  const expansionMap: Record<string, string[]> = {
-    'api': ['API Design', 'REST API Development', 'API Integration'],
-    'payment': ['Payment Processing', 'Payment Gateway Integration', 'Payment Systems'],
-    'fintech': ['FinTech Solutions', 'Financial Technology'],
-    'blockchain': ['Blockchain Development', 'Distributed Ledger Technology', 'Smart Contracts'],
-    'cloud': ['Cloud Architecture', 'Cloud Computing', 'AWS', 'Azure'],
-    'ml': ['Machine Learning', 'ML Model Development'],
-    'ai': ['Artificial Intelligence', 'AI/ML Solutions'],
-    'database': ['Database Design', 'Database Management', 'SQL'],
-    'frontend': ['Frontend Development', 'UI Development'],
-    'backend': ['Backend Development', 'Server-Side Development'],
-    'mobile': ['Mobile App Development', 'iOS/Android Development'],
-    'security': ['Security Engineering', 'Information Security', 'Cybersecurity'],
-    'devops': ['DevOps Engineering', 'CI/CD Pipeline Management'],
-    'analytics': ['Data Analytics', 'Business Analytics'],
-    'compliance': ['Regulatory Compliance', 'Compliance Management'],
+  const knownCasing: Record<string, string> = {
+    api: 'API', apis: 'APIs', sql: 'SQL', aws: 'AWS', gcp: 'GCP', css: 'CSS', html: 'HTML',
+    rest: 'REST', saas: 'SaaS', b2b: 'B2B', b2c: 'B2C', crm: 'CRM', erp: 'ERP', seo: 'SEO',
+    kpi: 'KPI', kpis: 'KPIs', etl: 'ETL', nlp: 'NLP', sdk: 'SDK', devops: 'DevOps', fintech: 'FinTech',
   };
 
   // Noise words from job descriptions that aren't real skills
@@ -482,10 +503,8 @@ function smartKeywordExpansion(keywords: string[]): string[] {
       continue;
     }
 
-    // Expand if we have a mapping
-    if (expansionMap[lower]) {
-      console.log(`✨ Expanding "${keyword}" →`, expansionMap[lower]);
-      result.push(...expansionMap[lower]);
+    if (knownCasing[lower]) {
+      result.push(knownCasing[lower]);
     } else {
       // Keep original but capitalize properly
       const capitalized = keyword.charAt(0).toUpperCase() + keyword.slice(1);

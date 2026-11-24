@@ -8,6 +8,7 @@ import { OPTIMIZATION_CONFIG, selectOptimizerModel } from '@/lib/prompts/resume-
 import { SCORE_VERSION } from '@/lib/ats/core';
 import { clearCache as clearEmbeddingsCache } from '@/lib/ats/utils/embeddings';
 import { manifest, MANIFEST_VERSION } from './manifest';
+import { selectEvalCases } from './manifest-prompt-upgrade';
 import { calibration } from './calibration';
 import { EVALUATION_DATE, DATE_ONLY_FAKE_TIMERS } from './eval-date';
 import { estimateBatch } from './estimate';
@@ -32,10 +33,12 @@ const CALIBRATE = process.env.EVAL_CALIBRATE !== '0';
 const BASELINE = process.env.EVAL_BASELINE;
 
 const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
+// EVAL_CASE_SET=prompt-upgrade adds the 2026-11-24 cases; EVAL_CASE_IDS narrows the set.
+const CASES = selectEvalCases();
 
 (ESTIMATE ? describe : describe.skip)('resume-optimizer repeat eval: cost estimate (free)', () => {
   it('estimates the batch from the real prompts', () => {
-    const estimate = estimateBatch(manifest, REPEATS, calibration.length);
+    const estimate = estimateBatch(CASES, REPEATS, calibration.length);
     mkdirSync(OUTPUT_ROOT, { recursive: true });
     writeFileSync(join(OUTPUT_ROOT, 'estimate.json'), JSON.stringify(estimate, null, 2));
     console.log(
@@ -44,7 +47,7 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
         `calibration=$${estimate.calibrationUsd.toFixed(3)} recommendedCap=$${estimate.recommendedCapUsd} ` +
         `(prices checked ${estimate.pricesCheckedOn})`
     );
-    expect(estimate.runs).toBe(manifest.length * REPEATS);
+    expect(estimate.runs).toBe(CASES.length * REPEATS);
   });
 });
 
@@ -87,7 +90,7 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
             'evals/resume-optimizer/call-ledger.ts',
           ]).slice(0, 12)}`,
         });
-        const estimate = estimateBatch(manifest, REPEATS, calibration.length);
+        const estimate = estimateBatch(CASES, REPEATS, calibration.length);
         writeFileSync(join(outDir, 'config.json'), JSON.stringify({ config, estimate, capUsd: CAP, realStart }, null, 2));
 
         // Judge calibration first: cheap, and it says how far to trust the judges below.
@@ -117,11 +120,11 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
           writeFileSync(join(outDir, 'calibration.json'), JSON.stringify(calibrationResults, null, 2));
         }
 
-        const plan = planRuns(manifest, REPEATS);
+        const plan = planRuns(CASES, REPEATS);
         writeFileSync(join(outDir, 'plan.json'), JSON.stringify(plan, null, 2));
 
         const results = await executePlan(plan, {
-          cases: manifest,
+          cases: CASES,
           configHash: config.configHash,
           generate: runPipelineForEval,
           nightlyJudge: judgeResume,
@@ -143,11 +146,11 @@ const OUTPUT_ROOT = join(process.cwd(), 'evals', 'resume-optimizer', 'output');
         const baseline: StabilityReport | undefined =
           BASELINE && existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : undefined;
         const report = buildStabilityReport(
-          manifest,
+          CASES,
           plan,
           results,
           {
-            manifestVersion: MANIFEST_VERSION,
+            manifestVersion: CASES.length === manifest.length ? MANIFEST_VERSION : `${MANIFEST_VERSION}+${process.env.EVAL_CASE_SET ?? 'subset'}`,
             evaluationDate: EVALUATION_DATE,
             repeats: REPEATS,
             config,

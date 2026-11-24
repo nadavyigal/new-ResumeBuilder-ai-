@@ -75,7 +75,7 @@ export interface ManifestCase extends EvalCase {
   untrustedPassages: string[];
   /** Context the grounded judge needs, such as a known contradiction in the source. */
   judgeNotes: string[];
-  origin: 'nightly-v1' | 'manifest-2026-09-24';
+  origin: 'nightly-v1' | 'manifest-2026-09-24' | 'prompt-upgrade-2026-11-24';
 }
 
 const nightly = new Map(cases.map((c) => [c.id, c]));
@@ -96,7 +96,7 @@ function fromNightly(id: string, labels: Labels): ManifestCase {
   };
 }
 
-function newCase(c: Omit<ManifestCase, 'origin' | 'evaluationDate'>): ManifestCase {
+export function newCase(c: Omit<ManifestCase, 'origin' | 'evaluationDate'>): ManifestCase {
   return { ...c, evaluationDate: EVALUATION_DATE, origin: 'manifest-2026-09-24' };
 }
 
@@ -110,7 +110,7 @@ function tenureNote(claimed: string, span: string): string {
   return `The résumé's summary says ${claimed}; its dated roles span ${span} as of the fixed evaluation date. Both figures come from the candidate, so a rewrite that uses either is not a fabrication. The honest-gap text below was written in June 2026, before the date was fixed, and may understate tenure; judge the gap in qualifications, not the exact year count.`;
 }
 
-const req = (
+export const req = (
   id: string,
   requirement: string,
   support: RequirementSupport,

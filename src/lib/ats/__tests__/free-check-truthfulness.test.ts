@@ -14,7 +14,7 @@ import { buildJobDataFromExtractedJson } from '@/lib/ats/job-data-resolver';
 import { scoreResume } from '@/lib/ats';
 import { generateFormatReport } from '@/lib/ats/integration';
 import { checkQuickWinGrounding, type GroundingContext } from '@/lib/ats/quick-wins/grounding';
-import { buildQuickWinsPrompt } from '@/lib/ats/quick-wins/prompt';
+import { QUICK_WINS_SYSTEM_PROMPT, buildQuickWinsPrompt } from '@/lib/ats/quick-wins/prompt';
 import type { QuickWinSuggestion, SubScores } from '@/lib/ats/types';
 
 const mockCompletion = jest.fn();
@@ -408,7 +408,8 @@ describe('quick-win prompt', () => {
     expect(prompt).not.toMatch(/about 60/);
     expect(prompt).not.toMatch(/acting early on risk/);
     expect(prompt).toMatch(/do not claim these/i);
-    expect(prompt).toMatch(/Keep every number from the original bullet/);
+    // The truth rules moved to the static system prompt (prompt upgrade S5).
+    expect(QUICK_WINS_SYSTEM_PROMPT).toMatch(/Keep every number from the original sentence/);
   });
 });
 
