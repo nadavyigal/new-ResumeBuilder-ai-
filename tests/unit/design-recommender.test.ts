@@ -71,4 +71,16 @@ describe('design recommender prompt (prompt upgrade S7)', () => {
     expect(stripNumbersFromReasoning('ATS score: 98')).toBe('This layout fits your background and the role.');
     expect(stripNumbersFromReasoning('ציון 98')).toBe('התבנית הזו מתאימה לרקע שלך ולתפקיד.');
   });
+
+  it('keeps harmless numbers and strips score-like ones', () => {
+    const { stripNumbersFromReasoning } = jest.requireActual('@/lib/design-manager/design-recommender');
+    expect(stripNumbersFromReasoning('Your 10 years of experience read clearly here. It fits a senior role.')).toBe(
+      'Your 10 years of experience read clearly here. It fits a senior role.'
+    );
+    expect(stripNumbersFromReasoning('ניסיון של 10 שנים בולט בתבנית הזו.')).toBe('ניסיון של 10 שנים בולט בתבנית הזו.');
+    expect(stripNumbersFromReasoning('A calm layout for 3 roles. It reaches 95% readability.')).toBe('A calm layout for 3 roles.');
+    expect(stripNumbersFromReasoning('Clear headings. Rated 98/100.')).toBe('Clear headings.');
+    expect(stripNumbersFromReasoning('Clear headings. It adds 12 points.')).toBe('Clear headings.');
+    expect(stripNumbersFromReasoning('כותרות ברורות. תוספת של 12 נק׳.')).toBe('כותרות ברורות.');
+  });
 });

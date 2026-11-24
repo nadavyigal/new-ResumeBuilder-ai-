@@ -75,13 +75,28 @@ ${DATA_NOTICE}
 # Output
 One JSON object: { "templateId": "minimal-ssr" | "card-ssr" | "sidebar-ssr" | "timeline-ssr", "reasoning": string, "confidence": number from 0 to 1 }`;
 
+/** A number written as a score: "98%", "98/100", "12 points", "out of 100", "נק׳". */
+const SCORE_NUMBER_PATTERN =
+  /\d\s*%|%\s*\d|\d\s*\/\s*\d|\d\s*(?:points?|pts)\b|\bout of\s+100\b|\d\s*(?:נק|נקודות)|מתוך\s*\d/i;
+/** Words that make any number in the same sentence a score. */
+const SCORE_WORD_PATTERN =
+  /\b(?:scores?|scored|scoring|rating|rated|readability|compatibility|percent(?:age)?)\b|ציון|דירוג|קריאות|תאימות|אחוז/i;
+
+/** True when a sentence prints a score-like number. Plain counts ("10 years") are fine. */
+export function hasScoreLikeNumber(sentence: string): boolean {
+  if (!/\d/.test(sentence)) return false;
+  return SCORE_NUMBER_PATTERN.test(sentence) || SCORE_WORD_PATTERN.test(sentence);
+}
+
 /**
  * Safety net for the rule above: drop any sentence of user-facing reasoning that
- * contains a digit (a score, a percentage). If nothing is left, use a neutral line.
+ * prints a score-like number (a score, a percentage, "/100", points). Sentences
+ * with plain numbers such as "10 years of experience" stay. If nothing is left,
+ * use a neutral line.
  */
 export function stripNumbersFromReasoning(text: string): string {
   const sentences = text.split(/(?<=[.!?])\s+/).filter((sentence) => sentence.trim().length > 0);
-  const kept = sentences.filter((sentence) => !/\d/.test(sentence));
+  const kept = sentences.filter((sentence) => !hasScoreLikeNumber(sentence));
   if (kept.length > 0) return kept.join(' ').trim();
   return /[\u0590-\u05FF]/.test(text)
     ? 'התבנית הזו מתאימה לרקע שלך ולתפקיד.'
