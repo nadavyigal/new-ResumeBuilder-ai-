@@ -47,6 +47,19 @@ describe('selectModel', () => {
   });
 });
 
+describe('effort per model family', () => {
+  it('maps "none" to the lowest effort each family accepts', () => {
+    process.env.OPENAI_MODEL_FAST = 'gpt-5-mini';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('minimal');
+    process.env.OPENAI_MODEL_FAST = 'o4-mini';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('low');
+    process.env.OPENAI_MODEL_FAST = 'gpt-5.1';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('none');
+    process.env.OPENAI_MODEL_FAST = 'gpt-6-luna';
+    expect(selectModel('FAST', 'x').reasoningEffort).toBe('none');
+  });
+});
+
 describe('adaptChatParams', () => {
   const params = { messages: [], temperature: 0.3, top_p: 0.9, max_tokens: 300, response_format: { type: 'json_object' as const } };
 
