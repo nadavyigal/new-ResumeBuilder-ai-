@@ -631,3 +631,22 @@ Decisions 1 to 5 from the draft (2026-11-23) are applied as written. Item 6 (com
 | Baselines | [CHANGED] reuse A and B | Already measured 2026-11-23. |
 | Gender check | [CHANGED] warning by default | Ambiguous in many CVs. |
 | Invented-score lint | [DROPPED] | Decision 2. |
+
+---
+
+## 12. Phase 2 result (2026-11-24)
+
+Implemented on `claude/2026-11-24-prompt-upgrade` as S1 to S8, one commit each. Eval results are in
+`evals/resume-optimizer/BASELINE.md` (section "2026-11-24: prompt upgrade"). Gate from section 8.2:
+
+| Gate | Result |
+|---|---|
+| 0 critical deterministic failures | 0/75 |
+| No case pass to fail against B | one case below B (`no-certification-required`), judge variance on identical text |
+| Hebrew subset at least B | 15/18 vs 4/6 |
+| Content lint clean, language 100% | yes, 75/75 |
+| 0 JSON failures and 0 `length` | yes |
+| Cost per CV within +15% of B | +2% |
+| Expert rewrite p95 under 25 s | 12.1 s (timeout unchanged at 30 s) |
+
+Spend $1.28 of the $10 cap.

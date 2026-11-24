@@ -1,0 +1,9 @@
+{
+  "_comment": "Content-rule lint for AI output (prompt upgrade 2026-11-24). The competitors list is waiting on Nadav's approval: keep it empty until he names the products. Never copy these names into a prompt.",
+  "competitors": [],
+  "atsBeat": ["beat the ats", "beats the ats", "get past the ats", "gets past the ats", "get past ats", "bypass", "trick the ats", "fool the ats", "pass the ats", "passes the ats", "לעקוף את", "לעבור את מערכת", "לנצח את ה-ats", "לנצח את מערכת"],
+  "robot": ["robot", "robots", "bot", "bots", "רובוט", "רובוטים"],
+  "guarantee": ["guarantee", "guaranteed", "guarantees", "you will get", "you'll get the job", "land an interview", "land the interview", "land you an interview", "מובטח", "מובטחת", "מבטיח לך", "מבטיחה לך", "תקבל ראיון", "תקבלי ראיון", "בטוח שתתקבל", "בטוחה שתתקבלי"],
+  "price": ["price", "pricing plan", "discount", "usd", "nis", "מחיר", "הנחה", "ש\"ח"],
+  "placeholders": ["n/a", "not specified", "unknown", "not provided", "tbd", "לא צוין", "לא ידוע"]
+}

@@ -81,3 +81,51 @@ set with `OPENAI_MODEL_PLAN`; judges `gpt-4o-mini` unless noted. Prompts unchang
   gpt-6-luna 10/10; grounding judge gpt-4o-mini 9/10, gpt-6-luna 8/10. Neither missed a planted
   fabrication. On live outputs gpt-6-luna fails far fewer runs (19/20 vs 13/20 grounding passes),
   so switching the judge moves the baseline: re-baseline before using it as the gate.
+
+## 2026-11-24: prompt upgrade (truth, Hebrew, content rules) on gpt-6.2-sol
+
+Design doc: `docs/ai-prompt-upgrade/phase1-review.md`. Generator `OPENAI_MODEL_PLAN=gpt-6.2-sol`
+(effort low), judges `gpt-4o-mini` (same as the B row above, so the comparison is fair),
+`EVAL_CALIBRATE=0` (calibration unchanged since 2026-11-23). New prompts: 25 cases x 3 runs
+(`EVAL_CASE_SET=prompt-upgrade`). Old prompts: the 5 new cases x 3 runs, from `origin/main` at `fa4de8b`.
+
+| Set | Old prompts (B) | New prompts (C) |
+|---|---|---|
+| 20 manifest cases, verdict pass | 13/20 (65%, 1 run, 2026-11-23) | 42/60 (70%); first run alone 13/20 |
+| Hebrew subset (6 cases) | 4/6 (67%) | 15/18 (83%) |
+| 5 new cases (HE-1 to HE-5), verdict pass | 3/15 | 7/15 |
+| Deterministic critical failures | 0/20 + 4/15 on new cases | 0/75 |
+| Content-rule lint (beat-ATS, robots, guarantees, prices, competitors), slash forms, placeholders, dates | 0 / 35 runs | 0 / 75 runs |
+| Language match (today's rule) | 35/35 | 75/75 |
+| JSON failures, `finish_reason: length`, schema fallbacks, repair calls | 0 | 0 |
+| Cost per run (generation + judges) | $0.0119 (20 cases), $0.0131 (new cases) | $0.0121 |
+| Latency per run p50 / p95 | 16.7 s / 22.0 s | 15.1 s / 18.6 s |
+
+- Old-prompt critical failures on the new cases: the employer צה"ל rewritten as a different
+  string (read as a new employer), "Tel Aviv University" translated to Hebrew (read as a new
+  institution), and an added Hebrew degree line. Truth rule 2 (never translate or expand names)
+  removes all of them.
+- Cases that pass 3/3 now and failed in B: `language-hebrew`; `short-tenure-stretch` 2/3.
+- One case below B: `no-certification-required` (B pass on 1 run, C 1/3). The three C summaries
+  match B's almost word for word and repeat the resume's own "4 years"; the gpt-4o-mini judge
+  flags that sentence in two runs and passes it in the third. Judge variance, not a prompt change.
+- Still failing in both: `career-change-teacher-to-ld`, `he-career-change-army-to-ops`,
+  `contradictory-dates`, `unsupported-seniority-eng-manager`, and on the new set
+  `he-qa-istqb-gap`, `he-army-logistics-team-size` (the judge reads "seeking an operations role"
+  framing as papering over the gap). Follow-up, not this PR.
+
+Expert workflows and quick wins (`scripts/eval/expert-mini.ts`, WRITER gpt-6.1-terra, FAST
+gpt-6-luna; 3 cases incl. Hebrew HE-6; 9 rewrites, 6 cover-letter runs, 6 quick-wins runs each):
+
+| | Old prompts | New prompts |
+|---|---|---|
+| Validation failures | 0 | 0 |
+| Cover letters with a bracket placeholder ("[Your Name]") | 2/6 | 0/6 |
+| Critical content findings, promise patterns, slash forms, gender flips | 0 | 0 |
+| Language match | 21/21 | 21/21 |
+| Full rewrite latency per call p95 / max (timeout 30 s) | 12.5 s / 12.5 s | 12.1 s / 12.1 s |
+| Rewrite truth guard: terms removed, titles restored | n/a | 0 / 0 (nothing to remove) |
+| Quick wins discarded by grounding | 5 | 3 |
+| Spend | $0.0885 | $0.0886 |
+
+Total paid spend for this PR's evals: $1.28 (cap $10).

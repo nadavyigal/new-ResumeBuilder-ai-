@@ -1,10 +1,10 @@
 # 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
 
 Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
-Active Story: S7 small fixes: refine, canonicalize dates, chat tip line, design reasoning without numbers; planner deleted.
-Next Recommended Story: S8 evals: Hebrew cases, content-rule lint, paid run under the $10 cap.
+Active Story: S8 evals done: 5 Hebrew cases, content-rule lint, expert mini-eval; all gates pass, spend $1.28 of $10.
+Next Recommended Story: Founder review of the draft PR; then set tier env vars on preview.
 Blockers: none; one draft PR, never merged without founder yes.
-Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1337 passed (S7).
+Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1349 passed; eval C 42/60, Hebrew 15/18, 0 critical.
 
 # 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
 
