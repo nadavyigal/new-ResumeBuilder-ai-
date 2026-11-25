@@ -129,3 +129,23 @@ gpt-6-luna; 3 cases incl. Hebrew HE-6; 9 rewrites, 6 cover-letter runs, 6 quick-
 | Spend | $0.0885 | $0.0886 |
 
 Total paid spend for this PR's evals: $1.28 (cap $10).
+
+## 2026-11-25: judges moved to gpt-6-luna (gpt-4o-mini shuts down 2027-01-14)
+
+`EVAL_JUDGE_MODEL` now defaults to `gpt-6-luna` for both judges, and the nightly workflow
+evaluates the production generator (`OPENAI_MODEL_PLAN=gpt-6.2-sol`) instead of the code
+default. Measured on one repeat run (20 manifest cases, sol generator, $0.25), then the SAME
+20 outputs re-judged with `rejudge.live.test.ts`:
+
+| Judge | Nightly calibration | Grounding calibration | Planted fabrications missed | Nightly pass (live) | Grounding pass (live) | Agreement with luna |
+|---|---|---|---|---|---|---|
+| **gpt-6-luna** (new default) | **10/10** | 7/10 | 0 | 20/20 | 18/20 | — |
+| gpt-4o-mini (old) | 6/10 | 9/10 | 0 | 20/20 | 15/20 | nightly 20/20, grounding 17/20 |
+| gpt-6.1-terra (tried) | 9/10 | 7/10 | 0 | 20/20 | 20/20 | nightly 20/20, grounding 18/20 |
+
+- Calibration = 10 labelled outputs, 7 with a planted fabrication. No judge missed a fabrication.
+- luna's 3 grounding calibration errors are honest résumés marked as failing (it flagged
+  "Communication", "TypeScript" and a Hebrew skill line as forbidden claims). Strict, not lax.
+- The nightly gate (7 cases, nightly judge only) passes with luna and sol: judge pass 100%, 0 critical.
+- New repeat-run baseline with luna judges: 18/20 pass, 0 deterministic failures, 0 verdict flips.
+  Comparisons with batches judged by gpt-4o-mini above are not like for like.
