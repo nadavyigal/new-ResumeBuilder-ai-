@@ -10,8 +10,8 @@ No key values belong in this file, in git, or in chat.
 
 - 2026-11-22: new keys created in Supabase (API Keys page), both named `default`:
   a publishable key (`sb_publishable_...`) and a secret key (`sb_secret_...`).
-- Legacy keys still work. Do not disable them until every surface below is moved:
-  iOS 1.6.0 still ships the legacy anon key.
+- 2026-11-25 11:58 UTC: legacy keys disabled (founder). iOS 1.6.0 and older lose sign-in until users
+  install the build with `sb_publishable_`.
 - 2026-11-22: Vercel production moved to the new keys and redeployed (no build cache).
   Verified on www.resumelybuilderai.com: browser bundle has only `sb_publishable_`;
   Supabase API log shows `/auth/v1/user` 200 with `sb_publishable_` and server
@@ -68,7 +68,7 @@ The code keeps the same env var names. Only the values change.
 | Database: cron, `pg_net`, webhooks | none | Checked: no job or webhook holds a key |
 | CI (`.github/workflows/ci.yml`) | placeholders | No change needed |
 | iOS app `Secrets.xcconfig` `SUPABASE_ANON_KEY` | publishable | Local file updated on the founder's Mac; ships with the next App Store build (iOS PR #246) |
-| iOS 1.6.0 and older, already installed | legacy anon | Breaks sign-in when legacy keys are disabled |
+| iOS 1.6.0 and older, already installed | legacy anon | Broken since 2026-11-25 11:58 UTC: sign-in fails until users update |
 
 ## Stale Vercel copies (safe to delete)
 
@@ -91,5 +91,9 @@ Delete both after this PR merges (Vercel > Environment Variables > search SUPABA
    script, and the scanner. Use this query after disabling to find callers that broke:
    `select timestamp, event_message, log_attributes from logs where source = 'edge_logs' order by timestamp desc limit 500`
    and look at `request.sb.apikey.apikey.prefix` (legacy shows a JWT, not `sb_`).
-7. [ ] Disable legacy keys (Settings > API Keys > Legacy). Reversible: re-enable only if a missed caller breaks,
-   and only briefly, since the legacy keys leaked.
+7. [x] Legacy keys disabled by the founder on 2026-11-25 at 11:58:16 UTC. Verified right after:
+   legacy `service_role` on `GET /rest/v1/` returns 401 "Legacy API keys are disabled"; publishable key
+   `/auth/v1/settings` 200; live site dashboard and applications list load, `/api/v1/applications` 200;
+   edge_logs after the change show only `sb_publishable_` and `sb_secret_` calls, all 200 except one 400 that
+   predates this work (`design_templates.ats_score` does not exist, `src/app/api/v1/applications/route.ts:296`).
+   Do not re-enable: the keys leaked and a scanner used them.

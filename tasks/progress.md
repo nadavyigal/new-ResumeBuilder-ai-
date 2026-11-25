@@ -1,10 +1,10 @@
 # 2026-11-25: Legacy Supabase keys, disable now
 
 Current Phase: leaked Supabase keys rotation; a scanner used the leaked service_role key 2026-11-25 01:52 UTC.
-Active Story: founder chose to disable legacy keys now (option a); runbook items 5 and 6 updated.
-Next Recommended Story: founder disables legacy keys in Supabase; agent verifies 401 on legacy and 200 on new keys.
-Blockers: the disable click is the founder's; iOS 1.6.0 and older lose sign-in until the new build ships.
-Last Validation: 2026-11-25 edge_logs 24h: 35 publishable, 4 secret, 9 legacy service_role (8 founder script, 1 scanner).
+Active Story: legacy keys disabled 2026-11-25 11:58 UTC by founder; verified, runbook item 7 ticked.
+Next Recommended Story: ship the iOS build with sb_publishable_ (#246) so 1.6.0 users can sign in again.
+Blockers: iOS 1.6.0 and older cannot sign in until the new App Store build is live.
+Last Validation: 2026-11-25 legacy service_role 401; publishable 200; live dashboard and /api/v1/applications 200.
 Last Updated: 2026-11-25
 
 # 2026-11-25: Eval judges on gpt-6-luna; nightly evaluates the production generator
