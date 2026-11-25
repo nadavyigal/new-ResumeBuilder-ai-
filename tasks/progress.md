@@ -1,3 +1,12 @@
+# 2026-11-25: Legacy Supabase keys, disable now
+
+Current Phase: leaked Supabase keys rotation; a scanner used the leaked service_role key 2026-11-25 01:52 UTC.
+Active Story: founder chose to disable legacy keys now (option a); runbook items 5 and 6 updated.
+Next Recommended Story: founder disables legacy keys in Supabase; agent verifies 401 on legacy and 200 on new keys.
+Blockers: the disable click is the founder's; iOS 1.6.0 and older lose sign-in until the new build ships.
+Last Validation: 2026-11-25 edge_logs 24h: 35 publishable, 4 secret, 9 legacy service_role (8 founder script, 1 scanner).
+Last Updated: 2026-11-25
+
 # 2026-11-25: Eval judges on gpt-6-luna; nightly evaluates the production generator
 
 Current Phase: OpenAI model migration; gpt-4o-mini (old judge) shuts down 2027-01-14.
