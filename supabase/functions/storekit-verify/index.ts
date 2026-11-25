@@ -41,6 +41,10 @@ const UNLIMITED_DURATION_DAYS: Record<string, number> = {
 
 serve(async (req) => {
   // TODO: Implement when gate opens.
+  // Keys (2026-11-22 rotation): read the admin key with
+  //   JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}').default
+  // Never use SUPABASE_SERVICE_ROLE_KEY (legacy, leaked). See
+  // docs/runbooks/2026-11-22-supabase-key-swap.md and the iOS delete_account function.
   // Steps:
   // 1. Parse and validate request body
   // 2. Authenticate user via Supabase auth header

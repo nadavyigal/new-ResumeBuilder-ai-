@@ -1,3 +1,12 @@
+# 2026-11-25: Legacy Supabase keys, disable now
+
+Current Phase: leaked Supabase keys rotation; a scanner used the leaked service_role key 2026-11-25 01:52 UTC.
+Active Story: legacy keys disabled 2026-11-25 11:58 UTC by founder; verified, runbook item 7 ticked.
+Next Recommended Story: ship the iOS build with sb_publishable_ (#246) so 1.6.0 users can sign in again.
+Blockers: iOS 1.6.0 and older cannot sign in until the new App Store build is live.
+Last Validation: 2026-11-25 legacy service_role 401; publishable 200; live dashboard and /api/v1/applications 200.
+Last Updated: 2026-11-25
+
 # 2026-11-25: Eval judges on gpt-6-luna; nightly evaluates the production generator
 
 Current Phase: OpenAI model migration; gpt-4o-mini (old judge) shuts down 2027-01-14.
@@ -39,6 +48,15 @@ Active Story: C2 draft PR, chat moved from the Assistants API to Responses + Con
 Next Recommended Story: C1 model tiers (PLAN/WRITER/FAST env vars) with resume-optimizer evals, stacked on this branch.
 Blockers: draft PR; needs a second-model review and founder yes to merge.
 Last Validation: 2026-11-23 tsc 0 on a fresh clone (model-tiers.ts was gitignored by `AI/`, moved), Jest 1282 passed, smoke 5/5 chat, 5/5 design.
+
+# 2026-11-22: Supabase key swap, Preview first
+
+Current Phase: leaked Supabase keys rotation; Vercel production now on new publishable and secret keys.
+Active Story: web and delete_account on new keys; legacy keys still enabled for iOS 1.6.0.
+Next Recommended Story: App Store build with sb_publishable_ (iOS #246), then founder disables legacy keys.
+Blockers: founder picks the legacy-key disable date; leaked service_role works until then.
+Last Validation: 2026-11-22 production: bundle only sb_publishable_; Supabase log auth 200 publishable, storage 200 secret; dashboard and applications load.
+Last Updated: 2026-11-22
 
 # 2026-11-13: CI runs the typecheck
 
