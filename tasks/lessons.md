@@ -353,3 +353,15 @@ separate from hosted recording and production-configuration verification.
 **Cause:** both prompt schemas ask for every field as `"string"` with no rule for missing values, and `firstNonEmptyString` accepted any non-empty text.
 **Fix:** `src/lib/resume/placeholder-values.ts` clears whole-value stand-ins at the optimizer parse (`ai-optimizer/index.ts`), in `normalizeOptimizedResume` (falls back to the original value first) and before the expert-workflow save. Both prompts now say "empty string, never a placeholder".
 **Rule:** a prompt rule is not enough on its own; scrub model stand-ins at every persistence boundary, the same as the `responsibilities` alias. Find them in production with a JSON walk over `optimizations.rewrite_data` before guessing which field.
+
+## `.gitignore` `AI/` silently ignores `src/lib/ai/` new files (2026-11-23)
+
+**Symptom:** a new `src/lib/ai/models.ts` passed tsc, Jest and lint locally, was imported by four files, and was never committed. The pushed branch did not build.
+**Root cause:** `.gitignore` line 56 is `AI/`. On macOS (case-insensitive, `core.ignorecase=true`) it matches `src/lib/ai/`. Files already tracked there are unaffected, so the folder looks normal.
+**Rule:** do not add new files under `src/lib/ai/`; or run `git check-ignore -v <new file>` before committing. Verify a branch with a fresh clone + `tsc` when a new module is imported widely.
+
+## A free verb swap can claim sole ownership (2026-11-25)
+
+**Symptom:** on the gpt-6-luna Preview check, a Quick Win turned "Helped document release notes" into "Documented release notes".
+**Root cause:** the prompt said any action-verb swap is fine, and `inflatedClaims` checked added scope and authority, not dropped shared credit.
+**Rule:** a rewrite may swap one contribution word for another ("helped" -> "assisted"), never drop them all. Enforced in `dropsContribution` (`src/lib/ats/quick-wins/grounding.ts`), not only in the prompt.

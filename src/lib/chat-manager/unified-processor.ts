@@ -1,7 +1,7 @@
 /**
- * Unified Message Processor (OpenAI Assistants API)
+ * Unified Message Processor (OpenAI Responses API)
  *
- * Uses OpenAI Assistants API with function calling to understand user intent
+ * Uses the OpenAI Responses API with function calling to understand user intent
  * and make design or content changes. Provides conversation memory and
  * context tracking for natural multi-turn conversations.
  */
@@ -50,7 +50,7 @@ export interface UnifiedProcessOutput {
 }
 
 /**
- * Process message through OpenAI Assistant
+ * Process message through the resume editor assistant
  */
 export async function processUnifiedMessage(
   input: UnifiedProcessInput

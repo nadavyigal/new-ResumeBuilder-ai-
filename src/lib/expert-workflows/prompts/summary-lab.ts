@@ -1,64 +1,36 @@
 import type { ExpertWorkflowContext, PromptBundle } from '../types';
+import { REPORT_SHAPE, expertLanguageRules, expertSystem, resumeEvidence, targetTags, wrap } from './common';
 
 export function buildSummaryLabPrompt(context: ExpertWorkflowContext): PromptBundle {
-  const system = [
-    'You are a professional summary specialist for resumes.',
-    'Create concise, role-targeted summaries that are truthful and ATS-friendly.',
-    'Never invent achievements or metrics.',
-    'Each summary must be under 80 words and must avoid repeated keywords or hype phrases.',
-    'Each rationale must name the evidence or role-fit reason for that option.',
-    'Return ONLY valid JSON with this shape:',
-    '{',
-    '  "summary_options": [',
-    '    { "angle": "leadership|technical|results|industry|vision", "summary": "string", "rationale": "string" }',
-    '  ],',
-    '  "recommended_index": number,',
-    '  "recommended_reason": "string",',
-    '  "report": {',
-    '    "headline": "string",',
-    '    "executive_summary": "string",',
-    '    "priority_actions": ["string"],',
-    '    "evidence_gaps": ["string"],',
-    '    "ats_impact_estimate": {',
-    '      "before": number|null,',
-    '      "after": number|null,',
-    '      "delta": number|null,',
-    '      "confidence_note": "string"',
-    '    }',
-    '  },',
-    '  "missing_evidence": ["string"]',
-    '}',
-    'Provide exactly 5 summary options.',
-  ].join('\n');
+  const system = expertSystem({
+    role: `# Role
+You write five professional-summary options for one candidate and one job posting.`,
+    rules: `# Summary rules
+- Exactly 5 options, one per angle, each under 80 words, with no repeated keywords or hype phrases:
+  - "leadership": how the candidate has led people, projects or decisions, as the resume states it;
+  - "technical": the tools and methods the resume shows;
+  - "results": the candidate's strongest stated outcomes;
+  - "industry": the domains and industries the candidate has worked in;
+  - "vision": what the candidate wants to do next, framed as a goal, tied to the posting.
+- Describe the candidate by titles they have held. The target role may appear only as a goal.
+- Each rationale names the resume evidence or role-fit reason for that option.
+- recommended_index is 0 to 4; recommended_reason says why.`,
+    output: `# Output
+One JSON object: { "summary_options": [ { "angle": "leadership" | "technical" | "results" | "industry" | "vision", "summary": string, "rationale": string } ], "recommended_index": number, "recommended_reason": string, ${REPORT_SHAPE} }`,
+  });
 
   const user = [
-    `Target Role: ${context.job_title}`,
-    `Target Company: ${context.job_company}`,
-    '',
-    'Current resume summary:',
-    context.current_resume_json?.summary || '',
-    '',
-    'Top experience bullets (for evidence):',
-    JSON.stringify(
-      (context.current_resume_json?.experience || []).slice(0, 3).map((exp) => ({
-        title: exp.title,
-        company: exp.company,
-        achievements: (exp.achievements || []).slice(0, 4),
-      })),
-      null,
-      2
-    ),
-    '',
-    'Job Description:',
-    context.job_description_text,
-    '',
-    'Use only the provided summary, experience bullets, and job description as evidence.',
-    'Do not invent seniority, certifications, metrics, or industries.',
-  ].join('\n');
+    expertLanguageRules(context),
+    targetTags(context),
+    wrap('original_resume', resumeEvidence(context, 3, false)),
+    wrap('job_posting', context.job_description_text),
+    'Write the five summary options. Return only the JSON object.',
+  ].join('\n\n');
 
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.3,
     max_tokens: 1800,

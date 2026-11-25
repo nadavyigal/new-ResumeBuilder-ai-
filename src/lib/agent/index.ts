@@ -8,7 +8,6 @@ import { LayoutEngine } from "./tools/layout-engine";
 import { ATS } from "./tools/ats";
 import { Versioning } from "./tools/versioning";
 import { HistoryStore } from "./tools/history-store";
-import { planWithLLM } from "./llm-planner";
 import { safeParseAgentResult, safeParseATSReport, safeParseAgentArtifacts, safeParseOptimizedResume } from "./validators";
 import { getFallbackATS, getFallbackArtifacts, getFallbackDiffs } from "./runtime/fallbacks";
 import { log } from "./utils/logger";
@@ -100,14 +99,6 @@ export class AgentRuntime {
       atsDegraded = true;
     }
     actions.push({ tool: "ATS.score", args: { with_job: !!jobText }, rationale: "Compute ATS score" });
-
-    // Optional LLM planning suggestions (augment actions log only)
-    const llmPlan = await planWithLLM({ command: input.command, resume, job_text: jobText });
-    if (llmPlan.length) {
-      for (const a of llmPlan) {
-        actions.push({ tool: a.tool, args: a.args, rationale: `LLM: ${a.rationale}` });
-      }
-    }
 
     // Render preview
     let rendered: { html: string; preview_pdf_path?: string } = { html: "" };

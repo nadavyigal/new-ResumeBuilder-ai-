@@ -1,10 +1,8 @@
 import OpenAI from 'openai';
-import { trackedChatCompletion, type AITraceOptions } from '@/lib/posthog-ai';
-import {
-  RESUME_OPTIMIZATION_SYSTEM_PROMPT,
-  RESUME_OPTIMIZATION_USER_PROMPT,
-  OPTIMIZATION_CONFIG,
-} from '../prompts/resume-optimizer';
+import type { AITraceOptions } from '@/lib/posthog-ai';
+import { RESUME_OPTIMIZATION_USER_PROMPT } from '../prompts/resume-optimizer';
+import { resolveOutputLanguage } from '../prompts/shared';
+import { dropEmptyOptionalFields, requestTailoredResume } from './optimizer-request';
 import { normalizeExperienceBullets } from './normalize-experience';
 import { stripPlaceholderValues } from '@/lib/resume/placeholder-values';
 
@@ -88,45 +86,14 @@ export async function optimizeResume(
   try {
     const openai = getOpenAIClient();
 
-    // Detect if resume or job description is in Hebrew.
-    const hebrewPattern = /[\u0590-\u05FF]/;
-    const isHebrew = hebrewPattern.test(resumeText) || hebrewPattern.test(jobDescription);
+    const outputLanguage = resolveOutputLanguage(resumeText, jobDescription);
+    console.log('Language Detection:', { outputLanguage, resumeLen: resumeText.length });
 
-    const languageInstruction = isHebrew
-      ? `\n\nHEBREW OUTPUT REQUIREMENT:
-- Write all resume content values in Hebrew.
-- Keep JSON field names in English exactly as required by the schema.
-- Preserve natural right-to-left Hebrew phrasing.
-- Keep proper nouns (company names, product names, tools) in their original form when needed.
-- Use truthful, professional Hebrew and avoid unnecessary English text.`
-      : '';
-
-    console.log('Language Detection:', {
-      isHebrew,
-      resumeHasHebrew: hebrewPattern.test(resumeText),
-      jobHasHebrew: hebrewPattern.test(jobDescription),
-      resumePreview: resumeText.substring(0, 100),
-      jobPreview: jobDescription.substring(0, 100),
-    });
-
-    const completion = await trackedChatCompletion(openai, {
-      model: OPTIMIZATION_CONFIG.model,
-      temperature: OPTIMIZATION_CONFIG.temperature,
-      max_tokens: OPTIMIZATION_CONFIG.maxTokens,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: RESUME_OPTIMIZATION_SYSTEM_PROMPT + languageInstruction,
-        },
-        {
-          role: 'user',
-          content: RESUME_OPTIMIZATION_USER_PROMPT(resumeText, jobDescription),
-        },
-      ],
-    }, aiTrace || { traceName: 'optimize' });
-
-    const responseContent = completion.choices[0]?.message?.content;
+    const { content: responseContent, totalTokens } = await requestTailoredResume(
+      openai,
+      RESUME_OPTIMIZATION_USER_PROMPT(resumeText, jobDescription, outputLanguage),
+      aiTrace || { traceName: 'optimize' }
+    );
 
     if (!responseContent) {
       return {
@@ -144,13 +111,13 @@ export async function optimizeResume(
     // pipeline path is guarded in normalizeOptimizedResume, which every review
     // run and every apply goes through before saving.
     const optimizedResume = stripPlaceholderValues(
-      normalizeExperienceBullets(JSON.parse(responseContent) as OptimizedResume)
+      dropEmptyOptionalFields(normalizeExperienceBullets(JSON.parse(responseContent) as OptimizedResume))
     );
 
     return {
       success: true,
       optimizedResume,
-      tokensUsed: completion.usage?.total_tokens,
+      tokensUsed: totalTokens,
     };
   } catch (error: unknown) {
     console.error('Error optimizing resume:', error);

@@ -25,7 +25,7 @@ catch the model papering over the gap instead of being honest about it.
 |---|---|---|
 | `cases.ts` | — | Golden set: 7 cases, each with a documented honest gap (a JD requirement the candidate genuinely lacks). |
 | `checks.ts` | free | Deterministic fabrication detector: any employer, institution, or certification in the output that doesn't trace back (substring match) to the original resume text is a critical failure. Plus matchScore range and structural sanity. |
-| `judge.ts` | paid | LM-judge (gpt-4o-mini) grounded in the original resume text AND the documented honest gap, scoring truthfulness, ATS alignment, clarity, completeness. |
+| `judge.ts` | paid | LM-judge (gpt-6-luna) grounded in the original resume text AND the documented honest gap, scoring truthfulness, ATS alignment, clarity, completeness. |
 | `generate.ts` | paid | Calls the **exact** production pipeline (`runOptimizePipeline`) — no mocking, no duplicated logic. |
 | `checks.test.ts` | free, in CI | Proves the fabrication detector actually catches fabrication (fabricated employer/institution/certification fixtures) and that an honest resume passes clean. |
 | `optimize-eval.live.test.ts` | paid, gated | The real eval: generate → check → judge across the golden set. `@jest-environment node` (real network; the default jsdom env only matters for browser-ish tests). Skipped unless `RUN_LIVE_EVAL=1`. |
@@ -71,6 +71,15 @@ per-case resumes, check results, and judge verdicts. The repeat eval writes
 Optional: `EVAL_REPEATS` (default 3), `EVAL_CALIBRATE=0` to skip judge calibration,
 `EVAL_BASELINE=<path to an earlier report.json>` for regression findings, and
 `EVAL_ENV_FILE=<path>` when running from a worktree without its own `.env.local`.
+
+Model selection: the generator follows `OPENAI_MODEL_PLAN` (default `gpt-4o`, see
+`src/lib/model-tiers.ts`). Both judges follow `EVAL_JUDGE_MODEL` (default `gpt-6-luna` since 2026-11-25;
+it was `gpt-4o-mini`, which OpenAI shuts down on 2027-01-14) and `EVAL_JUDGE_EFFORT` for reasoning judges
+(default `none`). Prices for cost figures are in `call-ledger.ts`.
+
+Changing a judge: run a repeat batch, then score the same outputs with the candidate judge:
+`RUN_REJUDGE=1 EVAL_REJUDGE_DIR=<output dir> EVAL_REJUDGE_MODEL=<model> npx jest evals/resume-optimizer/rejudge.live.test.ts --runInBand`.
+It prints agreement and calibration and writes `rejudge-<model>.json` next to the run.
 
 Every live mode blanks the PostHog keys before starting jest. Without that, a local
 run sends synthetic résumés to production analytics as `$ai_generation` events,

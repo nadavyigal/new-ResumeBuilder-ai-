@@ -6,6 +6,7 @@ import type { RefineSectionRequest, RefineSectionResponse } from '@/types/refine
 import { buildRefineSectionPrompt } from '@/lib/ai/prompt-builders/refineSectionPrompt';
 import { coerceModelJson, validateRefineSuggestion } from '@/lib/ai/validators/refineSection';
 import { checkRateLimit, getRateLimitHeaders, RATE_LIMITS } from '@/lib/utils/rate-limit';
+import { adaptChatParams, selectModel } from '@/lib/model-tiers';
 
 // Lazy initialization to prevent build-time errors
 let openaiInstance: OpenAI | null = null;
@@ -51,15 +52,14 @@ export async function POST(request: NextRequest) {
 
     const { system, user: userMsg } = buildRefineSectionPrompt({ req: body });
 
-    const completion = await trackedChatCompletion(getOpenAI(), {
-      model: 'gpt-4o-mini',
+    const completion = await trackedChatCompletion(getOpenAI(), adaptChatParams(selectModel('FAST', 'gpt-4o-mini'), {
       temperature,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: userMsg },
       ],
-    }, {
+    }), {
       distinctId: user.id,
       traceName: 'refine-section',
       properties: {

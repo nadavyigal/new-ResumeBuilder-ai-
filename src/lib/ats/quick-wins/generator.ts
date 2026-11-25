@@ -11,7 +11,7 @@ import { getOpenAI } from '@/lib/openai';
 import { trackedChatCompletion } from '@/lib/posthog-ai';
 import type { QuickWinSuggestion, JobExtraction, SubScores } from '../types';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
-import { buildQuickWinsPrompt } from './prompt';
+import { QUICK_WINS_SYSTEM_PROMPT, buildQuickWinsPrompt } from './prompt';
 import { getCacheKey, getCachedQuickWins, cacheQuickWins } from './cache';
 import {
   checkQuickWinGrounding,
@@ -19,6 +19,7 @@ import {
   keywordsPresentIn,
   type GroundingContext,
 } from './grounding';
+import { adaptChatParams, outputTokenCap, selectModel } from '@/lib/model-tiers';
 
 interface GenerateQuickWinsParams {
   resume_text: string;
@@ -33,9 +34,6 @@ interface GenerateQuickWinsParams {
 const TARGET_COUNT = 3;
 
 type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
-
-const SYSTEM_MESSAGE =
-  'You are an expert ATS optimization specialist. You never add facts the resume does not state. Always respond with valid JSON.';
 
 interface Rejected {
   qw: QuickWinSuggestion;
@@ -73,7 +71,7 @@ export async function generateQuickWins(params: GenerateQuickWinsParams): Promis
 
   try {
     const messages: ChatMessage[] = [
-      { role: 'system', content: SYSTEM_MESSAGE },
+      { role: 'system', content: QUICK_WINS_SYSTEM_PROMPT },
       { role: 'user', content: buildQuickWinsPrompt(params) },
     ];
 
@@ -129,13 +127,13 @@ async function requestQuickWins(
   messages: ChatMessage[],
   currentScore: number,
 ): Promise<{ raw: string; candidates: QuickWinSuggestion[] }> {
-  const completion = await trackedChatCompletion(getOpenAI(), {
-    model: 'gpt-4o-mini', // Cost-efficient model
+  const selection = selectModel('FAST', 'gpt-4o-mini');
+  const completion = await trackedChatCompletion(getOpenAI(), adaptChatParams(selection, {
     messages,
     response_format: { type: 'json_object' },
     temperature: 0.3, // Rewrites of the user's own facts, not creative writing
-    max_tokens: 2000,
-  }, {
+    max_tokens: outputTokenCap(selection, 2000, 4000),
+  }), {
     traceName: 'ats-check',
     properties: {
       current_ats_score: currentScore,

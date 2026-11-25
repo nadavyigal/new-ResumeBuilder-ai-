@@ -1,4 +1,5 @@
 import type OpenAI from 'openai';
+import { readUsage, warnIfTruncated } from '@/lib/model-tiers';
 
 type ChatCompletionParams = OpenAI.Chat.Completions.ChatCompletionCreateParams;
 type ChatCompletionOptions = Parameters<OpenAI.Chat.Completions['create']>[1];
@@ -81,7 +82,8 @@ async function captureAiGeneration(
       $ai_model: model,
       $ai_model_parameters: {
         temperature: (params as any).temperature,
-        max_tokens: (params as any).max_tokens,
+        max_tokens: (params as any).max_tokens ?? (params as any).max_completion_tokens,
+        reasoning_effort: (params as any).reasoning_effort,
         response_format: (params as any).response_format,
       },
       $ai_input: redactContactInfo((params as any).messages || []),
@@ -89,6 +91,8 @@ async function captureAiGeneration(
       $ai_http_status: error ? ((error as any)?.status || 500) : 200,
       $ai_input_tokens: usage.prompt_tokens ?? usage.input_tokens ?? 0,
       $ai_output_tokens: usage.completion_tokens ?? usage.output_tokens ?? 0,
+      $ai_reasoning_tokens:
+        usage.completion_tokens_details?.reasoning_tokens ?? usage.output_tokens_details?.reasoning_tokens ?? 0,
       $ai_total_tokens: usage.total_tokens ?? 0,
       $ai_latency: latency,
       $ai_trace_id: traceId,
@@ -111,6 +115,7 @@ export async function captureAiGenerationEvent(args: {
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
+    reasoningTokens?: number;
     totalTokens?: number;
   };
   error?: unknown;
@@ -134,6 +139,7 @@ export async function captureAiGenerationEvent(args: {
       $ai_http_status: args.error ? ((args.error as any)?.status || 500) : 200,
       $ai_input_tokens: args.usage?.inputTokens ?? 0,
       $ai_output_tokens: args.usage?.outputTokens ?? 0,
+      $ai_reasoning_tokens: args.usage?.reasoningTokens ?? 0,
       $ai_total_tokens: args.usage?.totalTokens ?? 0,
       $ai_latency: args.latency,
       $ai_trace_id: traceId,
@@ -159,6 +165,19 @@ export async function trackedChatCompletion(
 
   try {
     const completion = await client.chat.completions.create(params as any, options as any);
+    // Per-call token line (incl. reasoning tokens, billed as output) for cost comparison.
+    console.info(
+      JSON.stringify({
+        event: 'openai_usage',
+        callSite: trace.traceName,
+        model: (completion as any)?.model ?? params.model,
+        reasoningEffort: (params as any).reasoning_effort ?? null,
+        latencyMs: Date.now() - startedAt,
+        finishReason: (completion as any)?.choices?.[0]?.finish_reason ?? null,
+        ...readUsage((completion as any)?.usage),
+      })
+    );
+    warnIfTruncated(trace.traceName, completion);
     const posthog = await getServerPostHog();
     await captureAiGeneration(params, completion, trace, Date.now() - startedAt);
     await posthog?.flushPostHogClient();

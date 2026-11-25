@@ -1,4 +1,5 @@
 import type { ExpertWorkflowContext, PromptBundle } from '../types';
+import { REPORT_SHAPE, expertLanguageRules, expertSystem, targetTags, wrap } from './common';
 
 type CandidateBullet = {
   experience_index: number;
@@ -28,59 +29,31 @@ export function buildQuantifierPrompt(context: ExpertWorkflowContext): PromptBun
   const candidates = collectCandidateBullets(context);
   const evidence = context.evidence_inputs || {};
 
-  const system = [
-    'You are a strict truth-first resume quantification assistant.',
-    'Never invent numbers, percentages, dollars, team sizes, rankings, or dates.',
-    'If missing data blocks quantification, provide a non-numeric stronger rewrite and ask a concise evidence question.',
-    'Each optimized bullet must include evidence_used values copied or paraphrased from provided evidence; use an empty array only for non-numeric wording improvements.',
-    'If a rewrite would benefit from a metric that is not provided, add a specific missing_evidence_questions item instead of guessing.',
-    'Keep optimized bullets under 45 words and preserve the original claim scope.',
-    'Use direct, business-like language.',
-    'Return ONLY valid JSON with this shape:',
-    '{',
-    '  "bullet_rewrites": [',
-    '    {',
-    '      "experience_index": number,',
-    '      "bullet_index": number,',
-    '      "original_bullet": "string",',
-    '      "optimized_bullet": "string",',
-    '      "evidence_used": ["string"],',
-    '      "missing_evidence_questions": ["string"]',
-    '    }',
-    '  ],',
-    '  "report": {',
-    '    "headline": "string",',
-    '    "executive_summary": "string",',
-    '    "priority_actions": ["string"],',
-    '    "evidence_gaps": ["string"],',
-    '    "ats_impact_estimate": {',
-    '      "before": number|null,',
-    '      "after": number|null,',
-    '      "delta": number|null,',
-    '      "confidence_note": "string"',
-    '    }',
-    '  },',
-    '  "missing_evidence": ["string"]',
-    '}',
-  ].join('\n');
+  const system = expertSystem({
+    role: `# Role
+You make resume bullets stronger with numbers, but only numbers the candidate actually gave.`,
+    rules: `# Quantifier rules
+- Never invent numbers, percentages, money, team sizes, rankings or dates. A number in optimized_bullet must be in original_bullet or in <user_evidence>.
+- If a metric would help but is missing, write a stronger non-numeric bullet and add a specific question to missing_evidence_questions (at most 4 per bullet).
+- evidence_used lists the values from the bullet or <user_evidence> that the rewrite uses; use [] only for a wording-only improvement.
+- Keep optimized_bullet under 45 words and keep the original claim's scope.
+- Rewrite only bullets that can be made materially stronger. experience_index and bullet_index come from <current_resume_json>.`,
+    output: `# Output
+One JSON object: { "bullet_rewrites": [ { "experience_index": number, "bullet_index": number, "original_bullet": string, "optimized_bullet": string, "evidence_used": [string], "missing_evidence_questions": [string] } ], ${REPORT_SHAPE} }`,
+  });
 
   const user = [
-    `Target Role: ${context.job_title}`,
-    '',
-    'Candidate bullets to improve:',
-    JSON.stringify(candidates, null, 2),
-    '',
-    'Additional evidence provided by user (may be empty):',
-    JSON.stringify(evidence, null, 2),
-    '',
-    'Rewrite only bullets that can be made materially stronger.',
-    'Preserve truthful claims.',
-    'Do not add a numeric result unless the same number appears in the original bullet or Additional evidence.',
-  ].join('\n');
+    expertLanguageRules(context),
+    targetTags(context),
+    wrap('current_resume_json', JSON.stringify(candidates, null, 2)),
+    wrap('user_evidence', JSON.stringify(evidence, null, 2)),
+    'Rewrite the bullets that can be made stronger. Return only the JSON object.',
+  ].join('\n\n');
 
   return {
     system,
     user,
+    tier: 'FAST',
     model: 'gpt-4o-mini',
     temperature: 0.1,
     max_tokens: 2200,

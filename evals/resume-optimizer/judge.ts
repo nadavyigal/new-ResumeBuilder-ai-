@@ -1,10 +1,25 @@
 import OpenAI from 'openai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { EvalCase } from './cases';
+import { adaptChatParams, isReasoningModel, type ModelSelection, type ReasoningEffort } from '@/lib/model-tiers';
+
+/**
+ * Judge model: EVAL_JUDGE_MODEL, default gpt-6-luna since 2026-11-25 (it was
+ * gpt-4o-mini, which OpenAI shuts down on 2027-01-14). Reasoning judges run at
+ * EVAL_JUDGE_EFFORT (default none). Re-baseline before changing it again:
+ * `rejudge.live.test.ts` scores a finished run's outputs with another judge.
+ */
+export const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL?.trim() || 'gpt-6-luna';
+
+export function judgeSelection(model: string): ModelSelection {
+  if (!isReasoningModel(model)) return { tier: 'FAST', model };
+  const effort = (process.env.EVAL_JUDGE_EFFORT?.trim() || 'none') as ReasoningEffort;
+  return { tier: 'FAST', model, reasoningEffort: effort };
+}
 
 /**
  * LM-judge: scores the optimized resume for factual accuracy and quality.
- * Runs on a cheap model (gpt-4o-mini) per the model-routing principle — the
+ * Runs on a cheap model (gpt-6-luna) per the model-routing principle — the
  * judge is a lower-complexity task than generation.
  *
  * Grounded in the ORIGINAL resume text and the case's documented honest gap,
@@ -56,7 +71,7 @@ function parseJudgeVerdict(content: string): JudgeVerdict {
   return verdict as unknown as JudgeVerdict;
 }
 
-export async function judgeResume(c: EvalCase, resume: OptimizedResume, model = 'gpt-4o-mini'): Promise<JudgeVerdict> {
+export async function judgeResume(c: EvalCase, resume: OptimizedResume, model = JUDGE_MODEL): Promise<JudgeVerdict> {
   const client = getClient();
 
   const prompt = `You are a strict fact-checker reviewing an AI-optimized resume for honesty. Your top priority is catching fabrication — do not be fooled by confident, well-written prose.
@@ -84,8 +99,7 @@ IMPORTANT — the documented honest gap above is something the candidate genuine
 Set overallPass = false ONLY if truthfulness < 4 because of a concrete fabrication you found (cite the exact fabricated text). If no fabrication exists, overallPass = true regardless of whether the honest gap was addressed. Give a one-sentence reason that either cites the specific fabricated claim, or confirms none was found.`;
 
   const completion = await client.chat.completions.create(
-    {
-      model,
+    adaptChatParams(judgeSelection(model), {
       temperature: 0,
       response_format: { type: 'json_object' },
       messages: [
@@ -97,7 +111,7 @@ Set overallPass = false ONLY if truthfulness < 4 because of a concrete fabricati
             `\n\nRespond with JSON only in this exact shape:\n{"truthfulness": <1-5>, "atsAlignment": <1-5>, "clarity": <1-5>, "completeness": <1-5>, "overallPass": <true|false>, "reason": "<one sentence>"}`,
         },
       ],
-    },
+    }),
     { timeout: 30000 }
   );
 

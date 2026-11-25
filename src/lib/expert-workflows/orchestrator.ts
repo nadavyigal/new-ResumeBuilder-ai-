@@ -13,6 +13,7 @@ import { buildScreeningAnswersPrompt } from './prompts/screening-answers';
 import { buildOutreachKitPrompt } from './prompts/outreach-kit';
 import { buildStoryBankPrompt } from './prompts/story-bank';
 import { safeJsonObjectParse, validateWorkflowOutput } from './validators';
+import { guardRewriteOutput } from './rewrite-guard';
 import type { WorkflowValidationResult } from './validators';
 import type {
   ApplicationExpertReport,
@@ -24,8 +25,11 @@ import type {
   ExpertWorkflowType,
   PromptBundle,
 } from './types';
+import { adaptChatParams, outputTokenCap, selectModel } from '@/lib/model-tiers';
 
 const WORKFLOW_TIMEOUT_MS = 30_000;
+/** Output cap on reasoning models for workflows that do not set their own. */
+const EXPERT_REASONING_MAX_TOKENS = 4000;
 
 type RunWorkflowParams = {
   supabase: any;
@@ -249,16 +253,16 @@ async function runModelWithRetry(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const completionPromise = trackedChatCompletion(client, {
-        model: prompt.model,
+      const selection = selectModel(prompt.tier ?? 'FAST', prompt.model);
+      const completionPromise = trackedChatCompletion(client, adaptChatParams(selection, {
         temperature: prompt.temperature,
-        max_tokens: prompt.max_tokens,
+        max_tokens: outputTokenCap(selection, prompt.max_tokens, prompt.reasoning_max_tokens ?? EXPERT_REASONING_MAX_TOKENS),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: prompt.system },
           { role: 'user', content: prompt.user },
         ],
-      }, aiTrace || { traceName: 'expert-mode' });
+      }), aiTrace || { traceName: 'expert-mode' });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Expert workflow request timed out.')), WORKFLOW_TIMEOUT_MS);
@@ -416,7 +420,7 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
 
   const context = await loadWorkflowContext(params);
   const prompt = extractPromptBundle(context);
-  const { output: parsed, validation } = await generateValidatedOutput(
+  const { output: generated, validation } = await generateValidatedOutput(
     context.workflow_type,
     prompt,
     (attemptPrompt) =>
@@ -429,6 +433,11 @@ export async function runExpertWorkflow(params: RunWorkflowParams): Promise<Expe
         },
       })
   );
+
+  // The full rewrite replaces the user's resume, so it gets the optimizer's
+  // deterministic truth guards before it is stored and previewed.
+  const parsed =
+    context.workflow_type === 'full_resume_rewrite' ? await guardRewriteOutput(generated, context) : generated;
 
   const status = validation.missingEvidence.length > 0 ? 'needs_user_input' : 'completed';
 

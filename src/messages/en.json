@@ -238,12 +238,12 @@
       }
     },
     "quickWins": {
-      "title": "{count} Changes That Will Increase Your Score",
-      "potential": "+{points} points possible",
+      "title": "{count} Changes That Could Raise Your Match Score",
+      "potential": "≈ +{points} points (estimate)",
       "note": "These are AI-generated suggestions based on what recruiters search for. Customize them to match your actual experience.",
       "card": {
         "badge": "Fix #{index}",
-        "points": "+{points} pts",
+        "points": "≈ +{points} pts (estimate)",
         "location": "In your {section}",
         "locationWithSubsection": "In {section} - {subsection}",
         "before": "CURRENT VERSION",
@@ -947,7 +947,7 @@
           "subtitle": "Applied expert runs saved to this application",
           "empty": "No expert reports saved for this application yet.",
           "fallbackTitle": "Expert workflow report",
-          "atsImpact": "ATS impact",
+          "atsImpact": "Estimated ATS impact",
           "expand": "Show report details",
           "priorityActions": "Priority actions",
           "evidenceGaps": "Evidence gaps"

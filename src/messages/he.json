@@ -240,11 +240,11 @@
     },
     "quickWins": {
       "title": "{count} הצעות לניצחון מהיר",
-      "potential": "פוטנציאל של +{points} נק׳",
+      "potential": "הערכה: +{points} נק׳",
       "note": "ההצעות שנוצרו על ידי AI מציגות שיפורים ספציפיים כדי לשפר את ציון ההתאמה שלך. העתק והתאם אותן לקורות החיים שלך תוך שמירה על אמת בנוגע לניסיון שלך.",
       "card": {
         "badge": "ניצחון מהיר #{index}",
-        "points": "+{points} נק׳",
+        "points": "הערכה: +{points} נק׳",
         "location": "מיקום: {section}",
         "locationWithSubsection": "מיקום: {section} - {subsection}",
         "before": "לפני",
@@ -948,7 +948,7 @@
           "subtitle": "הרצות מומחה שהוחלו ונשמרו למועמדות זו",
           "empty": "עדיין לא נשמרו דוחות מומחה למועמדות זו.",
           "fallbackTitle": "דוח תהליך מומחה",
-          "atsImpact": "השפעת ATS",
+          "atsImpact": "השפעת ATS משוערת",
           "expand": "הצג פרטי דוח",
           "priorityActions": "פעולות בעדיפות עליונה",
           "evidenceGaps": "פערי ראיות"

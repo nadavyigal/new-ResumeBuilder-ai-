@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import type { OptimizedResume } from '@/lib/ai-optimizer';
 import type { ManifestCase, RequirementSupport } from './manifest';
 import { claimText, type UnsupportedCategory } from './grounding';
+import { adaptChatParams } from '@/lib/model-tiers';
+import { JUDGE_MODEL, judgeSelection } from './judge';
 
 /**
  * Requirement-level grounded judge for the repeat eval.
@@ -28,7 +30,8 @@ import { claimText, type UnsupportedCategory } from './grounding';
  */
 
 export const GROUNDING_JUDGE_VERSION = 'grounding-judge-2026-09-25';
-export const GROUNDING_JUDGE_MODEL = 'gpt-4o-mini';
+/** Same env var as the nightly judge (EVAL_JUDGE_MODEL), default gpt-6-luna. */
+export const GROUNDING_JUDGE_MODEL = JUDGE_MODEL;
 
 export type RequirementRuling = 'evidenced' | 'not-evidenced' | 'claimed-without-support';
 
@@ -249,15 +252,14 @@ export async function judgeGrounding(
   const client = new OpenAI({ apiKey });
 
   const completion = await client.chat.completions.create(
-    {
-      model,
+    adaptChatParams(judgeSelection(model), {
       temperature: 0,
       response_format: { type: 'json_schema', json_schema: groundingSchema(c) },
       messages: [
         { role: 'system', content: 'You are a meticulous fact-checker. Answer only in the required JSON schema.' },
         { role: 'user', content: buildGroundingPrompt(c, resume) },
       ],
-    },
+    }),
     { timeout: 30000 }
   );
 

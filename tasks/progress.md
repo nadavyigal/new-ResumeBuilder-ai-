@@ -1,9 +1,51 @@
+# 2026-11-25: Eval judges on gpt-6-luna; nightly evaluates the production generator
+
+Current Phase: OpenAI model migration; gpt-4o-mini (old judge) shuts down 2027-01-14.
+Active Story: EVAL_JUDGE_MODEL default gpt-6-luna; nightly workflow sets the production models; rejudge tool added.
+Next Recommended Story: watch the first nightly run on the new judge; then founder review of the 10 calibration labels.
+Blockers: draft PR; needs founder yes to merge.
+Last Validation: 2026-11-25 nightly gate 7/7 with luna; repeat 18/20; calibration luna 10/10 + 7/10 vs mini 6/10 + 9/10; 0 fabrications missed.
+Last Updated: 2026-11-25
+
+# 2026-11-25: Quick wins keep the candidate's contribution level
+
+Current Phase: OpenAI model migration; Resumely production switch was held on a Quick Wins overstatement.
+Active Story: grounding rejects rewrites that drop "helped/assisted/participated" (EN + HE); prompt rule 4 says keep contribution level.
+Next Recommended Story: set OPENAI_MODEL_PLAN/WRITER/FAST on Production after this merges, then watch Quick Wins.
+Blockers: none.
+Last Validation: 2026-11-25 tsc 0, lint clean, Jest 1358 passed (6 new contribution tests).
+Last Updated: 2026-11-25
+
+# 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
+
+Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
+Active Story: Draft PR #223; polish B pushed: design reasoning filter now strips only score-like numbers, keeps plain counts.
+Next Recommended Story: Founder review of PR #223; then set tier env vars on preview.
+Blockers: none; one draft PR, never merged without founder yes.
+Last Validation: 2026-11-24 lint 0 errors, tsc 0, Jest 1352 passed; eval C 42/60, Hebrew 15/18 (no new paid eval).
+
+# 2026-11-23: OpenAI model tiers (PLAN / WRITER / FAST)
+
+Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.
+Active Story: C1 draft PR, every Resumely model id env-driven by tier; defaults unchanged so merging is a no-op.
+Next Recommended Story: set OPENAI_MODEL_PLAN/WRITER/FAST on preview, re-run evals there, then production.
+Blockers: stacked on the C2 PR; draft; needs review and founder yes.
+Last Validation: 2026-11-23 tsc 0, Jest 1286 passed; evals sol 13/20 and terra 13/20 vs gpt-4o 12/20; smoke 70/70 target.
+
+# 2026-11-23: Chat and design recommender off dead OpenAI models
+
+Current Phase: OpenAI model migration before the 2027-01-14 shutdown of gpt-4o, gpt-4o-mini and gpt-4.1-mini.
+Active Story: C2 draft PR, chat moved from the Assistants API to Responses + Conversations; design recommender off gpt-4, now gpt-6-luna with a JSON schema.
+Next Recommended Story: C1 model tiers (PLAN/WRITER/FAST env vars) with resume-optimizer evals, stacked on this branch.
+Blockers: draft PR; needs a second-model review and founder yes to merge.
+Last Validation: 2026-11-23 tsc 0 on a fresh clone (model-tiers.ts was gitignored by `AI/`, moved), Jest 1282 passed, smoke 5/5 chat, 5/5 design.
+
 # 2026-11-22: Supabase key swap, Preview first
 
 Current Phase: leaked Supabase keys rotation; Vercel production now on new publishable and secret keys.
-Active Story: web key swap done; legacy keys still enabled for iOS 1.6.0 and edge functions.
-Next Recommended Story: edge functions and iOS `Secrets.xcconfig` to new keys, then disable legacy keys.
-Blockers: none for web; legacy disable waits on iOS release.
+Active Story: web and delete_account on new keys; legacy keys still enabled for iOS 1.6.0.
+Next Recommended Story: App Store build with sb_publishable_ (iOS #246), then founder disables legacy keys.
+Blockers: founder picks the legacy-key disable date; leaked service_role works until then.
 Last Validation: 2026-11-22 production: bundle only sb_publishable_; Supabase log auth 200 publishable, storage 200 secret; dashboard and applications load.
 Last Updated: 2026-11-22
 

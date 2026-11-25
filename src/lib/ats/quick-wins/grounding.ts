@@ -343,6 +343,30 @@ function inflatedClaims(original: string, optimized: string, resumeText: string,
   );
 }
 
+/**
+ * Words that say the candidate shared the work rather than owned it. Found on
+ * the Preview check of 2026-11-24 (gpt-6-luna): "Helped document release
+ * notes" became "Documented release notes", which claims sole ownership. The
+ * prompt allowed any verb swap. A rewrite may swap one of these for another
+ * ("helped" -> "assisted"), but may not drop all of them. Nouns such as
+ * "help desk", "customer support" and "תמיכה טכנית" are not markers.
+ */
+const CONTRIBUTION_EN =
+  /\b(?:help(?:ed|ing|s)|assist(?:ed|ing|s)?|support(?:ed|ing)|contribut(?:ed|ing|es|e)|participat(?:ed|ing|es|e)|collaborat(?:ed|ing|es|e)|aided|took part|take part|worked with|working with|part of)\b/;
+// Hebrew, with an optional one-letter prefix (ו, ה, ב, ל, ש, מ, כ).
+const CONTRIBUTION_HE =
+  /(?:^|\s)[והבלשמכ]?(?:עזר\S*|סייע\S*|השתתפ\S*|תמכ\S*|בשיתוף|שותפ\S*|לקחתי חלק|לקחה חלק|לקח חלק|חלק מ)/u;
+
+function hasContributionMarker(text: string): boolean {
+  const flat = flatten(text);
+  return CONTRIBUTION_EN.test(flat) || CONTRIBUTION_HE.test(text);
+}
+
+/** True when the original shares credit ("helped", "עזרתי") and the rewrite no longer does. */
+export function dropsContribution(original: string, optimized: string): boolean {
+  return hasContributionMarker(original) && !hasContributionMarker(optimized);
+}
+
 /** Digits outside 0-9 (full-width, Arabic-Indic) slip past every number check. */
 const NON_ASCII_DIGIT = /(?![0-9])\p{Nd}/u;
 
@@ -521,7 +545,10 @@ export function checkQuickWinGrounding(
     violations.push('invented_term');
   }
 
-  if (inflatedClaims(original, optimized, ctx.resumeText, qw.location?.section === 'summary').length > 0) {
+  if (
+    inflatedClaims(original, optimized, ctx.resumeText, qw.location?.section === 'summary').length > 0 ||
+    dropsContribution(original, optimized)
+  ) {
     violations.push('inflated_claim');
   }
 
@@ -536,7 +563,8 @@ const VIOLATION_FEEDBACK: Record<GroundingViolation, string> = {
   inflated_number: 'it inflates a number ("over", "more than", "+")',
   job_terms_added: 'it adds duties, scopes or terms from the job post that the resume never mentions',
   invented_term: 'it names a tool, product or name the resume never mentions',
-  inflated_claim: 'it adds scope, authority, an outcome, an award or an absolute ("all", "zero") the resume does not state',
+  inflated_claim:
+    'it adds scope, authority, an outcome, an award or an absolute ("all", "zero") the resume does not state, or drops "helped" / "assisted" / "participated" and claims the work alone',
 };
 
 export function describeViolations(violations: GroundingViolation[]): string {
