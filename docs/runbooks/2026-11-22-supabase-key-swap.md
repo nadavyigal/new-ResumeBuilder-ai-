@@ -77,17 +77,18 @@ Branch-scoped Preview vars on branch `claude/2026-11-22-supabase-key-swap`:
 They hold the same new keys as All Environments, so deleting them changes nothing.
 Delete both after this PR merges (Vercel > Environment Variables > search SUPABASE > row menu > Delete).
 
-## Checklist before disabling legacy keys (all must be green)
+## Checklist before disabling legacy keys (item 4 overridden by founder decision in item 5)
 
 1. [x] Web production on new keys.
 2. [x] `delete_account` on the new secret key; E2E delete test passed.
 3. [x] No database job, webhook or CI uses a key.
 4. [ ] An iOS build with `sb_publishable_` in `Secrets.xcconfig` is live on the App Store.
-5. [ ] Old app versions: decide now, do not wait for users to update. While legacy keys are enabled the
-   leaked `service_role` key still bypasses RLS, and Supabase cannot retire it without also turning off
-   `anon`, so 1.6.0 and older lose sign-in. Options: disable now and accept that older builds must update,
-   or disable the day the new build is live with a forced-update prompt. Supabase ends legacy keys at the end of 2026 anyway.
-6. [ ] Supabase Logs Explorer shows no legacy key traffic for 7 days except old app builds you accept losing:
+5. [x] Old app versions: founder chose on 2026-11-25 to disable now (option a). Reason: on 2026-11-25
+   01:52 UTC a scanner (python-httpx, Germany, hosting network) called `GET /rest/v1/` with the leaked
+   `service_role` key and got 200, which returns the table list. iOS 1.6.0 and older lose sign-in until
+   users install the build from item 4.
+6. [x] Skipped the 7-day wait (item 5). Checked 2026-11-22 to 11-25: only Vercel before the swap, a founder test
+   script, and the scanner. Use this query after disabling to find callers that broke:
    `select timestamp, event_message, log_attributes from logs where source = 'edge_logs' order by timestamp desc limit 500`
    and look at `request.sb.apikey.apikey.prefix` (legacy shows a JWT, not `sb_`).
 7. [ ] Disable legacy keys (Settings > API Keys > Legacy). Reversible: re-enable only if a missed caller breaks,
