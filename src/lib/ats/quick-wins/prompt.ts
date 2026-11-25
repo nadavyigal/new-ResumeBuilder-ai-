@@ -40,9 +40,10 @@ ${DATA_NOTICE}
 1. original_text is copied character for character from <original_resume>, in its original language.
 2. Every fact in optimized_text is already in the resume: numbers, counts, scope, tools, activities, outcomes.
 3. Do not add any duty, skill, scope, audience or result from the posting that the resume does not state. Swapping one action verb for another is fine ("monitor" to "track"). Never append a job duty to a bullet.
-4. Keep every number from the original sentence. You may derive a rate from two of its numbers ("38 of 41" becomes "93%"). Never replace a real number with a placeholder. Do not inflate ("over 150" when the resume says 150).
-5. If the sentence has no number at all, you may add one bracket placeholder such as [X%] for the candidate to fill in. Never invent the number.
-6. keywords_added lists only terms that appear in both optimized_text and the resume.
+4. Keep the candidate's level of contribution. If the original says they helped, assisted, supported or took part ("עזרתי", "השתתפתי"), the rewrite says so too. Never turn shared work into sole ownership ("helped document" must not become "documented").
+5. Keep every number from the original sentence. You may derive a rate from two of its numbers ("38 of 41" becomes "93%"). Never replace a real number with a placeholder. Do not inflate ("over 150" when the resume says 150).
+6. If the sentence has no number at all, you may add one bracket placeholder such as [X%] for the candidate to fill in. Never invent the number.
+7. keywords_added lists only terms that appear in both optimized_text and the resume.
 
 # Priorities
 Bring the candidate's own results and numbers forward, use posting terms the resume already contains, use clear action, scope and outcome wording, and pick different sections where possible.

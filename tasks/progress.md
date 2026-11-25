@@ -1,3 +1,12 @@
+# 2026-11-25: Quick wins keep the candidate's contribution level
+
+Current Phase: OpenAI model migration; Resumely production switch was held on a Quick Wins overstatement.
+Active Story: grounding rejects rewrites that drop "helped/assisted/participated" (EN + HE); prompt rule 4 says keep contribution level.
+Next Recommended Story: set OPENAI_MODEL_PLAN/WRITER/FAST on Production after this merges, then watch Quick Wins.
+Blockers: none.
+Last Validation: 2026-11-25 tsc 0, lint clean, Jest 1358 passed (6 new contribution tests).
+Last Updated: 2026-11-25
+
 # 2026-11-24: Prompt upgrade for the GPT-6 tiers (truth, Hebrew, content rules)
 
 Current Phase: OpenAI model migration; prompts upgraded on top of the merged model tiers (#221, #222).
