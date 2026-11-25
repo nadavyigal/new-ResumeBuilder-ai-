@@ -30,7 +30,7 @@ import { JUDGE_MODEL, judgeSelection } from './judge';
  */
 
 export const GROUNDING_JUDGE_VERSION = 'grounding-judge-2026-09-25';
-/** Same env var as the nightly judge (EVAL_JUDGE_MODEL), default gpt-4o-mini. */
+/** Same env var as the nightly judge (EVAL_JUDGE_MODEL), default gpt-6-luna. */
 export const GROUNDING_JUDGE_MODEL = JUDGE_MODEL;
 
 export type RequirementRuling = 'evidenced' | 'not-evidenced' | 'claimed-without-support';

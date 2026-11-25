@@ -1,3 +1,12 @@
+# 2026-11-25: Eval judges on gpt-6-luna; nightly evaluates the production generator
+
+Current Phase: OpenAI model migration; gpt-4o-mini (old judge) shuts down 2027-01-14.
+Active Story: EVAL_JUDGE_MODEL default gpt-6-luna; nightly workflow sets the production models; rejudge tool added.
+Next Recommended Story: watch the first nightly run on the new judge; then founder review of the 10 calibration labels.
+Blockers: draft PR; needs founder yes to merge.
+Last Validation: 2026-11-25 nightly gate 7/7 with luna; repeat 18/20; calibration luna 10/10 + 7/10 vs mini 6/10 + 9/10; 0 fabrications missed.
+Last Updated: 2026-11-25
+
 # 2026-11-25: Quick wins keep the candidate's contribution level
 
 Current Phase: OpenAI model migration; Resumely production switch was held on a Quick Wins overstatement.

@@ -4,10 +4,12 @@ import type { EvalCase } from './cases';
 import { adaptChatParams, isReasoningModel, type ModelSelection, type ReasoningEffort } from '@/lib/model-tiers';
 
 /**
- * Judge model: EVAL_JUDGE_MODEL (default gpt-4o-mini, which OpenAI shuts down on
- * 2027-01-14). Reasoning judges run at EVAL_JUDGE_EFFORT (default none).
+ * Judge model: EVAL_JUDGE_MODEL, default gpt-6-luna since 2026-11-25 (it was
+ * gpt-4o-mini, which OpenAI shuts down on 2027-01-14). Reasoning judges run at
+ * EVAL_JUDGE_EFFORT (default none). Re-baseline before changing it again:
+ * `rejudge.live.test.ts` scores a finished run's outputs with another judge.
  */
-export const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL?.trim() || 'gpt-4o-mini';
+export const JUDGE_MODEL = process.env.EVAL_JUDGE_MODEL?.trim() || 'gpt-6-luna';
 
 export function judgeSelection(model: string): ModelSelection {
   if (!isReasoningModel(model)) return { tier: 'FAST', model };
@@ -17,7 +19,7 @@ export function judgeSelection(model: string): ModelSelection {
 
 /**
  * LM-judge: scores the optimized resume for factual accuracy and quality.
- * Runs on a cheap model (gpt-4o-mini) per the model-routing principle — the
+ * Runs on a cheap model (gpt-6-luna) per the model-routing principle — the
  * judge is a lower-complexity task than generation.
  *
  * Grounded in the ORIGINAL resume text and the case's documented honest gap,

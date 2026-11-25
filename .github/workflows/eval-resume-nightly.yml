@@ -32,6 +32,12 @@ jobs:
       - name: Run resume-optimizer eval (LM-judge)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # Evaluate what production runs (Vercel Production env, set 2026-11-25),
+          # not the code default. Keep in step with the Production values.
+          OPENAI_MODEL_PLAN: gpt-6.2-sol
+          OPENAI_MODEL_WRITER: gpt-6.1-terra
+          OPENAI_MODEL_FAST: gpt-6-luna
+          EVAL_JUDGE_MODEL: gpt-6-luna
         run: npm run eval:resume
 
       - name: Upload eval report
